@@ -16,6 +16,7 @@ All notable changes to Parlant will be documented here.
 - Changed message inspection to return message event data for displaying more information, such as fragments in the inspection
 - Rename Slot (in Fragment) with FragmentField
 - Add support for the --migrate CLI flag to enable seamless store version upgrades during server startup
+- Add clear rate limit error logs for NLP adapters
 
 
 ## [1.6.2] - 2025-01-29
