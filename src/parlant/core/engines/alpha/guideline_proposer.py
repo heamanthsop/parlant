@@ -416,7 +416,7 @@ IMPORTANT: guidelines that only require you to say a specific thing are generall
 Conversely, actions dictating one-time behavior (e.g., "send the user our address") should be re-applied more conservatively.
 Only re-apply these if the condition ceased to be true earlier in the conversation before being fulfilled again in the current context.
 
-IMPORTANT: Some guidelines include multiple actions. If only a portion of those actions were fulfilled earlier in the conversation, output "fully" for guideline_previously_applied, and treat the guideline as though it has been fully executed.
+IMPORTANT: Some guidelines include multiple actions. If only a portion of those actions were fulfilled earlier in the conversation, AND the unfulfilled portions aren't functionallly important but more "cosmetic" in nature (e.g. like saying thanks or anything that doesn't influence the direction of, or is important to the interaction) then output "fully" for `guideline_previously_applied`, and treat the guideline as though it has been fully executed.
 In such cases, re-apply the guideline only if its condition becomes true again later in the conversation, unless it is marked as continuous.
 
 """  # noqa

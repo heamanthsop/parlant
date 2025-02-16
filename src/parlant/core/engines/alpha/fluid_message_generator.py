@@ -357,8 +357,8 @@ To generate an optimal response that aligns with all guidelines and the current 
 3. REVISION CRITERIA
    The response requires further revision if any of these conditions are met:
    - Facts or services are offered without clear sourcing from this prompt - deonted by all_facts_and_services_sourced_from_prompt being false
-   - Guidelines or insights are broken (except when properly prioritized, or when broken due to insufficient data) - denoted by
-   - The response repeats previous messages - denoted by is_repeat_message being true.
+   - Guidelines or insights are broken (except when properly prioritized, or when broken due to insufficient data) - denoted by either `instructions_broken_due_to_missing_data` or `instructions_broken_only_due_to_prioritization`
+   - The response repeats previous messages - denoted by `is_repeat_message` being true.
 
 4. REVISION DOCUMENTATION
    Document each revision in JSON format including:
