@@ -16,11 +16,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import (
+    Awaitable,
+    Callable,
     Generic,
     Optional,
     Sequence,
     TypeVar,
     TypedDict,
+    cast,
 )
 
 from parlant.core.persistence.common import ObjectId, Where
@@ -55,6 +58,10 @@ class DeleteResult(Generic[TDocument]):
     deleted_document: Optional[TDocument]
 
 
+async def identity_loader(doc: BaseDocument) -> TDocument:
+    return cast(TDocument, doc)
+
+
 class DocumentDatabase(ABC):
     @abstractmethod
     async def create_collection(
@@ -71,6 +78,8 @@ class DocumentDatabase(ABC):
     async def get_collection(
         self,
         name: str,
+        schema: type[TDocument],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> DocumentCollection[TDocument]:
         """
         Retrieves an existing collection by its name.
@@ -82,6 +91,7 @@ class DocumentDatabase(ABC):
         self,
         name: str,
         schema: type[TDocument],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> DocumentCollection[TDocument]:
         """
         Retrieves an existing collection by its name or creates a new one if it does not exist.

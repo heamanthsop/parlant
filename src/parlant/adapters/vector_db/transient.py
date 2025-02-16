@@ -15,12 +15,13 @@
 from __future__ import annotations
 import asyncio
 import json
-from typing import Any, Generic, Mapping, Optional, Sequence, cast
+from typing import Any, Awaitable, Callable, Generic, Mapping, Optional, Sequence, cast
 import numpy as np
 from typing_extensions import override, Self
 
 import nano_vectordb  # type: ignore
 
+from parlant.core.common import JSONSerializable
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.logging import Logger
 from parlant.core.persistence.common import ensure_is_total, matches_filters, Where
@@ -41,19 +42,15 @@ class TransientVectorDatabase(VectorDatabase):
         self,
         logger: Logger,
         embedder_factory: EmbedderFactory,
-        embedder_type: type[Embedder],
     ) -> None:
         self._logger = logger
         self._embedder_factory = embedder_factory
-        self._embedder_type = embedder_type
 
-        self._database: nano_vectordb.MultiTenantNanoVDB
-        self._collection_name_to_tenant_id: dict[str, str] = {}
+        self._databases: dict[str, nano_vectordb.NanoVectorDB] = {}
         self._collections: dict[str, TransientVectorCollection[BaseDocument]] = {}
+        self._metadata: dict[str, JSONSerializable] = {}
 
     async def __aenter__(self) -> Self:
-        self._embedder = self._embedder_factory.create_embedder(self._embedder_type)
-        self._database = nano_vectordb.MultiTenantNanoVDB(self._embedder.dimensions)
         return self
 
     async def __aexit__(
@@ -74,15 +71,16 @@ class TransientVectorDatabase(VectorDatabase):
         if name in self._collections:
             raise ValueError(f'Collection "{name}" already exists.')
 
-        tenant_id = self._database.create_tenant()
-        self._collection_name_to_tenant_id[name] = tenant_id
+        embedder = self._embedder_factory.create_embedder(embedder_type)
+
+        self._databases[name] = nano_vectordb.NanoVectorDB(embedder.dimensions)
 
         self._collections[name] = TransientVectorCollection(
             self._logger,
-            nano_db=self._database.get_tenant(tenant_id),
+            nano_db=self._databases[name],
             name=name,
             schema=schema,
-            embedder=self._embedder_factory.create_embedder(embedder_type),
+            embedder=embedder,
         )
 
         return cast(TransientVectorCollection[TDocument], self._collections[name])
@@ -91,6 +89,9 @@ class TransientVectorDatabase(VectorDatabase):
     async def get_collection(
         self,
         name: str,
+        schema: type[TDocument],
+        embedder_type: type[Embedder],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> TransientVectorCollection[TDocument]:
         if collection := self._collections.get(name):
             return cast(TransientVectorCollection[TDocument], collection)
@@ -103,17 +104,19 @@ class TransientVectorDatabase(VectorDatabase):
         name: str,
         schema: type[TDocument],
         embedder_type: type[Embedder],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> TransientVectorCollection[TDocument]:
         if collection := self._collections.get(name):
             assert schema == collection._schema
             return cast(TransientVectorCollection[TDocument], collection)
 
-        tenant_id = self._database.create_tenant()
-        self._collection_name_to_tenant_id[name] = tenant_id
+        embedder = self._embedder_factory.create_embedder(embedder_type)
+
+        self._databases[name] = nano_vectordb.NanoVectorDB(embedder.dimensions)
 
         self._collections[name] = TransientVectorCollection(
             self._logger,
-            nano_db=self._database.get_tenant(tenant_id),
+            nano_db=self._databases[name],
             name=name,
             schema=schema,
             embedder=self._embedder_factory.create_embedder(embedder_type),
@@ -128,8 +131,29 @@ class TransientVectorDatabase(VectorDatabase):
     ) -> None:
         if name not in self._collections:
             raise ValueError(f'Collection "{name}" not found.')
-        self._database.delete_tenant(self._collection_name_to_tenant_id[name])
+        del self._databases[name]
         del self._collections[name]
+
+    @override
+    async def upsert_metadata(
+        self,
+        key: str,
+        value: JSONSerializable,
+    ) -> None:
+        self._metadata[key] = value
+
+    @override
+    async def remove_metadata(
+        self,
+        key: str,
+    ) -> None:
+        self._metadata.pop(key)
+
+    @override
+    async def read_metadata(
+        self,
+    ) -> dict[str, JSONSerializable]:
+        return self._metadata
 
 
 class TransientVectorCollection(Generic[TDocument], VectorCollection[TDocument]):

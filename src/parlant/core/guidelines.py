@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import NewType, Optional, Sequence
+from typing import NewType, Optional, Sequence, cast
 from typing_extensions import override, TypedDict, Self
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -21,7 +21,12 @@ from datetime import datetime, timezone
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
 from parlant.core.persistence.common import ObjectId
-from parlant.core.persistence.document_database import DocumentDatabase, DocumentCollection
+from parlant.core.persistence.document_database import (
+    BaseDocument,
+    DocumentDatabase,
+    DocumentCollection,
+)
+from parlant.core.persistence.document_database_helper import MigrationHelper
 
 GuidelineId = NewType("GuidelineId", str)
 
@@ -105,17 +110,29 @@ class _GuidelineDocument(TypedDict, total=False):
 class GuidelineDocumentStore(GuidelineStore):
     VERSION = Version.from_string("0.1.0")
 
-    def __init__(self, database: DocumentDatabase):
+    def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
         self._collection: DocumentCollection[_GuidelineDocument]
-
+        self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
+    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
+        if doc["version"] == "0.1.0":
+            return cast(_GuidelineDocument, doc)
+        return None
+
     async def __aenter__(self) -> Self:
-        self._collection = await self._database.get_or_create_collection(
-            name="guidelines",
-            schema=_GuidelineDocument,
-        )
+        async with MigrationHelper(
+            store=self,
+            database=self._database,
+            allow_migration=self._allow_migration,
+        ):
+            self._collection = await self._database.get_or_create_collection(
+                name="guidelines",
+                schema=_GuidelineDocument,
+                document_loader=self._document_loader,
+            )
+
         return self
 
     async def __aexit__(

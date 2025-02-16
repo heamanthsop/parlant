@@ -15,9 +15,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, Optional, Sequence, TypeVar, TypedDict
+from typing import Awaitable, Callable, Generic, Optional, Sequence, TypeVar, TypedDict
+from typing_extensions import Required
 
-from parlant.core.common import Version
+from parlant.core.common import JSONSerializable, Version
 from parlant.core.nlp.embedding import Embedder
 from parlant.core.persistence.common import ObjectId, Where
 
@@ -26,9 +27,14 @@ class BaseDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     content: str
+    checksum: Required[str]
 
 
 TDocument = TypeVar("TDocument", bound=BaseDocument)
+
+
+async def identity_loader(doc: BaseDocument) -> BaseDocument:
+    return doc
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,9 @@ class VectorDatabase(ABC):
     async def get_collection(
         self,
         name: str,
+        schema: type[TDocument],
+        embedder_type: type[Embedder],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> VectorCollection[TDocument]: ...
 
     @abstractmethod
@@ -86,6 +95,7 @@ class VectorDatabase(ABC):
         name: str,
         schema: type[TDocument],
         embedder_type: type[Embedder],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> VectorCollection[TDocument]: ...
 
     @abstractmethod
@@ -93,6 +103,24 @@ class VectorDatabase(ABC):
         self,
         name: str,
     ) -> None: ...
+
+    @abstractmethod
+    async def upsert_metadata(
+        self,
+        key: str,
+        value: JSONSerializable,
+    ) -> None: ...
+
+    @abstractmethod
+    async def remove_metadata(
+        self,
+        key: str,
+    ) -> None: ...
+
+    @abstractmethod
+    async def read_metadata(
+        self,
+    ) -> dict[str, JSONSerializable]: ...
 
 
 class VectorCollection(ABC, Generic[TDocument]):

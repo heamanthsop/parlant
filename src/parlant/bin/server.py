@@ -18,6 +18,7 @@ import asyncio
 from contextlib import asynccontextmanager, AsyncExitStack
 from dataclasses import dataclass
 import importlib
+import json
 import os
 import traceback
 from lagom import Container, Singleton
@@ -30,6 +31,7 @@ from pathlib import Path
 import sys
 import uvicorn
 
+from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import guideline_proposer
@@ -39,6 +41,7 @@ from parlant.core.engines.alpha.hooks import LifecycleHooks
 from parlant.core.engines.alpha.message_assembler import AssembledMessageSchema
 from parlant.core.fragments import FragmentDocumentStore, FragmentStore
 from parlant.core.nlp.service import NLPService
+from parlant.core.persistence.common import MigrationRequired
 from parlant.core.shots import ShotCollection
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.api.app import create_api_app, ASGIApplication
@@ -146,6 +149,7 @@ class CLIParams:
     nlp_service: str
     log_level: str
     modules: list[str]
+    migrate: bool
 
 
 def load_nlp_service(name: str, extra_name: str, class_name: str, module_path: str) -> NLPService:
@@ -254,7 +258,9 @@ async def load_modules(
 
 
 @asynccontextmanager
-async def setup_container(nlp_service_name: str, log_level: str) -> AsyncIterator[Container]:
+async def setup_container(
+    nlp_service_name: str, log_level: str, migrate: bool
+) -> AsyncIterator[Container]:
     c = Container()
 
     c[BackgroundTaskService] = await EXIT_STACK.enter_async_context(BACKGROUND_TASK_SERVICE)
@@ -292,13 +298,7 @@ async def setup_container(nlp_service_name: str, log_level: str) -> AsyncIterato
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "customers.json")
     )
     sessions_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(
-            LOGGER,
-            PARLANT_HOME_DIR / "sessions.json",
-        )
-    )
-    fragments_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "fragments.json")
+        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "sessions.json")
     )
     guidelines_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "guidelines.json")
@@ -316,65 +316,79 @@ async def setup_container(nlp_service_name: str, log_level: str) -> AsyncIterato
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "services.json")
     )
 
-    c[AgentStore] = await EXIT_STACK.enter_async_context(AgentDocumentStore(agents_db))
-    c[ContextVariableStore] = await EXIT_STACK.enter_async_context(
-        ContextVariableDocumentStore(context_variables_db)
-    )
-    c[TagStore] = await EXIT_STACK.enter_async_context(TagDocumentStore(tags_db))
-    c[CustomerStore] = await EXIT_STACK.enter_async_context(CustomerDocumentStore(customers_db))
-    c[FragmentStore] = await EXIT_STACK.enter_async_context(FragmentDocumentStore(fragments_db))
-    c[GuidelineStore] = await EXIT_STACK.enter_async_context(GuidelineDocumentStore(guidelines_db))
-    c[GuidelineToolAssociationStore] = await EXIT_STACK.enter_async_context(
-        GuidelineToolAssociationDocumentStore(guideline_tool_associations_db)
-    )
-    c[GuidelineConnectionStore] = await EXIT_STACK.enter_async_context(
-        GuidelineConnectionDocumentStore(guideline_connections_db)
-    )
-    c[SessionStore] = await EXIT_STACK.enter_async_context(SessionDocumentStore(sessions_db))
-    c[SessionListener] = PollingSessionListener
-
-    c[EvaluationStore] = await EXIT_STACK.enter_async_context(
-        EvaluationDocumentStore(evaluations_db)
-    )
-    c[EvaluationListener] = PollingEvaluationListener
-
-    c[EventEmitterFactory] = Singleton(EventPublisherFactory)
-
-    nlp_service_initializer: dict[str, Callable[[], NLPService]] = {
-        "anthropic": load_anthropic,
-        "aws": load_aws,
-        "azure": load_azure,
-        "cerebras": load_cerebras,
-        "deepseek": load_deepseek,
-        "gemini": load_gemini,
-        "openai": load_openai,
-        "together": load_together,
-    }
-
-    c[ServiceRegistry] = await EXIT_STACK.enter_async_context(
-        ServiceDocumentRegistry(
-            database=services_db,
-            event_emitter_factory=c[EventEmitterFactory],
-            logger=c[Logger],
-            correlator=c[ContextualCorrelator],
-            nlp_services={nlp_service_name: nlp_service_initializer[nlp_service_name]()},
+    try:
+        c[AgentStore] = await EXIT_STACK.enter_async_context(AgentDocumentStore(agents_db, migrate))
+        c[ContextVariableStore] = await EXIT_STACK.enter_async_context(
+            ContextVariableDocumentStore(context_variables_db)
         )
-    )
-
-    nlp_service = await c[ServiceRegistry].read_nlp_service(nlp_service_name)
-
-    c[NLPService] = nlp_service
-
-    embedder_factory = EmbedderFactory(c)
-    c[GlossaryStore] = await EXIT_STACK.enter_async_context(
-        GlossaryVectorStore(
-            await EXIT_STACK.enter_async_context(
-                ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory),
-            ),
-            embedder_type=type(await nlp_service.get_embedder()),
-            embedder_factory=embedder_factory,
+        c[TagStore] = await EXIT_STACK.enter_async_context(TagDocumentStore(tags_db, migrate))
+        c[CustomerStore] = await EXIT_STACK.enter_async_context(
+            CustomerDocumentStore(customers_db, migrate)
         )
-    )
+        c[FragmentStore] = await EXIT_STACK.enter_async_context(
+            FragmentDocumentStore(TransientDocumentDatabase())
+        )
+        c[GuidelineStore] = await EXIT_STACK.enter_async_context(
+            GuidelineDocumentStore(guidelines_db, migrate)
+        )
+        c[GuidelineToolAssociationStore] = await EXIT_STACK.enter_async_context(
+            GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
+        )
+        c[GuidelineConnectionStore] = await EXIT_STACK.enter_async_context(
+            GuidelineConnectionDocumentStore(guideline_connections_db, migrate)
+        )
+        c[SessionStore] = await EXIT_STACK.enter_async_context(
+            SessionDocumentStore(sessions_db, migrate)
+        )
+        c[SessionListener] = PollingSessionListener
+
+        c[EvaluationStore] = await EXIT_STACK.enter_async_context(
+            EvaluationDocumentStore(evaluations_db, migrate)
+        )
+        c[EvaluationListener] = PollingEvaluationListener
+
+        c[EventEmitterFactory] = Singleton(EventPublisherFactory)
+
+        nlp_service_initializer: dict[str, Callable[[], NLPService]] = {
+            "anthropic": load_anthropic,
+            "aws": load_aws,
+            "azure": load_azure,
+            "cerebras": load_cerebras,
+            "deepseek": load_deepseek,
+            "gemini": load_gemini,
+            "openai": load_openai,
+            "together": load_together,
+        }
+
+        c[ServiceRegistry] = await EXIT_STACK.enter_async_context(
+            ServiceDocumentRegistry(
+                database=services_db,
+                event_emitter_factory=c[EventEmitterFactory],
+                correlator=c[ContextualCorrelator],
+                nlp_services={nlp_service_name: nlp_service_initializer[nlp_service_name]()},
+                logger=c[Logger],
+                allow_migration=migrate,
+            )
+        )
+
+        nlp_service = await c[ServiceRegistry].read_nlp_service(nlp_service_name)
+
+        c[NLPService] = nlp_service
+
+        embedder_factory = EmbedderFactory(c)
+        c[GlossaryStore] = await EXIT_STACK.enter_async_context(
+            GlossaryVectorStore(
+                await EXIT_STACK.enter_async_context(
+                    ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory),
+                ),
+                embedder_type=type(await nlp_service.get_embedder()),
+                embedder_factory=embedder_factory,
+            )
+        )
+    except MigrationRequired as e:
+        c[Logger].critical(str(e))
+        die("The `--migrate` flag is required to run migrations. ")
+        sys.exit(1)
 
     c[SchematicGenerator[GuidelinePropositionsSchema]] = await nlp_service.get_schematic_generator(
         GuidelinePropositionsSchema
@@ -463,12 +477,24 @@ async def recover_server_tasks(
 
 @asynccontextmanager
 async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
+    # TODO: Delete this check in future versions
+    # Check if the system is ready for version >1.7.0
+    # Checking if the Parlant server is compatible by examining the agent version
+    with open(PARLANT_HOME_DIR / "agents.json", "r") as agents_db:
+        raw_data = json.load(agents_db)
+        agents = raw_data.get("agents")
+        if agents and agents[0].get("version") == "0.1.0":
+            die(
+                "You running a particulary old version of Parlant.\n"
+                "To upgrade your existing data to the new schemas, please run `parlant-prepare-migration` and then re-run the server with --migrate."
+            )
+
     global EXIT_STACK
 
     EXIT_STACK = AsyncExitStack()
 
     async with (
-        setup_container(params.nlp_service, params.log_level) as base_container,
+        setup_container(params.nlp_service, params.log_level, params.migrate) as base_container,
         EXIT_STACK,
     ):
         modules = set(await get_module_list_from_config() + params.modules)
@@ -640,6 +666,14 @@ def main() -> None:
         is_flag=True,
         help="Print server version and exit",
     )
+    @click.option(
+        "--migrate",
+        is_flag=True,
+        help=(
+            "Enable to migrate the database schema to the latest version. "
+            "Disable to exit if the database schema is not up-to-date."
+        ),
+    )
     @click.pass_context
     def cli(
         ctx: click.Context,
@@ -655,6 +689,7 @@ def main() -> None:
         log_level: str,
         module: tuple[str],
         version: bool,
+        migrate: bool,
     ) -> None:
         if version:
             print(f"Parlant v{VERSION}")
@@ -700,6 +735,7 @@ def main() -> None:
             nlp_service=nlp_service,
             log_level=log_level,
             modules=list(module),
+            migrate=migrate,
         )
 
         asyncio.run(start_server(ctx.obj))

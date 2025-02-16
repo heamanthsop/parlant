@@ -16,14 +16,19 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import NewType, Optional, Sequence
+from typing import NewType, Optional, Sequence, cast
 from typing_extensions import override, TypedDict, Self
 
 from parlant.core.async_utils import ReaderWriterLock
+from parlant.core.persistence.document_database_helper import MigrationHelper
 from parlant.core.tags import TagId
 from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
 from parlant.core.persistence.common import ObjectId
-from parlant.core.persistence.document_database import DocumentDatabase, DocumentCollection
+from parlant.core.persistence.document_database import (
+    BaseDocument,
+    DocumentDatabase,
+    DocumentCollection,
+)
 
 FragmentId = NewType("FragmentId", str)
 
@@ -126,27 +131,48 @@ class _FragmentTagAssociationDocument(TypedDict, total=False):
 class FragmentDocumentStore(FragmentStore):
     VERSION = Version.from_string("0.1.0")
 
-    def __init__(
-        self,
-        database: DocumentDatabase,
-    ) -> None:
+    def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
         self._fragments_collection: DocumentCollection[_FragmentDocument]
         self._fragment_tag_association_collection: DocumentCollection[
             _FragmentTagAssociationDocument
         ]
-
+        self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
+    async def _document_loader(self, doc: BaseDocument) -> Optional[_FragmentDocument]:
+        if doc["version"] == "0.1.0":
+            return cast(_FragmentDocument, doc)
+
+        return None
+
+    async def _association_document_loader(
+        self, doc: BaseDocument
+    ) -> Optional[_FragmentTagAssociationDocument]:
+        if doc["version"] == "0.1.0":
+            return cast(_FragmentTagAssociationDocument, doc)
+        return None
+
     async def __aenter__(self) -> Self:
-        self._fragments_collection = await self._database.get_or_create_collection(
-            name="fragments",
-            schema=_FragmentDocument,
-        )
-        self._fragment_tag_association_collection = await self._database.get_or_create_collection(
-            name="fragment_tag_associations",
-            schema=_FragmentTagAssociationDocument,
-        )
+        async with MigrationHelper(
+            store=self,
+            database=self._database,
+            allow_migration=self._allow_migration,
+        ):
+            self._fragments_collection = await self._database.get_or_create_collection(
+                name="fragments",
+                schema=_FragmentDocument,
+                document_loader=self._document_loader,
+            )
+
+            self._fragment_tag_association_collection = (
+                await self._database.get_or_create_collection(
+                    name="fragment_tag_associations",
+                    schema=_FragmentTagAssociationDocument,
+                    document_loader=self._association_document_loader,
+                )
+            )
+
         return self
 
     async def __aexit__(

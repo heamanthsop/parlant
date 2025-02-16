@@ -10,6 +10,7 @@ readme = "README.md"
 [tool.poetry.scripts]
 parlant = "parlant.bin.client:main"
 parlant-server = "parlant.bin.server:main"
+parlant-prepare-migration = "parlant.bin.prepare_migration:main"
 
 [tool.poetry.dependencies]
 aiofiles = "^24.1.0"

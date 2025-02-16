@@ -12,11 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Mapping, NewType, Union, cast, get_type_hints
+from typing import Any, Callable, Mapping, NewType, Protocol, Union, cast, get_type_hints
 from typing_extensions import Literal, TypedDict
+
+from parlant.core.common import Version
 
 
 ObjectId = NewType("ObjectId", str)
+
+
+class MigrationRequired(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class VersionedStore(Protocol):
+    VERSION: Version
+
 
 # Metadata Query Grammar
 LiteralValue = Union[str, int, float, bool]
@@ -100,7 +112,11 @@ def matches_filters(
 
 
 def ensure_is_total(document: Mapping[str, Any], schema: type[Mapping[str, Any]]) -> None:
-    type_hints = get_type_hints(schema)
+    required_keys = get_type_hints(schema).keys()
+    missing_keys = [key for key in required_keys if key not in document]
 
-    if list(document.keys()) != list(type_hints):
-        raise TypeError(f"Provided TypedDict {schema.__qualname__} is missing required keys")
+    if missing_keys:
+        raise TypeError(
+            f"Provided TypedDict '{schema.__qualname__}' is missing required keys: {missing_keys}. "
+            f"Expected at least the keys: {list(required_keys)}."
+        )

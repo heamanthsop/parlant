@@ -13,15 +13,17 @@
 # limitations under the License.
 
 from __future__ import annotations
-import importlib
 import json
-import operator
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, cast
+from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, cast
 from typing_extensions import override, Self
 import aiofiles
 
-from parlant.core.persistence.common import Where, matches_filters, ensure_is_total
+from parlant.core.persistence.common import (
+    Where,
+    matches_filters,
+    ensure_is_total,
+)
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.persistence.document_database import (
     BaseDocument,
@@ -31,6 +33,7 @@ from parlant.core.persistence.document_database import (
     InsertResult,
     TDocument,
     UpdateResult,
+    identity_loader,
 )
 from parlant.core.logging import Logger
 
@@ -50,7 +53,9 @@ class JSONFileDocumentDatabase(DocumentDatabase):
 
         if not self.file_path.exists():
             self.file_path.write_text(json.dumps({}))
-        self._collections: dict[str, JSONFileDocumentCollection[BaseDocument]]
+
+        self._raw_data: dict[str, Any] = {}
+        self._collections: dict[str, JSONFileDocumentCollection[BaseDocument]] = {}
 
     async def flush(self) -> None:
         async with self._lock.writer_lock:
@@ -58,24 +63,8 @@ class JSONFileDocumentDatabase(DocumentDatabase):
 
     async def __aenter__(self) -> Self:
         async with self._lock.reader_lock:
-            raw_data = await self._load_data()
+            self._raw_data = await self._load_raw_data()
 
-        schemas: dict[str, Any] = raw_data.get("__schemas__", {})
-        self._collections = (
-            {
-                c_name: JSONFileDocumentCollection(
-                    database=self,
-                    name=c_name,
-                    schema=operator.attrgetter(c_schema["model_path"])(
-                        importlib.import_module(c_schema["module_path"])
-                    ),
-                    data=raw_data[c_name],
-                )
-                for c_name, c_schema in schemas.items()
-            }
-            if raw_data
-            else {}
-        )
         return self
 
     async def __aexit__(
@@ -88,7 +77,7 @@ class JSONFileDocumentDatabase(DocumentDatabase):
             await self._flush_unlocked()
         return False
 
-    async def _load_data(
+    async def _load_raw_data(
         self,
     ) -> dict[str, Any]:
         # Return an empty JSON object if the file is empty
@@ -96,8 +85,7 @@ class JSONFileDocumentDatabase(DocumentDatabase):
             return {}
 
         async with aiofiles.open(self.file_path, "r") as file:
-            data: dict[str, Any] = json.loads(await file.read())
-            return data
+            return cast(dict[str, Any], json.loads(await file.read()))
 
     async def _save_data(
         self,
@@ -106,19 +94,47 @@ class JSONFileDocumentDatabase(DocumentDatabase):
         async with aiofiles.open(self.file_path, mode="w") as file:
             json_string = json.dumps(
                 {
-                    "__schemas__": {
-                        name: {
-                            "module_path": c._schema.__module__,
-                            "model_path": c._schema.__qualname__,
-                        }
-                        for name, c in self._collections.items()
-                    },
+                    **self._raw_data,
                     **data,
                 },
                 ensure_ascii=False,
                 indent=2,
             )
             await file.write(json_string)
+
+    async def load_documents_with_loader(
+        self,
+        name: str,
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
+        documents: Sequence[BaseDocument] | None = None,
+    ) -> Sequence[TDocument]:
+        data: list[TDocument] = []
+        failed_migrations: list[BaseDocument] = []
+
+        collection_documents = documents or self._raw_data.get(name, [])
+
+        for doc in collection_documents:
+            try:
+                if loaded_doc := await document_loader(doc):
+                    data.append(loaded_doc)
+                else:
+                    self._logger.warning(f'Failed to load document "{doc}"')
+                    failed_migrations.append(doc)
+            except Exception as e:
+                self._logger.error(
+                    f"Failed to load document '{doc}' with error: {e}. Added to failed migrations collection."
+                )
+                failed_migrations.append(doc)
+
+        if failed_migrations:
+            failed_migrations_collection = await self.get_or_create_collection(
+                "failed_migrations", BaseDocument, identity_loader
+            )
+
+            for doc in failed_migrations:
+                await failed_migrations_collection.insert_one(doc)
+
+        return data
 
     @override
     async def create_collection(
@@ -140,9 +156,21 @@ class JSONFileDocumentDatabase(DocumentDatabase):
     async def get_collection(
         self,
         name: str,
+        schema: type[TDocument],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> JSONFileDocumentCollection[TDocument]:
         if collection := self._collections.get(name):
             return cast(JSONFileDocumentCollection[TDocument], collection)
+
+        elif name in self._raw_data:
+            self._collections[name] = JSONFileDocumentCollection(
+                database=self,
+                name=name,
+                schema=schema,
+                data=await self.load_documents_with_loader(name, document_loader),
+            )
+            return cast(JSONFileDocumentCollection[TDocument], self._collections[name])
+
         raise ValueError(f'Collection "{name}" does not exists')
 
     @override
@@ -150,14 +178,25 @@ class JSONFileDocumentDatabase(DocumentDatabase):
         self,
         name: str,
         schema: type[TDocument],
+        document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
     ) -> JSONFileDocumentCollection[TDocument]:
         if collection := self._collections.get(name):
             return cast(JSONFileDocumentCollection[TDocument], collection)
+
+        elif name in self._raw_data:
+            self._collections[name] = JSONFileDocumentCollection(
+                database=self,
+                name=name,
+                schema=schema,
+                data=await self.load_documents_with_loader(name, document_loader),
+            )
+            return cast(JSONFileDocumentCollection[TDocument], self._collections[name])
 
         self._collections[name] = JSONFileDocumentCollection(
             database=self,
             name=name,
             schema=schema,
+            data=await self.load_documents_with_loader(name, document_loader),
         )
 
         return cast(JSONFileDocumentCollection[TDocument], self._collections[name])
@@ -169,6 +208,8 @@ class JSONFileDocumentDatabase(DocumentDatabase):
     ) -> None:
         if name in self._collections:
             del self._collections[name]
+            return
+
         raise ValueError(f'Collection "{name}" does not exists')
 
     async def _flush_unlocked(self) -> None:
@@ -184,7 +225,7 @@ class JSONFileDocumentCollection(DocumentCollection[TDocument]):
         database: JSONFileDocumentDatabase,
         name: str,
         schema: type[TDocument],
-        data: Optional[Sequence[Mapping[str, Any]]] = None,
+        data: Sequence[TDocument] | None = None,
     ) -> None:
         self._database = database
         self._name = name
@@ -193,7 +234,7 @@ class JSONFileDocumentCollection(DocumentCollection[TDocument]):
 
         self._lock = ReaderWriterLock()
 
-        self.documents = [cast(TDocument, doc) for doc in data] if data else []
+        self.documents = list(data) if data else []
 
     @override
     async def find(

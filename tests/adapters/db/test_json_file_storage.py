@@ -16,12 +16,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Optional, Sequence, cast
+from typing_extensions import Self
 import tempfile
 from lagom import Container
-from pytest import fixture, mark
+from pytest import fixture, mark, raises
 
 from parlant.core.agents import AgentDocumentStore, AgentId, AgentStore
+from parlant.core.common import Version
 from parlant.core.context_variables import (
     ContextVariableDocumentStore,
 )
@@ -41,6 +43,13 @@ from parlant.core.guidelines import (
     GuidelineId,
 )
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
+from parlant.core.persistence.common import MigrationRequired
+from parlant.core.persistence.document_database import (
+    BaseDocument,
+    DocumentCollection,
+    identity_loader,
+)
+from parlant.core.persistence.document_database_helper import MigrationHelper
 from parlant.core.sessions import SessionDocumentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
@@ -598,3 +607,208 @@ async def test_evaluation_update(
         assert json_evaluation["invoices"][0]["data"] is not None
         assert json_evaluation["invoices"][0]["checksum"] == "initial_checksum"
         assert json_evaluation["invoices"][0]["approved"] is True
+
+
+class DummyStore:
+    VERSION = Version.from_string("2.0.0")
+
+    class DummyDocumentV1(BaseDocument):
+        name: str
+
+    class DummyDocumentV2(BaseDocument):
+        name: str
+        additional_field: str
+
+    def __init__(self, database: JSONFileDocumentDatabase, allow_migration: bool = True):
+        self._database = database
+        self._collection: DocumentCollection[DummyStore.DummyDocumentV2]
+        self.allow_migration = allow_migration
+
+    async def _document_loader(self, doc: BaseDocument) -> Optional[DummyDocumentV2]:
+        if doc["version"] == "1.0.0":
+            doc = cast(DummyStore.DummyDocumentV1, doc)
+            return self.DummyDocumentV2(
+                id=doc["id"],
+                version=Version.String("2.0.0"),
+                name=doc["name"],
+                additional_field="default_value",
+            )
+        elif doc["version"] == "2.0.0":
+            return cast(DummyStore.DummyDocumentV2, doc)
+        return None
+
+    async def __aenter__(self) -> Self:
+        async with MigrationHelper(
+            store=self,
+            database=self._database,
+            allow_migration=self.allow_migration,
+        ):
+            self._collection = await self._database.get_or_create_collection(
+                name="dummy_collection",
+                schema=DummyStore.DummyDocumentV2,
+                document_loader=self._document_loader,
+            )
+
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[object],
+    ) -> None:
+        pass
+
+    async def list_dummy(self) -> Sequence[DummyDocumentV2]:
+        return await self._collection.find({})
+
+
+async def test_document_upgrade_during_loading_of_store(
+    container: Container,
+    new_file: Path,
+) -> None:
+    with open(new_file, "w") as f:
+        json.dump(
+            {
+                "metadata": [
+                    {
+                        "id": "123",
+                        "version": "1.0.0",
+                    }
+                ],
+                "dummy_collection": [
+                    {
+                        "id": "dummy_id",
+                        "version": "1.0.0",
+                        "name": "Test Document",
+                    }
+                ],
+            },
+            f,
+        )
+
+    logger = container[Logger]
+
+    async with JSONFileDocumentDatabase(logger, new_file) as db:
+        async with DummyStore(db, allow_migration=True) as store:
+            documents = await store.list_dummy()
+
+            assert len(documents) == 1
+            upgraded_doc = documents[0]
+            assert upgraded_doc["version"] == "2.0.0"
+            assert upgraded_doc["name"] == "Test Document"
+            assert upgraded_doc["additional_field"] == "default_value"
+
+
+async def test_that_migration_is_not_needed_for_new_store(
+    context: _TestContext,
+    new_file: Path,
+) -> None:
+    logger = context.container[Logger]
+
+    async with JSONFileDocumentDatabase(logger, new_file) as db:
+        async with DummyStore(db, allow_migration=False):
+            meta_collection = await db.get_or_create_collection(
+                name="metadata", schema=BaseDocument, document_loader=identity_loader
+            )
+            meta_document = await meta_collection.find_one({})
+
+            assert meta_document
+            assert meta_document["version"] == "2.0.0"
+
+
+async def test_failed_migration_collection(
+    container: Container,
+    new_file: Path,
+) -> None:
+    with open(new_file, "w") as f:
+        json.dump(
+            {
+                "metadata": [
+                    {
+                        "id": "meta_id",
+                        "version": "1.0.0",
+                    },
+                ],
+                "dummy_collection": [
+                    {
+                        "id": "invalid_dummy_id",
+                        "version": "3.0",
+                        "name": "Unmigratable Document",
+                    }
+                ],
+            },
+            f,
+        )
+
+    logger = container[Logger]
+
+    async with JSONFileDocumentDatabase(logger, new_file) as db:
+        async with DummyStore(db, allow_migration=True) as store:
+            documents = await store.list_dummy()
+
+            assert len(documents) == 0
+
+            failed_migrations_collection = await db.get_collection(
+                "failed_migrations", BaseDocument, identity_loader
+            )
+            failed_docs = await failed_migrations_collection.find({})
+
+            assert len(failed_docs) == 1
+            failed_doc = failed_docs[0]
+            assert failed_doc["id"] == "invalid_dummy_id"
+            assert failed_doc["version"] == "3.0"
+            assert failed_doc.get("name") == "Unmigratable Document"
+
+
+async def test_that_version_mismatch_raises_error_when_migration_is_required_but_disabled(
+    context: _TestContext,
+    new_file: Path,
+) -> None:
+    logger = context.container[Logger]
+
+    with open(new_file, "w") as f:
+        json.dump(
+            {
+                "metadata": [
+                    {"id": "meta_id", "version": "NotRealVersion"},
+                ]
+            },
+            f,
+        )
+
+    async with JSONFileDocumentDatabase(logger, new_file) as db:
+        with raises(MigrationRequired) as exc_info:
+            async with DummyStore(db, allow_migration=False) as _:
+                pass
+
+        assert "Migration required for DummyStore." in str(exc_info.value)
+
+
+async def test_that_persistence_and_store_version_match_allows_store_to_open_when_migrate_is_disabled(
+    context: _TestContext,
+    new_file: Path,
+) -> None:
+    logger = context.container[Logger]
+
+    with open(new_file, "w") as f:
+        json.dump(
+            {
+                "metadata": [
+                    {"id": "meta_id", "version": "2.0.0"},
+                ]
+            },
+            f,
+        )
+
+    async with JSONFileDocumentDatabase(logger, new_file) as db:
+        async with DummyStore(db, allow_migration=False):
+            meta_collection = await db.get_or_create_collection(
+                name="metadata",
+                schema=BaseDocument,
+                document_loader=identity_loader,
+            )
+            meta_document = await meta_collection.find_one({})
+
+            assert meta_document
+            assert meta_document["version"] == "2.0.0"

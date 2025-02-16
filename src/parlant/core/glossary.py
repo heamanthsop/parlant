@@ -16,15 +16,16 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from itertools import chain
-from typing import NewType, Optional, Sequence, TypedDict
-from typing_extensions import override, Self
+from typing import NewType, Optional, Sequence, TypedDict, cast
+from typing_extensions import override, Self, Required
 
 from parlant.core import async_utils
 from parlant.core.async_utils import ReaderWriterLock
-from parlant.core.common import ItemNotFoundError, Version, generate_id, UniqueId
+from parlant.core.common import ItemNotFoundError, Version, generate_id, UniqueId, md5_checksum
 from parlant.core.persistence.common import ObjectId
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
-from parlant.core.persistence.vector_database import VectorCollection, VectorDatabase
+from parlant.core.persistence.vector_database import BaseDocument, VectorCollection, VectorDatabase
+from parlant.core.persistence.vector_database_helper import MigrationHelper
 
 
 TermId = NewType("TermId", str)
@@ -104,12 +105,13 @@ class GlossaryStore:
 class _TermDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
+    content: str
+    checksum: Required[str]
     term_set: str
     creation_utc: str
     name: str
     description: str
     synonyms: Optional[str]
-    content: str
 
 
 class GlossaryVectorStore(GlossaryStore):
@@ -120,20 +122,34 @@ class GlossaryVectorStore(GlossaryStore):
         vector_db: VectorDatabase,
         embedder_type: type[Embedder],
         embedder_factory: EmbedderFactory,
+        allow_migration: bool = True,
     ):
         self._vector_db = vector_db
         self._collection: VectorCollection[_TermDocument]
+        self._allow_migration = allow_migration
         self._embedder = embedder_factory.create_embedder(embedder_type)
         self._embedder_type = embedder_type
 
         self._lock = ReaderWriterLock()
 
+    async def _document_loader(self, document: BaseDocument) -> Optional[_TermDocument]:
+        if document["version"] == "0.1.0":
+            return cast(_TermDocument, document)
+
+        return None
+
     async def __aenter__(self) -> Self:
-        self._collection = await self._vector_db.get_or_create_collection(
-            name="glossary",
-            schema=_TermDocument,
-            embedder_type=self._embedder_type,
-        )
+        async with MigrationHelper(
+            store=self,
+            database=self._vector_db,
+            allow_migration=self._allow_migration,
+        ):
+            self._collection = await self._vector_db.get_or_create_collection(
+                name="glossary",
+                schema=_TermDocument,
+                embedder_type=self._embedder_type,
+                document_loader=self._document_loader,
+            )
 
         return self
 
@@ -145,16 +161,17 @@ class GlossaryVectorStore(GlossaryStore):
     ) -> None:
         pass
 
-    def _serialize(self, term: Term, term_set: str, content: str) -> _TermDocument:
+    def _serialize(self, term: Term, term_set: str, content: str, checksum: str) -> _TermDocument:
         return _TermDocument(
             id=ObjectId(term.id),
             version=self.VERSION.to_string(),
+            content=content,
+            checksum=checksum,
             term_set=term_set,
             creation_utc=term.creation_utc.isoformat(),
             name=term.name,
             description=term.description,
             synonyms=(", ").join(term.synonyms) if term.synonyms is not None else "",
-            content=content,
         )
 
     def _deserialize(self, term_document: _TermDocument) -> Term:
@@ -192,7 +209,14 @@ class GlossaryVectorStore(GlossaryStore):
                 synonyms=list(synonyms) if synonyms else [],
             )
 
-            await self._collection.insert_one(document=self._serialize(term, term_set, content))
+            await self._collection.insert_one(
+                document=self._serialize(
+                    term=term,
+                    term_set=term_set,
+                    content=content,
+                    checksum=md5_checksum(content),
+                )
+            )
 
         return term
 
@@ -232,6 +256,7 @@ class GlossaryVectorStore(GlossaryStore):
                     "name": name,
                     "description": description,
                     "synonyms": ", ".join(synonyms) if synonyms else "",
+                    "checksum": md5_checksum(content),
                 },
             )
 
