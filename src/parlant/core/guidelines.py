@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
-from parlant.core.persistence.common import ObjectId
+from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.persistence.document_database import (
     BaseDocument,
     DocumentDatabase,
@@ -42,6 +42,7 @@ class Guideline:
     id: GuidelineId
     creation_utc: datetime
     content: GuidelineContent
+    enabled: bool
 
     def __str__(self) -> str:
         return f"When {self.content.condition}, then {self.content.action}"
@@ -51,6 +52,7 @@ class GuidelineUpdateParams(TypedDict, total=False):
     guideline_set: str
     condition: str
     action: str
+    enabled: bool
 
 
 class GuidelineStore(ABC):
@@ -67,6 +69,7 @@ class GuidelineStore(ABC):
     async def list_guidelines(
         self,
         guideline_set: str,
+        show_disabled: bool = False,
     ) -> Sequence[Guideline]: ...
 
     @abstractmethod
@@ -107,18 +110,42 @@ class _GuidelineDocument(TypedDict, total=False):
     action: str
 
 
+class _GuidelineDocumentV0_2_0(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    guideline_set: str
+    condition: str
+    action: str
+    enabled: bool
+
+
 class GuidelineDocumentStore(GuidelineStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
-        self._collection: DocumentCollection[_GuidelineDocument]
+        self._collection: DocumentCollection[_GuidelineDocumentV0_2_0]
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
+    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocumentV0_2_0]:
         if doc["version"] == "0.1.0":
-            return cast(_GuidelineDocument, doc)
+            doc_v0_1_0 = cast(_GuidelineDocument, doc)
+
+            return _GuidelineDocumentV0_2_0(
+                id=doc_v0_1_0["id"],
+                version=doc_v0_1_0["version"],
+                creation_utc=doc_v0_1_0["creation_utc"],
+                guideline_set=doc_v0_1_0["guideline_set"],
+                condition=doc_v0_1_0["condition"],
+                action=doc_v0_1_0["action"],
+                enabled=True,
+            )
+
+        elif doc["version"] == "0.2.0":
+            return cast(_GuidelineDocumentV0_2_0, doc)
+
         return None
 
     async def __aenter__(self) -> Self:
@@ -129,7 +156,7 @@ class GuidelineDocumentStore(GuidelineStore):
         ):
             self._collection = await self._database.get_or_create_collection(
                 name="guidelines",
-                schema=_GuidelineDocument,
+                schema=_GuidelineDocumentV0_2_0,
                 document_loader=self._document_loader,
             )
 
@@ -147,19 +174,20 @@ class GuidelineDocumentStore(GuidelineStore):
         self,
         guideline: Guideline,
         guideline_set: str,
-    ) -> _GuidelineDocument:
-        return _GuidelineDocument(
+    ) -> _GuidelineDocumentV0_2_0:
+        return _GuidelineDocumentV0_2_0(
             id=ObjectId(guideline.id),
             version=self.VERSION.to_string(),
             creation_utc=guideline.creation_utc.isoformat(),
             guideline_set=guideline_set,
             condition=guideline.content.condition,
             action=guideline.content.action,
+            enabled=guideline.enabled,
         )
 
     def _deserialize(
         self,
-        guideline_document: _GuidelineDocument,
+        guideline_document: _GuidelineDocumentV0_2_0,
     ) -> Guideline:
         return Guideline(
             id=GuidelineId(guideline_document["id"]),
@@ -167,6 +195,7 @@ class GuidelineDocumentStore(GuidelineStore):
             content=GuidelineContent(
                 condition=guideline_document["condition"], action=guideline_document["action"]
             ),
+            enabled=guideline_document["enabled"],
         )
 
     @override
@@ -176,6 +205,7 @@ class GuidelineDocumentStore(GuidelineStore):
         condition: str,
         action: str,
         creation_utc: Optional[datetime] = None,
+        enabled: bool = True,
     ) -> Guideline:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -187,6 +217,7 @@ class GuidelineDocumentStore(GuidelineStore):
                     condition=condition,
                     action=action,
                 ),
+                enabled=enabled,
             )
 
             await self._collection.insert_one(
@@ -202,13 +233,17 @@ class GuidelineDocumentStore(GuidelineStore):
     async def list_guidelines(
         self,
         guideline_set: str,
+        show_disabled: bool = False,
     ) -> Sequence[Guideline]:
         async with self._lock.reader_lock:
+            filters = {
+                "guideline_set": {"$eq": guideline_set},
+                **({"enabled": {"$eq": True}} if not show_disabled else {}),
+            }
+
             return [
                 self._deserialize(d)
-                for d in await self._collection.find(
-                    filters={"guideline_set": {"$eq": guideline_set}}
-                )
+                for d in await self._collection.find(filters=cast(Where, filters))
             ]
 
     @override
@@ -258,7 +293,7 @@ class GuidelineDocumentStore(GuidelineStore):
         params: GuidelineUpdateParams,
     ) -> Guideline:
         async with self._lock.writer_lock:
-            guideline_document = _GuidelineDocument(
+            guideline_document = _GuidelineDocumentV0_2_0(
                 {
                     **(
                         {"guideline_set": params["guideline_set"]}
@@ -267,6 +302,7 @@ class GuidelineDocumentStore(GuidelineStore):
                     ),
                     **({"condition": params["condition"]} if "condition" in params else {}),
                     **({"action": params["action"]} if "action" in params else {}),
+                    **({"enabled": params["enabled"]} if "enabled" in params else {}),
                 }
             )
 

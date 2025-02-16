@@ -953,6 +953,7 @@ class AlphaEngine(Engine):
                         condition=conditions[utterance.reason],
                         action=utterance.action,
                     ),
+                    enabled=True,
                 ),
                 rationale=rationales[utterance.reason],
                 score=10,

@@ -260,6 +260,7 @@ def create_guideline(context: ContextOfTest, condition: str, action: str) -> Gui
             condition=condition,
             action=action,
         ),
+        enabled=True,
     )
 
     context.guidelines.append(guideline)

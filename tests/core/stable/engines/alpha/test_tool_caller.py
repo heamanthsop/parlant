@@ -83,6 +83,7 @@ def create_guideline_proposition(
             condition=condition,
             action=action,
         ),
+        enabled=True,
     )
 
     return GuidelineProposition(guideline=guideline, score=score, rationale=rationale)
