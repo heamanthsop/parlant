@@ -45,7 +45,13 @@ from parlant.core.guideline_connections import (
     GuidelineConnectionId,
     GuidelineConnectionStore,
 )
-from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId, GuidelineStore
+from parlant.core.guidelines import (
+    Guideline,
+    GuidelineContent,
+    GuidelineId,
+    GuidelineStore,
+    GuidelineUpdateParams,
+)
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationId,
     GuidelineToolAssociationStore,
@@ -353,6 +359,7 @@ guideline_update_params_example: ExampleJson = {
         "add": [{"service_name": "pricing_service", "tool_name": "get_prices"}],
         "remove": [{"service_name": "old_service", "tool_name": "old_tool"}],
     },
+    "enabled": True,
 }
 
 
@@ -363,6 +370,7 @@ class GuidelineUpdateParamsDTO(
 
     connections: Optional[GuidelineConnectionUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
+    enabled: Optional[bool] = None
 
 
 @dataclass
@@ -476,6 +484,7 @@ guideline_example = {
     "id": "guid_123xz",
     "condition": "when the customer asks about pricing",
     "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": True,
 }
 
 
@@ -765,6 +774,12 @@ def create_router(
             guideline_id=guideline_id,
         )
 
+        if params.enabled is not None:
+            await guideline_store.update_guideline(
+                guideline_id=guideline_id,
+                params=GuidelineUpdateParams(enabled=params.enabled),
+            )
+
         if params.connections and params.connections.add:
             for req in params.connections.add:
                 if req.source == req.target:
@@ -844,12 +859,17 @@ def create_router(
                         detail=f"Tool association not found for service '{tool_id_dto.service_name}' and tool '{tool_id_dto.tool_name}'",
                     )
 
+        updated_guideline = await guideline_store.read_guideline(
+            guideline_set=agent_id,
+            guideline_id=guideline_id,
+        )
+
         return GuidelineWithConnectionsAndToolAssociationsDTO(
             guideline=GuidelineDTO(
-                id=guideline.id,
-                condition=guideline.content.condition,
-                action=guideline.content.action,
-                enabled=guideline.enabled,
+                id=updated_guideline.id,
+                condition=updated_guideline.content.condition,
+                action=updated_guideline.content.action,
+                enabled=updated_guideline.enabled,
             ),
             connections=[
                 GuidelineConnectionDTO(
