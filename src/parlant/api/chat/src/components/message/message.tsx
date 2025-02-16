@@ -109,7 +109,7 @@ const MessageEditing = ({event, resendMessageFn, setIsEditing}: Props) => {
 		<div ref={ref} className='w-full p-[16px] ps-[6px] pe-[6px] rounded-[16px] rounded-br-none border origin-bottom bg-[#f5f6f8] ' style={{transformOrigin: 'bottom'}}>
 			<Textarea ref={textArea} className='resize-none h-[120px] pe-[108px] !ring-0 !ring-offset-0 border-none ps-[22px] bg-[#f5f6f8]' onChange={(e) => setTextValue(e.target.value)} defaultValue={textValue} />
 			<div className='pt-[10px] flex justify-end gap-[10px] pe-[12px]'>
-				<Button variant='ghost' onClick={() => setIsEditing?.(false)} className='rounded-[10px]'>
+				<Button variant='ghost' onClick={() => setIsEditing?.(false)} className='rounded-[10px] hover:bg-white'>
 					Cancel
 				</Button>
 				<Button disabled={!textValue?.trim() || textValue?.trim() === event?.data?.message} className='rounded-[10px]' onClick={() => resendMessageFn?.(session?.id || '', textValue?.trim())}>
@@ -127,7 +127,7 @@ export default function Message({event, isContinual, showLogs, showLogsForMessag
 		<div
 			className={twMerge(
 				'group/main flex my-4 mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
-				isEditing && 'flex-1 flex max-w-[1200px] items-end w-[calc(100%-412px)] self-end max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]'
+				isEditing && 'flex-1 flex max-w-[1200px] items-end w-[calc(100%-412px)] max-[2100px]:w-[calc(100%-200px)] self-end max-[1700px]:w-[calc(100%-40px)]'
 			)}>
 			<Spacer />
 			{isEditing ? (

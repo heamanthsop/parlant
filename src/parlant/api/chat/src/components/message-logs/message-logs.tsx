@@ -34,7 +34,7 @@ const MessageError = ({event}: {event: EventInterface}) => {
 	return (
 		<div className='h-full p-[20px] bg-[#ebecf0] text-[13px] text-[#ef5350] z-10'>
 			<pre className={clsx('p-[10px] max-w-[-webkit-fill-available] pe-[10px] text-wrap break-words bg-white rounded-[8px] h-full overflow-auto  group relative')}>
-				<div className='absolute hidden z-10 group-hover:flex right-[10px] top-[10px] gap-[10px]'>
+				<div className='sticky h-0 hidden z-10 group-hover:flex [direction:rtl] top-[10px] right-[10px] gap-[10px]'>
 					<Tooltip value='Copy' side='top'>
 						<Copy size={18} color='#151515' onClick={() => copy(event?.error || '')} className='cursor-pointer' />
 					</Tooltip>
