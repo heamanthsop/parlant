@@ -21,11 +21,16 @@ module.exports = {
 					'0%, 100%': {'background-position-x': '20%'},
 					'50%': {'background-position-x': '80%'},
 				},
+				rotate: {
+					'0%, 100%': {'background-position-x': '20%'},
+					'50%': {'background-position-x': '80%'},
+				},
 			},
 			animation: {
 				'fade-in': 'fade-in 300ms linear',
 				'scroll-down': 'scroll-down 300ms linear',
 				'background-shift': 'background-shift 5s linear infinite',
+				rotate: 'rotate 5s linear infinite',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

@@ -18,6 +18,7 @@ import {useAtom} from 'jotai';
 import {agentAtom, agentsAtom, customerAtom, newSessionAtom, sessionAtom, sessionsAtom} from '@/store';
 import CopyText from '../ui/custom/copy-text';
 import ErrorBoundary from '../error-boundary/error-boundary';
+import ProgressImage from '../progress-logo/progress-logo';
 
 const emptyPendingMessage: () => EventInterface = () => ({
 	kind: 'message',
@@ -312,7 +313,7 @@ export default function Chat(): ReactElement {
 								<div className='animate-fade-in flex mb-1 justify-between mt-[44.33px]'>
 									<Spacer />
 									<div className='flex items-center max-w-[1200px] flex-1'>
-										<img src='parlant-bubble-muted.svg' alt='' height={36} width={36} className='me-[8px]' />
+										<ProgressImage phace={showThinking ? 'thinking' : 'typing'} />
 										<p className='font-medium text-[#A9AFB7] text-[11px] font-inter'>{isRegenerating ? 'Regenerating...' : showTyping ? 'Typing...' : 'Thinking...'}</p>
 									</div>
 									<Spacer />
