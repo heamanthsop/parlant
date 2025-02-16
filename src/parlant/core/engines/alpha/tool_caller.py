@@ -41,12 +41,12 @@ ToolResultId = NewType("ToolResultId", str)
 
 
 class ArgumentEvaluation(DefaultBaseModel):
-    evaluate_is_it_provided_in_the_context: str
-    evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why: str
+    acceptable_source_for_this_argument_according_to_its_tool_definition: str
+    evaluate_is_it_provided_by_an_acceptable_source: str
     evaluate_was_it_already_provided_and_should_it_be_provided_again: str
     evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided: str
     is_optional: bool
-    has_default: bool = False
+    has_default_value_if_not_provided_by_acceptable_source: bool = False
     is_missing: bool
     value: Optional[Any]
 
@@ -557,7 +557,9 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                         "This argument can be extracted only from the context given in this prompt"
                     )
                 case "customer":
-                    result["source"] = "This argument must be EXPLICITLY PROVIDED by the customer"
+                    result["source"] = (
+                        "This argument must be EXPLICITLY PROVIDED by the customer, and NEVER automatically inferred"
+                    )
 
             return json.dumps(result)
 
@@ -747,8 +749,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "customer_id": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="The customer ID is given by a context variable",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="It shouldn't; the system knows the customer's ID",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="The customer ID is given by a context variable",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="No need to provide it again as the customer's ID is unique and doesn't change",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since I have it",
                             is_missing=False,
@@ -811,8 +813,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "origin": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes, the customer mentioned New York as the origin for their ride",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Yes it must; we can't just assume the customer's initial ride location for them",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned New York as the origin for their ride",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -820,8 +822,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             value="New York",
                         ),
                         "destination": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes, the customer mentioned Newark as the destination for their ride",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Yes it must; we can't just assume the customer's destination for them",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned Newark as the destination for their ride",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -859,8 +861,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "product_name": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="The first product the custoemr specified is a margherita",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Checking product info could come either directly from the customer, or even if I wanted to look up a product and recommend it",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="The first product the customer specified is a margherita",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -881,8 +883,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "product_name": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="The second product the custoemr specified is the deep dish",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Checking product info could come either directly from the customer, or even if I wanted to look up a product and recommend it",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="The second product the customer specified is the deep dish",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -917,8 +919,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "model": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes; the customer asked about a specific model",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Checking model price could come either directly from the customer, or even if I wanted to look up a model prices to help with some other inquiry",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -960,8 +962,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=8,
                     argument_evaluations={
                         "model": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes; the customer asked about a specific model",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Checking model price could come either directly from the customer, or even if I wanted to look up a model prices to help with some other inquiry",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -1000,8 +1002,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=8,
                     argument_evaluations={
                         "location": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes; the customer asked about the living room",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Checking the temperature at some location could come either directly from the customer, or even if I wanted to check room temperatures to help with some other inquiry",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about the living room",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific location",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random room, but I don't need to guess here since the customer provided it",
                             is_missing=False,
@@ -1041,8 +1043,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=6,
                     argument_evaluations={
                         "query": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="Yes; the customer mentioned their specific requirements",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="Searching for products could come either directly from the customer, or even if I wanted to check available products to help with some other inquiry",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer mentioned their specific requirements",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer mentioned specific requirements, which is enough for me to construct a query",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided their requirements",
                             is_missing=False,
@@ -1080,8 +1082,8 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=10,
                     argument_evaluations={
                         "date": ArgumentEvaluation(
-                            evaluate_is_it_provided_in_the_context="No; the customer hasn't provided a date, and I cannot guess it or infer when they'd be available",
-                            evaluate_should_this_argument_in_principle_be_provided_by_the_customer_and_why="The customer must specify the date, otherwise we risk scheduling a time that is inconvenient for them",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            evaluate_is_it_provided_by_an_acceptable_source="No; the customer hasn't provided a date, and I cannot guess it or infer when they'd be available",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer hasn't specified it yet",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to just guess when the customer would be available for an appointment",
                             is_missing=True,
