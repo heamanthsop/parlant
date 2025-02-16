@@ -15,32 +15,34 @@
 import asyncio
 from contextlib import AsyncExitStack
 import importlib
+import json
 import os
+import shutil
 from typing import cast
 import chromadb
+from chromadb.api.types import IncludeEnum
 from lagom import Container
 from typing_extensions import NoReturn
 from pathlib import Path
 import sys
+import rich
+from rich.prompt import Confirm, Prompt
 
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
 from parlant.adapters.vector_db.chroma import ChromaDatabase
-from parlant.bin.server import StartupError
 from parlant.core.common import generate_id, md5_checksum
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.logging import LogLevel, StdoutLogger
 from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.persistence.common import ObjectId
-from parlant.core.persistence.document_database import DocumentDatabase, identity_loader
-from parlant.core.persistence.document_database_helper import _MetadataDocument
-from parlant.core.persistence.vector_database import BaseDocument
-
-PARENT_DIR = Path(__file__).parent.parent
-DEFAULT_HOME_DIR = (
-    (PARENT_DIR / "runtime-data").as_posix()
-    if (PARENT_DIR / "runtime-data").exists()
-    else (PARENT_DIR / "parlant-data").as_posix()
+from parlant.core.persistence.document_database import (
+    BaseDocument,
+    DocumentDatabase,
+    identity_loader,
 )
+from parlant.core.persistence.document_database_helper import _MetadataDocument
+
+DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
 PARLANT_HOME_DIR = Path(os.environ.get("PARLANT_HOME", DEFAULT_HOME_DIR))
 PARLANT_HOME_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -55,8 +57,24 @@ LOGGER = StdoutLogger(
 )
 
 
+def backup_data() -> None:
+    if Confirm.ask("Do you want to backup your data before migration?"):
+        default_backup_dir = PARLANT_HOME_DIR.parent / "parlant-data.orig"
+        try:
+            backup_dir = Prompt.ask("Enter backup directory path", default=str(default_backup_dir))
+            shutil.copytree(PARLANT_HOME_DIR, backup_dir, dirs_exist_ok=True)
+            rich.print(f"[green]Data backed up to {backup_dir}")
+        except Exception as e:
+            rich.print(f"[red]Failed to backup data: {e}")
+            die(f"Error backing up data: {e}")
+
+
 async def migrate() -> None:
-    LOGGER.info("Starting migration process...")
+    await is_migration_required()
+
+    rich.print("[green]Starting migration process...")
+
+    backup_data()
 
     agents_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "agents.json")
@@ -109,11 +127,13 @@ async def migrate() -> None:
     await migrate_document_database(services_db, "tool_services")
 
     await migrate_glossary()
-    LOGGER.info("Migration completed successfully")
+
+    await upgrade_agents()
+    rich.print("[green]Migration completed successfully")
 
 
 async def migrate_document_database(db: DocumentDatabase, collection_name: str) -> None:
-    LOGGER.info(f"Migrating {collection_name} database...")
+    rich.print(f"[green]Migrating {collection_name} database...")
     try:
         collection = await db.get_collection(
             collection_name,
@@ -122,7 +142,7 @@ async def migrate_document_database(db: DocumentDatabase, collection_name: str) 
         )
 
     except ValueError:
-        LOGGER.info(f"Collection {collection_name} not found, skipping...")
+        rich.print(f"[yellow]Collection {collection_name} not found, skipping...")
         return
 
     try:
@@ -149,13 +169,13 @@ async def migrate_document_database(db: DocumentDatabase, collection_name: str) 
                 "version": document["version"],
             }
         )
-        LOGGER.info(f"Successfully migrated {collection_name} database")
+        rich.print(f"[green]Successfully migrated {collection_name} database")
     else:
-        LOGGER.info(f"No documents found in {collection_name} collection.")
+        rich.print(f"[yellow]No documents found in {collection_name} collection.")
 
 
 async def migrate_glossary() -> None:
-    LOGGER.info("Starting glossary migration...")
+    rich.print("[green]Starting glossary migration...")
     try:
         embedder_factory = EmbedderFactory(Container())
 
@@ -166,7 +186,7 @@ async def migrate_glossary() -> None:
         try:
             old_collection = db.chroma_client.get_collection("glossary")
         except chromadb.errors.InvalidCollectionException:
-            LOGGER.info("Glossary collection not found, skipping...")
+            rich.print("[yellow]Glossary collection not found, skipping...")
             return
 
         if docs := old_collection.peek(limit=1)["metadatas"]:
@@ -182,8 +202,10 @@ async def migrate_glossary() -> None:
                 old_collection.metadata["embedder_type_path"],
             )
 
-            all_items = old_collection.get(include=["documents", "embeddings", "metadatas"])
-            LOGGER.info(f"Found {len(all_items['ids'])} items to migrate")
+            all_items = old_collection.get(
+                include=[IncludeEnum.documents, IncludeEnum.embeddings, IncludeEnum.metadatas]
+            )
+            rich.print(f"[green]Found {len(all_items['ids'])} items to migrate")
 
             chroma_unembedded_collection = next(
                 (
@@ -205,7 +227,14 @@ async def migrate_glossary() -> None:
                 name=db.format_collection_name("glossary", embedder_type)
             )
 
+            if all_items["metadatas"] is None:
+                rich.print("[yellow]No metadatas found in glossary collection, skipping...")
+                return
+
             for i in range(len(all_items["metadatas"])):
+                assert all_items["documents"] is not None
+                assert all_items["embeddings"] is not None
+
                 new_doc = {
                     **all_items["metadatas"][i],
                     "checksum": md5_checksum(all_items["documents"][i]),
@@ -213,14 +242,14 @@ async def migrate_glossary() -> None:
 
                 chroma_unembedded_collection.add(
                     ids=[all_items["ids"][i]],
-                    documents=[new_doc["content"]],
+                    documents=[str(new_doc["content"])],
                     metadatas=[cast(chromadb.types.Metadata, new_doc)],
                     embeddings=[0],
                 )
 
                 chroma_new_collection.add(
                     ids=[all_items["ids"][i]],
-                    documents=[new_doc["content"]],
+                    documents=[str(new_doc["content"])],
                     metadatas=[cast(chromadb.types.Metadata, new_doc)],
                     embeddings=all_items["embeddings"][i],
                 )
@@ -231,22 +260,60 @@ async def migrate_glossary() -> None:
             )
             chroma_new_collection.modify(metadata={"version": 1 + len(all_items["metadatas"])})
 
-            db.upsert_metadata(
+            await db.upsert_metadata(
                 "version",
                 version,
             )
-            LOGGER.info("Successfully migrated glossary data")
+            rich.print("[green]Successfully migrated glossary data")
 
         db.chroma_client.delete_collection(old_collection.name)
-        LOGGER.info("Cleaned up old glossary collection")
+        rich.print("[green]Cleaned up old glossary collection")
 
     except Exception as e:
-        LOGGER.error(f"Failed to migrate glossary: {e}")
+        rich.print(f"[red]Failed to migrate glossary: {e}")
         die(f"Error migrating glossary: {e}")
 
 
+async def is_migration_required() -> None:
+    rich.print("[green]Checking if migration is required...")
+    with open(PARLANT_HOME_DIR / "agents.json", "r") as f:
+        raw_data = json.load(f)
+        agents = raw_data.get("agents")
+
+    if agents is None:
+        rich.print("[yellow]No agents found, skipping...")
+        return
+
+    for agent in agents:
+        if agent["version"] == "0.1.0":
+            return
+
+    die("Migration is not required")
+
+
+async def upgrade_agents() -> None:
+    rich.print("[green]Starting agents migration...")
+
+    with open(PARLANT_HOME_DIR / "agents.json", "r") as f:
+        raw_data = json.load(f)
+        agents = raw_data.get("agents")
+
+    if agents is None:
+        rich.print("[yellow]No agents found, skipping...")
+        return
+
+    for agent in agents:
+        agent["version"] = "0.2.0"
+
+    raw_data["agents"] = agents
+    raw_data["metadata"][0].update({"version": "0.2.0"})
+
+    with open(PARLANT_HOME_DIR / "agents.json", "w") as f:
+        json.dump(raw_data, f)
+
+
 def die(message: str) -> NoReturn:
-    LOGGER.critical(message)
+    rich.print(f"[red]{message}")
     print(message, file=sys.stderr)
     sys.exit(1)
 
@@ -254,8 +321,8 @@ def die(message: str) -> NoReturn:
 def main() -> None:
     try:
         asyncio.run(migrate())
-    except StartupError as e:
-        die(e.message)
+    except Exception as e:
+        die(str(e))
 
 
 if __name__ == "__main__":

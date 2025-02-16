@@ -103,7 +103,7 @@ class _AgentDocument(TypedDict, total=False):
 
 
 class AgentDocumentStore(AgentStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False):
         self._database = database
@@ -114,6 +114,9 @@ class AgentDocumentStore(AgentStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_AgentDocument]:
         if doc["version"] == "0.1.0":
+            return cast(_AgentDocument, doc)
+
+        if doc["version"] == "0.2.0":
             return cast(_AgentDocument, doc)
 
         return None
