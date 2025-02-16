@@ -70,9 +70,10 @@ class ChromaDatabase(VectorDatabase):
     ) -> str:
         return f"{name}_{embedder_type.__name__}"
 
+    # Loads documents from unembedded collection, migrates them if needed, and ensures embedded collection is in sync
     async def _load_collection_documents(
         self,
-        collection: chromadb.Collection,
+        embedded_collection: chromadb.Collection,
         unembedded_collection: chromadb.Collection,
         embedder_type: type[Embedder],
         document_loader: Callable[[BaseDocument], Awaitable[Optional[TDocument]]],
@@ -105,6 +106,7 @@ class ChromaDatabase(VectorDatabase):
                     self._logger.error(f"Failed to load document '{doc}'. error: {e}.")
                     failed_migrations.append(prospective_doc)
 
+            # Store failed migrations in a separate collection for debugging
             if failed_migrations:
                 failed_migrations_collection = await self.get_or_create_collection(
                     "failed_migrations",
@@ -114,7 +116,7 @@ class ChromaDatabase(VectorDatabase):
                 )
 
                 for failed_doc in failed_migrations:
-                    failed_migrations_collection.chroma_collection.add(
+                    failed_migrations_collection.embedded_collection.add(
                         ids=[failed_doc["id"]],
                         documents=[failed_doc["content"]],
                         metadatas=[cast(chromadb.Metadata, failed_doc)],
@@ -123,12 +125,13 @@ class ChromaDatabase(VectorDatabase):
 
         if (
             indexing_required
-            or unembedded_collection.metadata["version"] != collection.metadata["version"]
+            or unembedded_collection.metadata["version"] != embedded_collection.metadata["version"]
         ):
-            await self._index_collection(collection, unembedded_collection, embedder)
+            await self._index_collection(embedded_collection, unembedded_collection, embedder)
 
-        return collection
+        return embedded_collection
 
+    # Syncs embedded collection with unembedded collection
     async def _index_collection(
         self,
         collection: chromadb.Collection,
@@ -138,6 +141,8 @@ class ChromaDatabase(VectorDatabase):
         if docs := unembedded_collection.get()["metadatas"]:
             unembedded_docs_by_id = {doc["id"]: doc for doc in docs}
 
+        # Remove docs from embedded collection that no longer exist in unembedded
+        # Update embeddings for changed docs
         if docs := collection.get()["metadatas"]:
             for doc in docs:
                 if doc["id"] not in unembedded_docs_by_id:
@@ -160,6 +165,7 @@ class ChromaDatabase(VectorDatabase):
                         )
                     unembedded_docs_by_id.pop(doc["id"])
 
+        # Add new docs from unembedded to embedded collection
         for doc in unembedded_docs_by_id.values():
             collection.add(
                 ids=[str(doc["id"])],
@@ -180,7 +186,7 @@ class ChromaDatabase(VectorDatabase):
         if name in self._collections:
             raise ValueError(f'Collection "{name}" already exists.')
 
-        chroma_collection = self.chroma_client.create_collection(
+        embedded_collection = self.chroma_client.create_collection(
             name=self.format_collection_name(name, embedder_type),
             metadata={"version": 1},
             embedding_function=None,
@@ -194,7 +200,7 @@ class ChromaDatabase(VectorDatabase):
 
         self._collections[name] = ChromaCollection(
             self._logger,
-            chromadb_collection=chroma_collection,
+            embedded_collection=embedded_collection,
             unembedded_collection=unembedded_collection,
             name=name,
             schema=schema,
@@ -214,51 +220,53 @@ class ChromaDatabase(VectorDatabase):
     ) -> ChromaCollection[TDocument]:
         if collection := self._collections.get(name):
             return cast(ChromaCollection[TDocument], collection)
-        elif chroma_collection := next(
+
+        # Find unembedded collection first which acts as the SSOT.
+        # Check if we have a corresponding embedded collection for the embedder type.
+        # Whether we find an existing embedded collection or create a new one,
+        # we reindex and sync it with the unembedded collection to ensure consistency
+        elif unembedded_collection := next(
             (
                 col
                 for col in self.chroma_client.list_collections()
-                if col.name == self.format_collection_name(name, embedder_type)
+                if col.name == f"{name}_unembedded"
             ),
             None,
         ):
-            if unembedded_collection := next(
+            embedded_collection = next(
                 (
                     col
                     for col in self.chroma_client.list_collections()
-                    if col.name == f"{name}_unembedded"
+                    if col.name == self.format_collection_name(name, embedder_type)
                 ),
                 None,
-            ):
-                if (
-                    chroma_collection.metadata.get("version")
-                    != unembedded_collection.metadata["version"]
-                ):
-                    await self._index_collection(
-                        collection=chroma_collection,
-                        unembedded_collection=unembedded_collection,
-                        embedder=self._embedder_factory.create_embedder(embedder_type),
-                    )
-
-                self._collections[name] = ChromaCollection(
-                    self._logger,
-                    chromadb_collection=await self._load_collection_documents(
-                        collection=chroma_collection,
-                        unembedded_collection=unembedded_collection,
-                        embedder_type=embedder_type,
-                        document_loader=document_loader,
-                    ),
-                    unembedded_collection=unembedded_collection,
-                    name=name,
-                    schema=schema,
-                    embedder=self._embedder_factory.create_embedder(embedder_type),
-                    version=1,
-                )
-                return cast(ChromaCollection[TDocument], self._collections[name])
-
-            raise ValueError(
-                f'Unembedded collection "{name}_unembedded" not found but main collection exists.'
+            ) or self.chroma_client.create_collection(
+                name=self.format_collection_name(name, embedder_type),
+                metadata={"version": 1},
+                embedding_function=None,
             )
+
+            await self._index_collection(
+                collection=embedded_collection,
+                unembedded_collection=unembedded_collection,
+                embedder=self._embedder_factory.create_embedder(embedder_type),
+            )
+
+            self._collections[name] = ChromaCollection(
+                self._logger,
+                embedded_collection=await self._load_collection_documents(
+                    embedded_collection=embedded_collection,
+                    unembedded_collection=unembedded_collection,
+                    embedder_type=embedder_type,
+                    document_loader=document_loader,
+                ),
+                unembedded_collection=unembedded_collection,
+                name=name,
+                schema=schema,
+                embedder=self._embedder_factory.create_embedder(embedder_type),
+                version=1,
+            )
+            return cast(ChromaCollection[TDocument], self._collections[name])
 
         raise ValueError(f'ChromaDB collection "{name}" not found.')
 
@@ -273,6 +281,9 @@ class ChromaDatabase(VectorDatabase):
         if collection := self._collections.get(name):
             return cast(ChromaCollection[TDocument], collection)
 
+        # Get or create unembedded collection for storing raw documents
+        # Then get or create embedded collection for storing embeddings
+        # Load and migrate documents from unembedded collection, then reindex embedded collection to ensure it is in sync
         unembedded_collection = next(
             (
                 col
@@ -286,7 +297,7 @@ class ChromaDatabase(VectorDatabase):
             embedding_function=None,
         )
 
-        chroma_collection = next(
+        embedded_collection = next(
             (
                 col
                 for col in self.chroma_client.list_collections()
@@ -300,8 +311,8 @@ class ChromaDatabase(VectorDatabase):
 
         self._collections[name] = ChromaCollection(
             self._logger,
-            chromadb_collection=await self._load_collection_documents(
-                collection=chroma_collection,
+            embedded_collection=await self._load_collection_documents(
+                embedded_collection=embedded_collection,
                 unembedded_collection=unembedded_collection,
                 embedder_type=embedder_type,
                 document_loader=document_loader,
@@ -408,7 +419,7 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
     def __init__(
         self,
         logger: Logger,
-        chromadb_collection: chromadb.Collection,
+        embedded_collection: chromadb.Collection,
         unembedded_collection: chromadb.Collection,
         name: str,
         schema: type[TDocument],
@@ -423,7 +434,7 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
 
         self._lock = ReaderWriterLock()
         self._unembedded_collection = unembedded_collection
-        self.chroma_collection = chromadb_collection
+        self.embedded_collection = embedded_collection
 
     @override
     async def find(
@@ -431,9 +442,9 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
         filters: Where,
     ) -> Sequence[TDocument]:
         async with self._lock.reader_lock:
-            if metadatas := self.chroma_collection.get(where=cast(chromadb.Where, filters) or None)[
-                "metadatas"
-            ]:
+            if metadatas := self.embedded_collection.get(
+                where=cast(chromadb.Where, filters) or None
+            )["metadatas"]:
                 return [cast(TDocument, m) for m in metadatas]
 
         return []
@@ -444,9 +455,9 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
         filters: Where,
     ) -> Optional[TDocument]:
         async with self._lock.reader_lock:
-            if metadatas := self.chroma_collection.get(where=cast(chromadb.Where, filters) or None)[
-                "metadatas"
-            ]:
+            if metadatas := self.embedded_collection.get(
+                where=cast(chromadb.Where, filters) or None
+            )["metadatas"]:
                 return cast(TDocument, {k: v for k, v in metadatas[0].items()})
 
         return None
@@ -474,14 +485,14 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
                 metadata={**self._unembedded_collection.metadata, **{"version": self._version}}
             )
 
-            self.chroma_collection.add(
+            self.embedded_collection.add(
                 ids=[document["id"]],
                 documents=[document["content"]],
                 metadatas=[cast(chromadb.Metadata, document)],
                 embeddings=embeddings,
             )
-            self.chroma_collection.modify(
-                metadata={**self.chroma_collection.metadata, **{"version": self._version}}
+            self.embedded_collection.modify(
+                metadata={**self.embedded_collection.metadata, **{"version": self._version}}
             )
 
         return InsertResult(acknowledged=True)
@@ -494,7 +505,7 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
         upsert: bool = False,
     ) -> UpdateResult[TDocument]:
         async with self._lock.writer_lock:
-            if docs := self.chroma_collection.get(where=cast(chromadb.Where, filters) or None)[
+            if docs := self.embedded_collection.get(where=cast(chromadb.Where, filters) or None)[
                 "metadatas"
             ]:
                 doc = docs[0]
@@ -520,14 +531,14 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
                     metadata={**self._unembedded_collection.metadata, **{"version": self._version}}
                 )
 
-                self.chroma_collection.update(
+                self.embedded_collection.update(
                     ids=[str(doc["id"])],
                     documents=[document],
                     metadatas=[cast(chromadb.Metadata, updated_document)],
                     embeddings=embeddings,  # type: ignore
                 )
-                self.chroma_collection.modify(
-                    metadata={**self.chroma_collection.metadata, **{"version": self._version}}
+                self.embedded_collection.modify(
+                    metadata={**self.embedded_collection.metadata, **{"version": self._version}}
                 )
 
                 return UpdateResult(
@@ -554,14 +565,14 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
                     metadata={**self._unembedded_collection.metadata, **{"version": self._version}}
                 )
 
-                self.chroma_collection.add(
+                self.embedded_collection.add(
                     ids=[params["id"]],
                     documents=[params["content"]],
                     metadatas=[cast(chromadb.Metadata, params)],
                     embeddings=embeddings,
                 )
-                self.chroma_collection.modify(
-                    metadata={**self.chroma_collection.metadata, **{"version": self._version}}
+                self.embedded_collection.modify(
+                    metadata={**self.embedded_collection.metadata, **{"version": self._version}}
                 )
 
                 return UpdateResult(
@@ -584,7 +595,7 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
         filters: Where,
     ) -> DeleteResult[TDocument]:
         async with self._lock.writer_lock:
-            if docs := self.chroma_collection.get(where=cast(chromadb.Where, filters) or None)[
+            if docs := self.embedded_collection.get(where=cast(chromadb.Where, filters) or None)[
                 "metadatas"
             ]:
                 if len(docs) > 1:
@@ -600,9 +611,9 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
                     metadata={**self._unembedded_collection.metadata, **{"version": self._version}}
                 )
 
-                self.chroma_collection.delete(where=cast(chromadb.Where, filters) or None)
-                self.chroma_collection.modify(
-                    metadata={**self.chroma_collection.metadata, **{"version": self._version}}
+                self.embedded_collection.delete(where=cast(chromadb.Where, filters) or None)
+                self.embedded_collection.modify(
+                    metadata={**self.embedded_collection.metadata, **{"version": self._version}}
                 )
 
                 return DeleteResult(
@@ -627,7 +638,7 @@ class ChromaCollection(Generic[TDocument], VectorCollection[TDocument]):
         async with self._lock.reader_lock:
             query_embeddings = list((await self._embedder.embed([query])).vectors)
 
-            docs = self.chroma_collection.query(
+            docs = self.embedded_collection.query(
                 where=cast(chromadb.Where, filters) or None,
                 query_embeddings=query_embeddings,
                 n_results=k,

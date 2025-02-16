@@ -40,7 +40,7 @@ from parlant.core.engines.alpha.hooks import LifecycleHooks
 from parlant.core.engines.alpha.message_assembler import AssembledMessageSchema
 from parlant.core.fragments import FragmentDocumentStore, FragmentStore
 from parlant.core.nlp.service import NLPService
-from parlant.core.persistence.common import MigrationError
+from parlant.core.persistence.common import MigrationRequired
 from parlant.core.shots import ShotCollection
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.api.app import create_api_app, ASGIApplication
@@ -384,9 +384,9 @@ async def setup_container(
                 embedder_factory=embedder_factory,
             )
         )
-    except MigrationError as e:
+    except MigrationRequired as e:
         c[Logger].critical(str(e))
-        c[Logger].critical("The `--migrate` flag is required to run migrations. ")
+        die("The `--migrate` flag is required to run migrations. ")
         sys.exit(1)
 
     c[SchematicGenerator[GuidelinePropositionsSchema]] = await nlp_service.get_schematic_generator(

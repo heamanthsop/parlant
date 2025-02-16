@@ -1,7 +1,7 @@
 from typing import Optional
 from typing_extensions import TypedDict, Self
 from parlant.core.common import Version, generate_id
-from parlant.core.persistence.common import MigrationError, ObjectId, VersionedStore
+from parlant.core.persistence.common import MigrationRequired, ObjectId, VersionedStore
 from parlant.core.persistence.document_database import DocumentDatabase, identity_loader
 
 
@@ -29,7 +29,7 @@ class MigrationHelper:
         )
 
         if migration_required and not self._allow_migration:
-            raise MigrationError(f"Migration required for {self._store_name}.")
+            raise MigrationRequired(f"Migration required for {self._store_name}.")
 
         return self
 

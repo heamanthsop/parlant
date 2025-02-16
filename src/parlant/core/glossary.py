@@ -103,9 +103,9 @@ class GlossaryStore:
 
 
 class _TermDocument(TypedDict, total=False):
-    id: Required[ObjectId]
-    version: Required[Version.String]
-    content: Required[str]
+    id: ObjectId
+    version: Version.String
+    content: str
     checksum: Required[str]
     term_set: str
     creation_utc: str
@@ -142,7 +142,6 @@ class GlossaryVectorStore(GlossaryStore):
         async with MigrationHelper(
             store=self,
             database=self._vector_db,
-            embedder_type=self._embedder_type,
             allow_migration=self._allow_migration,
         ):
             self._collection = await self._vector_db.get_or_create_collection(
@@ -253,8 +252,6 @@ class GlossaryVectorStore(GlossaryStore):
             update_result = await self._collection.update_one(
                 filters={"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]},
                 params={
-                    "id": document_to_update["id"],
-                    "version": document_to_update["version"],
                     "content": content,
                     "name": name,
                     "description": description,

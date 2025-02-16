@@ -1,8 +1,7 @@
 from typing import Optional
 from typing_extensions import Self
 from parlant.core.common import Version
-from parlant.core.nlp.embedding import Embedder
-from parlant.core.persistence.common import MigrationError, VersionedStore
+from parlant.core.persistence.common import MigrationRequired, VersionedStore
 from parlant.core.persistence.vector_database import VectorDatabase
 
 
@@ -11,13 +10,11 @@ class MigrationHelper:
         self,
         store: VersionedStore,
         database: VectorDatabase,
-        embedder_type: type[Embedder],
         allow_migration: bool,
     ):
         self._store_name = store.__class__.__name__
         self._runtime_store_version = store.VERSION.to_string()
         self._database = database
-        self._embedder_type = embedder_type
         self._allow_migration = allow_migration
 
     async def __aenter__(self) -> Self:
@@ -27,7 +24,7 @@ class MigrationHelper:
         )
 
         if migration_required and not self._allow_migration:
-            raise MigrationError(f"Migration required for {self._store_name}.")
+            raise MigrationRequired(f"Migration required for {self._store_name}.")
 
         return self
 

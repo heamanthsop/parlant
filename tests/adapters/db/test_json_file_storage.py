@@ -43,7 +43,7 @@ from parlant.core.guidelines import (
     GuidelineId,
 )
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
-from parlant.core.persistence.common import MigrationError
+from parlant.core.persistence.common import MigrationRequired
 from parlant.core.persistence.document_database import (
     BaseDocument,
     DocumentCollection,
@@ -663,7 +663,7 @@ class DummyStore:
         return await self._collection.find({})
 
 
-async def test_document_upgrade_during_loading(
+async def test_document_upgrade_during_loading_of_store(
     container: Container,
     new_file: Path,
 ) -> None:
@@ -778,7 +778,7 @@ async def test_that_version_mismatch_raises_error_when_migration_is_required_but
         )
 
     async with JSONFileDocumentDatabase(logger, new_file) as db:
-        with raises(MigrationError) as exc_info:
+        with raises(MigrationRequired) as exc_info:
             async with DummyStore(db, allow_migration=False) as _:
                 pass
 

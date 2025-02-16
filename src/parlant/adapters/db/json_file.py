@@ -20,7 +20,6 @@ from typing_extensions import override, Self
 import aiofiles
 
 from parlant.core.persistence.common import (
-    MigrationError,
     Where,
     matches_filters,
     ensure_is_total,
@@ -121,10 +120,10 @@ class JSONFileDocumentDatabase(DocumentDatabase):
                 else:
                     self._logger.warning(f'Failed to load document "{doc}"')
                     failed_migrations.append(doc)
-            except MigrationError as e:
-                raise e
             except Exception as e:
-                self._logger.error(f"Failed to load document '{doc}' with error: {e}.")
+                self._logger.error(
+                    f"Failed to load document '{doc}' with error: {e}. Added to failed migrations collection."
+                )
                 failed_migrations.append(doc)
 
         if failed_migrations:

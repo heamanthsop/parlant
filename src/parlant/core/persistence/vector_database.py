@@ -24,9 +24,9 @@ from parlant.core.persistence.common import ObjectId, Where
 
 
 class BaseDocument(TypedDict, total=False):
-    id: Required[ObjectId]
-    version: Required[Version.String]
-    content: Required[str]
+    id: ObjectId
+    version: Version.String
+    content: str
     checksum: Required[str]
 
 

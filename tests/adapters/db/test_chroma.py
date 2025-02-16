@@ -30,16 +30,16 @@ from parlant.core.glossary import GlossaryVectorStore
 from parlant.core.nlp.embedding import EmbedderFactory, NoOpEmbedder
 from parlant.core.logging import Logger
 from parlant.core.nlp.service import NLPService
-from parlant.core.persistence.common import MigrationError, ObjectId
+from parlant.core.persistence.common import MigrationRequired, ObjectId
 
 from parlant.core.persistence.vector_database import BaseDocument
 from tests.test_utilities import SyncAwaiter
 
 
 class _TestDocument(TypedDict, total=False):
-    id: Required[ObjectId]
-    version: Required[Version.String]
-    content: Required[str]
+    id: ObjectId
+    version: Version.String
+    content: str
     checksum: Required[str]
     name: str
 
@@ -585,7 +585,7 @@ async def test_that_migration_error_raised_when_version_mismatch_and_migration_d
         await chroma_db.upsert_metadata("version", "NotRealVersion")
 
     async with create_database(context) as chroma_db:
-        with raises(MigrationError) as exc_info:
+        with raises(MigrationRequired) as exc_info:
             async with GlossaryVectorStore(
                 vector_db=chroma_db,
                 embedder_factory=EmbedderFactory(context.container),

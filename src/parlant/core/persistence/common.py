@@ -21,7 +21,7 @@ from parlant.core.common import Version
 ObjectId = NewType("ObjectId", str)
 
 
-class MigrationError(Exception):
+class MigrationRequired(Exception):
     def __init__(self, message: str):
         super().__init__(message)
 
