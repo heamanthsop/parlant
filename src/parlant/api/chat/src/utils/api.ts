@@ -1,4 +1,4 @@
-export const BASE_URL = '';
+export const BASE_URL = import.meta.env.VITE_BASE_URL || '';
 
 const request = async (url: string, options: RequestInit = {}) => {
 	try {
