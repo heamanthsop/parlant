@@ -259,7 +259,9 @@ async def load_modules(
 
 @asynccontextmanager
 async def setup_container(
-    nlp_service_name: str, log_level: str, migrate: bool
+    nlp_service_name: str,
+    log_level: str,
+    migrate: bool,
 ) -> AsyncIterator[Container]:
     c = Container()
 
@@ -387,7 +389,7 @@ async def setup_container(
         )
     except MigrationRequired as e:
         c[Logger].critical(str(e))
-        die("The `--migrate` flag is required to run migrations. ")
+        die("Please re-run with `--migrate` to migrate your data to the new version.")
         sys.exit(1)
 
     c[SchematicGenerator[GuidelinePropositionsSchema]] = await nlp_service.get_schematic_generator(
@@ -486,8 +488,9 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
             agents = raw_data.get("agents")
             if agents and agents[0].get("version") == "0.1.0":
                 die(
-                    "You running a particulary old version of Parlant.\n"
-                    "To upgrade your existing data to the new schemas, please run `parlant-prepare-migration` and then re-run the server with --migrate."
+                    "You're running a particulary old version of Parlant.\n"
+                    "To upgrade your existing data to the new schema version, please run\n"
+                    "`parlant-prepare-migration` and then re-run the server with `--migrate`."
                 )
 
     global EXIT_STACK
