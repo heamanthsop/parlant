@@ -49,9 +49,9 @@ EnumValueType = Union[str, int]
 
 class ToolParameterDescriptor(TypedDict, total=False):
     type: ToolParameterType
-    enum: list[EnumValueType]
+    enum: Sequence[EnumValueType]
     description: str
-    examples: list[str]
+    examples: Sequence[str]
 
 
 # These two aliases are redefined here to avoid a circular reference.
@@ -121,7 +121,7 @@ class ToolParameterOptions:
     significance: Optional[str] = field(default=None)
     """A description of the significance of this parameter for the tool call — why is it needed?"""
 
-    examples: list[Any] = field(default_factory=list)
+    examples: Sequence[Any] = field(default_factory=list)
     """Examples of arguments which should help agents understand how to extract arguments properly."""
 
     adapter: Optional[Callable[[Any], Awaitable[Any]]] = field(default=None)
