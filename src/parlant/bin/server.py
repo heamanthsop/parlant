@@ -477,9 +477,7 @@ async def recover_server_tasks(
             await evaluator.run_evaluation(evaluation)
 
 
-@asynccontextmanager
-async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
-    # TODO: Delete this check in future versions
+def _alert_user_to_migrations_when_upgrading_from_a_version_before_1_7_0() -> None:
     # Check if the system is ready for version >1.7.0
     # Checking if the Parlant server is compatible by examining the agent version
     if (PARLANT_HOME_DIR / "agents.json").exists():
@@ -492,6 +490,12 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
                     "To upgrade your existing data to the new schema version, please run\n"
                     "`parlant-prepare-migration` and then re-run the server with `--migrate`."
                 )
+
+
+@asynccontextmanager
+async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
+    # TODO: Deprecate this check in future versions
+    _alert_user_to_migrations_when_upgrading_from_a_version_before_1_7_0()
 
     global EXIT_STACK
 
