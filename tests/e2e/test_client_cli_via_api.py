@@ -2187,7 +2187,7 @@ async def test_that_a_guideline_can_be_enabled(context: ContextOfTest) -> None:
         ) == os.EX_OK
 
         enabled_guideline = await context.api.read_guideline(agent_id, guideline["id"])
-        assert enabled_guideline["enabled"] is True
+        assert enabled_guideline["guideline"]["enabled"] is True
 
 
 async def test_that_a_guideline_can_be_disabled(context: ContextOfTest) -> None:
@@ -2208,4 +2208,4 @@ async def test_that_a_guideline_can_be_disabled(context: ContextOfTest) -> None:
         ) == os.EX_OK
 
         disabled_guideline = await context.api.read_guideline(agent_id, guideline["id"])
-        assert disabled_guideline["enabled"] is False
+        assert disabled_guideline["guideline"]["enabled"] is False
