@@ -480,14 +480,15 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
     # TODO: Delete this check in future versions
     # Check if the system is ready for version >1.7.0
     # Checking if the Parlant server is compatible by examining the agent version
-    with open(PARLANT_HOME_DIR / "agents.json", "r") as agents_db:
-        raw_data = json.load(agents_db)
-        agents = raw_data.get("agents")
-        if agents and agents[0].get("version") == "0.1.0":
-            die(
-                "You running a particulary old version of Parlant.\n"
-                "To upgrade your existing data to the new schemas, please run `parlant-prepare-migration` and then re-run the server with --migrate."
-            )
+    if (PARLANT_HOME_DIR / "agents.json").exists():
+        with open(PARLANT_HOME_DIR / "agents.json", "r") as agents_db:
+            raw_data = json.load(agents_db)
+            agents = raw_data.get("agents")
+            if agents and agents[0].get("version") == "0.1.0":
+                die(
+                    "You running a particulary old version of Parlant.\n"
+                    "To upgrade your existing data to the new schemas, please run `parlant-prepare-migration` and then re-run the server with --migrate."
+                )
 
     global EXIT_STACK
 
