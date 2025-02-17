@@ -589,6 +589,24 @@ class Actions:
         )
 
     @staticmethod
+    def enable_guideline(
+        ctx: click.Context,
+        agent_id: str,
+        guideline_id: str,
+    ) -> GuidelineWithConnectionsAndToolAssociations:
+        client = cast(ParlantClient, ctx.obj.client)
+        return client.guidelines.update(agent_id, guideline_id, enabled=True)
+
+    @staticmethod
+    def disable_guideline(
+        ctx: click.Context,
+        agent_id: str,
+        guideline_id: str,
+    ) -> GuidelineWithConnectionsAndToolAssociations:
+        client = cast(ParlantClient, ctx.obj.client)
+        return client.guidelines.update(agent_id, guideline_id, enabled=False)
+
+    @staticmethod
     def list_variables(
         ctx: click.Context,
         agent_id: str,
@@ -1329,6 +1347,7 @@ class Interface:
                 "ID": guideline.id,
                 "Condition": guideline.condition,
                 "Action": guideline.action,
+                "Enabled": guideline.enabled,
             }
             for guideline in guidelines
         ]
@@ -1624,6 +1643,37 @@ class Interface:
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
+
+    @staticmethod
+    def enable_guideline(
+        ctx: click.Context,
+        agent_id: str,
+        guideline_id: str,
+    ) -> None:
+        try:
+            guideline = Actions.enable_guideline(ctx, agent_id, guideline_id)
+
+            Interface._write_success(f"Enabled guideline (id: {guideline_id})")
+
+            Interface._render_guidelines([guideline.guideline])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def disable_guideline(
+        ctx: click.Context,
+        agent_id: str,
+        guideline_id: str,
+    ) -> None:
+        try:
+            guideline = Actions.disable_guideline(ctx, agent_id, guideline_id)
+
+            Interface._write_success(f"Disabled guideline (id: {guideline_id})")
+
+            Interface._render_guidelines([guideline.guideline])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
 
     @staticmethod
     def _render_variables(variables: list[ContextVariable]) -> None:
@@ -2809,6 +2859,54 @@ async def async_main() -> None:
             guideline_id=id,
             service_name=service,
             tool_name=tool,
+        )
+
+    @guideline.command("enable", help="Enable a guideline")
+    @click.option(
+        "--agent-id",
+        type=str,
+        help="Agent ID",
+        metavar="ID",
+        required=False,
+    )
+    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
+    @click.pass_context
+    def guideline_enable(
+        ctx: click.Context,
+        agent_id: Optional[str],
+        id: str,
+    ) -> None:
+        agent_id = agent_id if agent_id else Interface.get_default_agent(ctx)
+        assert agent_id
+
+        Interface.enable_guideline(
+            ctx=ctx,
+            agent_id=agent_id,
+            guideline_id=id,
+        )
+
+    @guideline.command("disable", help="Disable a guideline")
+    @click.option(
+        "--agent-id",
+        type=str,
+        help="Agent ID",
+        metavar="ID",
+        required=False,
+    )
+    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
+    @click.pass_context
+    def guideline_disable(
+        ctx: click.Context,
+        agent_id: Optional[str],
+        id: str,
+    ) -> None:
+        agent_id = agent_id if agent_id else Interface.get_default_agent(ctx)
+        assert agent_id
+
+        Interface.disable_guideline(
+            ctx=ctx,
+            agent_id=agent_id,
+            guideline_id=id,
         )
 
     @cli.group(help="Manage an agent's context variables")

@@ -406,6 +406,22 @@ class API:
 
             return response.json()["items"][0]["guideline"]
 
+    async def update_guideline(
+        self,
+        agent_id: str,
+        guideline_id: str,
+        enabled: bool,
+    ) -> Any:
+        async with self.make_client() as client:
+            response = await client.patch(
+                f"/agents/{agent_id}/guidelines/{guideline_id}",
+                json={"enabled": enabled},
+            )
+
+            response.raise_for_status()
+
+            return response.json()["guideline"]
+
     async def add_association(
         self,
         agent_id: str,

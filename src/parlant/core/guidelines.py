@@ -135,7 +135,7 @@ class GuidelineDocumentStore(GuidelineStore):
 
             return _GuidelineDocumentV0_2_0(
                 id=doc_v0_1_0["id"],
-                version=doc_v0_1_0["version"],
+                version=Version.String("0.2.0"),
                 creation_utc=doc_v0_1_0["creation_utc"],
                 guideline_set=doc_v0_1_0["guideline_set"],
                 condition=doc_v0_1_0["condition"],
