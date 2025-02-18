@@ -53,7 +53,7 @@ from parlant.core.persistence.document_database import (
 )
 from parlant.core.glossary import TermId
 from parlant.core.fragments import FragmentId
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 
 SessionId = NewType("SessionId", str)
 
@@ -413,7 +413,7 @@ class SessionDocumentStore(SessionStore):
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,

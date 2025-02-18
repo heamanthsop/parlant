@@ -580,12 +580,14 @@ async def test_that_reading_a_guideline_lists_both_direct_and_indirect_connectio
             "id": guideline_a.id,
             "condition": guideline_a.content.condition,
             "action": guideline_a.content.action,
+            "enabled": guideline_a.enabled,
         }
 
         assert c["target"] == {
             "id": guideline_b.id,
             "condition": guideline_b.content.condition,
             "action": guideline_b.content.action,
+            "enabled": guideline_b.enabled,
         }
 
         is_direct = third_item["guideline"]["id"] in (c["source"]["id"], c["target"]["id"])
@@ -1181,3 +1183,29 @@ async def test_that_guideline_update_retains_existing_connections_with_disabled_
     assert len(updated_connections) == 1
     assert updated_connections[0].source == existing_guideline.id
     assert updated_connections[0].target == connected_guideline.id
+
+
+async def test_that_a_guideline_can_be_disabled(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        guideline_set=agent_id,
+        condition="the customer greets you",
+        action="reply with 'Hello'",
+    )
+
+    response = (
+        await async_client.patch(
+            f"/agents/{agent_id}/guidelines/{guideline.id}",
+            json={"enabled": False},
+        )
+    ).raise_for_status()
+
+    assert response.status_code == status.HTTP_200_OK
+
+    updated_guideline = response.json()["guideline"]
+    assert not updated_guideline["enabled"]

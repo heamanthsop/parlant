@@ -25,7 +25,7 @@ from parlant.core.common import ItemNotFoundError, Version, generate_id, UniqueI
 from parlant.core.persistence.common import ObjectId
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.persistence.vector_database import BaseDocument, VectorCollection, VectorDatabase
-from parlant.core.persistence.vector_database_helper import MigrationHelper
+from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
 
 
 TermId = NewType("TermId", str)
@@ -139,7 +139,7 @@ class GlossaryVectorStore(GlossaryStore):
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with VectorDocumentStoreMigrationHelper(
             store=self,
             database=self._vector_db,
             allow_migration=self._allow_migration,

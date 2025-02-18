@@ -29,7 +29,7 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     DocumentCollection,
 )
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 
 GuidelineConnectionId = NewType("GuidelineConnectionId", str)
 
@@ -90,7 +90,7 @@ class GuidelineConnectionDocumentStore(GuidelineConnectionStore):
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,

@@ -45,7 +45,13 @@ from parlant.core.guideline_connections import (
     GuidelineConnectionId,
     GuidelineConnectionStore,
 )
-from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId, GuidelineStore
+from parlant.core.guidelines import (
+    Guideline,
+    GuidelineContent,
+    GuidelineId,
+    GuidelineStore,
+    GuidelineUpdateParams,
+)
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationId,
     GuidelineToolAssociationStore,
@@ -66,6 +72,7 @@ guideline_dto_example: ExampleJson = {
     "id": "guid_123xz",
     "condition": "when the customer asks about pricing",
     "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": True,
 }
 
 
@@ -74,6 +81,15 @@ GuidelineIdPath: TypeAlias = Annotated[
     Path(
         description="Unique identifier for the guideline",
         examples=["IUCGT-l4pS"],
+    ),
+]
+
+
+GuidelineEnabledField: TypeAlias = Annotated[
+    bool,
+    Field(
+        description="Whether the guideline is enabled",
+        examples=[True, False],
     ),
 ]
 
@@ -87,6 +103,7 @@ class GuidelineDTO(
     id: GuidelineIdPath
     condition: GuidelineConditionField
     action: GuidelineActionField
+    enabled: GuidelineEnabledField
 
 
 GuidelineConnectionIdField: TypeAlias = Annotated[
@@ -109,11 +126,13 @@ guideline_connection_dto_example: ExampleJson = {
         "id": "guid_123xz",
         "condition": "when the customer asks about pricing",
         "action": "provide current pricing information",
+        "enabled": True,
     },
     "target": {
         "id": "guid_789yz",
         "condition": "when providing pricing information",
         "action": "mention any seasonal discounts",
+        "enabled": True,
     },
     "indirect": False,
 }
@@ -169,6 +188,7 @@ guideline_with_connections_example: ExampleJson = {
         "id": "guid_123xz",
         "condition": "when the customer asks about pricing",
         "action": "provide current pricing information",
+        "enabled": True,
     },
     "connections": [
         {
@@ -177,11 +197,13 @@ guideline_with_connections_example: ExampleJson = {
                 "id": "guid_123xz",
                 "condition": "when the customer asks about pricing",
                 "action": "provide current pricing information",
+                "enabled": True,
             },
             "target": {
                 "id": "guid_789yz",
                 "condition": "when providing pricing information",
                 "action": "mention any seasonal discounts",
+                "enabled": True,
             },
             "indirect": False,
         }
@@ -337,6 +359,7 @@ guideline_update_params_example: ExampleJson = {
         "add": [{"service_name": "pricing_service", "tool_name": "get_prices"}],
         "remove": [{"service_name": "old_service", "tool_name": "old_tool"}],
     },
+    "enabled": True,
 }
 
 
@@ -347,6 +370,7 @@ class GuidelineUpdateParamsDTO(
 
     connections: Optional[GuidelineConnectionUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
+    enabled: Optional[bool] = None
 
 
 @dataclass
@@ -460,6 +484,7 @@ guideline_example = {
     "id": "guid_123xz",
     "condition": "when the customer asks about pricing",
     "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": True,
 }
 
 
@@ -565,6 +590,7 @@ def create_router(
                         id=guideline.id,
                         condition=guideline.content.condition,
                         action=guideline.content.action,
+                        enabled=guideline.enabled,
                     ),
                     connections=[
                         GuidelineConnectionDTO(
@@ -573,11 +599,13 @@ def create_router(
                                 id=connection.source.id,
                                 condition=connection.source.content.condition,
                                 action=connection.source.content.action,
+                                enabled=connection.source.enabled,
                             ),
                             target=GuidelineDTO(
                                 id=connection.target.id,
                                 condition=connection.target.content.condition,
                                 action=connection.target.content.action,
+                                enabled=connection.target.enabled,
                             ),
                             indirect=indirect,
                         )
@@ -632,6 +660,7 @@ def create_router(
                 id=guideline.id,
                 condition=guideline.content.condition,
                 action=guideline.content.action,
+                enabled=guideline.enabled,
             ),
             connections=[
                 GuidelineConnectionDTO(
@@ -640,11 +669,13 @@ def create_router(
                         id=connection.source.id,
                         condition=connection.source.content.condition,
                         action=connection.source.content.action,
+                        enabled=connection.source.enabled,
                     ),
                     target=GuidelineDTO(
                         id=connection.target.id,
                         condition=connection.target.content.condition,
                         action=connection.target.content.action,
+                        enabled=connection.target.enabled,
                     ),
                     indirect=indirect,
                 )
@@ -687,13 +718,16 @@ def create_router(
         Guidelines are returned in no guaranteed order.
         Does not include connections or tool associations.
         """
-        guidelines = await guideline_store.list_guidelines(guideline_set=agent_id)
+        guidelines = await guideline_store.list_guidelines(
+            guideline_set=agent_id,
+        )
 
         return [
             GuidelineDTO(
                 id=guideline.id,
                 condition=guideline.content.condition,
                 action=guideline.content.action,
+                enabled=guideline.enabled,
             )
             for guideline in guidelines
         ]
@@ -737,6 +771,12 @@ def create_router(
             guideline_set=agent_id,
             guideline_id=guideline_id,
         )
+
+        if params.enabled is not None:
+            await guideline_store.update_guideline(
+                guideline_id=guideline_id,
+                params=GuidelineUpdateParams(enabled=params.enabled),
+            )
 
         if params.connections and params.connections.add:
             for req in params.connections.add:
@@ -817,11 +857,17 @@ def create_router(
                         detail=f"Tool association not found for service '{tool_id_dto.service_name}' and tool '{tool_id_dto.tool_name}'",
                     )
 
+        updated_guideline = await guideline_store.read_guideline(
+            guideline_set=agent_id,
+            guideline_id=guideline_id,
+        )
+
         return GuidelineWithConnectionsAndToolAssociationsDTO(
             guideline=GuidelineDTO(
-                id=guideline.id,
-                condition=guideline.content.condition,
-                action=guideline.content.action,
+                id=updated_guideline.id,
+                condition=updated_guideline.content.condition,
+                action=updated_guideline.content.action,
+                enabled=updated_guideline.enabled,
             ),
             connections=[
                 GuidelineConnectionDTO(
@@ -830,11 +876,13 @@ def create_router(
                         id=connection.source.id,
                         condition=connection.source.content.condition,
                         action=connection.source.content.action,
+                        enabled=connection.source.enabled,
                     ),
                     target=GuidelineDTO(
                         id=connection.target.id,
                         condition=connection.target.content.condition,
                         action=connection.target.content.action,
+                        enabled=connection.target.enabled,
                     ),
                     indirect=indirect,
                 )

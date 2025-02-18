@@ -725,10 +725,14 @@ class AlphaEngine(Engine):
         list[GuidelineProposition],
         dict[GuidelineProposition, list[ToolId]],
     ]:
-        # Step 1: Retrieve all of the installed guidelines for this agent.
-        all_stored_guidelines = await self._guideline_store.list_guidelines(
-            guideline_set=context.agent.id,
-        )
+        # Step 1: Retrieve all of the enabled guidelines for this agent.
+        all_stored_guidelines = [
+            g
+            for g in await self._guideline_store.list_guidelines(
+                guideline_set=context.agent.id,
+            )
+            if g.enabled
+        ]
 
         # Step 2: Filter the best matches out of those.
         proposition_result = await self._guideline_proposer.propose_guidelines(
@@ -953,6 +957,7 @@ class AlphaEngine(Engine):
                         condition=conditions[utterance.reason],
                         action=utterance.action,
                     ),
+                    enabled=True,
                 ),
                 rationale=rationales[utterance.reason],
                 score=10,

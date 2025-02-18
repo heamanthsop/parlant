@@ -26,7 +26,10 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     DocumentCollection,
 )
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import (
+    DocumentStoreMigrationHelper,
+    DocumentMigrationHelper,
+)
 
 GuidelineId = NewType("GuidelineId", str)
 
@@ -42,6 +45,7 @@ class Guideline:
     id: GuidelineId
     creation_utc: datetime
     content: GuidelineContent
+    enabled: bool
 
     def __str__(self) -> str:
         return f"When {self.content.condition}, then {self.content.action}"
@@ -51,6 +55,7 @@ class GuidelineUpdateParams(TypedDict, total=False):
     guideline_set: str
     condition: str
     action: str
+    enabled: bool
 
 
 class GuidelineStore(ABC):
@@ -98,7 +103,7 @@ class GuidelineStore(ABC):
     ) -> Guideline: ...
 
 
-class _GuidelineDocument(TypedDict, total=False):
+class _GuidelineDocument_V0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -107,8 +112,18 @@ class _GuidelineDocument(TypedDict, total=False):
     action: str
 
 
+class _GuidelineDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    guideline_set: str
+    condition: str
+    action: str
+    enabled: bool
+
+
 class GuidelineDocumentStore(GuidelineStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -117,12 +132,24 @@ class GuidelineDocumentStore(GuidelineStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
-        if doc["version"] == "0.1.0":
-            return cast(_GuidelineDocument, doc)
-        return None
+        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            d = cast(_GuidelineDocument_V0_1_0, doc)
+            return _GuidelineDocument(
+                id=d["id"],
+                version=Version.String("0.2.0"),
+                creation_utc=d["creation_utc"],
+                guideline_set=d["guideline_set"],
+                condition=d["condition"],
+                action=d["action"],
+                enabled=True,
+            )
+
+        return await DocumentMigrationHelper[_GuidelineDocument](
+            self, {"0.1.0": v0_1_0_to_v_0_2_0}
+        ).migrate(doc)
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,
@@ -155,6 +182,7 @@ class GuidelineDocumentStore(GuidelineStore):
             guideline_set=guideline_set,
             condition=guideline.content.condition,
             action=guideline.content.action,
+            enabled=guideline.enabled,
         )
 
     def _deserialize(
@@ -167,6 +195,7 @@ class GuidelineDocumentStore(GuidelineStore):
             content=GuidelineContent(
                 condition=guideline_document["condition"], action=guideline_document["action"]
             ),
+            enabled=guideline_document["enabled"],
         )
 
     @override
@@ -176,6 +205,7 @@ class GuidelineDocumentStore(GuidelineStore):
         condition: str,
         action: str,
         creation_utc: Optional[datetime] = None,
+        enabled: bool = True,
     ) -> Guideline:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -187,6 +217,7 @@ class GuidelineDocumentStore(GuidelineStore):
                     condition=condition,
                     action=action,
                 ),
+                enabled=enabled,
             )
 
             await self._collection.insert_one(
@@ -207,7 +238,9 @@ class GuidelineDocumentStore(GuidelineStore):
             return [
                 self._deserialize(d)
                 for d in await self._collection.find(
-                    filters={"guideline_set": {"$eq": guideline_set}}
+                    filters={
+                        "guideline_set": {"$eq": guideline_set},
+                    }
                 )
             ]
 
@@ -267,6 +300,7 @@ class GuidelineDocumentStore(GuidelineStore):
                     ),
                     **({"condition": params["condition"]} if "condition" in params else {}),
                     **({"action": params["action"]} if "action" in params else {}),
+                    **({"enabled": params["enabled"]} if "enabled" in params else {}),
                 }
             )
 
