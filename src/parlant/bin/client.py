@@ -1533,15 +1533,21 @@ class Interface:
     def list_guidelines(
         ctx: click.Context,
         agent_id: str,
+        show_disabled: bool,
     ) -> None:
         try:
             guidelines = Actions.list_guidelines(ctx, agent_id)
 
-            if not guidelines:
+            guidelines_to_render = sorted(
+                [g for g in guidelines if g.enabled or show_disabled],
+                key=lambda g: g.enabled,
+            )
+
+            if not guidelines_to_render:
                 rich.print(Text("No data available", style="bold yellow"))
                 return
 
-            Interface._render_guidelines(guidelines)
+            Interface._render_guidelines(guidelines_to_render)
 
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
@@ -2722,10 +2728,18 @@ async def async_main() -> None:
         metavar="ID",
         required=False,
     )
+    @click.option(
+        "--show-disabled",
+        type=bool,
+        show_default=True,
+        default=True,
+        help="Show disabled guidelines",
+    )
     @click.pass_context
     def guideline_list(
         ctx: click.Context,
         agent_id: str,
+        show_disabled: bool,
     ) -> None:
         agent_id = agent_id if agent_id else Interface.get_default_agent(ctx)
         assert agent_id
@@ -2733,6 +2747,7 @@ async def async_main() -> None:
         Interface.list_guidelines(
             ctx=ctx,
             agent_id=agent_id,
+            show_disabled=show_disabled,
         )
 
     @guideline.command("entail", help="Create an entailment between two guidelines")

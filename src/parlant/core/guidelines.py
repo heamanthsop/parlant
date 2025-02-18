@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
-from parlant.core.persistence.common import ObjectId, Where
+from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import (
     BaseDocument,
     DocumentDatabase,
@@ -69,7 +69,6 @@ class GuidelineStore(ABC):
     async def list_guidelines(
         self,
         guideline_set: str,
-        show_disabled: bool = False,
     ) -> Sequence[Guideline]: ...
 
     @abstractmethod
@@ -233,17 +232,15 @@ class GuidelineDocumentStore(GuidelineStore):
     async def list_guidelines(
         self,
         guideline_set: str,
-        show_disabled: bool = False,
     ) -> Sequence[Guideline]:
         async with self._lock.reader_lock:
-            filters = {
-                "guideline_set": {"$eq": guideline_set},
-                **({"enabled": {"$eq": True}} if not show_disabled else {}),
-            }
-
             return [
                 self._deserialize(d)
-                for d in await self._collection.find(filters=cast(Where, filters))
+                for d in await self._collection.find(
+                    filters={
+                        "guideline_set": {"$eq": guideline_set},
+                    }
+                )
             ]
 
     @override

@@ -710,7 +710,6 @@ def create_router(
     )
     async def list_guidelines(
         agent_id: agents.AgentIdPath,
-        show_disabled: bool = False,
     ) -> Sequence[GuidelineDTO]:
         """
         Lists all guidelines for the specified agent.
@@ -721,7 +720,6 @@ def create_router(
         """
         guidelines = await guideline_store.list_guidelines(
             guideline_set=agent_id,
-            show_disabled=show_disabled,
         )
 
         return [
