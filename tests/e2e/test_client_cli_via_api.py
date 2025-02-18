@@ -2161,51 +2161,92 @@ async def test_that_fragments_can_be_loaded(context: ContextOfTest) -> None:
         os.remove(tmp_file_path)
 
 
-async def test_that_a_guideline_can_be_enabled(context: ContextOfTest) -> None:
+async def test_that_guidelines_can_be_enabled(context: ContextOfTest) -> None:
     with run_server(context):
         while not is_server_responsive(SERVER_PORT):
             await asyncio.sleep(0.05)
 
         agent_id = (await context.api.get_first_agent())["id"]
 
-        guideline = await context.api.create_guideline(
+        first_guideline = await context.api.create_guideline(
             agent_id,
             condition="the customer greets you",
             action="greet them back with 'Hello'",
         )
 
-        disabled_guideline = await context.api.update_guideline(
+        second_guideline = await context.api.create_guideline(
             agent_id,
-            guideline["id"],
+            condition="the customer greets you",
+            action="greet them back with 'Goodbye'",
+        )
+
+        disabled_first_guideline = await context.api.update_guideline(
+            agent_id,
+            first_guideline["id"],
             enabled=False,
         )
 
-        assert disabled_guideline["enabled"] is False
+        disabled_second_guideline = await context.api.update_guideline(
+            agent_id,
+            second_guideline["id"],
+            enabled=False,
+        )
+
+        assert disabled_first_guideline["enabled"] is False
+        assert disabled_second_guideline["enabled"] is False
 
         assert (
-            await run_cli_and_get_exit_status("guideline", "enable", "--id", guideline["id"])
+            await run_cli_and_get_exit_status(
+                "guideline",
+                "enable",
+                "--id",
+                first_guideline["id"],
+                "--id",
+                second_guideline["id"],
+            )
         ) == os.EX_OK
 
-        enabled_guideline = await context.api.read_guideline(agent_id, guideline["id"])
-        assert enabled_guideline["guideline"]["enabled"] is True
+        enabled_first_guideline = await context.api.read_guideline(agent_id, first_guideline["id"])
+        assert enabled_first_guideline["guideline"]["enabled"] is True
+
+        enabled_second_guideline = await context.api.read_guideline(
+            agent_id, second_guideline["id"]
+        )
+        assert enabled_second_guideline["guideline"]["enabled"] is True
 
 
-async def test_that_a_guideline_can_be_disabled(context: ContextOfTest) -> None:
+async def test_that_guidelines_can_be_disabled(context: ContextOfTest) -> None:
     with run_server(context):
         while not is_server_responsive(SERVER_PORT):
             await asyncio.sleep(0.05)
 
         agent_id = (await context.api.get_first_agent())["id"]
 
-        guideline = await context.api.create_guideline(
+        first_guideline = await context.api.create_guideline(
             agent_id,
             condition="the customer greets you",
             action="greet them back with 'Hello'",
         )
 
+        second_guideline = await context.api.create_guideline(
+            agent_id,
+            condition="the customer greets you",
+            action="greet them back with 'Goodbye'",
+        )
+
         assert (
-            await run_cli_and_get_exit_status("guideline", "disable", "--id", guideline["id"])
+            await run_cli_and_get_exit_status(
+                "guideline",
+                "disable",
+                "--id",
+                first_guideline["id"],
+                "--id",
+                second_guideline["id"],
+            )
         ) == os.EX_OK
 
-        disabled_guideline = await context.api.read_guideline(agent_id, guideline["id"])
+        disabled_guideline = await context.api.read_guideline(agent_id, first_guideline["id"])
+        assert disabled_guideline["guideline"]["enabled"] is False
+
+        disabled_guideline = await context.api.read_guideline(agent_id, second_guideline["id"])
         assert disabled_guideline["guideline"]["enabled"] is False
