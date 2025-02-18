@@ -1505,6 +1505,7 @@ class Interface:
                 guideline_with_connections_and_associations.tool_associations,
                 include_indirect=True,
             )
+
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)

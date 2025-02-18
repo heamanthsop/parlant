@@ -263,8 +263,10 @@ class GPT_4o_Mini(AzureSchematicGenerator[T]):
 class AzureEmbedder(Embedder):
     supported_arguments = ["dimensions"]
 
-    def __init__(self, model_name: str, client: AsyncAzureOpenAI) -> None:
+    def __init__(self, model_name: str, logger: Logger, client: AsyncAzureOpenAI) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = client
         self._tokenizer = AzureEstimatingTokenizer(model_name=self.model_name)
 
@@ -310,13 +312,13 @@ class AzureEmbedder(Embedder):
 
 
 class AzureTextEmbedding3Large(AzureEmbedder):
-    def __init__(self) -> None:
+    def __init__(self, logger: Logger) -> None:
         _client = AsyncAzureOpenAI(
             api_key=os.environ["AZURE_API_KEY"],
             azure_endpoint=os.environ["AZURE_ENDPOINT"],
             api_version="2023-05-15",
         )
-        super().__init__(model_name="text-embedding-3-large", client=_client)
+        super().__init__(model_name="text-embedding-3-large", logger=logger, client=_client)
 
     @property
     @override
@@ -329,13 +331,13 @@ class AzureTextEmbedding3Large(AzureEmbedder):
 
 
 class AzureTextEmbedding3Small(AzureEmbedder):
-    def __init__(self) -> None:
+    def __init__(self, logger: Logger) -> None:
         _client = AsyncAzureOpenAI(
             api_key=os.environ["AZURE_API_KEY"],
             azure_endpoint=os.environ["AZURE_ENDPOINT"],
             api_version="2023-05-15",
         )
-        super().__init__(model_name="text-embedding-3-small", client=_client)
+        super().__init__(model_name="text-embedding-3-small", logger=logger, client=_client)
 
     @property
     def max_tokens(self) -> int:
@@ -357,7 +359,7 @@ class AzureService(NLPService):
         return GPT_4o[t](self._logger)  # type: ignore
 
     async def get_embedder(self) -> Embedder:
-        return AzureTextEmbedding3Large()
+        return AzureTextEmbedding3Large(self._logger)
 
     async def get_moderation_service(self) -> ModerationService:
         return NoModeration()

@@ -63,6 +63,7 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
         logger: Logger,
     ) -> None:
         self.model_name = model_name
+
         self._logger = logger
         self._client = AsyncCerebras(api_key=os.environ.get("CEREBRAS_API_KEY"))
 
