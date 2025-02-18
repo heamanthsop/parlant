@@ -111,6 +111,27 @@ class GuidelineProposer:
         terms: Sequence[Term],
         staged_events: Sequence[EmittedEvent],
     ) -> GuidelinePropositionResult:
+        with self._logger.scope("GuidelineProposer"):
+            return await self._do_propose_guidelines(
+                agent,
+                customer,
+                guidelines,
+                context_variables,
+                interaction_history,
+                terms,
+                staged_events,
+            )
+
+    async def _do_propose_guidelines(
+        self,
+        agent: Agent,
+        customer: Customer,
+        guidelines: Sequence[Guideline],
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        staged_events: Sequence[EmittedEvent],
+    ) -> GuidelinePropositionResult:
         if not guidelines:
             return GuidelinePropositionResult(
                 total_duration=0.0, batch_count=0, batch_generations=[], batches=[]
@@ -124,7 +145,7 @@ class GuidelineProposer:
         )
 
         with self._logger.operation(
-            f"[GuidelineProposer] Evaluating {len(guidelines)} guidelines ({len(batches)} batches)"
+            f"Evaluation: {len(guidelines)} guidelines in {len(batches)} batches"
         ):
             batch_tasks = [
                 self._process_guideline_batch(
@@ -223,10 +244,8 @@ class GuidelineProposer:
             shots=await self.shots(),
         )
 
-        with self._logger.operation(
-            f"[GuidelineProposer] Evaluating batch ({len(guidelines_dict)} guidelines)"
-        ):
-            self._logger.debug(f"[GuidelineProposer][Prompt]\n{prompt}")
+        with self._logger.operation(f"Batch: {len(guidelines_dict)} guidelines"):
+            self._logger.debug(f"Prompt:\n{prompt}")
 
             inference = await self._schematic_generator.generate(
                 prompt=prompt,
@@ -234,13 +253,9 @@ class GuidelineProposer:
             )
 
         if not inference.content.checks:
-            self._logger.warning(
-                "[GuidelineProposer][Completion]\nNo checks generated! This shouldn't happen."
-            )
+            self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            self._logger.debug(
-                f"[GuidelineProposer][Completion]\n{inference.content.model_dump_json(indent=2)}"
-            )
+            self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         propositions = []
 
@@ -250,7 +265,7 @@ class GuidelineProposer:
                 or proposition.guideline_should_reapply
             ):
                 self._logger.debug(
-                    f"[GuidelineProposer][Completion][Activated]\n{proposition.model_dump_json(indent=2)}"
+                    f"Completion::Activated:\n{proposition.model_dump_json(indent=2)}"
                 )
 
                 propositions.append(
@@ -275,9 +290,7 @@ class GuidelineProposer:
                     )
                 )
             else:
-                self._logger.debug(
-                    f"[GuidelineProposer][Completion][Skipped]\n{proposition.model_dump_json(indent=2)}"
-                )
+                self._logger.debug(f"Completion::Skipped:\n{proposition.model_dump_json(indent=2)}")
 
         return inference.info, propositions
 

@@ -148,92 +148,115 @@ class MessageAssembler(MessageEventComposer):
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[MessageEventComposition]:
-        with self._logger.operation("[MessageEventComposer][Assembly] Message generation"):
-            if (
-                not interaction_history
-                and not ordinary_guideline_propositions
-                and not tool_enabled_guideline_propositions
-            ):
-                # No interaction and no guidelines that could trigger
-                # a proactive start of the interaction
-                self._logger.info(
-                    "[MessageEventComposer][Assembly] Skipping response; interaction is empty and there are no guidelines"
+        with self._logger.scope("MessageEventComposer"):
+            with self._logger.scope("Assembly"):
+                with self._logger.operation("Message generation"):
+                    return await self._do_generate_events(
+                        event_emitter,
+                        agent,
+                        customer,
+                        context_variables,
+                        interaction_history,
+                        terms,
+                        ordinary_guideline_propositions,
+                        tool_enabled_guideline_propositions,
+                        tool_insights,
+                        staged_events,
+                    )
+
+    async def _do_generate_events(
+        self,
+        event_emitter: EventEmitter,
+        agent: Agent,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        ordinary_guideline_propositions: Sequence[GuidelineProposition],
+        tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
+        tool_insights: ToolInsights,
+        staged_events: Sequence[EmittedEvent],
+    ) -> Sequence[MessageEventComposition]:
+        if (
+            not interaction_history
+            and not ordinary_guideline_propositions
+            and not tool_enabled_guideline_propositions
+        ):
+            # No interaction and no guidelines that could trigger
+            # a proactive start of the interaction
+            self._logger.info("Skipping response; interaction is empty and there are no guidelines")
+            return []
+
+        fragments = await self._fragment_store.list_fragments()
+
+        prompt = self._format_prompt(
+            agent=agent,
+            context_variables=context_variables,
+            customer=customer,
+            interaction_history=interaction_history,
+            terms=terms,
+            ordinary_guideline_propositions=ordinary_guideline_propositions,
+            tool_enabled_guideline_propositions=tool_enabled_guideline_propositions,
+            staged_events=staged_events,
+            tool_insights=tool_insights,
+            fragments=fragments,
+            shots=await self.shots(agent.composition_mode),
+        )
+
+        last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
+
+        await event_emitter.emit_status_event(
+            correlation_id=self._correlator.correlation_id,
+            data={
+                "acknowledged_offset": last_known_event_offset,
+                "status": "typing",
+                "data": {},
+            },
+        )
+
+        generation_attempt_temperatures = {
+            0: 0.1,
+            1: 0.05,
+            2: 0.2,
+        }
+
+        last_generation_exception: Exception | None = None
+
+        self._logger.debug(f"Prompt:\n{prompt}")
+
+        for generation_attempt in range(3):
+            try:
+                generation_info, assembly_result = await self._generate_response_message(
+                    prompt,
+                    fragments,
+                    agent.composition_mode,
+                    temperature=generation_attempt_temperatures[generation_attempt],
+                    final_attempt=(generation_attempt + 1) == len(generation_attempt_temperatures),
                 )
-                return []
 
-            fragments = await self._fragment_store.list_fragments()
-
-            prompt = self._format_prompt(
-                agent=agent,
-                context_variables=context_variables,
-                customer=customer,
-                interaction_history=interaction_history,
-                terms=terms,
-                ordinary_guideline_propositions=ordinary_guideline_propositions,
-                tool_enabled_guideline_propositions=tool_enabled_guideline_propositions,
-                staged_events=staged_events,
-                tool_insights=tool_insights,
-                fragments=fragments,
-                shots=await self.shots(agent.composition_mode),
-            )
-
-            last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
-
-            await event_emitter.emit_status_event(
-                correlation_id=self._correlator.correlation_id,
-                data={
-                    "acknowledged_offset": last_known_event_offset,
-                    "status": "typing",
-                    "data": {},
-                },
-            )
-
-            generation_attempt_temperatures = {
-                0: 0.1,
-                1: 0.05,
-                2: 0.2,
-            }
-
-            last_generation_exception: Exception | None = None
-
-            self._logger.debug(f"[MessageEventComposer][Assembly][Prompt]\n{prompt}")
-
-            for generation_attempt in range(3):
-                try:
-                    generation_info, assembly_result = await self._generate_response_message(
-                        prompt,
-                        fragments,
-                        agent.composition_mode,
-                        temperature=generation_attempt_temperatures[generation_attempt],
-                        final_attempt=(generation_attempt + 1)
-                        == len(generation_attempt_temperatures),
+                if assembly_result is not None:
+                    event = await event_emitter.emit_message_event(
+                        correlation_id=self._correlator.correlation_id,
+                        data=MessageEventData(
+                            message=assembly_result.message,
+                            participant=Participant(id=agent.id, display_name=agent.name),
+                            fragments={
+                                id: value for id, value in assembly_result.fragments.items()
+                            },
+                        ),
                     )
 
-                    if assembly_result is not None:
-                        event = await event_emitter.emit_message_event(
-                            correlation_id=self._correlator.correlation_id,
-                            data=MessageEventData(
-                                message=assembly_result.message,
-                                participant=Participant(id=agent.id, display_name=agent.name),
-                                fragments={
-                                    id: value for id, value in assembly_result.fragments.items()
-                                },
-                            ),
-                        )
+                    return [MessageEventComposition(generation_info, [event])]
+                else:
+                    self._logger.debug("Skipping response; no response deemed necessary")
+                    return [MessageEventComposition(generation_info, [])]
+            except Exception as exc:
+                self._logger.warning(
+                    f"Generation attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                )
+                last_generation_exception = exc
 
-                        return [MessageEventComposition(generation_info, [event])]
-                    else:
-                        self._logger.debug(
-                            "[MessageEventComposer][Assembly] Skipping response; no response deemed necessary"
-                        )
-                        return [MessageEventComposition(generation_info, [])]
-                except Exception as exc:
-                    self._logger.warning(
-                        f"[MessageEventComposer][Assembly] Generation attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
-                    )
-                    last_generation_exception = exc
-
-            raise MessageCompositionError() from last_generation_exception
+        raise MessageCompositionError() from last_generation_exception
 
     def _get_fragment_bank_text(self, fragments: Sequence[Fragment]) -> str:
         content = """
@@ -642,11 +665,11 @@ Produce a valid JSON object in the following format: ###
         )
 
         self._logger.debug(
-            f"[MessageEventComposer][Assembly][Completion]\n{message_event_response.content.model_dump_json(indent=2)}"
+            f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
         if not message_event_response.content.produced_reply:
-            self._logger.debug("[MessageEventComposer][Assembly] Produced no reply")
+            self._logger.debug("Produced no reply")
             return message_event_response.info, None
 
         if first_correct_revision := next(
@@ -681,7 +704,7 @@ Produce a valid JSON object in the following format: ###
                 pass
             else:
                 self._logger.warning(
-                    f"[MessageEventComposer][Assembly] Conceding despite problematic message generation (review completion): {final_revision.composited_fragment_sequence}"
+                    f"Conceding despite problematic message generation (review completion): {final_revision.composited_fragment_sequence}"
                 )
 
         if (
@@ -689,7 +712,7 @@ Produce a valid JSON object in the following format: ###
             and not final_revision.selected_content_fragments
         ):
             self._logger.warning(
-                "[MessageEventComposer][Assembly] No relevant fragments in the bank to generate a sensible response"
+                "No relevant fragments in the bank to generate a sensible response"
             )
             return message_event_response.info, None
 
@@ -697,7 +720,7 @@ Produce a valid JSON object in the following format: ###
             final_revision.sequenced_rendered_content_fragments
         ):
             self._logger.error(
-                "[MessageEventComposer][Assembly] Selected list of content fragments diverges from list of rendered fragments"
+                "Selected list of content fragments diverges from list of rendered fragments"
             )
 
         used_fragments = {}
@@ -718,7 +741,7 @@ Produce a valid JSON object in the following format: ###
 
             if not fragment:
                 self._logger.error(
-                    f"[MessageEventComposer][Assembly] Invalid fragment selection. ID={materialized_fragment.fragment_id}; Value={materialized_fragment.raw_content}; Fields={materialized_fragment.fields}"
+                    f"Invalid fragment selection. ID={materialized_fragment.fragment_id}; Value={materialized_fragment.raw_content}; Fields={materialized_fragment.fields}"
                 )
                 used_fragments[Fragment.INVALID_ID] = materialized_fragment.raw_content
                 continue
@@ -731,7 +754,7 @@ Produce a valid JSON object in the following format: ###
                     not in final_revision.sequenced_rendered_content_fragments[index].lower()
                 ):
                     self._logger.warning(
-                        f"[MessageEventComposer][Assembly] Fragment rendering hallucination. ID={materialized_fragment.fragment_id}; ExpectedContent={materialized_fragment.raw_content}; HallucinatedContent={final_revision.sequenced_rendered_content_fragments[index]}"
+                        f"Fragment rendering hallucination. ID={materialized_fragment.fragment_id}; ExpectedContent={materialized_fragment.raw_content}; HallucinatedContent={final_revision.sequenced_rendered_content_fragments[index]}"
                     )
 
                 used_fragments[fragment.id] = fragment.value

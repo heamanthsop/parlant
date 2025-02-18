@@ -130,6 +130,10 @@ class _TestLogger(Logger):
         self.logger.critical(message)
 
     @contextmanager
+    def scope(self, scope_id: str) -> Iterator[None]:
+        yield
+
+    @contextmanager
     def operation(self, name: str, props: dict[str, Any] = {}) -> Iterator[None]:
         yield
 

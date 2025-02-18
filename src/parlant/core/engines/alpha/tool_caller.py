@@ -141,6 +141,27 @@ class ToolCaller:
         tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
         staged_events: Sequence[EmittedEvent],
     ) -> InferenceToolCallsResult:
+        with self._logger.scope("ToolCaller"):
+            return await self._do_infer_tool_calls(
+                agent,
+                context_variables,
+                interaction_history,
+                terms,
+                ordinary_guideline_propositions,
+                tool_enabled_guideline_propositions,
+                staged_events,
+            )
+
+    async def _do_infer_tool_calls(
+        self,
+        agent: Agent,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        ordinary_guideline_propositions: Sequence[GuidelineProposition],
+        tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
+        staged_events: Sequence[EmittedEvent],
+    ) -> InferenceToolCallsResult:
         if not tool_enabled_guideline_propositions:
             return InferenceToolCallsResult(
                 total_duration=0.0,
@@ -166,7 +187,7 @@ class ToolCaller:
 
         t_start = time.time()
 
-        with self._logger.operation(f"[ToolCaller] Tool evaluation ({len(batches)} batches)"):
+        with self._logger.operation(f"Evaluation: {len(batches)} tools"):
             batch_tasks = [
                 self._infer_calls_for_single_tool(
                     agent=agent,
@@ -230,7 +251,7 @@ class ToolCaller:
 
         tool_id, tool, _ = candidate_descriptor
 
-        with self._logger.operation(f"[ToolCaller] Evaluating '{tool_id}'"):
+        with self._logger.operation(f"Evaluation: {tool_id}"):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
         tool_calls = []
@@ -247,7 +268,7 @@ class ToolCaller:
                     if argument in candidate_descriptor[1].required
                 ):
                     self._logger.debug(
-                        f"[ToolCaller][Completion][Activated]\n{tc.model_dump_json(indent=2)}"
+                        f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
                     )
 
                     tool_calls.append(
@@ -266,7 +287,7 @@ class ToolCaller:
                     for argument, evaluation in (tc.argument_evaluations or {}).items():
                         if argument not in tool.parameters:
                             self._logger.error(
-                                f"[ToolCaller][Completion] Argument {argument} not found in tool parameters"
+                                f"Inference::Completion: Argument {argument} not found in tool parameters"
                             )
                             continue
 
@@ -286,7 +307,7 @@ class ToolCaller:
 
             else:
                 self._logger.debug(
-                    f"[ToolCaller][Completion][Skipped]\n{tc.model_dump_json(indent=2)}"
+                    f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
                 )
 
         return generation_info, tool_calls, missing_data
@@ -296,19 +317,20 @@ class ToolCaller:
         context: ToolContext,
         tool_calls: Sequence[ToolCall],
     ) -> Sequence[ToolCallResult]:
-        with self._logger.operation("[ToolCaller] Executing tool calls"):
-            tool_results = await async_utils.safe_gather(
-                *(
-                    self._run_tool(
-                        context=context,
-                        tool_call=tool_call,
-                        tool_id=tool_call.tool_id,
+        with self._logger.scope("ToolCaller"):
+            with self._logger.operation("Execution"):
+                tool_results = await async_utils.safe_gather(
+                    *(
+                        self._run_tool(
+                            context=context,
+                            tool_call=tool_call,
+                            tool_id=tool_call.tool_id,
+                        )
+                        for tool_call in tool_calls
                     )
-                    for tool_call in tool_calls
                 )
-            )
 
-            return tool_results
+                return tool_results
 
     def _get_glossary_text(
         self,
@@ -661,16 +683,14 @@ Guidelines:
         self,
         prompt: str,
     ) -> tuple[GenerationInfo, Sequence[ToolCallEvaluation]]:
-        self._logger.debug(f"[ToolCaller][Inference][Prompt]\n{prompt}")
+        self._logger.debug(f"Inference::Prompt:\n{prompt}")
 
         inference = await self._schematic_generator.generate(
             prompt=prompt,
             hints={"temperature": 0.05},
         )
 
-        self._logger.debug(
-            f"[ToolCaller][Inference][Completion]\n{inference.content.model_dump_json(indent=2)}"
-        )
+        self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         return inference.info, inference.content.tool_calls_for_candidate_tool
 
@@ -682,7 +702,7 @@ Guidelines:
     ) -> ToolCallResult:
         try:
             self._logger.debug(
-                f"[ToolCaller][Execution][Invocation] ({tool_call.tool_id.to_string()}/{tool_call.id})"
+                f"Execution::Invocation: ({tool_call.tool_id.to_string()}/{tool_call.id})"
                 + (f"\n{json.dumps(tool_call.arguments, indent=2)}" if tool_call.arguments else "")
             )
 
@@ -696,11 +716,11 @@ Guidelines:
                 )
 
                 self._logger.debug(
-                    f"[ToolCaller][Execution][Result] Tool call succeeded ({tool_call.tool_id.to_string()}/{tool_call.id})\n{json.dumps(asdict(result), indent=2)}"
+                    f"Execution::Result: Tool call succeeded ({tool_call.tool_id.to_string()}/{tool_call.id})\n{json.dumps(asdict(result), indent=2)}"
                 )
             except Exception as exc:
                 self._logger.error(
-                    f"[ToolCaller][Execution][Result] Tool call failed ({tool_id.to_string()}/{tool_call.id})\n{traceback.format_exception(exc)}"
+                    f"Execution::Result: Tool call failed ({tool_id.to_string()}/{tool_call.id})\n{traceback.format_exception(exc)}"
                 )
                 raise
 
@@ -715,8 +735,9 @@ Guidelines:
             )
         except Exception as e:
             self._logger.error(
-                f"[ToolCaller][Execution] Error while calling tool (tool='{tool_call.tool_id.to_string()}', "
-                f"arguments=\n{json.dumps(tool_call.arguments, indent=2)}"
+                f"Execution::Error: ToolId: {tool_call.tool_id.to_string()}', "
+                f"Arguments:\n{json.dumps(tool_call.arguments, indent=2)}"
+                + "\nTraceback:\n"
                 + "\n".join(traceback.format_exception(e)),
             )
 

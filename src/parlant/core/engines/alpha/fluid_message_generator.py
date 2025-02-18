@@ -134,81 +134,104 @@ class FluidMessageGenerator(MessageEventComposer):
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[MessageEventComposition]:
-        with self._logger.operation("[MessageEventComposer][Fluid] Message generation"):
-            if (
-                not interaction_history
-                and not ordinary_guideline_propositions
-                and not tool_enabled_guideline_propositions
-            ):
-                # No interaction and no guidelines that could trigger
-                # a proactive start of the interaction
-                self._logger.info(
-                    "[MessageEventComposer][Fluid] Skipping response; interaction is empty and there are no guidelines"
+        with self._logger.scope("MessageEventComposer"):
+            with self._logger.scope("Fluid"):
+                with self._logger.operation("Message generation"):
+                    return await self._do_generate_events(
+                        event_emitter,
+                        agent,
+                        customer,
+                        context_variables,
+                        interaction_history,
+                        terms,
+                        ordinary_guideline_propositions,
+                        tool_enabled_guideline_propositions,
+                        tool_insights,
+                        staged_events,
+                    )
+
+    async def _do_generate_events(
+        self,
+        event_emitter: EventEmitter,
+        agent: Agent,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        ordinary_guideline_propositions: Sequence[GuidelineProposition],
+        tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
+        tool_insights: ToolInsights,
+        staged_events: Sequence[EmittedEvent],
+    ) -> Sequence[MessageEventComposition]:
+        if (
+            not interaction_history
+            and not ordinary_guideline_propositions
+            and not tool_enabled_guideline_propositions
+        ):
+            # No interaction and no guidelines that could trigger
+            # a proactive start of the interaction
+            self._logger.info("Skipping response; interaction is empty and there are no guidelines")
+            return []
+
+        prompt = self._format_prompt(
+            agent=agent,
+            context_variables=context_variables,
+            customer=customer,
+            interaction_history=interaction_history,
+            terms=terms,
+            ordinary_guideline_propositions=ordinary_guideline_propositions,
+            tool_enabled_guideline_propositions=tool_enabled_guideline_propositions,
+            staged_events=staged_events,
+            tool_insights=tool_insights,
+            shots=await self.shots(),
+        )
+
+        last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
+
+        await event_emitter.emit_status_event(
+            correlation_id=self._correlator.correlation_id,
+            data={
+                "acknowledged_offset": last_known_event_offset,
+                "status": "typing",
+                "data": {},
+            },
+        )
+
+        generation_attempt_temperatures = {
+            0: 0.1,
+            1: 0.3,
+            2: 0.5,
+        }
+
+        last_generation_exception: Exception | None = None
+
+        self._logger.debug(f"Prompt:\n{prompt}")
+
+        for generation_attempt in range(3):
+            try:
+                generation_info, response_message = await self._generate_response_message(
+                    prompt,
+                    temperature=generation_attempt_temperatures[generation_attempt],
+                    final_attempt=(generation_attempt + 1) == len(generation_attempt_temperatures),
                 )
-                return []
 
-            prompt = self._format_prompt(
-                agent=agent,
-                context_variables=context_variables,
-                customer=customer,
-                interaction_history=interaction_history,
-                terms=terms,
-                ordinary_guideline_propositions=ordinary_guideline_propositions,
-                tool_enabled_guideline_propositions=tool_enabled_guideline_propositions,
-                staged_events=staged_events,
-                tool_insights=tool_insights,
-                shots=await self.shots(),
-            )
-
-            last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
-
-            await event_emitter.emit_status_event(
-                correlation_id=self._correlator.correlation_id,
-                data={
-                    "acknowledged_offset": last_known_event_offset,
-                    "status": "typing",
-                    "data": {},
-                },
-            )
-
-            generation_attempt_temperatures = {
-                0: 0.1,
-                1: 0.3,
-                2: 0.5,
-            }
-
-            last_generation_exception: Exception | None = None
-
-            self._logger.debug(f"[MessageEventComposer][Fluid][Prompt]\n{prompt}")
-
-            for generation_attempt in range(3):
-                try:
-                    generation_info, response_message = await self._generate_response_message(
-                        prompt,
-                        temperature=generation_attempt_temperatures[generation_attempt],
-                        final_attempt=(generation_attempt + 1)
-                        == len(generation_attempt_temperatures),
+                if response_message is not None:
+                    event = await event_emitter.emit_message_event(
+                        correlation_id=self._correlator.correlation_id,
+                        data=response_message,
                     )
 
-                    if response_message is not None:
-                        event = await event_emitter.emit_message_event(
-                            correlation_id=self._correlator.correlation_id,
-                            data=response_message,
-                        )
+                    return [MessageEventComposition(generation_info, [event])]
+                else:
+                    self._logger.debug("Skipping response; no response deemed necessary")
+                    return [MessageEventComposition(generation_info, [])]
+            except Exception as exc:
+                self._logger.warning(
+                    f"Generation attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                )
+                last_generation_exception = exc
 
-                        return [MessageEventComposition(generation_info, [event])]
-                    else:
-                        self._logger.debug(
-                            "[MessageEventComposer][Fluid] Skipping response; no response deemed necessary"
-                        )
-                        return [MessageEventComposition(generation_info, [])]
-                except Exception as exc:
-                    self._logger.warning(
-                        f"[MessageEventComposer][Fluid] Generation attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
-                    )
-                    last_generation_exception = exc
-
-            raise MessageCompositionError() from last_generation_exception
+        raise MessageCompositionError() from last_generation_exception
 
     def get_guideline_propositions_text(
         self,
@@ -580,11 +603,11 @@ Produce a valid JSON object in the following format: ###
         )
 
         self._logger.debug(
-            f"[MessageEventComposer][Fluid][Completion]\n{message_event_response.content.model_dump_json(indent=2)}"
+            f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
         if not message_event_response.content.produced_reply:
-            self._logger.debug("[MessageEventComposer][Fluid] Produced no reply")
+            self._logger.debug("Produced no reply")
             return message_event_response.info, None
 
         if first_correct_revision := next(
@@ -613,12 +636,12 @@ Produce a valid JSON object in the following format: ###
         ) or final_revision.is_repeat_message:
             if not final_attempt:
                 self._logger.warning(
-                    f"[MessageEventComposer][Fluid] Trying again after problematic message generation: {final_revision.content}"
+                    f"Trying again after problematic message generation: {final_revision.content}"
                 )
                 raise Exception("Retry with another attempt")
             else:
                 self._logger.warning(
-                    f"[MessageEventComposer][Fluid] Conceding despite problematic message generation: {final_revision.content}"
+                    f"Conceding despite problematic message generation: {final_revision.content}"
                 )
 
         return message_event_response.info, str(final_revision.content)

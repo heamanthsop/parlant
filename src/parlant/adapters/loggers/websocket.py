@@ -52,23 +52,23 @@ class WebSocketLogger(CorrelationalLogger):
 
     @override
     def debug(self, message: str) -> None:
-        self._enqueue_message("DEBUG", message)
+        self._enqueue_message("DEBUG", f"{self.current_scope} {message}")
 
     @override
     def info(self, message: str) -> None:
-        self._enqueue_message("INFO", message)
+        self._enqueue_message("INFO", f"{self.current_scope} {message}")
 
     @override
     def warning(self, message: str) -> None:
-        self._enqueue_message("WARNING", message)
+        self._enqueue_message("WARNING", f"{self.current_scope} {message}")
 
     @override
     def error(self, message: str) -> None:
-        self._enqueue_message("ERROR", message)
+        self._enqueue_message("ERROR", f"{self.current_scope} {message}")
 
     @override
     def critical(self, message: str) -> None:
-        self._enqueue_message("CRITICAL", message)
+        self._enqueue_message("CRITICAL", f"{self.current_scope} {message}")
 
     async def start(self) -> None:
         try:

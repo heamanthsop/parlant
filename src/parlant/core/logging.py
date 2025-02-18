@@ -15,6 +15,7 @@
 from abc import ABC, abstractmethod
 import asyncio
 from contextlib import ExitStack, contextmanager
+import contextvars
 from enum import Enum, auto
 import logging
 from pathlib import Path
@@ -24,6 +25,7 @@ import traceback
 from typing import Any, Iterator, Sequence
 from typing_extensions import override
 
+from parlant.core.common import generate_id
 from parlant.core.contextual_correlator import ContextualCorrelator
 
 
@@ -65,6 +67,10 @@ class Logger(ABC):
 
     @abstractmethod
     @contextmanager
+    def scope(self, scope_id: str) -> Iterator[None]: ...
+
+    @abstractmethod
+    @contextmanager
     def operation(self, name: str, props: dict[str, Any] = {}) -> Iterator[None]: ...
 
 
@@ -94,29 +100,53 @@ class CorrelationalLogger(Logger):
             wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
         )
 
+        # Scope support using contextvars
+        self._instance_id = generate_id()
+
+        self._scopes = contextvars.ContextVar[str](
+            f"logger_{self._instance_id}_scopes",
+            default="",
+        )
+
     @override
     def set_level(self, log_level: LogLevel) -> None:
         self.raw_logger.setLevel(log_level.to_logging_level())
 
     @override
     def debug(self, message: str) -> None:
-        self._logger.debug(self._add_correlation_id(message))
+        self._logger.debug(self._add_correlation_id_and_scopes(message))
 
     @override
     def info(self, message: str) -> None:
-        self._logger.info(self._add_correlation_id(message))
+        self._logger.info(self._add_correlation_id_and_scopes(message))
 
     @override
     def warning(self, message: str) -> None:
-        self._logger.warning(self._add_correlation_id(message))
+        self._logger.warning(self._add_correlation_id_and_scopes(message))
 
     @override
     def error(self, message: str) -> None:
-        self._logger.error(self._add_correlation_id(message))
+        self._logger.error(self._add_correlation_id_and_scopes(message))
 
     @override
     def critical(self, message: str) -> None:
-        self._logger.critical(self._add_correlation_id(message))
+        self._logger.critical(self._add_correlation_id_and_scopes(message))
+
+    @override
+    @contextmanager
+    def scope(self, scope_id: str) -> Iterator[None]:
+        current_scopes = self._scopes.get()
+
+        if current_scopes:
+            new_scopes = current_scopes + f"[{scope_id}]"
+        else:
+            new_scopes = f"[{scope_id}]"
+
+        reset_token = self._scopes.set(new_scopes)
+
+        yield
+
+        self._scopes.reset(reset_token)
 
     @override
     @contextmanager
@@ -148,8 +178,17 @@ class CorrelationalLogger(Logger):
             self.critical(" ".join(traceback.format_exception(exc)))
             raise
 
-    def _add_correlation_id(self, message: str) -> str:
-        return f"[{self._correlator.correlation_id}] {message}"
+    @property
+    def current_scope(self) -> str:
+        return self._get_scopes()
+
+    def _add_correlation_id_and_scopes(self, message: str) -> str:
+        return f"[{self._correlator.correlation_id}]{self.current_scope} {message}"
+
+    def _get_scopes(self) -> str:
+        if scopes := self._scopes.get():
+            return scopes
+        return ""
 
 
 class StdoutLogger(CorrelationalLogger):
@@ -217,6 +256,14 @@ class CompositeLogger(Logger):
     def critical(self, message: str) -> None:
         for logger in self._loggers:
             logger.critical(message)
+
+    @override
+    @contextmanager
+    def scope(self, scope_id: str) -> Iterator[None]:
+        with ExitStack() as stack:
+            for context in [logger.scope(scope_id) for logger in self._loggers]:
+                stack.enter_context(context)
+            yield
 
     @override
     @contextmanager
