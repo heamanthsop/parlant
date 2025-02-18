@@ -53,7 +53,6 @@ export default function Chat(): ReactElement {
 	const [messages, setMessages] = useState<EventInterface[]>([]);
 	const [showTyping, setShowTyping] = useState(false);
 	const [showThinking, setShowThinking] = useState(false);
-	const [isRegenerating, setIsRegenerating] = useState(false);
 	const [isFirstScroll, setIsFirstScroll] = useState(true);
 	const {openQuestionDialog, closeQuestionDialog} = useQuestionDialog();
 	const [useContentFiltering] = useState(true);
@@ -103,17 +102,18 @@ export default function Chat(): ReactElement {
 
 	const regenerateMessageDialog = (index: number) => (sessionId: string) => {
 		const isLastMessage = index === messages.length - 1;
-		const lastUserMessageOffset = messages[index - 1].offset;
+		const lastUserMessage = messages.findLast((message) => message.source === 'customer' && message.kind === 'message');
+		const lastUserMessageOffset = lastUserMessage.offset;
 
 		if (isLastMessage) {
 			setShowLogsForMessage(null);
-			return regenerateMessage(index, sessionId, lastUserMessageOffset + 1);
+			return regenerateMessage(index, sessionId, lastUserMessageOffset);
 		}
 
 		const onApproved = () => {
 			setShowLogsForMessage(null);
 			closeQuestionDialog();
-			regenerateMessage(index, sessionId, lastUserMessageOffset + 1);
+			regenerateMessage(index, sessionId, lastUserMessageOffset);
 		};
 
 		const question = 'Regenerating this message would cause all of the following messages in the session to disappear.';
@@ -139,21 +139,7 @@ export default function Chat(): ReactElement {
 	};
 
 	const regenerateMessage = async (index: number, sessionId: string, offset: number) => {
-		const prevAllMessages = messages;
-		const prevLastOffset = lastOffset;
-
-		setMessages((messages) => messages.slice(0, index));
-		setLastOffset(offset);
-		setIsRegenerating(true);
-		const deleteSession = await deleteData(`sessions/${sessionId}/events?min_offset=${offset}`).catch((e) => ({error: e}));
-		if (deleteSession?.error) {
-			toast.error(deleteSession.error.message || deleteSession.error);
-			setMessages(prevAllMessages);
-			setLastOffset(prevLastOffset);
-			return;
-		}
-		postData(`sessions/${sessionId}/events`, {kind: 'message', source: 'ai_agent'});
-		refetch();
+		resendMessage(index - 1, sessionId, offset - 1);
 	};
 
 	useEffect(() => {
@@ -185,7 +171,6 @@ export default function Chat(): ReactElement {
 			if (data.serverStatus === 'error') data.error = item?.data?.exception;
 			return data;
 		});
-		if (newMessages.length && isRegenerating) setIsRegenerating(false);
 
 		if (pendingMessage.serverStatus !== 'pending' && pendingMessage.data.message) setPendingMessage(emptyPendingMessage);
 		setMessages((messages) => {
@@ -203,12 +188,6 @@ export default function Chat(): ReactElement {
 		setShowThinking(!!messages?.length && lastEventStatus === 'processing');
 		setShowTyping(lastEventStatus === 'typing');
 
-		if (lastEventStatus === 'error') {
-			if (isRegenerating) {
-				setIsRegenerating(false);
-				toast.error('Something went wrong');
-			}
-		}
 		refetch();
 
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -309,12 +288,12 @@ export default function Chat(): ReactElement {
 									</div>
 								</React.Fragment>
 							))}
-							{(isRegenerating || showTyping || showThinking) && (
+							{(showTyping || showThinking) && (
 								<div className='animate-fade-in flex mb-1 justify-between mt-[44.33px]'>
 									<Spacer />
 									<div className='flex items-center max-w-[1200px] flex-1'>
 										<ProgressImage phace={showThinking ? 'thinking' : 'typing'} />
-										<p className='font-medium text-[#A9AFB7] text-[11px] font-inter'>{isRegenerating ? 'Regenerating...' : showTyping ? 'Typing...' : 'Thinking...'}</p>
+										<p className='font-medium text-[#A9AFB7] text-[11px] font-inter'>{showTyping ? 'Typing...' : 'Thinking...'}</p>
 									</div>
 									<Spacer />
 								</div>
@@ -334,7 +313,13 @@ export default function Chat(): ReactElement {
 									rows={1}
 									className='box-shadow-none resize-none border-none h-full rounded-none min-h-[unset] p-0 whitespace-nowrap no-scrollbar font-inter font-light text-[16px] leading-[18px] bg-white group-hover:bg-main'
 								/>
-								<Button variant='ghost' data-testid='submit-button' className='max-w-[60px] rounded-full hover:bg-white' ref={submitButtonRef} disabled={!message?.trim() || !agent?.id || isRegenerating} onClick={() => postMessage(message)}>
+								<Button
+									variant='ghost'
+									data-testid='submit-button'
+									className='max-w-[60px] rounded-full hover:bg-white'
+									ref={submitButtonRef}
+									disabled={!message?.trim() || !agent?.id || showThinking || showTyping}
+									onClick={() => postMessage(message)}>
 									<img src='icons/send.svg' alt='Send' height={19.64} width={21.52} className='h-10' />
 								</Button>
 							</div>
