@@ -387,7 +387,7 @@ If you decide not to emit a message, output the following:
     "produced_reply": false,
     "guidelines": <list of strings- a re-statement of all guidelines>,
     "context_evaluation": None,
-    "insights": <list of strings- up to 3 original insights>,
+    "insights": [<list of strings- up to 3 original insights>],
     "produced_reply_rationale": "<a few words to justify why a reply was NOT produced here>",
     "revisions": []
 }}
@@ -590,7 +590,7 @@ Produce a valid JSON object in the following format: ###
         "was_i_given_specific_information_here_on_how_to_address_some_of_these_specific_needs": <BOOL>,
         "should_i_tell_the_customer_i_cannot_help_with_some_of_those_needs": <BOOL>
     }},
-    "insights": "<Up to 3 original insights to adhere to>",
+    "insights": [<Up to 3 original insights to adhere to>],
     "evaluation_for_each_instruction": [
 {guidelines_output_format}
 {insights_output_format}
