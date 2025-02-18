@@ -17,6 +17,7 @@ All notable changes to Parlant will be documented here.
 - Rename Slot (in Fragment) with FragmentField
 - Add support for the --migrate CLI flag to enable seamless store version upgrades during server startup
 - Add clear rate limit error logs for NLP adapters
+- Add enabled/disabled flag for guidelines to facilitate experimentation without deletion
 
 
 ## [1.6.2] - 2025-01-29
