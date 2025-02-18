@@ -49,7 +49,7 @@ from parlant.core.persistence.document_database import (
     DocumentCollection,
     identity_loader,
 )
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 from parlant.core.sessions import SessionDocumentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
@@ -638,7 +638,7 @@ class DummyStore:
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self.allow_migration,

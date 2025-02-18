@@ -5,7 +5,7 @@ from parlant.core.persistence.common import MigrationRequired, VersionedStore
 from parlant.core.persistence.vector_database import VectorDatabase
 
 
-class MigrationHelper:
+class VectorDocumentStoreMigrationHelper:
     def __init__(
         self,
         store: VersionedStore,

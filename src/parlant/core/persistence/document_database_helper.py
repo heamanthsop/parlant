@@ -1,8 +1,13 @@
-from typing import Optional
+from typing import Awaitable, Callable, Generic, Mapping, Optional, cast
 from typing_extensions import TypedDict, Self
 from parlant.core.common import Version, generate_id
 from parlant.core.persistence.common import MigrationRequired, ObjectId, VersionedStore
-from parlant.core.persistence.document_database import DocumentDatabase, identity_loader
+from parlant.core.persistence.document_database import (
+    BaseDocument,
+    DocumentDatabase,
+    TDocument,
+    identity_loader,
+)
 
 
 class _MetadataDocument(TypedDict, total=False):
@@ -10,7 +15,7 @@ class _MetadataDocument(TypedDict, total=False):
     version: Version.String
 
 
-class MigrationHelper:
+class DocumentStoreMigrationHelper:
     def __init__(
         self,
         store: VersionedStore,
@@ -82,3 +87,22 @@ class MigrationHelper:
                 filters={"id": {"$eq": doc["id"]}},
                 params={"version": runtime_store_version},
             )
+
+
+class DocumentMigrationHelper(Generic[TDocument]):
+    def __init__(
+        self,
+        versioned_store: VersionedStore,
+        converters: Mapping[str, Callable[[BaseDocument], Awaitable[Optional[BaseDocument]]]],
+    ) -> None:
+        self.target_version = versioned_store.VERSION.to_string()
+        self.converters = converters
+
+    async def migrate(self, doc: BaseDocument) -> Optional[TDocument]:
+        while doc["version"] != self.target_version:
+            if converted_doc := await self.converters[doc["version"]](doc):
+                doc = converted_doc
+            else:
+                return None
+
+        return cast(TDocument, doc)

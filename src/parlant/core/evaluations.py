@@ -45,7 +45,7 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     DocumentCollection,
 )
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 
 EvaluationId = NewType("EvaluationId", str)
 
@@ -248,7 +248,7 @@ class EvaluationDocumentStore(EvaluationStore):
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,

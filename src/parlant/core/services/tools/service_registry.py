@@ -28,7 +28,7 @@ from parlant.core.emissions import EventEmitterFactory
 from parlant.core.logging import Logger
 from parlant.core.nlp.moderation import ModerationService
 from parlant.core.nlp.service import NLPService
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 from parlant.core.services.tools.openapi import OpenAPIClient
 from parlant.core.services.tools.plugins import PluginClient
 from parlant.core.tools import LocalToolService, ToolService
@@ -147,7 +147,7 @@ class ServiceDocumentRegistry(ServiceRegistry):
         return None
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,

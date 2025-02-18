@@ -26,7 +26,10 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     DocumentCollection,
 )
-from parlant.core.persistence.document_database_helper import MigrationHelper
+from parlant.core.persistence.document_database_helper import (
+    DocumentStoreMigrationHelper,
+    DocumentMigrationHelper,
+)
 
 GuidelineId = NewType("GuidelineId", str)
 
@@ -100,7 +103,7 @@ class GuidelineStore(ABC):
     ) -> Guideline: ...
 
 
-class _GuidelineDocument(TypedDict, total=False):
+class _GuidelineDocument_V0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -109,7 +112,7 @@ class _GuidelineDocument(TypedDict, total=False):
     action: str
 
 
-class _GuidelineDocumentV0_2_0(TypedDict, total=False):
+class _GuidelineDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -124,38 +127,36 @@ class GuidelineDocumentStore(GuidelineStore):
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
-        self._collection: DocumentCollection[_GuidelineDocumentV0_2_0]
+        self._collection: DocumentCollection[_GuidelineDocument]
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocumentV0_2_0]:
-        if doc["version"] == "0.1.0":
-            doc_v0_1_0 = cast(_GuidelineDocument, doc)
-
-            return _GuidelineDocumentV0_2_0(
-                id=doc_v0_1_0["id"],
+    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
+        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            d = cast(_GuidelineDocument_V0_1_0, doc)
+            return _GuidelineDocument(
+                id=d["id"],
                 version=Version.String("0.2.0"),
-                creation_utc=doc_v0_1_0["creation_utc"],
-                guideline_set=doc_v0_1_0["guideline_set"],
-                condition=doc_v0_1_0["condition"],
-                action=doc_v0_1_0["action"],
+                creation_utc=d["creation_utc"],
+                guideline_set=d["guideline_set"],
+                condition=d["condition"],
+                action=d["action"],
                 enabled=True,
             )
 
-        elif doc["version"] == "0.2.0":
-            return cast(_GuidelineDocumentV0_2_0, doc)
-
-        return None
+        return await DocumentMigrationHelper[_GuidelineDocument](
+            self, {"0.1.0": v0_1_0_to_v_0_2_0}
+        ).migrate(doc)
 
     async def __aenter__(self) -> Self:
-        async with MigrationHelper(
+        async with DocumentStoreMigrationHelper(
             store=self,
             database=self._database,
             allow_migration=self._allow_migration,
         ):
             self._collection = await self._database.get_or_create_collection(
                 name="guidelines",
-                schema=_GuidelineDocumentV0_2_0,
+                schema=_GuidelineDocument,
                 document_loader=self._document_loader,
             )
 
@@ -173,8 +174,8 @@ class GuidelineDocumentStore(GuidelineStore):
         self,
         guideline: Guideline,
         guideline_set: str,
-    ) -> _GuidelineDocumentV0_2_0:
-        return _GuidelineDocumentV0_2_0(
+    ) -> _GuidelineDocument:
+        return _GuidelineDocument(
             id=ObjectId(guideline.id),
             version=self.VERSION.to_string(),
             creation_utc=guideline.creation_utc.isoformat(),
@@ -186,7 +187,7 @@ class GuidelineDocumentStore(GuidelineStore):
 
     def _deserialize(
         self,
-        guideline_document: _GuidelineDocumentV0_2_0,
+        guideline_document: _GuidelineDocument,
     ) -> Guideline:
         return Guideline(
             id=GuidelineId(guideline_document["id"]),
@@ -290,7 +291,7 @@ class GuidelineDocumentStore(GuidelineStore):
         params: GuidelineUpdateParams,
     ) -> Guideline:
         async with self._lock.writer_lock:
-            guideline_document = _GuidelineDocumentV0_2_0(
+            guideline_document = _GuidelineDocument(
                 {
                     **(
                         {"guideline_set": params["guideline_set"]}
