@@ -4,6 +4,7 @@
 	"compilerOptions": {
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
+		"lib": ["DOM", "ESNext", "ES2023"],
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"]

@@ -103,7 +103,7 @@ export default function Chat(): ReactElement {
 	const regenerateMessageDialog = (index: number) => (sessionId: string) => {
 		const isLastMessage = index === messages.length - 1;
 		const lastUserMessage = messages.findLast((message) => message.source === 'customer' && message.kind === 'message');
-		const lastUserMessageOffset = lastUserMessage.offset;
+		const lastUserMessageOffset = lastUserMessage?.offset || messages.length - 1;
 
 		if (isLastMessage) {
 			setShowLogsForMessage(null);
