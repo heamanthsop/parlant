@@ -87,22 +87,31 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
         cerebras_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
         t_start = time.time()
-        response = await self._client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model=self.model_name,
-            tools=[
-                {
-                    "type": "function",
-                    "function": {
-                        "name": self.schema.__name__,
-                        "description": "Produces the required JSON object",
-                        "parameters": self.schema.model_json_schema(),
-                    },
-                }
-            ],
-            tool_choice="required",
-            **cerebras_api_arguments,
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model_name,
+                tools=[
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": self.schema.__name__,
+                            "description": "Produces the required JSON object",
+                            "parameters": self.schema.model_json_schema(),
+                        },
+                    }
+                ],
+                tool_choice="required",
+                **cerebras_api_arguments,
+            )
+        except RateLimitError:
+            self._logger.error(
+                "Cerebras API rate limit exceeded.\n"
+                "Your account may have reached the maximum number of requests allowed per minute for the tier you are using.\n"
+                "Please contact with Cerebras support for more information."
+            )
+            raise
+
         t_end = time.time()
 
         raw_content = response.choices[0].message.tool_calls[0].function.arguments or "{}"  # type: ignore

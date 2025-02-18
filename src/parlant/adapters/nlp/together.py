@@ -111,8 +111,9 @@ class TogetherAISchematicGenerator(SchematicGenerator[T]):
                 response_format={"type": "json_object"},
                 **together_api_arguments,
             )
-        except RateLimitError as e:
-            raise RateLimitError(RATE_LIMIT_ERROR_MESSAGE) from e
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
 
         t_end = time.time()
 
@@ -225,8 +226,10 @@ class Llama3_1_405B(TogetherAISchematicGenerator[T]):
 
 
 class TogetherAIEmbedder(Embedder):
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, logger: Logger) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = AsyncTogether(api_key=os.environ.get("TOGETHER_API_KEY"))
 
     @policy(
@@ -255,16 +258,17 @@ class TogetherAIEmbedder(Embedder):
                 model=self.model_name,
                 input=texts,
             )
-        except RateLimitError as e:
-            raise RateLimitError(RATE_LIMIT_ERROR_MESSAGE) from e
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)
 
 
 class M2Bert32K(TogetherAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="togethercomputer/m2-bert-80M-32k-retrieval")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="togethercomputer/m2-bert-80M-32k-retrieval", logger=logger)
         self._estimating_tokenizer = HuggingFaceEstimatingTokenizer(self.model_name)
 
     @property
@@ -310,7 +314,7 @@ class TogetherService(NLPService):
 
     @override
     async def get_embedder(self) -> Embedder:
-        return M2Bert32K()
+        return M2Bert32K(self._logger)
 
     @override
     async def get_moderation_service(self) -> ModerationService:

@@ -116,8 +116,8 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
                     response_format=self.schema,
                     **azure_api_arguments,
                 )
-            except RateLimitError as e:
-                raise RateLimitError(
+            except RateLimitError:
+                self._logger.error(
                     "Azure API rate limit exceeded. Possible reasons:\n"
                     "1. Your account may have insufficient API credits.\n"
                     "2. You may be using a free-tier account with limited request capacity.\n"
@@ -127,9 +127,9 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
                     "- Review your API usage limits in Azure's dashboard.\n"
                     "- For more details on rate limits and usage tiers, visit:\n"
                     "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
-                    response=e.response,
-                    body=e.body,
                 )
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -163,12 +163,28 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
 
         else:
             t_start = time.time()
-            response = await self._client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model_name,
-                response_format={"type": "json_object"},
-                **azure_api_arguments,
-            )
+
+            try:
+                response = await self._client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model_name,
+                    response_format={"type": "json_object"},
+                    **azure_api_arguments,
+                )
+            except RateLimitError:
+                self._logger.error(
+                    "Azure API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Azure account balance and billing status.\n"
+                    "- Review your API usage limits in Azure's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
+                )
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -269,11 +285,25 @@ class AzureEmbedder(Embedder):
     ) -> EmbeddingResult:
         filtered_hints = {k: v for k, v in hints.items() if k in self.supported_arguments}
 
-        response = await self._client.embeddings.create(
-            model=self.model_name,
-            input=texts,
-            **filtered_hints,
-        )
+        try:
+            response = await self._client.embeddings.create(
+                model=self.model_name,
+                input=texts,
+                **filtered_hints,
+            )
+        except RateLimitError:
+            self._logger.error(
+                "Azure API rate limit exceeded. Possible reasons:\n"
+                "1. Your account may have insufficient API credits.\n"
+                "2. You may be using a free-tier account with limited request capacity.\n"
+                "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                "Recommended actions:\n"
+                "- Check your Azure account balance and billing status.\n"
+                "- Review your API usage limits in Azure's dashboard.\n"
+                "- For more details on rate limits and usage tiers, visit:\n"
+                "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
+            )
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)

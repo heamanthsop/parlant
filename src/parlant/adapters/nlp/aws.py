@@ -113,8 +113,8 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
                 max_tokens=4096,
                 **anthropic_api_arguments,
             )
-        except RateLimitError as e:
-            raise RateLimitError(
+        except RateLimitError:
+            self._logger.error(
                 "AWS Bedrock API rate limit exceeded. Possible reasons:\n"
                 "1. Your account may have insufficient API credits.\n"
                 "2. You may be using a free-tier account with limited request capacity.\n"
@@ -124,9 +124,9 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
                 "- Review your API usage limits in AWS Bedrock's dashboard.\n"
                 "- For more details on rate limits and usage tiers, visit:\n"
                 "  https://us-east-1.console.aws.amazon.com/servicequotas/home/services/bedrock/quotas",
-                response=e.response,
-                body=e.body,
             )
+            raise
+
         t_end = time.time()
 
         raw_content = response.content[0].text

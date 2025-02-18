@@ -139,8 +139,10 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
                     response_format=self.schema,
                     **openai_api_arguments,
                 )
-            except RateLimitError as e:
-                raise RateLimitError(RATE_LIMIT_ERROR_MESSAGE, response=e.response, body=e.body)
+            except RateLimitError:
+                self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -179,8 +181,9 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
                     **openai_api_arguments,
                 )
                 t_end = time.time()
-            except RateLimitError as e:
-                raise RateLimitError(RATE_LIMIT_ERROR_MESSAGE, response=e.response, body=e.body)
+            except RateLimitError:
+                self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+                raise
 
             if response.usage:
                 self._logger.debug(response.usage.model_dump_json(indent=2))
@@ -257,8 +260,10 @@ class GPT_4o_Mini(OpenAISchematicGenerator[T]):
 class OpenAIEmbedder(Embedder):
     supported_arguments = ["dimensions"]
 
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, logger: Logger) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = AsyncClient(api_key=os.environ["OPENAI_API_KEY"])
         self._tokenizer = OpenAIEstimatingTokenizer(model_name=self.model_name)
 
@@ -299,16 +304,17 @@ class OpenAIEmbedder(Embedder):
                 input=texts,
                 **filtered_hints,
             )
-        except RateLimitError as e:
-            raise RateLimitError(RATE_LIMIT_ERROR_MESSAGE, response=e.response, body=e.body)
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)
 
 
 class OpenAITextEmbedding3Large(OpenAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="text-embedding-3-large")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="text-embedding-3-large", logger=logger)
 
     @property
     @override
@@ -321,8 +327,8 @@ class OpenAITextEmbedding3Large(OpenAIEmbedder):
 
 
 class OpenAITextEmbedding3Small(OpenAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="text-embedding-3-small")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="text-embedding-3-small", logger=logger)
 
     @property
     @override
@@ -405,7 +411,7 @@ class OpenAIService(NLPService):
 
     @override
     async def get_embedder(self) -> Embedder:
-        return OpenAITextEmbedding3Large()
+        return OpenAITextEmbedding3Large(self._logger)
 
     @override
     async def get_moderation_service(self) -> ModerationService:

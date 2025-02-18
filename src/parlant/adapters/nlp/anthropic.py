@@ -109,8 +109,8 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
                 max_tokens=4096,
                 **anthropic_api_arguments,
             )
-        except RateLimitError as e:
-            raise RateLimitError(
+        except RateLimitError:
+            self._logger.error(
                 (
                     "Anthropic API rate limit exceeded. Possible reasons:\n"
                     "1. Your account may have insufficient API credits.\n"
@@ -122,9 +122,9 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
                     "- For more details on rate limits and usage tiers, visit:\n"
                     "  https://docs.anthropic.com/claude/reference/rate-limits \n"
                 ),
-                response=e.response,
-                body=e.body,
             )
+            raise
+
         t_end = time.time()
 
         raw_content = response.content[0].text
