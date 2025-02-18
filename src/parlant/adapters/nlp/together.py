@@ -47,6 +47,18 @@ from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.service import NLPService
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 
+RATE_LIMIT_ERROR_MESSAGE = (
+    "Together API rate limit exceeded. Possible reasons:\n"
+    "1. Your account may have insufficient API credits.\n"
+    "2. You may be using a free-tier account with limited request capacity.\n"
+    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+    "Recommended actions:\n"
+    "- Check your Together account balance and billing status.\n"
+    "- Review your API usage limits in Together's dashboard.\n"
+    "- For more details on rate limits and usage tiers, visit:\n"
+    "  https://docs.together.ai/docs/rate-limits"
+)
+
 
 class LlamaEstimatingTokenizer(EstimatingTokenizer):
     def __init__(self) -> None:
@@ -92,12 +104,17 @@ class TogetherAISchematicGenerator(SchematicGenerator[T]):
         together_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
         t_start = time.time()
-        response = await self._client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model=self.model_name,
-            response_format={"type": "json_object"},
-            **together_api_arguments,
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model_name,
+                response_format={"type": "json_object"},
+                **together_api_arguments,
+            )
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
+
         t_end = time.time()
 
         raw_content = response.choices[0].message.content or "{}"
@@ -209,8 +226,10 @@ class Llama3_1_405B(TogetherAISchematicGenerator[T]):
 
 
 class TogetherAIEmbedder(Embedder):
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, logger: Logger) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = AsyncTogether(api_key=os.environ.get("TOGETHER_API_KEY"))
 
     @policy(
@@ -234,18 +253,22 @@ class TogetherAIEmbedder(Embedder):
     ) -> EmbeddingResult:
         _ = hints
 
-        response = await self._client.embeddings.create(
-            model=self.model_name,
-            input=texts,
-        )
+        try:
+            response = await self._client.embeddings.create(
+                model=self.model_name,
+                input=texts,
+            )
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)
 
 
 class M2Bert32K(TogetherAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="togethercomputer/m2-bert-80M-32k-retrieval")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="togethercomputer/m2-bert-80M-32k-retrieval", logger=logger)
         self._estimating_tokenizer = HuggingFaceEstimatingTokenizer(self.model_name)
 
     @property
@@ -291,7 +314,7 @@ class TogetherService(NLPService):
 
     @override
     async def get_embedder(self) -> Embedder:
-        return M2Bert32K()
+        return M2Bert32K(self._logger)
 
     @override
     async def get_moderation_service(self) -> ModerationService:

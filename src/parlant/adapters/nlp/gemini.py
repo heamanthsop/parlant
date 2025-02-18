@@ -98,10 +98,27 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
         gemini_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
         t_start = time.time()
-        response = await self._model.generate_content_async(
-            contents=prompt,
-            generation_config=gemini_api_arguments,  # type: ignore
-        )
+        try:
+            response = await self._model.generate_content_async(
+                contents=prompt,
+                generation_config=gemini_api_arguments,  # type: ignore
+            )
+        except TooManyRequests:
+            self._logger.error(
+                (
+                    "Google API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Google API account balance and billing status.\n"
+                    "- Review your API usage limits in Google's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://cloud.google.com/docs/quota-and-billing/quotas/quotas-overview"
+                ),
+            )
+            raise
+
         t_end = time.time()
 
         raw_content = response.text
@@ -182,8 +199,10 @@ class Gemini_1_5_Pro(GeminiSchematicGenerator[T]):
 class GoogleEmbedder(Embedder):
     supported_hints = ["title", "task_type"]
 
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, logger: Logger) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._tokenizer = GoogleEstimatingTokenizer(model_name=self.model_name)
 
     @property
@@ -216,19 +235,35 @@ class GoogleEmbedder(Embedder):
     ) -> EmbeddingResult:
         gemini_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
-        response = await genai.embed_content_async(  # type: ignore
-            model=self.model_name,
-            content=texts,
-            **gemini_api_arguments,
-        )
+        try:
+            response = await genai.embed_content_async(  # type: ignore
+                model=self.model_name,
+                content=texts,
+                **gemini_api_arguments,
+            )
+        except TooManyRequests:
+            self._logger.error(
+                (
+                    "Google API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Google API account balance and billing status.\n"
+                    "- Review your API usage limits in Google's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://cloud.google.com/docs/quota-and-billing/quotas/quotas-overview"
+                ),
+            )
+            raise
 
         vectors = [data_point for data_point in response["embedding"]]
         return EmbeddingResult(vectors=vectors)
 
 
 class GeminiTextEmbedding_004(GoogleEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="models/text-embedding-004")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="models/text-embedding-004", logger=logger)
 
     @property
     @override
@@ -258,7 +293,7 @@ class GeminiService(NLPService):
 
     @override
     async def get_embedder(self) -> Embedder:
-        return GeminiTextEmbedding_004()
+        return GeminiTextEmbedding_004(self._logger)
 
     @override
     async def get_moderation_service(self) -> ModerationService:

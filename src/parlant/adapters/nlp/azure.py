@@ -14,7 +14,14 @@
 
 from __future__ import annotations
 import time
-from openai import AsyncAzureOpenAI
+from openai import (
+    AsyncAzureOpenAI,
+    APIConnectionError,
+    APIResponseValidationError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)  # type: ignore
 from typing import Any, Mapping
 from typing_extensions import override
 import json
@@ -25,6 +32,7 @@ import tiktoken
 
 from parlant.adapters.nlp.common import normalize_json_output
 from parlant.core.logging import Logger
+from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 from parlant.core.nlp.service import NLPService
 from parlant.core.nlp.embedding import Embedder, EmbeddingResult
@@ -71,6 +79,19 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
     def tokenizer(self) -> AzureEstimatingTokenizer:
         return self._tokenizer
 
+    @policy(
+        [
+            retry(
+                exceptions=(
+                    APIConnectionError,
+                    APITimeoutError,
+                    RateLimitError,
+                    APIResponseValidationError,
+                )
+            ),
+            retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
+        ]
+    )
     async def generate(
         self,
         prompt: str,
@@ -88,12 +109,27 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
 
         if hints.get("strict", False):
             t_start = time.time()
-            response = await self._client.beta.chat.completions.parse(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model_name,
-                response_format=self.schema,
-                **azure_api_arguments,
-            )
+            try:
+                response = await self._client.beta.chat.completions.parse(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model_name,
+                    response_format=self.schema,
+                    **azure_api_arguments,
+                )
+            except RateLimitError:
+                self._logger.error(
+                    "Azure API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Azure account balance and billing status.\n"
+                    "- Review your API usage limits in Azure's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
+                )
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -127,12 +163,28 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
 
         else:
             t_start = time.time()
-            response = await self._client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model_name,
-                response_format={"type": "json_object"},
-                **azure_api_arguments,
-            )
+
+            try:
+                response = await self._client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model_name,
+                    response_format={"type": "json_object"},
+                    **azure_api_arguments,
+                )
+            except RateLimitError:
+                self._logger.error(
+                    "Azure API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Azure account balance and billing status.\n"
+                    "- Review your API usage limits in Azure's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
+                )
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -211,8 +263,10 @@ class GPT_4o_Mini(AzureSchematicGenerator[T]):
 class AzureEmbedder(Embedder):
     supported_arguments = ["dimensions"]
 
-    def __init__(self, model_name: str, client: AsyncAzureOpenAI) -> None:
+    def __init__(self, model_name: str, logger: Logger, client: AsyncAzureOpenAI) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = client
         self._tokenizer = AzureEstimatingTokenizer(model_name=self.model_name)
 
@@ -233,24 +287,38 @@ class AzureEmbedder(Embedder):
     ) -> EmbeddingResult:
         filtered_hints = {k: v for k, v in hints.items() if k in self.supported_arguments}
 
-        response = await self._client.embeddings.create(
-            model=self.model_name,
-            input=texts,
-            **filtered_hints,
-        )
+        try:
+            response = await self._client.embeddings.create(
+                model=self.model_name,
+                input=texts,
+                **filtered_hints,
+            )
+        except RateLimitError:
+            self._logger.error(
+                "Azure API rate limit exceeded. Possible reasons:\n"
+                "1. Your account may have insufficient API credits.\n"
+                "2. You may be using a free-tier account with limited request capacity.\n"
+                "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                "Recommended actions:\n"
+                "- Check your Azure account balance and billing status.\n"
+                "- Review your API usage limits in Azure's dashboard.\n"
+                "- For more details on rate limits and usage tiers, visit:\n"
+                "  https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits\n",
+            )
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)
 
 
 class AzureTextEmbedding3Large(AzureEmbedder):
-    def __init__(self) -> None:
+    def __init__(self, logger: Logger) -> None:
         _client = AsyncAzureOpenAI(
             api_key=os.environ["AZURE_API_KEY"],
             azure_endpoint=os.environ["AZURE_ENDPOINT"],
             api_version="2023-05-15",
         )
-        super().__init__(model_name="text-embedding-3-large", client=_client)
+        super().__init__(model_name="text-embedding-3-large", logger=logger, client=_client)
 
     @property
     @override
@@ -263,13 +331,13 @@ class AzureTextEmbedding3Large(AzureEmbedder):
 
 
 class AzureTextEmbedding3Small(AzureEmbedder):
-    def __init__(self) -> None:
+    def __init__(self, logger: Logger) -> None:
         _client = AsyncAzureOpenAI(
             api_key=os.environ["AZURE_API_KEY"],
             azure_endpoint=os.environ["AZURE_ENDPOINT"],
             api_version="2023-05-15",
         )
-        super().__init__(model_name="text-embedding-3-small", client=_client)
+        super().__init__(model_name="text-embedding-3-small", logger=logger, client=_client)
 
     @property
     def max_tokens(self) -> int:
@@ -291,7 +359,7 @@ class AzureService(NLPService):
         return GPT_4o[t](self._logger)  # type: ignore
 
     async def get_embedder(self) -> Embedder:
-        return AzureTextEmbedding3Large()
+        return AzureTextEmbedding3Large(self._logger)
 
     async def get_moderation_service(self) -> ModerationService:
         return NoModeration()

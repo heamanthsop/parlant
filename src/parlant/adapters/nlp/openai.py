@@ -50,6 +50,19 @@ from parlant.core.nlp.generation import (
 from parlant.core.nlp.moderation import ModerationCheck, ModerationService, ModerationTag
 
 
+RATE_LIMIT_ERROR_MESSAGE = (
+    "OpenAI API rate limit exceeded. Possible reasons:\n"
+    "1. Your account may have insufficient API credits.\n"
+    "2. You may be using a free-tier account with limited request capacity.\n"
+    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+    "Recommended actions:\n"
+    "- Check your OpenAI account balance and billing status.\n"
+    "- Review your API usage limits in OpenAI's dashboard.\n"
+    "- For more details on rate limits and usage tiers, visit:\n"
+    "  https://platform.openai.com/docs/guides/rate-limits/usage-tiers\n"
+)
+
+
 class OpenAIEstimatingTokenizer(EstimatingTokenizer):
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
@@ -119,12 +132,17 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
 
         if hints.get("strict", False):
             t_start = time.time()
-            response = await self._client.beta.chat.completions.parse(
-                messages=[{"role": "developer", "content": prompt}],
-                model=self.model_name,
-                response_format=self.schema,
-                **openai_api_arguments,
-            )
+            try:
+                response = await self._client.beta.chat.completions.parse(
+                    messages=[{"role": "developer", "content": prompt}],
+                    model=self.model_name,
+                    response_format=self.schema,
+                    **openai_api_arguments,
+                )
+            except RateLimitError:
+                self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+                raise
+
             t_end = time.time()
 
             if response.usage:
@@ -154,14 +172,18 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
             )
 
         else:
-            t_start = time.time()
-            response = await self._client.chat.completions.create(
-                messages=[{"role": "developer", "content": prompt}],
-                model=self.model_name,
-                response_format={"type": "json_object"},
-                **openai_api_arguments,
-            )
-            t_end = time.time()
+            try:
+                t_start = time.time()
+                response = await self._client.chat.completions.create(
+                    messages=[{"role": "developer", "content": prompt}],
+                    model=self.model_name,
+                    response_format={"type": "json_object"},
+                    **openai_api_arguments,
+                )
+                t_end = time.time()
+            except RateLimitError:
+                self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+                raise
 
             if response.usage:
                 self._logger.debug(response.usage.model_dump_json(indent=2))
@@ -238,8 +260,10 @@ class GPT_4o_Mini(OpenAISchematicGenerator[T]):
 class OpenAIEmbedder(Embedder):
     supported_arguments = ["dimensions"]
 
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, logger: Logger) -> None:
         self.model_name = model_name
+
+        self._logger = logger
         self._client = AsyncClient(api_key=os.environ["OPENAI_API_KEY"])
         self._tokenizer = OpenAIEstimatingTokenizer(model_name=self.model_name)
 
@@ -274,20 +298,23 @@ class OpenAIEmbedder(Embedder):
         hints: Mapping[str, Any] = {},
     ) -> EmbeddingResult:
         filtered_hints = {k: v for k, v in hints.items() if k in self.supported_arguments}
-
-        response = await self._client.embeddings.create(
-            model=self.model_name,
-            input=texts,
-            **filtered_hints,
-        )
+        try:
+            response = await self._client.embeddings.create(
+                model=self.model_name,
+                input=texts,
+                **filtered_hints,
+            )
+        except RateLimitError:
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
+            raise
 
         vectors = [data_point.embedding for data_point in response.data]
         return EmbeddingResult(vectors=vectors)
 
 
 class OpenAITextEmbedding3Large(OpenAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="text-embedding-3-large")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="text-embedding-3-large", logger=logger)
 
     @property
     @override
@@ -300,8 +327,8 @@ class OpenAITextEmbedding3Large(OpenAIEmbedder):
 
 
 class OpenAITextEmbedding3Small(OpenAIEmbedder):
-    def __init__(self) -> None:
-        super().__init__(model_name="text-embedding-3-small")
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(model_name="text-embedding-3-small", logger=logger)
 
     @property
     @override
@@ -384,7 +411,7 @@ class OpenAIService(NLPService):
 
     @override
     async def get_embedder(self) -> Embedder:
-        return OpenAITextEmbedding3Large()
+        return OpenAITextEmbedding3Large(self._logger)
 
     @override
     async def get_moderation_service(self) -> ModerationService:
