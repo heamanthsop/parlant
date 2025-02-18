@@ -1541,6 +1541,7 @@ class Interface:
             guidelines_to_render = sorted(
                 [g for g in guidelines if g.enabled or show_disabled],
                 key=lambda g: g.enabled,
+                reverse=True,
             )
 
             if not guidelines_to_render:
