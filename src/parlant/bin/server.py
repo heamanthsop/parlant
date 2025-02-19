@@ -167,12 +167,12 @@ def load_nlp_service(name: str, extra_name: str, class_name: str, module_path: s
 
 def load_anthropic() -> NLPService:
     return load_nlp_service(
-        "Anthropic", "anthropic", "AnthropicService", "parlant.adapters.nlp.anthropic"
+        "Anthropic", "anthropic", "AnthropicService", "parlant.adapters.nlp.anthropic_service"
     )
 
 
 def load_aws() -> NLPService:
-    return load_nlp_service("AWS", "aws", "BedrockService", "parlant.adapters.nlp.aws")
+    return load_nlp_service("AWS", "aws", "BedrockService", "parlant.adapters.nlp.aws_service")
 
 
 def load_azure() -> NLPService:
@@ -183,18 +183,20 @@ def load_azure() -> NLPService:
 
 def load_cerebras() -> NLPService:
     return load_nlp_service(
-        "Cerebras", "cerebras", "CerebrasService", "parlant.adapters.nlp.cerebras"
+        "Cerebras", "cerebras", "CerebrasService", "parlant.adapters.nlp.cerebras_service"
     )
 
 
 def load_deepseek() -> NLPService:
     return load_nlp_service(
-        "DeepSeek", "deepseek", "DeepSeekService", "parlant.adapters.nlp.deepseek"
+        "DeepSeek", "deepseek", "DeepSeekService", "parlant.adapters.nlp.deepseek_service"
     )
 
 
 def load_gemini() -> NLPService:
-    return load_nlp_service("Gemini", "gemini", "GeminiService", "parlant.adapters.nlp.gemini")
+    return load_nlp_service(
+        "Gemini", "gemini", "GeminiService", "parlant.adapters.nlp.gemini_service"
+    )
 
 
 def load_openai() -> NLPService:
@@ -205,7 +207,7 @@ def load_openai() -> NLPService:
 
 def load_together() -> NLPService:
     return load_nlp_service(
-        "Together.ai", "together", "TogetherService", "parlant.adapters.nlp.together"
+        "Together.ai", "together", "TogetherService", "parlant.adapters.nlp.together_service"
     )
 
 
