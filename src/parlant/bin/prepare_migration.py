@@ -195,7 +195,7 @@ async def migrate_glossary() -> None:
             version = document["version"]
 
             embedder_module = importlib.import_module(
-                old_collection.metadata["embedder_module_path"]
+                f"{old_collection.metadata['embedder_module_path']}_service"
             )
             embedder_type = getattr(
                 embedder_module,
