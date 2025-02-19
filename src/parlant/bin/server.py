@@ -22,7 +22,7 @@ import json
 import os
 import traceback
 from lagom import Container, Singleton
-from typing import AsyncIterator, Callable, Iterable, cast
+from typing import AsyncIterator, Awaitable, Callable, Iterable, Sequence, cast
 import toml
 from typing_extensions import NoReturn
 import click
@@ -234,50 +234,72 @@ async def get_module_list_from_config() -> list[str]:
 async def load_modules(
     container: Container,
     modules: Iterable[str],
-) -> AsyncIterator[Container]:
+) -> AsyncIterator[tuple[Container, Sequence[tuple[str, Callable[[Container], Awaitable[None]]]]]]:
     imported_modules = []
+    initializers: list[tuple[str, Callable[[Container], Awaitable[None]]]] = []
 
     for module_path in modules:
         module = importlib.import_module(module_path)
-        if not hasattr(module, "initialize_module") or not hasattr(module, "shutdown_module"):
-            raise StartupError(
-                f"Module '{module.__name__}' must define initialize_module(container: lagom.Container) and shutdown_module()"
-            )
         imported_modules.append(module)
 
     for m in imported_modules:
-        LOGGER.info(f"Initializing module '{m.__name__}'")
+        if configure_module := getattr(module, "configure_module", None):
+            LOGGER.info(f"Configuring module '{m.__name__}'")
+            if new_container := await configure_module(container):
+                container = new_container
 
-        if new_container := await m.initialize_module(container):
-            container = new_container
+        if initialize_module := getattr(module, "initialize_module", None):
+            initializers.append((m.__name__, initialize_module))
 
     try:
-        yield container
+        yield container, initializers
     finally:
         for m in reversed(imported_modules):
-            LOGGER.info(f"Shutting down module '{m.__name__}'")
-            await m.shutdown_module()
+            if shutdown_module := getattr(module, "shutdown_module", None):
+                LOGGER.info(f"Shutting down module '{m.__name__}'")
+                await shutdown_module()
 
 
 @asynccontextmanager
-async def setup_container(
+async def setup_container() -> AsyncIterator[Container]:
+    c = Container()
+
+    c[BackgroundTaskService] = BACKGROUND_TASK_SERVICE
+    c[ContextualCorrelator] = CORRELATOR
+    web_socket_logger = WebSocketLogger(CORRELATOR, LogLevel.INFO)
+    c[WebSocketLogger] = web_socket_logger
+    c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
+
+    c[ShotCollection[GuidelinePropositionShot]] = guideline_proposer.shot_collection
+    c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
+    c[ShotCollection[FluidMessageGeneratorShot]] = fluid_message_generator.shot_collection
+
+    c[LifecycleHooks] = LifecycleHooks()
+    c[EventEmitterFactory] = Singleton(EventPublisherFactory)
+
+    c[GuidelineProposer] = Singleton(GuidelineProposer)
+    c[ToolEventGenerator] = Singleton(ToolEventGenerator)
+    c[FluidMessageGenerator] = Singleton(FluidMessageGenerator)
+
+    c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
+    c[CoherenceChecker] = Singleton(CoherenceChecker)
+    c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
+    c[EvaluationListener] = Singleton(PollingEvaluationListener)
+
+    c[Engine] = Singleton(AlphaEngine)
+    c[Application] = lambda rc: Application(rc)
+
+    yield c
+
+
+async def initialize_container(
+    c: Container,
     nlp_service_name: str,
     log_level: str,
     migrate: bool,
-) -> AsyncIterator[Container]:
-    c = Container()
+) -> None:
+    await EXIT_STACK.enter_async_context(c[BackgroundTaskService])
 
-    c[BackgroundTaskService] = await EXIT_STACK.enter_async_context(BACKGROUND_TASK_SERVICE)
-
-    c[ContextualCorrelator] = CORRELATOR
-
-    c[WebSocketLogger] = WebSocketLogger(CORRELATOR, LogLevel.INFO)
-    c[Logger] = CompositeLogger(
-        [
-            LOGGER,
-            c[WebSocketLogger],
-        ]
-    )
     c[Logger].set_level(
         {
             "info": LogLevel.INFO,
@@ -287,37 +309,38 @@ async def setup_container(
             "critical": LogLevel.CRITICAL,
         }[log_level],
     )
+
     await c[BackgroundTaskService].start(c[WebSocketLogger].start(), tag="websocket-logger")
 
     agents_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "agents.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "agents.json")
     )
     context_variables_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "context_variables.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "context_variables.json")
     )
     tags_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "tags.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "tags.json")
     )
     customers_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "customers.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "customers.json")
     )
     sessions_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "sessions.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "sessions.json")
     )
     guidelines_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "guidelines.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guidelines.json")
     )
     guideline_tool_associations_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "guideline_tool_associations.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_tool_associations.json")
     )
     guideline_connections_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "guideline_connections.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_connections.json")
     )
     evaluations_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "evaluations.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluations.json")
     )
     services_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "services.json")
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "services.json")
     )
 
     try:
@@ -349,9 +372,6 @@ async def setup_container(
         c[EvaluationStore] = await EXIT_STACK.enter_async_context(
             EvaluationDocumentStore(evaluations_db, migrate)
         )
-        c[EvaluationListener] = PollingEvaluationListener
-
-        c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
         nlp_service_initializer: dict[str, Callable[[], NLPService]] = {
             "anthropic": load_anthropic,
@@ -383,7 +403,7 @@ async def setup_container(
         c[GlossaryStore] = await EXIT_STACK.enter_async_context(
             GlossaryVectorStore(
                 await EXIT_STACK.enter_async_context(
-                    ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory),
+                    ChromaDatabase(c[Logger], PARLANT_HOME_DIR, embedder_factory),
                 ),
                 embedder_type=type(await nlp_service.get_embedder()),
                 embedder_factory=embedder_factory,
@@ -415,58 +435,6 @@ async def setup_container(
     c[
         SchematicGenerator[GuidelineConnectionPropositionsSchema]
     ] = await nlp_service.get_schematic_generator(GuidelineConnectionPropositionsSchema)
-
-    c[ShotCollection[GuidelinePropositionShot]] = guideline_proposer.shot_collection
-    c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
-    c[ShotCollection[FluidMessageGeneratorShot]] = fluid_message_generator.shot_collection
-
-    c[LifecycleHooks] = LifecycleHooks()
-
-    c[GuidelineProposer] = GuidelineProposer(
-        c[Logger],
-        c[SchematicGenerator[GuidelinePropositionsSchema]],
-    )
-    c[GuidelineConnectionProposer] = GuidelineConnectionProposer(
-        c[Logger],
-        c[SchematicGenerator[GuidelineConnectionPropositionsSchema]],
-        c[GlossaryStore],
-    )
-
-    c[CoherenceChecker] = CoherenceChecker(
-        c[Logger],
-        c[SchematicGenerator[ConditionsEntailmentTestsSchema]],
-        c[SchematicGenerator[ActionsContradictionTestsSchema]],
-        c[GlossaryStore],
-    )
-
-    c[BehavioralChangeEvaluator] = BehavioralChangeEvaluator(
-        c[Logger],
-        c[BackgroundTaskService],
-        c[AgentStore],
-        c[EvaluationStore],
-        c[GuidelineStore],
-        c[GuidelineConnectionProposer],
-        c[CoherenceChecker],
-    )
-
-    c[FluidMessageGenerator] = FluidMessageGenerator(
-        c[Logger],
-        c[ContextualCorrelator],
-        c[SchematicGenerator[FluidMessageSchema]],
-    )
-
-    c[ToolEventGenerator] = ToolEventGenerator(
-        c[Logger],
-        c[ContextualCorrelator],
-        c[ServiceRegistry],
-        c[SchematicGenerator[ToolCallInferenceSchema]],
-    )
-
-    c[Engine] = Singleton(AlphaEngine)
-
-    c[Application] = Application(c)
-
-    yield c
 
 
 async def recover_server_tasks(
@@ -504,19 +472,30 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
     EXIT_STACK = AsyncExitStack()
 
     async with (
-        setup_container(params.nlp_service, params.log_level, params.migrate) as base_container,
+        setup_container() as base_container,
         EXIT_STACK,
     ):
         modules = set(await get_module_list_from_config() + params.modules)
 
         if modules:
             # Allow modules to return a different container
-            actual_container = await EXIT_STACK.enter_async_context(
+            actual_container, module_initializers = await EXIT_STACK.enter_async_context(
                 load_modules(base_container, modules),
             )
         else:
             actual_container = base_container
             LOGGER.info("No external modules selected")
+
+        await initialize_container(
+            actual_container,
+            params.nlp_service,
+            params.log_level,
+            params.migrate,
+        )
+
+        for module_name, initializer in module_initializers:
+            LOGGER.info(f"Initializing module '{module_name}'")
+            await initializer(actual_container)
 
         await recover_server_tasks(
             evaluation_store=actual_container[EvaluationStore],
