@@ -22,13 +22,13 @@ from lagom import Container
 from pytest import fixture, raises
 from chromadb.api.types import IncludeEnum
 
-from parlant.adapters.nlp.openai import OpenAITextEmbedding3Large
+from parlant.adapters.nlp.openai_service import OpenAITextEmbedding3Large
 from parlant.adapters.vector_db.chroma import ChromaCollection, ChromaDatabase
 from parlant.core.agents import AgentStore, AgentId
 from parlant.core.common import Version, md5_checksum
 from parlant.core.glossary import GlossaryVectorStore
 from parlant.core.nlp.embedding import EmbedderFactory, NoOpEmbedder
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ObjectId
 

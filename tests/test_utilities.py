@@ -39,7 +39,7 @@ import httpx
 from lagom import Container
 import uvicorn
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
-from parlant.adapters.nlp.openai import GPT_4o
+from parlant.adapters.nlp.openai_service import GPT_4o
 from parlant.core.agents import Agent, AgentId, AgentStore
 from parlant.core.application import Application
 from parlant.core.async_utils import Timeout
@@ -54,7 +54,7 @@ from parlant.core.customers import Customer, CustomerId, CustomerStore
 from parlant.core.glossary import GlossaryStore, Term
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import Guideline, GuidelineStore
-from parlant.core.logging import LogLevel, Logger
+from parlant.core.loggers import LogLevel, Logger
 from parlant.core.nlp.generation import (
     FallbackSchematicGenerator,
     GenerationInfo,

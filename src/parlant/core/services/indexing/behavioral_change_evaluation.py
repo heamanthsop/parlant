@@ -40,7 +40,7 @@ from parlant.core.services.indexing.common import ProgressReport
 from parlant.core.services.indexing.guideline_connection_proposer import (
     GuidelineConnectionProposer,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 
 
 class EvaluationError(Exception):

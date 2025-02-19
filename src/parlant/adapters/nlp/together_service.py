@@ -41,7 +41,7 @@ from parlant.core.nlp.generation import (
     SchematicGenerationResult,
     UsageInfo,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.moderation import ModerationService, NoModeration
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.service import NLPService

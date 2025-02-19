@@ -35,7 +35,7 @@ from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
 from parlant.core.sessions import Event
 from parlant.core.common import DefaultBaseModel
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
 from parlant.core.tools import ToolId
 

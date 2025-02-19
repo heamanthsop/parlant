@@ -7,7 +7,7 @@ from typing_extensions import override
 
 from parlant.core.common import UniqueId, generate_id
 from parlant.core.contextual_correlator import ContextualCorrelator
-from parlant.core.logging import CorrelationalLogger, LogLevel
+from parlant.core.loggers import CorrelationalLogger, LogLevel
 
 
 @dataclass(frozen=True)

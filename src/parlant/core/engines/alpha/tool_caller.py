@@ -33,7 +33,7 @@ from parlant.core.glossary import Term
 from parlant.core.engines.alpha.guideline_proposition import GuidelineProposition
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
 from parlant.core.emissions import EmittedEvent
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.tools import ToolId, ToolService
 
 ToolCallId = NewType("ToolCallId", str)

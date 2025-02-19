@@ -35,7 +35,7 @@ from parlant.core.persistence.document_database import (
     UpdateResult,
     identity_loader,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 
 
 class JSONFileDocumentDatabase(DocumentDatabase):

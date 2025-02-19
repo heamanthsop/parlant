@@ -23,7 +23,7 @@ import nano_vectordb  # type: ignore
 
 from parlant.core.common import JSONSerializable
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.persistence.common import ensure_is_total, matches_filters, Where
 from parlant.core.persistence.vector_database import (
     BaseDocument,

@@ -25,7 +25,7 @@ from typing_extensions import Literal
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.emissions import EventEmitterFactory
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.moderation import ModerationService
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper

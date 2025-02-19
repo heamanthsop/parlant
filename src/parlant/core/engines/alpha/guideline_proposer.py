@@ -36,7 +36,7 @@ from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.sessions import Event, EventId, EventSource
 from parlant.core.emissions import EmittedEvent
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
 
 

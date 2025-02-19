@@ -42,7 +42,7 @@ from parlant.core.engines.alpha.guideline_proposition import (
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.sessions import EventSource
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.glossary import TermId
 
 from tests.core.common.utils import create_event_message

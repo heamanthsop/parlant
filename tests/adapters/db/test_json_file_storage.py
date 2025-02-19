@@ -54,7 +54,7 @@ from parlant.core.sessions import SessionDocumentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.tools import ToolId
 
 from tests.test_utilities import SyncAwaiter

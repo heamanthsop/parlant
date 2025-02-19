@@ -199,6 +199,7 @@ class StdoutLogger(CorrelationalLogger):
         logger_id: str | None = None,
     ) -> None:
         super().__init__(correlator, log_level, logger_id)
+        self.raw_logger.addHandler(logging.StreamHandler())
 
 
 class FileLogger(CorrelationalLogger):

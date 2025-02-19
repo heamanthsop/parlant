@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock
 from pytest import raises
 
 from parlant.core.common import DefaultBaseModel
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.embedding import EmbeddingResult
 from parlant.core.nlp.generation import (
     FallbackSchematicGenerator,

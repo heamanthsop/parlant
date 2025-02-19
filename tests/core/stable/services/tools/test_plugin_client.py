@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from pytest import fixture, raises
 import pytest
 
-from parlant.core.logging import StdoutLogger
+from parlant.core.loggers import StdoutLogger
 from parlant.core.tools import (
     ToolContext,
     ToolError,

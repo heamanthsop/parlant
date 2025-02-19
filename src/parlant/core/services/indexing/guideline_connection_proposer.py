@@ -22,7 +22,7 @@ from parlant.core import async_utils
 from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel
 from parlant.core.guidelines import GuidelineContent
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.glossary import GlossaryStore
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
@@ -119,7 +119,7 @@ class GuidelineConnectionProposer:
             f"""
 GENERAL INSTRUCTIONS
 -----------------
-In our system, the behavior of a conversational AI agent is guided by "guidelines." 
+In our system, the behavior of a conversational AI agent is guided by "guidelines."
 These guidelines are used by the agent whenever it responds to a customer in a chat.
 
 Each guideline is composed of two parts:
@@ -137,22 +137,22 @@ HOW TO IDENTIFY A CAUSAL CONNECTION
 Consider two guidelines:
 Guideline 1: When <X>, then <Y>.
 Guideline 2: When <W>, then <Z>.
-We say that guideline 1 forms a "causal connection" (or simply causes) guideline 2 iff applying the "then" of Guideline 1 (<Y>) directly causes the "when" of Guideline 2 (<W>) to hold true. 
+We say that guideline 1 forms a "causal connection" (or simply causes) guideline 2 iff applying the "then" of Guideline 1 (<Y>) directly causes the "when" of Guideline 2 (<W>) to hold true.
 
 Additionally, you may assume the following: If <Y> occurs due to Guideline 1, then <X> is currently true. This means both <X> and <Y> can be considered true when assessing whether <W> is true for Guideline 2.
 
-Important clarifications: 
-1. Assume that the condition of the source guideline is true. Meaning, examine whether the fulfillment of both the 'when' and 'then' statements of the source guideline cause the target's 'when' to be true. 
+Important clarifications:
+1. Assume that the condition of the source guideline is true. Meaning, examine whether the fulfillment of both the 'when' and 'then' statements of the source guideline cause the target's 'when' to be true.
 
 2. Temporal Constraints: If the target guideline’s "when" condition was true in the past or will only become true in the future due to other factors, this is not considered causation. Causation is invalid if the source’s "then" statement can be applied while the target’s "when" condition remains false.
 
-3. Actions do not Apply to the Customer: The action ascribed by the source guideline's 'then' statement cannot directly cause the customer to do something. If the target's 'when' statement describes a user action, mark it as so using the field target_when_is_customer_action, and note that a connection cannot be formed 
+3. Actions do not Apply to the Customer: The action ascribed by the source guideline's 'then' statement cannot directly cause the customer to do something. If the target's 'when' statement describes a user action, mark it as so using the field target_when_is_customer_action, and note that a connection cannot be formed
 
-4. VERY IMPORTANT: Optional or Suggestive Actions: If a guideline has an action that is suggestive ("consider recommending tomatoes"), or should only be followed under certain conditions (I.e. "check if the item is available and if it is suggest it"), assume that action is mandatory when evaluating the guideline. 
+4. VERY IMPORTANT: Optional or Suggestive Actions: If a guideline has an action that is suggestive ("consider recommending tomatoes"), or should only be followed under certain conditions (I.e. "check if the item is available and if it is suggest it"), assume that action is mandatory when evaluating the guideline.
 
 HOW TO FILL is_target_when_caused_by_source_then
 -----------------
-The field is_target_when_caused_by_source_then indicates the type of causal relationship between the source guideline's "then" statement and the target guideline's "when" condition. 
+The field is_target_when_caused_by_source_then indicates the type of causal relationship between the source guideline's "then" statement and the target guideline's "when" condition.
 You must select the most accurate option from the following, listed from the weakest connection to the strongest:
 1. "no" - Select this if there is no causal relationship between the source's action and the target's condition.
 2. "implies" - Use this when the source's action makes it likely or possible that the target's condition holds true, but does not guarantee it. This is a weaker form of causation, where the action suggests or sets up conditions for the target.
@@ -162,7 +162,7 @@ You must select the most accurate option from the following, listed from the wea
 4. "causes" - Use this for direct and necessary causation, where the source's action guarantees that the target's condition immediately becomes true.
     Example: the action "refer the customer to our documentation" causes the specific case for the condition "referring the customer to our documentation"
 
-Always select the strongest option that applies to the provided guidelines. 
+Always select the strongest option that applies to the provided guidelines.
 E.g., if you could both say that guideline A implies guideline B and that it causes guideline B, choose the latter.
 
 EXAMPLES

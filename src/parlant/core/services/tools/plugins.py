@@ -46,7 +46,7 @@ from urllib.parse import urljoin
 import uvicorn
 
 from parlant.core.agents import AgentId
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.tools import (
     Tool,
     ToolError,

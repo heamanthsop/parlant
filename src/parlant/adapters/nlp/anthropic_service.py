@@ -13,15 +13,15 @@
 # limitations under the License.
 
 import time
+from pydantic import ValidationError
 from anthropic import (
-    AsyncAnthropicBedrock,
     APIConnectionError,
     APIResponseValidationError,
     APITimeoutError,
+    AsyncAnthropic,
     InternalServerError,
     RateLimitError,
 )  # type: ignore
-from pydantic import ValidationError
 from typing import Any, Mapping
 from typing_extensions import override
 import jsonfinder  # type: ignore
@@ -33,29 +33,29 @@ from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
 from parlant.core.nlp.embedding import Embedder
 from parlant.core.nlp.generation import (
     T,
-    SchematicGenerator,
     GenerationInfo,
     SchematicGenerationResult,
+    SchematicGenerator,
     UsageInfo,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.moderation import ModerationService, NoModeration
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.service import NLPService
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 
 
-class AnthropicBedrockEstimatingTokenizer(EstimatingTokenizer):
-    def __init__(self) -> None:
+class AnthropicEstimatingTokenizer(EstimatingTokenizer):
+    def __init__(self, client: AsyncAnthropic) -> None:
         self.encoding = tiktoken.encoding_for_model("gpt-4o-2024-08-06")
+        self._client = client
 
     @override
     async def estimate_token_count(self, prompt: str) -> int:
-        tokens = self.encoding.encode(prompt)
-        return int(len(tokens) * 1.15)
+        return await self._client.count_tokens(prompt)
 
 
-class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
+class AnthropicAISchematicGenerator(SchematicGenerator[T]):
     supported_hints = ["temperature"]
 
     def __init__(
@@ -66,22 +66,18 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
         self.model_name = model_name
         self._logger = logger
 
-        self._client = AsyncAnthropicBedrock(
-            aws_access_key=os.environ["AWS_ACCESS_KEY_ID"],
-            aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-            aws_region=os.environ["AWS_REGION"],
-        )
+        self._client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-        self._estimating_tokenizer = AnthropicBedrockEstimatingTokenizer()
+        self._estimating_tokenizer = AnthropicEstimatingTokenizer(self._client)
 
     @property
     @override
     def id(self) -> str:
-        return f"bedrock/{self.model_name}"
+        return f"anthropic/{self.model_name}"
 
     @property
     @override
-    def tokenizer(self) -> AnthropicBedrockEstimatingTokenizer:
+    def tokenizer(self) -> AnthropicEstimatingTokenizer:
         return self._estimating_tokenizer
 
     @policy(
@@ -115,15 +111,17 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
             )
         except RateLimitError:
             self._logger.error(
-                "AWS Bedrock API rate limit exceeded. Possible reasons:\n"
-                "1. Your account may have insufficient API credits.\n"
-                "2. You may be using a free-tier account with limited request capacity.\n"
-                "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
-                "Recommended actions:\n"
-                "- Check your AWS Bedrock account balance and billing status.\n"
-                "- Review your API usage limits in AWS Bedrock's dashboard.\n"
-                "- For more details on rate limits and usage tiers, visit:\n"
-                "  https://us-east-1.console.aws.amazon.com/servicequotas/home/services/bedrock/quotas",
+                (
+                    "Anthropic API rate limit exceeded. Possible reasons:\n"
+                    "1. Your account may have insufficient API credits.\n"
+                    "2. You may be using a free-tier account with limited request capacity.\n"
+                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
+                    "Recommended actions:\n"
+                    "- Check your Anthropic account balance and billing status.\n"
+                    "- Review your API usage limits in Anthropic's dashboard.\n"
+                    "- For more details on rate limits and usage tiers, visit:\n"
+                    "  https://docs.anthropic.com/claude/reference/rate-limits \n"
+                ),
             )
             raise
 
@@ -161,10 +159,10 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
             raise
 
 
-class Claude_Sonnet_3_5(AnthropicBedrockAISchematicGenerator[T]):
+class Claude_Sonnet_3_5(AnthropicAISchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
-            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            model_name="claude-3-5-sonnet-20241022",
             logger=logger,
         )
 
@@ -174,12 +172,13 @@ class Claude_Sonnet_3_5(AnthropicBedrockAISchematicGenerator[T]):
         return 200 * 1024
 
 
-class BedrockService(NLPService):
+class AnthropicService(NLPService):
     def __init__(self, logger: Logger) -> None:
         self._logger = logger
+        self._logger.info("Initialized AnthropicService")
 
     @override
-    async def get_schematic_generator(self, t: type[T]) -> AnthropicBedrockAISchematicGenerator[T]:
+    async def get_schematic_generator(self, t: type[T]) -> AnthropicAISchematicGenerator[T]:
         return Claude_Sonnet_3_5[t](self._logger)  # type: ignore
 
     @override

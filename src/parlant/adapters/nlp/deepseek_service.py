@@ -34,7 +34,7 @@ import tiktoken
 
 from parlant.adapters.nlp.common import normalize_json_output
 from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 from parlant.core.nlp.service import NLPService

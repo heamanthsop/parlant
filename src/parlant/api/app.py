@@ -51,7 +51,7 @@ from parlant.core.glossary import GlossaryStore
 from parlant.core.services.indexing.behavioral_change_evaluation import (
     BehavioralChangeEvaluator,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.application import Application
 from parlant.core.tags import TagStore
 

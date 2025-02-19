@@ -35,7 +35,7 @@ from parlant.core.engines.alpha.guideline_proposition import (
     GuidelineProposition,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import EventSource
 from parlant.core.glossary import TermId

@@ -23,7 +23,7 @@ from pytest import fixture, Config
 import pytest
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
-from parlant.adapters.nlp.openai import OpenAIService
+from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.app import create_api_app, ASGIApplication
 from parlant.core.background_tasks import BackgroundTaskService
@@ -91,7 +91,7 @@ from parlant.core.services.indexing.guideline_connection_proposer import (
     GuidelineConnectionProposer,
     GuidelineConnectionPropositionsSchema,
 )
-from parlant.core.logging import LogLevel, Logger, StdoutLogger
+from parlant.core.loggers import LogLevel, Logger, StdoutLogger
 from parlant.core.application import Application
 from parlant.core.agents import AgentDocumentStore, AgentStore
 from parlant.core.guideline_tool_associations import (

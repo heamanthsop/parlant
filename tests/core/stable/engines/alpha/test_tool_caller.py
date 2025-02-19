@@ -25,7 +25,7 @@ from parlant.core.customers import Customer, CustomerStore, CustomerId
 from parlant.core.engines.alpha.guideline_proposition import GuidelineProposition
 from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCaller
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry

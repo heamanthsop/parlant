@@ -19,7 +19,7 @@ from typing import Any, Generic, Mapping, Optional, TypeVar, cast, get_args
 from typing_extensions import override
 
 from parlant.core.common import DefaultBaseModel
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 
 T = TypeVar("T", bound=DefaultBaseModel)

@@ -74,7 +74,7 @@ from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.engines.types import Context, Engine, UtteranceReason, UtteranceRequest
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.tools import ToolContext, ToolId
 
 

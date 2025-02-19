@@ -32,7 +32,7 @@ from parlant.adapters.db.json_file import JSONFileDocumentDatabase
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.common import generate_id, md5_checksum
 from parlant.core.contextual_correlator import ContextualCorrelator
-from parlant.core.logging import LogLevel, StdoutLogger
+from parlant.core.loggers import LogLevel, StdoutLogger
 from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import (

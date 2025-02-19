@@ -21,7 +21,7 @@ import chromadb
 
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import JSONSerializable
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory, NoOpEmbedder
 from parlant.core.persistence.common import Where, ensure_is_total
 from parlant.core.persistence.vector_database import (

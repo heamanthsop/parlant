@@ -41,7 +41,7 @@ from parlant.core.sessions import (
     SessionStore,
 )
 from parlant.core.engines.types import Context, Engine, UtteranceRequest
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 
 
 TaskQueue: TypeAlias = list[asyncio.Task[None]]

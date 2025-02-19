@@ -20,7 +20,7 @@ from parlant.core.customers import Customer
 from parlant.core.tools import ToolContext
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.nlp.generation import GenerationInfo, SchematicGenerator
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.services.tools.service_registry import ServiceRegistry

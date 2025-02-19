@@ -111,7 +111,7 @@ from parlant.core.services.indexing.guideline_connection_proposer import (
     GuidelineConnectionProposer,
     GuidelineConnectionPropositionsSchema,
 )
-from parlant.core.logging import CompositeLogger, FileLogger, LogLevel, Logger
+from parlant.core.loggers import CompositeLogger, FileLogger, LogLevel, Logger
 from parlant.core.application import Application
 from parlant.core.version import VERSION
 
@@ -176,7 +176,7 @@ def load_aws() -> NLPService:
 
 
 def load_azure() -> NLPService:
-    from parlant.adapters.nlp.azure import AzureService
+    from parlant.adapters.nlp.azure_service import AzureService
 
     return AzureService(LOGGER)
 
@@ -198,7 +198,7 @@ def load_gemini() -> NLPService:
 
 
 def load_openai() -> NLPService:
-    from parlant.adapters.nlp.openai import OpenAIService
+    from parlant.adapters.nlp.openai_service import OpenAIService
 
     return OpenAIService(LOGGER)
 

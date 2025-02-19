@@ -14,14 +14,13 @@
 
 import time
 from pydantic import ValidationError
-from anthropic import (
-    APIConnectionError,
-    APIResponseValidationError,
-    APITimeoutError,
-    AsyncAnthropic,
-    InternalServerError,
+from cerebras.cloud.sdk import AsyncCerebras
+from cerebras.cloud.sdk import (
     RateLimitError,
-)  # type: ignore
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+)
 from typing import Any, Mapping
 from typing_extensions import override
 import jsonfinder  # type: ignore
@@ -33,29 +32,29 @@ from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
 from parlant.core.nlp.embedding import Embedder
 from parlant.core.nlp.generation import (
     T,
+    SchematicGenerator,
     GenerationInfo,
     SchematicGenerationResult,
-    SchematicGenerator,
     UsageInfo,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 from parlant.core.nlp.moderation import ModerationService, NoModeration
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.service import NLPService
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 
 
-class AnthropicEstimatingTokenizer(EstimatingTokenizer):
-    def __init__(self, client: AsyncAnthropic) -> None:
+class LlamaEstimatingTokenizer(EstimatingTokenizer):
+    def __init__(self) -> None:
         self.encoding = tiktoken.encoding_for_model("gpt-4o-2024-08-06")
-        self._client = client
 
     @override
     async def estimate_token_count(self, prompt: str) -> int:
-        return await self._client.count_tokens(prompt)
+        tokens = self.encoding.encode(prompt)
+        return len(tokens) + 36
 
 
-class AnthropicAISchematicGenerator(SchematicGenerator[T]):
+class CerebrasSchematicGenerator(SchematicGenerator[T]):
     supported_hints = ["temperature"]
 
     def __init__(
@@ -64,21 +63,9 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
         logger: Logger,
     ) -> None:
         self.model_name = model_name
+
         self._logger = logger
-
-        self._client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
-        self._estimating_tokenizer = AnthropicEstimatingTokenizer(self._client)
-
-    @property
-    @override
-    def id(self) -> str:
-        return f"anthropic/{self.model_name}"
-
-    @property
-    @override
-    def tokenizer(self) -> AnthropicEstimatingTokenizer:
-        return self._estimating_tokenizer
+        self._client = AsyncCerebras(api_key=os.environ.get("CEREBRAS_API_KEY"))
 
     @policy(
         [
@@ -87,8 +74,7 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
                     APIConnectionError,
                     APITimeoutError,
                     RateLimitError,
-                    APIResponseValidationError,
-                )
+                ),
             ),
             retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
         ]
@@ -99,35 +85,27 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
         prompt: str,
         hints: Mapping[str, Any] = {},
     ) -> SchematicGenerationResult[T]:
-        anthropic_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
+        cerebras_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
         t_start = time.time()
         try:
-            response = await self._client.messages.create(
+            response = await self._client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model_name,
-                max_tokens=4096,
-                **anthropic_api_arguments,
+                response_format={"type": "json_object"},
+                **cerebras_api_arguments,
             )
         except RateLimitError:
             self._logger.error(
-                (
-                    "Anthropic API rate limit exceeded. Possible reasons:\n"
-                    "1. Your account may have insufficient API credits.\n"
-                    "2. You may be using a free-tier account with limited request capacity.\n"
-                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
-                    "Recommended actions:\n"
-                    "- Check your Anthropic account balance and billing status.\n"
-                    "- Review your API usage limits in Anthropic's dashboard.\n"
-                    "- For more details on rate limits and usage tiers, visit:\n"
-                    "  https://docs.anthropic.com/claude/reference/rate-limits \n"
-                ),
+                "Cerebras API rate limit exceeded.\n"
+                "Your account may have reached the maximum number of requests allowed per minute for the tier you are using.\n"
+                "Please contact with Cerebras support for more information."
             )
             raise
 
         t_end = time.time()
 
-        raw_content = response.content[0].text
+        raw_content = response.choices[0].message.content or "{}"  # type: ignore
 
         try:
             json_content = normalize_json_output(raw_content)
@@ -140,6 +118,7 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
 
         try:
             model_content = self.schema.model_validate(json_object)
+
             return SchematicGenerationResult(
                 content=model_content,
                 info=GenerationInfo(
@@ -147,8 +126,9 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
                     model=self.id,
                     duration=(t_end - t_start),
                     usage=UsageInfo(
-                        input_tokens=response.usage.input_tokens,
-                        output_tokens=response.usage.output_tokens,
+                        input_tokens=response.usage.prompt_tokens,  # type: ignore
+                        output_tokens=response.usage.completion_tokens,  # type: ignore
+                        extra={},
                     ),
                 ),
             )
@@ -159,27 +139,66 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
             raise
 
 
-class Claude_Sonnet_3_5(AnthropicAISchematicGenerator[T]):
+class Llama3_3_8B(CerebrasSchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
-            model_name="claude-3-5-sonnet-20241022",
+            model_name="llama3.1-8b",
+            logger=logger,
+        )
+        self._estimating_tokenizer = LlamaEstimatingTokenizer()
+
+    @property
+    @override
+    def id(self) -> str:
+        return self.model_name
+
+    @property
+    @override
+    def max_tokens(self) -> int:
+        return 8192
+
+    @property
+    @override
+    def tokenizer(self) -> LlamaEstimatingTokenizer:
+        return self._estimating_tokenizer
+
+
+class Llama3_3_70B(CerebrasSchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="llama3.3-70b",
             logger=logger,
         )
 
-    @override
+        self._estimating_tokenizer = LlamaEstimatingTokenizer()
+
     @property
+    @override
+    def id(self) -> str:
+        return self.model_name
+
+    @property
+    @override
+    def tokenizer(self) -> LlamaEstimatingTokenizer:
+        return self._estimating_tokenizer
+
+    @property
+    @override
     def max_tokens(self) -> int:
-        return 200 * 1024
+        return 8192
 
 
-class AnthropicService(NLPService):
-    def __init__(self, logger: Logger) -> None:
+class CerebrasService(NLPService):
+    def __init__(
+        self,
+        logger: Logger,
+    ) -> None:
         self._logger = logger
-        self._logger.info("Initialized AnthropicService")
+        self._logger.info("Initialized CerebrasService")
 
     @override
-    async def get_schematic_generator(self, t: type[T]) -> AnthropicAISchematicGenerator[T]:
-        return Claude_Sonnet_3_5[t](self._logger)  # type: ignore
+    async def get_schematic_generator(self, t: type[T]) -> CerebrasSchematicGenerator[T]:
+        return Llama3_3_70B[t](self._logger)  # type: ignore
 
     @override
     async def get_embedder(self) -> Embedder:

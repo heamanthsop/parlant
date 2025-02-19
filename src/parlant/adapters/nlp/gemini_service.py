@@ -36,7 +36,7 @@ from parlant.core.nlp.generation import (
     SchematicGenerationResult,
     UsageInfo,
 )
-from parlant.core.logging import Logger
+from parlant.core.loggers import Logger
 
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))  # type: ignore
