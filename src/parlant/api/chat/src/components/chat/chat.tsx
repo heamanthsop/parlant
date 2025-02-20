@@ -139,7 +139,7 @@ export default function Chat(): ReactElement {
 	};
 
 	const regenerateMessage = async (index: number, sessionId: string, offset: number) => {
-		resendMessage(index - 1, sessionId, offset - 1);
+		resendMessage(index - 1, sessionId, offset);
 	};
 
 	useEffect(() => {
