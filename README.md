@@ -1,7 +1,7 @@
 
 <div align="center">
-<img alt="Parlant Logo" src="https://github.com/emcie-co/parlant/blob/e0fefba25efd1b956ead881964025baae5dc4119/banner.png" />
-  <h2>Parlant: Control Your LLMs in Customer-Facing Use Cases</h2>
+<img alt="Parlant Logo" src="https://github.com/emcie-co/parlant/blob/e0fefba25efd1b956ead881964025baae5dc4119/logo.png" />
+  <h2>Parlant: Reliable Customer-Facing AI Agents with LLMs 💬 ✅</h2>
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
@@ -20,15 +20,34 @@
   </p>
 </div>
 
-**IMPORTANT NOTE:** Parlant is in active development by a team of (currently) 12 contributors (developers, researchers, and QA) from leading institutions, such as Microsoft, Check Point, and Dynamic Yield. We're looking for more contributors to help get customer-facing agents under control! Please consider joining our Discord server and participating in our development.
+Parlant is an LLM-first Conversational API designed to give control freaks the precision they need over their LLM agents. 🔧 🎛️ It's operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
+
+**IMPORTANT NOTE:** We're looking for more contributors to help get customer-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you'd like to help.
+
+## Who uses Parlant?
+Parlant is used to deliver adaptive, high-fidelity agents in use cases such as:
+- 🏦 Regulated financial services
+- 🏥 Healthcare communications
+- 📜 Legal assistance
+- 🛡️ Compliance-focused use cases
+- 🎯 Brand-sensitive customer service
+- 🤝 Personal advocacy and representation
+
+## How is Parlant used?
+Developers and data-scientists are using Parlant to:
+
+- 🤖 Create custom-tailored conversational agents quickly and easily
+- 👣 Define behavioral guidelines for agents to follow (Parlant ensures they are followed reliably)
+- 🛠️ Attach tools with specific guidance on how to properly use them in different contexts
+- 📖 Manage their agents’ glossary to ensure strict interpretation of terms in a conversational context
+- 👤 Add customer-specific information to deliver personalized interactions
 
 ## ✨ Take Control of AI Agent Decisions
-**Parlant is a framework that transforms how AI agents make decisions in customer-facing scenarios.**
+**Parlant transforms how AI agents make decisions in customer-facing use cases.**
 
-**With Parlant, you can not only spin up and serve an LLM agent in minutes—with a full-fledged & responsive conversation management API—but, more importantly, you can continuously guide and improve its decision making and general behavior, easily and reliably.**
+It moves beyond traditional prompt engineering and flow charts. Instead, you provide it with contextual atomic guidelines, and it adapts your instructions to each conversation in real-time. By intelligently matching and activating relevant behavioral guidelines for each specific context, your agents end up consistently following your business rules while maintaining much more natural conversations with your customers than you could achieve with predefined semantic graphs or flow charts.
 
-Unlike traditional approaches that rely on prompt engineering or conversational flow charts, Parlant introduces a dynamic control system that ensures agents follow your specific business rules, in the form of behavioral guidelines that you provide, by matching and activating the appropriate combination of guidelines for every specific context.
-
+### How does Parlant work?
 ```mermaid
 graph TD
     API(Parlant REST API) -->|React to Session Trigger| Engine[AI Response Engine]
@@ -85,28 +104,17 @@ By giving structure to behavioral guidelines, and _granularizing_ guidelines (i.
 1. 💡 **Explainability:** Providing feedback around its interpretation of guidelines in each real-life context, which helps in troubleshooting and improvement
 1. 🔧 **Maintainability:** Helping you maintain a coherent set of guidelines by detecting and alerting you to possible contradictions (gross or subtle) in your instructions
 
-## 🚀 Real-world impact
-
-[Revenued](https://www.revenued.com), a business capital provider, uses Parlant for their Sales Copilot. They leverage Parlant's structured CLI to modify the agent's behavior quickly and easily based on feedback from company stakeholders.
-
-## 💪 Key benefits
+## 💪 Other benefits
 
 ### Control that actually works
-* **Guidelines**: Control responses by writing contextual rules - like "offer limited time coupons if it's a holiday" or "make it very clear we don't offer loans if a customer asks about it". By using condition/action definitions, you define exactly when and how your agent should respond
-* **Glossary**: Teach your agent your business-specific terminology so that both you and your customers can speak to it naturally in your language
 * **Coherence checks**: Catch conflicts by having Parlant evaluate new guidelines against existing ones before they're applied
-* **Dynamic context**: Make your agent context-aware by setting user-specific variables like customer account or subscription tier. These shape how your agent responds to each user
-* **Guided tool use**: Control API access by linking tools to specific guidelines. This way, your agent only calls APIs when appropriate and with clear intent
-
-### Developer friendly
-* **See changes instantly**: Modify behavior on the fly by updating guidelines directly, no retraining or redeployment needed
+* **See changes instantly**: Modify behavior on the fly by updating guidelines directly — no retraining or redeployment needed
 * **Track changes in Git**: Manage agent behavior like code by storing configuration as JSON in your repo. Review, rollback, branch, and merge just like any other code
 * **Clean architecture**: Separate concerns by keeping business logic in tools and conversation patterns in guidelines. Each piece does what it does best
-* **Type safety**: Build rapidly using native TypeScript/JavaScript SDKs with proper type definitions
 
 ### Deploy with confidence
 * **Reliable at scale**: Parlant filters and selects guidelines per context, allowing you to scale your agent's complexity and use-cases while maintaining consistent, focused behavior
-* **Debug with ease**: Troubleshoot effectively by tracing which guidelines were applied and why for any given response
+* **Debug with ease**: Troubleshoot effectively by tracing which guidelines were applied and why for any given response. leveraging Parlant's highly descriptive and explainable log outputs
 * **Test before deploy**: Validate changes using the built-in chat UI to test new behaviors before they reach customers
 
 ## 🤖 Works with all major LLM providers
