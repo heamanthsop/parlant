@@ -19,7 +19,7 @@
   </p>
 </div>
 
-Parlant is an LLM-first Conversational API designed to give control freaks the precision they need over their LLM agents. 🔧 🎛️ It's operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
+Parlant is an LLM-first conversational AI agent framework designed to give control freaks the precision they need over their LLM agents. 🔧 🎛️ It's operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
 
 **IMPORTANT NOTE:** We're looking for more contributors to help get customer-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
 
