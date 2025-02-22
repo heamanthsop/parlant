@@ -1,7 +1,7 @@
 
 <div align="center">
 <img alt="Parlant Logo" src="https://github.com/emcie-co/parlant/blob/e0fefba25efd1b956ead881964025baae5dc4119/logo.png" />
-  <h2>Parlant: Reliable Customer-Facing AI Agents with LLMs 💬 ✅</h2>
+  <h3>Parlant: Reliable Customer-Facing AI Agents with LLMs 💬 ✅</h3>
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
