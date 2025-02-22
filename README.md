@@ -24,7 +24,7 @@ Parlant is an LLM-first Conversational API designed to give control freaks the p
 **IMPORTANT NOTE:** We're looking for more contributors to help get customer-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
 
 ## Who uses Parlant?
-Parlant is used to deliver adaptive, high-fidelity agents in use cases such as:
+Parlant is used to deliver adaptive, high-fidelity AI agents in use cases such as:
 - 🏦 Regulated financial services
 - 🏥 Healthcare communications
 - 📜 Legal assistance
