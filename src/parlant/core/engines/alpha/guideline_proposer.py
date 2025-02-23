@@ -658,7 +658,7 @@ example_2_expected = GuidelinePropositionsSchema(
             guideline_current_application_refers_to_a_new_or_subtly_different_context_or_information="No new context here; the customer's location couldn't have changed so quickly",
             guideline_previously_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="ASK the customer for their location",
+                    action_segment="ASK the customer for their location",
                     rationale="The agent ASKED for the customer's location earlier in the interaction. There is no need to ASK for it again, as it is already known.",
                 )
             ],
@@ -751,7 +751,7 @@ example_3_expected = GuidelinePropositionsSchema(
             guideline_current_application_refers_to_a_new_or_subtly_different_context_or_information="The agent previously PROVIDED the price, but that was several messages ago. The actual price may have driften since then.",
             guideline_previously_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="PROVIDE the price using the aforementioned tool",
+                    action_segment="PROVIDE the price using the aforementioned tool",
                     rationale="Several messages ago, the agent previously PROVIDED (i.e. gave or reported) the price of that stock following the customer's question, but since the price might have changed since since those several exchanges between the agent and the customer, it should be checked and PROVIDED again.",
                 ),
             ],
@@ -777,11 +777,11 @@ example_3_expected = GuidelinePropositionsSchema(
             guideline_current_application_refers_to_a_new_or_subtly_different_context_or_information="No new context; a weather prediction doesn't change so frequently as to require updating within 1 less than hour",
             guideline_previously_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="PROVIDE the temperature",
+                    action_segment="PROVIDE the temperature",
                     rationale="The action segment was fulfilled by PROVIDING (i.e. giving or reporting) the temperature",
                 ),
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="PROVIDE the changes of precipitation",
+                    action_segment="PROVIDE the changes of precipitation",
                     rationale="The agent did not PROVIDE (i.e. giving or reporting) the chances of precipitation. This means the guideline as a whole was only partially applied.",
                 ),
             ],
@@ -819,11 +819,11 @@ example_4_expected = GuidelinePropositionsSchema(
             guideline_current_application_refers_to_a_new_or_subtly_different_context_or_information="No new context",
             guideline_previously_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="GET the name of the person they want to meet",
+                    action_segment="GET the name of the person they want to meet",
                     rationale="The action segment was fulfilled by GETTING (i.e. clarifying) the person's name",
                 ),
                 SegmentPreviouslyAppliedRationale(
-                    action_sgement="GET at what time they want to meet",
+                    action_segment="GET at what time they want to meet",
                     rationale="The agent did not yet GET (i.e clarify) the time of the appointment. This means the guideline as a whole was only partially applied.",
                 ),
             ],
