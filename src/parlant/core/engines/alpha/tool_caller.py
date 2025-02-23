@@ -602,13 +602,15 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
 
             match options.source:
                 case "any":
-                    result["source"] = "This argument can be extracted in the best way you think"
+                    result["acceptable_source"] = (
+                        "This argument can be extracted in the best way you think"
+                    )
                 case "context":
-                    result["source"] = (
+                    result["acceptable_source"] = (
                         "This argument can be extracted only from the context given in this prompt"
                     )
                 case "customer":
-                    result["source"] = (
+                    result["acceptable_source"] = (
                         "This argument must be EXPLICITLY PROVIDED by the customer, and NEVER automatically inferred"
                     )
 
@@ -616,7 +618,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
 
         def _get_tool_spec(t_id: ToolId, t: Tool) -> dict[str, Any]:
             return {
-                "name": t_id.to_string(),
+                "tool_name": t_id.to_string(),
                 "description": t.description,
                 "optional_parameters": {
                     name: _get_param_spec(spec)
@@ -807,7 +809,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "customer_id": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="The customer ID is given by a context variable",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="No need to provide it again as the customer's ID is unique and doesn't change",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since I have it",
@@ -871,7 +873,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "origin": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned New York as the origin for their ride",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
@@ -880,7 +882,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             value="New York",
                         ),
                         "destination": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned Newark as the destination for their ride",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
@@ -919,7 +921,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "product_name": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="The first product the customer specified is a margherita",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
@@ -941,7 +943,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "product_name": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="The second product the customer specified is the deep dish",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
@@ -977,7 +979,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=9,
                     argument_evaluations={
                         "model": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
@@ -1020,7 +1022,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=8,
                     argument_evaluations={
                         "model": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
@@ -1060,7 +1062,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=8,
                     argument_evaluations={
                         "location": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about the living room",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific location",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random room, but I don't need to guess here since the customer provided it",
@@ -1101,7 +1103,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=6,
                     argument_evaluations={
                         "query": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="context",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer mentioned their specific requirements",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer mentioned specific requirements, which is enough for me to construct a query",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided their requirements",
@@ -1140,7 +1142,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     applicability_score=10,
                     argument_evaluations={
                         "date": ArgumentEvaluation(
-                            acceptable_source_for_this_argument_according_to_its_tool_definition="customer",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                             evaluate_is_it_provided_by_an_acceptable_source="No; the customer hasn't provided a date, and I cannot guess it or infer when they'd be available",
                             evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer hasn't specified it yet",
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to just guess when the customer would be available for an appointment",
