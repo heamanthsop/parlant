@@ -611,7 +611,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                     )
                 case "customer":
                     result["acceptable_source"] = (
-                        "This argument must be EXPLICITLY PROVIDED by the customer, and NEVER automatically inferred"
+                        "This argument must be provided by the customer, and NEVER automatically guessed by you"
                     )
 
             return json.dumps(result)
