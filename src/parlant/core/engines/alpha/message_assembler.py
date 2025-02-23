@@ -98,11 +98,11 @@ class InstructionEvaluation(DefaultBaseModel):
 
 class AssembledMessageSchema(DefaultBaseModel):
     last_message_of_customer: Optional[str]
-    produced_reply: Optional[bool] = True
-    produced_reply_rationale: Optional[str] = ""
+    produced_reply: Optional[bool] = None
+    produced_reply_rationale: Optional[str] = None
     guidelines: list[str]
     context_evaluation: Optional[ContextEvaluation] = None
-    insights: Optional[list[str]] = []
+    insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
     revisions: list[Revision]
 
