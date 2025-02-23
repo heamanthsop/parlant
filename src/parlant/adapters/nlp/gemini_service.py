@@ -14,13 +14,12 @@
 
 import os
 import time
-import google.generativeai as genai  # type: ignore
 from google.api_core.exceptions import NotFound, TooManyRequests, ResourceExhausted, ServerError
+from google import genai  # type: ignore
 from typing import Any, Mapping
 from typing_extensions import override
 import jsonfinder  # type: ignore
 from pydantic import ValidationError
-from vertexai.preview import tokenization  # type: ignore
 
 from parlant.adapters.nlp.common import normalize_json_output
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
@@ -39,16 +38,21 @@ from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.loggers import Logger
 
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))  # type: ignore
-
-
 class GoogleEstimatingTokenizer(EstimatingTokenizer):
-    def __init__(self, model_name: str) -> None:
-        self._tokenizer = tokenization.get_tokenizer_for_model("gemini-1.5-pro")
+    def __init__(self, client: genai.Client, model_name: str) -> None:
+        self._client = client
+        self._model_name = model_name
 
     @override
     async def estimate_token_count(self, prompt: str) -> int:
-        result = self._tokenizer.count_tokens(prompt)
+        model_approximation = {
+            "text-embedding-004": "gemini-1.5-flash",
+        }.get(self._model_name, self._model_name)
+
+        result = await self._client.aio.models.count_tokens(
+            model=model_approximation,
+            contents=prompt,
+        )
         return int(result.total_tokens)
 
 
@@ -63,9 +67,9 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
         self.model_name = model_name
         self._logger = logger
 
-        self._model = genai.GenerativeModel(model_name)  # type: ignore
+        self._client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-        self._tokenizer = GoogleEstimatingTokenizer(model_name=self.model_name)
+        self._tokenizer = GoogleEstimatingTokenizer(client=self._client, model_name=self.model_name)
 
     @property
     @override
@@ -99,12 +103,18 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
             prompt = prompt.build()
 
         gemini_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
+        config = {
+            "response_mime_type": "application/json",
+            "response_schema": self.schema.model_json_schema(),
+            **gemini_api_arguments,
+        }
 
         t_start = time.time()
         try:
-            response = await self._model.generate_content_async(
+            response = await self._client.aio.generate_content(
+                model=self.model_name,
                 contents=prompt,
-                generation_config=gemini_api_arguments,  # type: ignore
+                config=config,
             )
         except TooManyRequests:
             self._logger.error(
@@ -125,10 +135,16 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
         t_end = time.time()
 
         raw_content = response.text
-
         try:
             json_content = normalize_json_output(raw_content)
             json_content = json_content.replace("“", '"').replace("”", '"')
+
+            # Fix cases where Gemini return double-escaped sequences
+            for control_character in "utn":
+                json_content = json_content.replace(
+                    f"\\\\{control_character}", f"\\{control_character}"
+                )
+
             json_object = jsonfinder.only_json(json_content)[2]
         except Exception:
             self._logger.error(
@@ -186,6 +202,19 @@ class Gemini_2_0_Flash(GeminiSchematicGenerator[T]):
         return 1024 * 1024
 
 
+class Gemini_2_0_Flash_Lite(GeminiSchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="gemini-2.0-flash-lite-preview-02-05",
+            logger=logger,
+        )
+
+    @property
+    @override
+    def max_tokens(self) -> int:
+        return 1024 * 1024
+
+
 class Gemini_1_5_Pro(GeminiSchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
@@ -206,7 +235,8 @@ class GoogleEmbedder(Embedder):
         self.model_name = model_name
 
         self._logger = logger
-        self._tokenizer = GoogleEstimatingTokenizer(model_name=self.model_name)
+        self._client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        self._tokenizer = GoogleEstimatingTokenizer(client=self._client, model_name=self.model_name)
 
     @property
     @override
@@ -239,11 +269,12 @@ class GoogleEmbedder(Embedder):
         gemini_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
 
         try:
-            response = await genai.embed_content_async(  # type: ignore
-                model=self.model_name,
-                content=texts,
-                **gemini_api_arguments,
-            )
+            with self._logger.operation("Embedding text with gemini"):
+                response = await self._client.aio.embed_content(  # type: ignore
+                    model=self.model_name,
+                    content=texts,
+                    **gemini_api_arguments,
+                )
         except TooManyRequests:
             self._logger.error(
                 (
@@ -260,7 +291,7 @@ class GoogleEmbedder(Embedder):
             )
             raise
 
-        vectors = [data_point for data_point in response["embedding"]]
+        vectors = [data_point.values for data_point in response.embeddings if data_point.values]
         return EmbeddingResult(vectors=vectors)
 
 
@@ -289,8 +320,8 @@ class GeminiService(NLPService):
     @override
     async def get_schematic_generator(self, t: type[T]) -> GeminiSchematicGenerator[T]:
         return FallbackSchematicGenerator[t](  # type: ignore
-            Gemini_2_0_Flash[t](self._logger),  # type: ignore
-            Gemini_1_5_Pro[t](self._logger),  # type: ignore
+            Gemini_2_0_Flash_Lite[t](self._logger),  # type: ignore
+            Gemini_1_5_Flash[t](self._logger),  # type: ignore
             logger=self._logger,
         )
 
