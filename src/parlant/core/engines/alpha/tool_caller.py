@@ -50,7 +50,7 @@ class ArgumentEvaluation(DefaultBaseModel):
     is_optional: bool
     has_default_value_if_not_provided_by_acceptable_source: Optional[bool] = None
     is_missing: bool
-    value: Optional[str] = None
+    value_as_string: Optional[str] = None
 
 
 class ToolCallEvaluation(DefaultBaseModel):
@@ -280,7 +280,7 @@ class ToolCaller:
                             id=ToolCallId(generate_id()),
                             tool_id=tool_id,
                             arguments={
-                                evaluation.parameter_name: evaluation.value
+                                evaluation.parameter_name: evaluation.value_as_string
                                 for evaluation in tc.argument_evaluations or []
                             },
                         )
@@ -817,7 +817,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since I have it",
                             is_missing=False,
                             is_optional=False,
-                            value="12345",
+                            value_as_string="12345",
                         )
                     ],
                     same_call_is_already_staged=True,
@@ -882,7 +882,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="New York",
+                            value_as_string="New York",
                         ),
                         ArgumentEvaluation(
                             parameter_name="destination",
@@ -892,7 +892,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="Newark",
+                            value_as_string="Newark",
                         ),
                     ],
                     same_call_is_already_staged=False,
@@ -932,7 +932,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="Margherita",
+                            value_as_string="Margherita",
                         ),
                     ],
                     same_call_is_already_staged=False,
@@ -955,7 +955,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="Deep Dish",
+                            value_as_string="Deep Dish",
                         ),
                     ],
                     same_call_is_already_staged=False,
@@ -992,7 +992,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="Harley-Davidson Street Glide",
+                            value_as_string="Harley-Davidson Street Glide",
                         )
                     ],
                     same_call_is_already_staged=False,
@@ -1036,7 +1036,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="Harley-Davidson Street Glide",
+                            value_as_string="Harley-Davidson Street Glide",
                         )
                     ],
                     same_call_is_already_staged=False,
@@ -1077,7 +1077,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random room, but I don't need to guess here since the customer provided it",
                             is_missing=False,
                             is_optional=False,
-                            value="living room",
+                            value_as_string="living room",
                         )
                     ],
                     same_call_is_already_staged=False,
@@ -1119,7 +1119,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided their requirements",
                             is_missing=False,
                             is_optional=False,
-                            value="gaming laptop, RTX 3080, 16GB RAM",
+                            value_as_string="gaming laptop, RTX 3080, 16GB RAM",
                         )
                     ],
                     same_call_is_already_staged=False,
@@ -1159,7 +1159,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                             evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to just guess when the customer would be available for an appointment",
                             is_missing=True,
                             is_optional=False,
-                            value=None,
+                            value_as_string=None,
                         )
                     ],
                     same_call_is_already_staged=False,

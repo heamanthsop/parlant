@@ -329,9 +329,15 @@ def validate_tool_arguments(
 
     type_map = {
         "string": (str,),
-        "boolean": (bool,),
-        "integer": (int,),
-        "number": (int, float),
+        "boolean": (
+            str,
+            bool,
+        ),
+        "integer": (
+            str,
+            int,
+        ),
+        "number": (str, int, float),
     }
 
     for param_name, arg_value in arguments.items():
@@ -373,6 +379,10 @@ def normalize_tool_arguments(
 def normalize_tool_argument(parameter_type: Any, argument: Any) -> Any:
     if getattr(parameter_type, "__name__", None) == "Annotated":
         parameter_type = get_args(parameter_type)[0]
-    if inspect.isclass(parameter_type) and issubclass(parameter_type, enum.Enum):
+    if (
+        inspect.isclass(parameter_type)
+        and issubclass(parameter_type, enum.Enum)
+        or parameter_type in [str, int, float, bool]
+    ):
         return parameter_type(argument)
     return argument

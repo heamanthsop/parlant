@@ -286,7 +286,8 @@ class GuidelineProposer:
                         or "",
                         score=proposition.applies_score,
                         condition_application_rationale=proposition.condition_application_rationale,
-                        guideline_previously_applied=proposition.guideline_previously_applied or "",
+                        guideline_previously_applied=proposition.guideline_previously_applied
+                        or "no",
                         guideline_previously_applied_rationale="; ".join(
                             [
                                 r.rationale

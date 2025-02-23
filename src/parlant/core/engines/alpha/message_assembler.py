@@ -691,12 +691,12 @@ Produce a valid JSON object in the following format: ###
             {{
                 "fragment_id": "<chosen fragment_id from bank>{' or <auto> if you suggested this fragment yourself' if allow_suggestions else ''}",
                 "raw_content": "<raw fragment content>",
-                "fields": {{
-                    "<fragment field name from this fragment id>": {{
+                "fields": [{{
+                        "field_name": "<fragment field name from this fragment id>",
                         "have_sufficient_data_in_context": <BOOL whether you have enough data in context to fill out this fragment field's value>,
                         "value": "<fragment field value>"
                     }}
-                }},
+                }}],
                 "justification": "<brief justification for choosing this fragment here>"
             }},
             ...
