@@ -18,6 +18,7 @@ All notable changes to Parlant will be documented here.
 - Add support for the --migrate CLI flag to enable seamless store version upgrades during server startup
 - Add clear rate limit error logs for NLP adapters
 - Add enabled/disabled flag for guidelines to facilitate experimentation without deletion
+- Allow different schematic generators to adjust incoming prompts in a structured manner
 
 ## [1.6.2] - 2025-01-29
 
