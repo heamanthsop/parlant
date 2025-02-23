@@ -53,6 +53,7 @@ class GoogleEstimatingTokenizer(EstimatingTokenizer):
             model=model_approximation,
             contents=prompt,
         )
+
         return int(result.total_tokens)
 
 
@@ -111,7 +112,7 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
 
         t_start = time.time()
         try:
-            response = await self._client.aio.generate_content(
+            response = await self._client.aio.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
                 config=config,
@@ -270,10 +271,10 @@ class GoogleEmbedder(Embedder):
 
         try:
             with self._logger.operation("Embedding text with gemini"):
-                response = await self._client.aio.embed_content(  # type: ignore
+                response = await self._client.aio.models.embed_content(  # type: ignore
                     model=self.model_name,
-                    content=texts,
-                    **gemini_api_arguments,
+                    contents=texts,
+                    config=gemini_api_arguments,
                 )
         except TooManyRequests:
             self._logger.error(
@@ -297,7 +298,7 @@ class GoogleEmbedder(Embedder):
 
 class GeminiTextEmbedding_004(GoogleEmbedder):
     def __init__(self, logger: Logger) -> None:
-        super().__init__(model_name="models/text-embedding-004", logger=logger)
+        super().__init__(model_name="text-embedding-004", logger=logger)
 
     @property
     @override
