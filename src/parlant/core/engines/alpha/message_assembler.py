@@ -51,21 +51,22 @@ class ContextEvaluation(DefaultBaseModel):
     what_i_do_not_have_enough_information_to_help_with_with_based_on_the_provided_information_that_i_have: Optional[
         str
     ] = None
-    was_i_given_specific_information_here_on_how_to_address_some_of_these_specific_needs: bool = (
-        False
-    )
-    should_i_tell_the_customer_i_cannot_help_with_some_of_those_needs: bool = False
+    was_i_given_specific_information_here_on_how_to_address_some_of_these_specific_needs: Optional[
+        bool
+    ] = None
+    should_i_tell_the_customer_i_cannot_help_with_some_of_those_needs: Optional[bool] = None
 
 
 class MaterializedFragmentField(DefaultBaseModel):
-    have_sufficient_data_in_context: bool = False
+    field_name: str
+    have_sufficient_data_in_context: Optional[bool] = None
     value: Optional[str] = None
 
 
 class MaterializedFragment(DefaultBaseModel):
     fragment_id: str
     raw_content: str
-    fields: Optional[dict[str, MaterializedFragmentField]] = {}
+    fields: Optional[list[MaterializedFragmentField]] = None
     justification: str
 
 
@@ -74,13 +75,13 @@ class Revision(DefaultBaseModel):
     selected_content_fragments: list[MaterializedFragment]
     sequenced_rendered_content_fragments: list[str]
     composited_fragment_sequence: str
-    instructions_followed: Optional[list[str]] = []
-    instructions_broken: Optional[list[str]] = []
-    is_practically_repeating_yourself: Optional[bool] = False
-    followed_all_instructions: Optional[bool] = False
-    instructions_broken_due_to_missing_data: Optional[bool] = False
+    instructions_followed: Optional[list[str]] = None
+    instructions_broken: Optional[list[str]] = None
+    is_practically_repeating_yourself: Optional[bool] = None
+    followed_all_instructions: Optional[bool] = None
+    instructions_broken_due_to_missing_data: Optional[bool] = None
     missing_data_rationale: Optional[str] = None
-    instructions_broken_only_due_to_prioritization: Optional[bool] = False
+    instructions_broken_only_due_to_prioritization: Optional[bool] = None
     prioritization_rationale: Optional[str] = None
 
 
@@ -92,16 +93,16 @@ class InstructionEvaluation(DefaultBaseModel):
     do_i_have_fragments_in_the_bank_for_fulfilling_this_instruction: bool
     if_i_do_not_have_fragments_for_fulfilling_then_do_i_at_least_have_fragments_to_explain_that_i_cannot_help: Optional[
         bool
-    ] = False
+    ] = None
 
 
 class AssembledMessageSchema(DefaultBaseModel):
     last_message_of_customer: Optional[str]
-    produced_reply: Optional[bool] = True
-    produced_reply_rationale: Optional[str] = ""
+    produced_reply: Optional[bool] = None
+    produced_reply_rationale: Optional[str] = None
     guidelines: list[str]
     context_evaluation: Optional[ContextEvaluation] = None
-    insights: Optional[list[str]] = []
+    insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
     revisions: list[Revision]
 
@@ -690,12 +691,12 @@ Produce a valid JSON object in the following format: ###
             {{
                 "fragment_id": "<chosen fragment_id from bank>{' or <auto> if you suggested this fragment yourself' if allow_suggestions else ''}",
                 "raw_content": "<raw fragment content>",
-                "fields": {{
-                    "<fragment field name from this fragment id>": {{
+                "fields": [{{
+                        "field_name": "<fragment field name from this fragment id>",
                         "have_sufficient_data_in_context": <BOOL whether you have enough data in context to fill out this fragment field's value>,
                         "value": "<fragment field value>"
                     }}
-                }},
+                }}],
                 "justification": "<brief justification for choosing this fragment here>"
             }},
             ...
@@ -892,13 +893,14 @@ example_1_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="Here's the relevant train schedule:\n{schedule_markdown}",
-                    fields={
-                        "schedule_markdown": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="schedule_markdown",
                             have_sufficient_data_in_context=True,
                             value="Train 101 departs at 10:00 AM and arrives at 12:30 PM.\n"
                             "Train 205 departs at 1:00 PM and arrives at 3:45 PM.",
                         )
-                    },
+                    ],
                     justification="Render the train schedule",
                 )
             ],
@@ -930,8 +932,9 @@ example_1_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="Here's the relevant train schedule:\n{schedule_markdown}",
-                    fields={
-                        "schedule_markdown": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="schedule_markdown",
                             have_sufficient_data_in_context=True,
                             value="""\
 | Train | Departure | Arrival |
@@ -939,7 +942,7 @@ example_1_expected = AssembledMessageSchema(
 | 101   | 10:00 AM  | 12:30 PM |
 | 205   | 1:00 PM   | 3:45 PM  |""",
                         )
-                    },
+                    ],
                     justification="Render the train schedule",
                 )
             ],
@@ -1039,12 +1042,13 @@ example_2_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="Restock {something}",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="Requested toppings",
                         )
-                    },
+                    ],
                     justification="Requested toppings aren't in stock",
                 ),
             ],
@@ -1132,12 +1136,13 @@ example_3_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="I'm having trouble accessing {something} at the moment",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="Our menu",
                         )
-                    },
+                    ],
                     justification="Lacking menu information in context (note that I can still fill out this fragment field accordingly)",
                 ),
             ],
@@ -1193,12 +1198,13 @@ example_4_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="I apologize for {something}",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="the confusion",
                         )
-                    },
+                    ],
                     justification="Customer is upset",
                 ),
                 MaterializedFragment(
@@ -1225,12 +1231,13 @@ example_4_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="I apologize for {something}",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="Failing to assist you with your issue",
                         )
-                    },
+                    ],
                     justification="I've failed to understand and help the customer",
                 ),
                 MaterializedFragment(
@@ -1304,12 +1311,13 @@ example_5_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="Your balance is {balance}",
-                    fields={
-                        "balance": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="balance",
                             have_sufficient_data_in_context=True,
                             value="$1,000",
                         )
-                    },
+                    ],
                     justification="Customer requested this information",
                 ),
                 MaterializedFragment(
@@ -1378,12 +1386,13 @@ example_6_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="Could you please provide more details on {something}",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="What you would need from customer support?",
                         )
-                    },
+                    ],
                     justification="Customer requested this information",
                 ),
                 MaterializedFragment(
@@ -1423,12 +1432,13 @@ example_6_expected = AssembledMessageSchema(
                 MaterializedFragment(
                     fragment_id="<example-id-for-few-shots--do-not-use-this-in-output>",
                     raw_content="I cannot help you with {something} as I do not have enough information about it.",
-                    fields={
-                        "something": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="something",
                             have_sufficient_data_in_context=True,
                             value="This topic",
                         )
-                    },
+                    ],
                     justification="I cannot help with this topic",
                 ),
                 MaterializedFragment(
@@ -1525,20 +1535,24 @@ Here are the flights from {origin} to {destination} {when}:
 | Option | Departure Airport | Departure Time | Arrival Airport   |
 |--------|-------------------|----------------|-------------------|
 {schedule_rows}""",
-                    fields={
-                        "origin": MaterializedFragmentField(
+                    fields=[
+                        MaterializedFragmentField(
+                            field_name="origin",
                             have_sufficient_data_in_context=True,
                             value="New York",
                         ),
-                        "destination": MaterializedFragmentField(
+                        MaterializedFragmentField(
+                            field_name="destination",
                             have_sufficient_data_in_context=True,
                             value="Los Angeles",
                         ),
-                        "when": MaterializedFragmentField(
+                        MaterializedFragmentField(
+                            field_name="when",
                             have_sufficient_data_in_context=True,
                             value="Tomorrow",
                         ),
-                        "schedule_rows": MaterializedFragmentField(
+                        MaterializedFragmentField(
+                            field_name="schedule_rows",
                             have_sufficient_data_in_context=True,
                             value="""\
 | Option | Departure Airport | Departure Time | Arrival Airport   |
@@ -1546,7 +1560,7 @@ Here are the flights from {origin} to {destination} {when}:
 | 1      | Newark (EWR)      | 10:00 AM       | Los Angeles (LAX) |
 | 2      | JFK               | 3:30 PM        | Los Angeles (LAX) |""",
                         ),
-                    },
+                    ],
                     justification="Customer asks to depart from New York to Los Angeles tomorrow",
                 ),
                 MaterializedFragment(
