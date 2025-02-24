@@ -242,14 +242,13 @@ async def load_modules(
         module = importlib.import_module(module_path)
         imported_modules.append(module)
 
-    for m in imported_modules:
         if configure_module := getattr(module, "configure_module", None):
-            LOGGER.info(f"Configuring module '{m.__name__}'")
+            LOGGER.info(f"Configuring module '{module.__name__}'")
             if new_container := await configure_module(container):
                 container = new_container
 
         if initialize_module := getattr(module, "initialize_module", None):
-            initializers.append((m.__name__, initialize_module))
+            initializers.append((module.__name__, initialize_module))
 
     try:
         yield container, initializers

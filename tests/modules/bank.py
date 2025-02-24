@@ -28,7 +28,7 @@ def read_account_balance(context: ToolContext) -> ToolResult:
     return ToolResult(999)
 
 
-async def initialize_module(container: Container) -> None:
+async def configure_module(container: Container) -> Container:
     global server_instance
     _background_task_service = container[BackgroundTaskService]
 
@@ -37,13 +37,17 @@ async def initialize_module(container: Container) -> None:
         port=8094,
         host="127.0.0.1",
     )
+
     await _background_task_service.start(
         server.serve(),
         tag="Bank Plugin",
     )
 
     server_instance = server
+    return container
 
+
+async def initialize_module(container: Container) -> None:
     service_registry = container[ServiceRegistry]
     await service_registry.update_tool_service(
         name="bank",

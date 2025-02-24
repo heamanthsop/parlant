@@ -55,7 +55,7 @@ async def consult_expert(context: ToolContext, user_query: str) -> ToolResult:
     return ToolResult(data="Best laptop is mac")
 
 
-async def initialize_module(container: Container) -> None:
+async def configure_module(container: Container) -> Container:
     global server_instance
     _background_task_service = container[BackgroundTaskService]
 
@@ -71,6 +71,10 @@ async def initialize_module(container: Container) -> None:
     )
     server_instance = server
 
+    return container
+
+
+async def initialize_module(container: Container) -> None:
     service_registry = container[ServiceRegistry]
     await service_registry.update_tool_service(
         name="tech-store",
