@@ -22,13 +22,16 @@ from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Session
 from parlant.core.context_variables import ContextVariableStore
 from parlant.core.engines.alpha.engine import load_fresh_context_variable_value
+from parlant.core.tags import TagId
 from parlant.core.tools import LocalToolService, ToolId
+
 
 from tests.core.common.utils import ContextOfTest
 
 
 async def create_fetch_account_balance_tool(container: Container) -> None:
     service = container[LocalToolService]
+
     await service.create_tool(
         name="fetch_account_balance",
         description="Fetch Account Balance",
@@ -77,15 +80,18 @@ async def test_that_value_is_not_refreshed_when_freshness_rules_are_not_met(
     service_registry = context.container[ServiceRegistry]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name=variable_name,
         description="Customer's account balance",
         tool_id=tool_id,
         freshness_rules=freshness_rules,
     )
 
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     await context_variable_store.update_value(
-        variable_set=agent_id,
         variable_id=context_variable.id,
         key=test_key,
         data=current_data,
@@ -93,7 +99,7 @@ async def test_that_value_is_not_refreshed_when_freshness_rules_are_not_met(
 
     await load_fresh_context_variable_value(
         context_variable_store=context_variable_store,
-        service_registery=service_registry,
+        service_registry=service_registry,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,
@@ -102,7 +108,6 @@ async def test_that_value_is_not_refreshed_when_freshness_rules_are_not_met(
     )
 
     value = await context_variable_store.read_value(
-        variable_set=agent_id,
         variable_id=context_variable.id,
         key=test_key,
     )
@@ -145,15 +150,18 @@ async def test_that_value_refreshes_when_freshness_rules_are_met(
     service_registry = context.container[ServiceRegistry]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name=variable_name,
         description="Customer's account balance",
         tool_id=tool_id,
         freshness_rules=freshness_rules,
     )
 
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     await context_variable_store.update_value(
-        variable_set=agent_id,
         variable_id=context_variable.id,
         key=test_key,
         data=current_data,
@@ -161,7 +169,7 @@ async def test_that_value_refreshes_when_freshness_rules_are_met(
 
     value = await load_fresh_context_variable_value(
         context_variable_store=context_variable_store,
-        service_registery=service_registry,
+        service_registry=service_registry,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,
@@ -189,15 +197,19 @@ async def test_that_value_is_created_when_need_to_be_freshed(
     service_registry = context.container[ServiceRegistry]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name=variable_name,
         description="Customer's account balance",
         tool_id=tool_id,
     )
 
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     created_value = await load_fresh_context_variable_value(
         context_variable_store=context_variable_store,
-        service_registery=service_registry,
+        service_registry=service_registry,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,
@@ -206,7 +218,6 @@ async def test_that_value_is_created_when_need_to_be_freshed(
     )
 
     stored_value = await context_variable_store.read_value(
-        variable_set=agent_id,
         variable_id=context_variable.id,
         key=test_key,
     )

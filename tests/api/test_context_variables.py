@@ -19,6 +19,7 @@ from pytest import fixture
 
 from parlant.core.agents import AgentId
 from parlant.core.context_variables import ContextVariableStore
+from parlant.core.tags import TagId
 from parlant.core.tools import LocalToolService, ToolId
 
 
@@ -73,10 +74,14 @@ async def test_that_context_variable_can_be_updated(
     context_variable_store = container[ContextVariableStore]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -109,10 +114,14 @@ async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules
     context_variable_store = container[ContextVariableStore]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -148,10 +157,14 @@ async def test_that_invalid_freshness_rules_raise_error_when_updating_context_va
     context_variable_store = container[ContextVariableStore]
 
     context_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=context_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -213,27 +226,39 @@ async def test_that_all_context_variables_can_be_deleted(
 ) -> None:
     context_variable_store = container[ContextVariableStore]
 
-    _ = await context_variable_store.create_variable(
-        variable_set=agent_id,
+    first_variable = await context_variable_store.create_variable(
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
     )
 
-    _ = await context_variable_store.create_variable(
-        variable_set=agent_id,
+    await context_variable_store.add_variable_tag(
+        variable_id=first_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
+    second_variable = await context_variable_store.create_variable(
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
     )
 
-    vars = await context_variable_store.list_variables(variable_set=agent_id)
+    await context_variable_store.add_variable_tag(
+        variable_id=second_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
+    vars = await context_variable_store.list_variables(
+        variable_tags=[TagId(f"agent_id::{agent_id}")]
+    )
     assert len(vars) == 2
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables")
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    vars = await context_variable_store.list_variables(variable_set=agent_id)
+    vars = await context_variable_store.list_variables(
+        variable_tags=[TagId(f"agent_id::{agent_id}")],
+    )
     assert len(vars) == 0
 
 
@@ -246,10 +271,14 @@ async def test_that_context_variable_can_be_deleted(
     context_variable_store = container[ContextVariableStore]
 
     variable_to_delete = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable_to_delete.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     (
@@ -271,7 +300,6 @@ async def test_that_context_variables_can_be_listed(
     context_variable_store = container[ContextVariableStore]
 
     first_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
@@ -279,26 +307,41 @@ async def test_that_context_variables_can_be_listed(
     )
 
     second_variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="second_test_variable",
         description=None,
         tool_id=tool_id,
         freshness_rules=None,
     )
 
+    await context_variable_store.add_variable_tag(
+        variable_id=first_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=second_variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
     variables = (
         (await async_client.get(f"/agents/{agent_id}/context-variables")).raise_for_status().json()
     )
     assert len(variables) == 2
 
-    assert first_variable.id == variables[0]["id"]
-    assert second_variable.id == variables[1]["id"]
+    first_json_variable = next(
+        variable for variable in variables if variable["id"] == first_variable.id
+    )
+    second_json_variable = next(
+        variable for variable in variables if variable["id"] == second_variable.id
+    )
 
-    assert first_variable.name == variables[0]["name"]
-    assert second_variable.name == variables[1]["name"]
+    assert first_variable.id == first_json_variable["id"]
+    assert second_variable.id == second_json_variable["id"]
 
-    assert first_variable.description == variables[0]["description"]
-    assert second_variable.description == variables[1]["description"]
+    assert first_variable.name == first_json_variable["name"]
+    assert second_variable.name == second_json_variable["name"]
+
+    assert first_variable.description == first_json_variable["description"]
+    assert second_variable.description == second_json_variable["description"]
 
     assert first_variable.freshness_rules is not None
     assert second_variable.freshness_rules is None
@@ -313,7 +356,6 @@ async def test_that_context_variable_value_can_be_retrieved(
     context_variable_store = container[ContextVariableStore]
 
     variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
@@ -323,7 +365,6 @@ async def test_that_context_variable_value_can_be_retrieved(
     data = {"value": 42}
 
     _ = await context_variable_store.update_value(
-        variable_set=agent_id,
         variable_id=variable.id,
         key=key,
         data=data,
@@ -347,11 +388,15 @@ async def test_that_context_variable_value_can_be_set(
     context_variable_store = container[ContextVariableStore]
 
     variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
         freshness_rules=None,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     key = "yam_choock"
@@ -394,10 +439,14 @@ async def test_that_context_variable_values_can_be_listed(
     context_variable_store = container[ContextVariableStore]
 
     variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     keys_and_data = {
@@ -408,7 +457,6 @@ async def test_that_context_variable_values_can_be_listed(
 
     for key, data in keys_and_data.items():
         _ = await context_variable_store.update_value(
-            variable_set=agent_id,
             variable_id=variable.id,
             key=key,
             data=data,
@@ -439,10 +487,14 @@ async def test_that_context_variable_value_can_be_deleted(
     context_variable_store = container[ContextVariableStore]
 
     variable = await context_variable_store.create_variable(
-        variable_set=agent_id,
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     key = "yam_choock"
@@ -460,4 +512,74 @@ async def test_that_context_variable_value_can_be_deleted(
     (await async_client.delete(f"/agents/{agent_id}/context-variables/{variable.id}/{key}"))
 
     response = await async_client.get(f"/agents/{agent_id}/context-variables/{variable.id}/{key}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_reading_context_variable_with_wrong_agent_id_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    variable = await context_variable_store.create_variable(
+        name="test_variable",
+        description="test variable",
+        tool_id=ToolId("local", "test_tool"),
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId("agent_id::wrong_agent_id"),
+    )
+
+    response = await async_client.get(f"/agents/{agent_id}/context-variables/{variable.id}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_updating_context_variable_with_wrong_agent_id_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    variable = await context_variable_store.create_variable(
+        name="test_variable",
+        description="test variable",
+        tool_id=ToolId("local", "test_tool"),
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId("agent_id::wrong_agent_id"),
+    )
+
+    response = await async_client.patch(
+        f"/agents/{agent_id}/context-variables/{variable.id}",
+        json={"description": "updated description"},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_deleting_context_variable_with_wrong_agent_id_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    variable = await context_variable_store.create_variable(
+        name="test_variable",
+        description="test variable",
+        tool_id=ToolId("local", "test_tool"),
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId("agent_id::wrong_agent_id"),
+    )
+
+    response = await async_client.delete(f"/agents/{agent_id}/context-variables/{variable.id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND

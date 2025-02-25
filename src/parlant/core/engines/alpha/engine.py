@@ -38,7 +38,7 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
 from parlant.core.engines.alpha.tool_caller import ToolInsights
-from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent, GuidelineStore
+from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
@@ -74,7 +74,7 @@ from parlant.core.engines.types import Context, Engine, UtteranceReason, Utteran
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
-from parlant.core.tags import TagId
+from parlant.core.store_queries import StoreQueries
 from parlant.core.tools import ToolContext, ToolId
 
 
@@ -155,12 +155,12 @@ class AlphaEngine(Engine):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
+        store_queries: StoreQueries,
         agent_store: AgentStore,
         session_store: SessionStore,
         customer_store: CustomerStore,
         context_variable_store: ContextVariableStore,
         glossary_store: GlossaryStore,
-        guideline_store: GuidelineStore,
         guideline_connection_store: GuidelineConnectionStore,
         service_registry: ServiceRegistry,
         guideline_tool_association_store: GuidelineToolAssociationStore,
@@ -173,12 +173,12 @@ class AlphaEngine(Engine):
         self._logger = logger
         self._correlator = correlator
 
+        self._store_queries = store_queries
         self._agent_store = agent_store
         self._session_store = session_store
         self._customer_store = customer_store
         self._context_variable_store = context_variable_store
         self._glossary_store = glossary_store
-        self._guideline_store = guideline_store
         self._guideline_connection_store = guideline_connection_store
         self._service_registry = service_registry
         self._guideline_tool_association_store = guideline_tool_association_store
@@ -694,8 +694,8 @@ class AlphaEngine(Engine):
         self,
         context: _LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
-        variables_supported_by_agent = await self._context_variable_store.list_variables(
-            variable_set=context.agent.id,
+        variables_supported_by_agent = await self._store_queries.list_context_variables_for_agent(
+            agent_id=context.agent.id,
         )
 
         result = []
@@ -728,8 +728,8 @@ class AlphaEngine(Engine):
         # Step 1: Retrieve all of the enabled guidelines for this agent.
         all_stored_guidelines = [
             g
-            for g in await self._guideline_store.list_guidelines(
-                guideline_tags=[TagId(f"agent_id::{context.agent.id}")],
+            for g in await self._store_queries.list_guidelines_for_agent(
+                agent_id=context.agent.id,
             )
             if g.enabled
         ]
@@ -748,6 +748,7 @@ class AlphaEngine(Engine):
         # Step 3: Load connected guidelines that may not have
         # been inferrable just by looking at the interaction.
         inferred_propositions = await self._propose_connected_guidelines(
+            all_stored_guidelines=all_stored_guidelines,
             propositions=proposition_result.propositions,
         )
 
@@ -770,6 +771,7 @@ class AlphaEngine(Engine):
 
     async def _propose_connected_guidelines(
         self,
+        all_stored_guidelines: Sequence[Guideline],
         propositions: Sequence[GuidelineProposition],
     ) -> Sequence[GuidelineProposition]:
         # Some guidelines cannot be inferred simply by evaluating an interaction.
@@ -797,8 +799,8 @@ class AlphaEngine(Engine):
                     # no need to add this connected one as it's already an assumed proposition
                     continue
 
-                connected_guideline = await self._guideline_store.read_guideline(
-                    guideline_id=connected_guideline_id,
+                connected_guideline = next(
+                    g for g in all_stored_guidelines if g.id == connected_guideline_id
                 )
 
                 connected_guidelines_by_proposition[proposition].append(
@@ -971,7 +973,7 @@ class AlphaEngine(Engine):
     ) -> Optional[ContextVariableValue]:
         return await load_fresh_context_variable_value(
             context_variable_store=self._context_variable_store,
-            service_registery=self._service_registry,
+            service_registry=self._service_registry,
             agent_id=context.agent.id,
             session=context.session,
             variable=variable,
@@ -982,7 +984,7 @@ class AlphaEngine(Engine):
 # This is module-level and public for isolated testability purposes.
 async def load_fresh_context_variable_value(
     context_variable_store: ContextVariableStore,
-    service_registery: ServiceRegistry,
+    service_registry: ServiceRegistry,
     agent_id: AgentId,
     session: Session,
     variable: ContextVariable,
@@ -991,7 +993,6 @@ async def load_fresh_context_variable_value(
 ) -> Optional[ContextVariableValue]:
     # Load the existing value
     value = await context_variable_store.read_value(
-        variable_set=agent_id,
         variable_id=variable.id,
         key=key,
     )
@@ -1020,7 +1021,7 @@ async def load_fresh_context_variable_value(
         customer_id=session.customer_id,
     )
 
-    tool_service = await service_registery.read_tool_service(variable.tool_id.service_name)
+    tool_service = await service_registry.read_tool_service(variable.tool_id.service_name)
 
     tool_result = await tool_service.call_tool(
         variable.tool_id.tool_name,
@@ -1029,7 +1030,6 @@ async def load_fresh_context_variable_value(
     )
 
     return await context_variable_store.update_value(
-        variable_set=agent_id,
         variable_id=variable.id,
         key=key,
         data=tool_result.data,

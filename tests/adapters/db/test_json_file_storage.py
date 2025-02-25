@@ -55,6 +55,7 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
 )
 from parlant.core.loggers import Logger
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolId
 
 from tests.test_utilities import SyncAwaiter
@@ -298,7 +299,6 @@ async def test_context_variable_creation(
         async with ContextVariableDocumentStore(context_variable_db) as context_variable_store:
             tool_id = ToolId("local", "test_tool")
             variable = await context_variable_store.create_variable(
-                variable_set=context.agent_id,
                 name="Sample Variable",
                 description="A test variable for persistence.",
                 tool_id=tool_id,
@@ -311,7 +311,6 @@ async def test_context_variable_creation(
     assert len(variables_from_json["variables"]) == 1
     json_variable = variables_from_json["variables"][0]
 
-    assert json_variable["variable_set"] == context.agent_id
     assert json_variable["name"] == variable.name
     assert json_variable["description"] == variable.description
 
@@ -328,7 +327,6 @@ async def test_context_variable_value_update_and_retrieval(
             tool_id = ToolId("local", "test_tool")
             customer_id = CustomerId("test_customer")
             variable = await context_variable_store.create_variable(
-                variable_set=context.agent_id,
                 name="Sample Variable",
                 description="A test variable for persistence.",
                 tool_id=tool_id,
@@ -336,15 +334,13 @@ async def test_context_variable_value_update_and_retrieval(
             )
 
             await context_variable_store.update_value(
-                variable_set=context.agent_id,
-                key=customer_id,
                 variable_id=variable.id,
+                key=customer_id,
                 data={"key": "value"},
             )
             value = await context_variable_store.read_value(
-                variable_set=context.agent_id,
-                key=customer_id,
                 variable_id=variable.id,
+                key=customer_id,
             )
 
     assert value
@@ -366,24 +362,36 @@ async def test_context_variable_listing(
         async with ContextVariableDocumentStore(context_variable_db) as context_variable_store:
             tool_id = ToolId("local", "test_tool")
             var1 = await context_variable_store.create_variable(
-                variable_set=context.agent_id,
                 name="Variable One",
                 description="First test variable",
                 tool_id=tool_id,
                 freshness_rules=None,
             )
 
+            await context_variable_store.add_variable_tag(
+                variable_id=var1.id,
+                tag_id=TagId(f"agent_id::{context.agent_id}"),
+            )
+
             var2 = await context_variable_store.create_variable(
-                variable_set=context.agent_id,
                 name="Variable Two",
                 description="Second test variable",
                 tool_id=tool_id,
                 freshness_rules=None,
             )
 
-            variables = list(await context_variable_store.list_variables(context.agent_id))
-            assert var1 in variables
-            assert var2 in variables
+            await context_variable_store.add_variable_tag(
+                variable_id=var2.id,
+                tag_id=TagId(f"agent_id::{context.agent_id}"),
+            )
+
+            variables = list(
+                await context_variable_store.list_variables(
+                    variable_tags=[TagId(f"agent_id::{context.agent_id}")]
+                )
+            )
+            assert any(v.id == var1.id for v in variables)
+            assert any(v.id == var2.id for v in variables)
             assert len(variables) == 2
 
 
@@ -395,40 +403,42 @@ async def test_context_variable_deletion(
         async with ContextVariableDocumentStore(context_variable_db) as context_variable_store:
             tool_id = ToolId("local", "test_tool")
             variable = await context_variable_store.create_variable(
-                variable_set=context.agent_id,
                 name="Deletable Variable",
                 description="A variable to be deleted.",
                 tool_id=tool_id,
                 freshness_rules=None,
             )
 
+            await context_variable_store.add_variable_tag(
+                variable_id=variable.id,
+                tag_id=TagId(f"agent_id::{context.agent_id}"),
+            )
+
             for k, d in [("k1", "d1"), ("k2", "d2"), ("k3", "d3")]:
                 await context_variable_store.update_value(
-                    variable_set=context.agent_id,
                     key=k,
                     variable_id=variable.id,
                     data=d,
                 )
 
             values = await context_variable_store.list_values(
-                variable_set=context.agent_id,
                 variable_id=variable.id,
             )
 
             assert len(values) == 3
 
             await context_variable_store.delete_variable(
-                variable_set=context.agent_id,
                 id=variable.id,
             )
 
             assert not any(
                 variable.id == v.id
-                for v in await context_variable_store.list_variables(context.agent_id)
+                for v in await context_variable_store.list_variables(
+                    variable_tags=[TagId(f"agent_id::{context.agent_id}")]
+                )
             )
 
             values = await context_variable_store.list_values(
-                variable_set=context.agent_id,
                 variable_id=variable.id,
             )
 

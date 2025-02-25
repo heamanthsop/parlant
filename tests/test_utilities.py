@@ -222,12 +222,11 @@ async def create_term(
 
 async def create_context_variable(
     container: Container,
-    agent_id: AgentId,
     name: str,
+    tags: list[TagId],
     description: str = "",
 ) -> ContextVariable:
     return await container[ContextVariableStore].create_variable(
-        variable_set=agent_id,
         name=name,
         description=description,
         tool_id=None,
@@ -237,13 +236,11 @@ async def create_context_variable(
 
 async def set_context_variable_value(
     container: Container,
-    agent_id: AgentId,
     variable_id: ContextVariableId,
     key: str,
     data: JSONSerializable,
 ) -> ContextVariableValue:
     return await container[ContextVariableStore].update_value(
-        variable_set=agent_id,
         key=key,
         variable_id=variable_id,
         data=data,

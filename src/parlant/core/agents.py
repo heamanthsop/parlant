@@ -28,7 +28,11 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     DocumentCollection,
 )
-from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
+from parlant.core.persistence.document_database_helper import (
+    DocumentMigrationHelper,
+    DocumentStoreMigrationHelper,
+)
+from parlant.core.tags import TagId
 
 AgentId = NewType("AgentId", str)
 
@@ -114,11 +118,25 @@ class AgentDocumentStore(AgentStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_AgentDocument]:
-        if doc["version"] == "0.1.0":
+        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             return cast(_AgentDocument, doc)
 
-        if doc["version"] == "0.2.0":
+        async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             return cast(_AgentDocument, doc)
+
+        return await DocumentMigrationHelper[_AgentDocument](
+            self,
+            {
+                "0.1.0": v0_1_0_to_v_0_2_0,
+                "0.2.0": v0_2_0_to_v_0_3_0,
+            },
+        ).migrate(doc)
+
+    async def _association_document_loader(
+        self, doc: BaseDocument
+    ) -> Optional[_AgentTagAssociationDocument]:
+        if doc["version"] == "0.3.0":
+            return cast(_AgentTagAssociationDocument, doc)
 
         return None
 

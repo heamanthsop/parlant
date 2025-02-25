@@ -1304,7 +1304,7 @@ async def test_that_a_variable_can_be_deleted(
 async def test_that_a_variable_value_can_be_set_with_json(
     context: ContextOfTest,
 ) -> None:
-    variable_name = "test_variable_set"
+    variable_name = "test_variable"
     variable_description = "Variable to test setting value via CLI"
     key = "test_key"
     data: dict[str, Any] = {"test": "data", "type": 27}
@@ -1344,7 +1344,7 @@ async def test_that_a_variable_value_can_be_set_with_json(
 async def test_that_a_variable_value_can_be_set_with_string(
     context: ContextOfTest,
 ) -> None:
-    variable_name = "test_variable_set"
+    variable_name = "test_variable"
     variable_description = "Variable to test setting value via CLI"
     key = "test_key"
     data = "test_string"

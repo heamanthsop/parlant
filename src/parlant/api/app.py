@@ -177,6 +177,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         variables.create_router(
             context_variable_store=context_variable_store,
             service_registry=service_registry,
+            store_queries=store_queries,
         ),
     )
 

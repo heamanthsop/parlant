@@ -268,9 +268,15 @@ def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
 def create_context_variable(
     name: str,
     data: JSONSerializable,
+    tags: list[TagId],
 ) -> tuple[ContextVariable, ContextVariableValue]:
     return ContextVariable(
-        id=ContextVariableId("-"), name=name, description="", tool_id=None, freshness_rules=None
+        id=ContextVariableId("-"),
+        name=name,
+        description="",
+        tool_id=None,
+        freshness_rules=None,
+        tags=tags,
     ), ContextVariableValue(
         ContextVariableValueId("-"), last_modified=datetime.now(timezone.utc), data=data
     )
@@ -590,7 +596,8 @@ def test_that_guidelines_based_on_context_variables_arent_proposed_repetitively(
         create_context_variable(
             name="season",
             data={"season": "Summer"},
-        ),
+            tags=[TagId(f"agent_id::{agent.id}")],
+        )
     ]
 
     conversation_guideline_names: list[str] = ["summer_sale"]

@@ -286,9 +286,15 @@ def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
 def create_context_variable(
     name: str,
     data: JSONSerializable,
+    tags: list[TagId],
 ) -> tuple[ContextVariable, ContextVariableValue]:
     return ContextVariable(
-        id=ContextVariableId("-"), name=name, description="", tool_id=None, freshness_rules=None
+        id=ContextVariableId("-"),
+        name=name,
+        description="",
+        tool_id=None,
+        freshness_rules=None,
+        tags=tags,
     ), ContextVariableValue(
         ContextVariableValueId("-"), last_modified=datetime.now(timezone.utc), data=data
     )
@@ -665,14 +671,17 @@ def test_that_guidelines_are_proposed_based_on_staged_tool_calls_and_context_var
         create_context_variable(
             name="user_id_1",
             data={"name": "Jimmy McGill", "ID": 566317},
+            tags=[TagId(f"agent_id::{agent.id}")],
         ),
         create_context_variable(
             name="user_id_2",
             data={"name": "Bob Bobberson", "ID": 199877},
+            tags=[TagId(f"agent_id::{agent.id}")],
         ),
         create_context_variable(
             name="user_id_3",
             data={"name": "Dorothy Dortmund", "ID": 816779},
+            tags=[TagId(f"agent_id::{agent.id}")],
         ),
     ]
     conversation_guideline_names: list[str] = ["suggest_drink_underage", "suggest_drink_adult"]

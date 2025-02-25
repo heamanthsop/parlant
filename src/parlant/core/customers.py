@@ -287,7 +287,11 @@ class CustomerDocumentStore(CustomerStore):
                         doc["customer_id"]
                         for doc in await self._tag_association_collection.find(filters={})
                     }
-                    filters = {"$or": [{"id": {"$ne": id}} for id in customer_ids]}
+                    filters = (
+                        {"$or": [{"id": {"$ne": id}} for id in customer_ids]}
+                        if customer_ids
+                        else {}
+                    )
                 else:
                     tag_filters: Where = {
                         "$or": [{"tag_id": {"$eq": tag}} for tag in customer_tags]
