@@ -19,6 +19,7 @@ from parlant.core.engines.alpha.guideline_proposition import GuidelinePropositio
 from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guidelines import Guideline, GuidelineStore
 
+from parlant.core.tags import TagId
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
 
@@ -32,11 +33,17 @@ def given_a_guideline_to_when(
 ) -> None:
     guideline_store = context.container[GuidelineStore]
 
-    context.sync_await(
+    guideline = context.sync_await(
         guideline_store.create_guideline(
-            guideline_set=agent_id,
             condition=a_condition_holds,
             action=do_something,
+        )
+    )
+
+    _ = context.sync_await(
+        guideline_store.add_tag(
+            guideline.id,
+            TagId(f"agent_id::{agent_id}"),
         )
     )
 
@@ -56,9 +63,15 @@ def given_a_guideline_name_to_when(
 
     context.guidelines[guideline_name] = context.sync_await(
         guideline_store.create_guideline(
-            guideline_set=agent_id,
             condition=a_condition_holds,
             action=do_something,
+        )
+    )
+
+    _ = context.sync_await(
+        guideline_store.add_tag(
+            context.guidelines[guideline_name].id,
+            TagId(f"agent_id::{agent_id}"),
         )
     )
 
@@ -71,11 +84,17 @@ def given_50_other_random_guidelines(
     guideline_store = context.container[GuidelineStore]
 
     async def create_guideline(condition: str, action: str) -> Guideline:
-        return await guideline_store.create_guideline(
-            guideline_set=agent_id,
+        guideline = await guideline_store.create_guideline(
             condition=condition,
             action=action,
         )
+
+        _ = await guideline_store.add_tag(
+            guideline.id,
+            TagId(f"agent_id::{agent_id}"),
+        )
+
+        return guideline
 
     guidelines: list[Guideline] = []
 
@@ -313,11 +332,17 @@ def given_the_guideline_called(
     guideline_store = context.container[GuidelineStore]
 
     async def create_guideline(condition: str, action: str) -> Guideline:
-        return await guideline_store.create_guideline(
-            guideline_set=agent_id,
+        guideline = await guideline_store.create_guideline(
             condition=condition,
             action=action,
         )
+
+        _ = await guideline_store.add_tag(
+            guideline.id,
+            TagId(f"agent_id::{agent_id}"),
+        )
+
+        return guideline
 
     guidelines = {
         "check_drinks_in_stock": {

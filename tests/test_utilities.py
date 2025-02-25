@@ -74,6 +74,7 @@ from parlant.core.sessions import (
     SessionId,
     SessionStore,
 )
+from parlant.core.tags import TagId
 from parlant.core.tools import LocalToolService, ToolId, ToolResult
 from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import BaseDocument, DocumentCollection
@@ -257,9 +258,13 @@ async def create_guideline(
     tool_function: Optional[Callable[[], ToolResult]] = None,
 ) -> Guideline:
     guideline = await container[GuidelineStore].create_guideline(
-        guideline_set=agent_id,
         condition=condition,
         action=action,
+    )
+
+    _ = await container[GuidelineStore].add_tag(
+        guideline.id,
+        TagId(f"agent_id::{agent_id}"),
     )
 
     if tool_function:

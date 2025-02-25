@@ -107,7 +107,8 @@ class AgentDocumentStore(AgentStore):
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False):
         self._database = database
-        self._collection: DocumentCollection[_AgentDocument]
+        self._agents_collection: DocumentCollection[_AgentDocument]
+        self._tag_association_collection: DocumentCollection[_AgentTagAssociationDocument]
         self._allow_migration = allow_migration
 
         self._lock = ReaderWriterLock()
@@ -133,6 +134,12 @@ class AgentDocumentStore(AgentStore):
                 document_loader=self._document_loader,
             )
 
+            self._tag_association_collection = await self._database.get_or_create_collection(
+                name="agent_tags",
+                schema=_AgentTagAssociationDocument,
+                document_loader=self._association_document_loader,
+            )
+
         return self
 
     async def __aexit__(
@@ -154,7 +161,14 @@ class AgentDocumentStore(AgentStore):
             composition_mode=agent.composition_mode,
         )
 
-    def _deserialize(self, agent_document: _AgentDocument) -> Agent:
+    async def _deserialize_agent(self, agent_document: _AgentDocument) -> Agent:
+        tags = [
+            d["tag_id"]
+            for d in await self._tag_association_collection.find(
+                {"agent_id": {"$eq": agent_document["id"]}}
+            )
+        ]
+
         return Agent(
             id=AgentId(agent_document["id"]),
             creation_utc=datetime.fromisoformat(agent_document["creation_utc"]),
@@ -246,3 +260,59 @@ class AgentDocumentStore(AgentStore):
 
         if result.deleted_count == 0:
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
+
+    @override
+    async def add_tag(
+        self,
+        agent_id: AgentId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Agent:
+        async with self._lock.writer_lock:
+            agent = await self.read_agent(agent_id)
+
+            if tag_id in agent.tags:
+                return agent
+
+            creation_utc = creation_utc or datetime.now(timezone.utc)
+
+            association_document: _AgentTagAssociationDocument = {
+                "id": ObjectId(generate_id()),
+                "version": self.VERSION.to_string(),
+                "creation_utc": creation_utc.isoformat(),
+                "agent_id": agent_id,
+                "tag_id": tag_id,
+            }
+
+            _ = await self._tag_association_collection.insert_one(document=association_document)
+
+            agent_document = await self._agents_collection.find_one({"id": {"$eq": agent_id}})
+
+        if not agent_document:
+            raise ItemNotFoundError(item_id=UniqueId(agent_id))
+
+        return await self._deserialize_agent(agent_document=agent_document)
+
+    @override
+    async def remove_tag(
+        self,
+        agent_id: AgentId,
+        tag_id: TagId,
+    ) -> Agent:
+        async with self._lock.writer_lock:
+            delete_result = await self._tag_association_collection.delete_one(
+                {
+                    "agent_id": {"$eq": agent_id},
+                    "tag_id": {"$eq": tag_id},
+                }
+            )
+
+            if delete_result.deleted_count == 0:
+                raise ItemNotFoundError(item_id=UniqueId(tag_id))
+
+            agent_document = await self._agents_collection.find_one({"id": {"$eq": agent_id}})
+
+        if not agent_document:
+            raise ItemNotFoundError(item_id=UniqueId(agent_id))
+
+        return await self._deserialize_agent(agent_document=agent_document)

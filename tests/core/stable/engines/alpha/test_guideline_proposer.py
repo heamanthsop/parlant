@@ -45,6 +45,7 @@ from parlant.core.sessions import EventSource
 from parlant.core.loggers import Logger
 from parlant.core.glossary import TermId
 
+from parlant.core.tags import TagId
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import SyncAwaiter
 
@@ -252,7 +253,12 @@ def propose_guidelines(
     return list(chain.from_iterable(guideline_proposition_result.batches))
 
 
-def create_guideline(context: ContextOfTest, condition: str, action: str) -> Guideline:
+def create_guideline(
+    context: ContextOfTest,
+    condition: str,
+    action: str,
+    tags: list[TagId] = [],
+) -> Guideline:
     guideline = Guideline(
         id=GuidelineId(generate_id()),
         creation_utc=datetime.now(timezone.utc),
@@ -261,9 +267,8 @@ def create_guideline(context: ContextOfTest, condition: str, action: str) -> Gui
             action=action,
         ),
         enabled=True,
+        tags=tags,
     )
-
-    context.guidelines.append(guideline)
 
     return guideline
 
@@ -473,6 +478,7 @@ def test_that_guidelines_are_proposed_based_on_agent_description(
         description="You are an agent working for a skateboarding manufacturer. You help customers by discussing and recommending our products."
         "Your role is only to consult customers, and not to actually sell anything, as we sell our products in-store.",
         max_engine_iterations=3,
+        tags=[],
     )
 
     conversation_context: list[tuple[str, str]] = [

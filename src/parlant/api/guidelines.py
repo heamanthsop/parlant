@@ -58,6 +58,8 @@ from parlant.core.guideline_tool_associations import (
 )
 from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
+from parlant.core.store_queries import StoreQueries
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolId
 
 from parlant.api.common import (
@@ -490,6 +492,7 @@ guideline_example = {
 
 def create_router(
     application: Application,
+    store_queries: StoreQueries,
     guideline_store: GuidelineStore,
     guideline_connection_store: GuidelineConnectionStore,
     service_registry: ServiceRegistry,
@@ -498,19 +501,14 @@ def create_router(
     router = APIRouter()
 
     async def get_guideline_connections(
-        guideline_set: str,
         guideline_id: GuidelineId,
         include_indirect: bool = True,
     ) -> Sequence[tuple[_GuidelineConnection, bool]]:
         connections = [
             _GuidelineConnection(
                 id=c.id,
-                source=await guideline_store.read_guideline(
-                    guideline_set=guideline_set, guideline_id=c.source
-                ),
-                target=await guideline_store.read_guideline(
-                    guideline_set=guideline_set, guideline_id=c.target
-                ),
+                source=await guideline_store.read_guideline(guideline_id=c.source),
+                target=await guideline_store.read_guideline(guideline_id=c.target),
             )
             for c in chain(
                 await guideline_connection_store.list_connections(
@@ -559,15 +557,17 @@ def create_router(
 
         guideline_ids = set(
             await application.create_guidelines(
-                guideline_set=agent_id,
                 invoices=invoices,
             )
         )
 
-        guidelines = [
-            await guideline_store.read_guideline(guideline_set=agent_id, guideline_id=id)
-            for id in guideline_ids
-        ]
+        for id in guideline_ids:
+            _ = await guideline_store.add_tag(
+                guideline_id=id,
+                tag_id=TagId(f"agent_id::{agent_id}"),
+            )
+
+        guidelines = [await guideline_store.read_guideline(guideline_id=id) for id in guideline_ids]
 
         tool_associations = defaultdict(list)
         for association in await guideline_tool_association_store.list_associations():
@@ -610,7 +610,6 @@ def create_router(
                             indirect=indirect,
                         )
                         for connection, indirect in await get_guideline_connections(
-                            guideline_set=agent_id,
                             guideline_id=guideline.id,
                             include_indirect=True,
                         )
@@ -644,13 +643,22 @@ def create_router(
         Returns both direct and indirect connections between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
-
-        guideline = await guideline_store.read_guideline(
-            guideline_set=agent_id, guideline_id=guideline_id
+        guidelines = await store_queries.list_guidelines_for_agent(
+            agent_id=agent_id,
         )
 
+        guideline = next(
+            (g for g in guidelines if g.id == guideline_id),
+            None,
+        )
+
+        if not guideline:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Guideline is not global or associated with the specified agent",
+            )
+
         connections = await get_guideline_connections(
-            guideline_set=agent_id,
             guideline_id=guideline_id,
             include_indirect=True,
         )
@@ -718,8 +726,8 @@ def create_router(
         Guidelines are returned in no guaranteed order.
         Does not include connections or tool associations.
         """
-        guidelines = await guideline_store.list_guidelines(
-            guideline_set=agent_id,
+        guidelines = await store_queries.list_guidelines_for_agent(
+            agent_id=agent_id,
         )
 
         return [
@@ -767,16 +775,29 @@ def create_router(
         Tool Association rules:
         - Tool services and tools must exist before creating associations
         """
-        guideline = await guideline_store.read_guideline(
-            guideline_set=agent_id,
-            guideline_id=guideline_id,
+        guidelines = await guideline_store.list_guidelines(
+            guideline_tags=[TagId(f"agent_id::{agent_id}")],
         )
+        guideline = next(
+            (g for g in guidelines if g.id == guideline_id),
+            None,
+        )
+
+        if not guideline:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Updated guideline not found for the specified agent",
+            )
 
         if params.enabled is not None:
             await guideline_store.update_guideline(
                 guideline_id=guideline_id,
                 params=GuidelineUpdateParams(enabled=params.enabled),
             )
+
+        guidelines = await store_queries.list_guidelines_for_agent(
+            agent_id=agent_id,
+        )
 
         if params.connections and params.connections.add:
             for req in params.connections.add:
@@ -786,15 +807,17 @@ def create_router(
                         detail="A guideline cannot be connected to itself",
                     )
                 elif req.source == guideline.id:
-                    _ = await guideline_store.read_guideline(
-                        guideline_set=agent_id,
-                        guideline_id=req.target,
-                    )
+                    if not any(g.id == req.target for g in guidelines):
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="The target guideline is not global or associated with the specified agent",
+                        )
                 elif req.target == guideline.id:
-                    _ = await guideline_store.read_guideline(
-                        guideline_set=agent_id,
-                        guideline_id=req.source,
-                    )
+                    if not any(g.id == req.source for g in guidelines):
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="The source guideline is not global or associated with the specified agent",
+                        )
                 else:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -807,8 +830,7 @@ def create_router(
                 )
 
         connections = await get_guideline_connections(
-            agent_id,
-            guideline_id,
+            guideline_id=guideline_id,
             include_indirect=False,
         )
 
@@ -857,10 +879,7 @@ def create_router(
                         detail=f"Tool association not found for service '{tool_id_dto.service_name}' and tool '{tool_id_dto.tool_name}'",
                     )
 
-        updated_guideline = await guideline_store.read_guideline(
-            guideline_set=agent_id,
-            guideline_id=guideline_id,
-        )
+        updated_guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
 
         return GuidelineWithConnectionsAndToolAssociationsDTO(
             guideline=GuidelineDTO(
@@ -887,7 +906,8 @@ def create_router(
                     indirect=indirect,
                 )
                 for connection, indirect in await get_guideline_connections(
-                    agent_id, guideline_id, True
+                    guideline_id=guideline_id,
+                    include_indirect=True,
                 )
             ],
             tool_associations=[
@@ -926,16 +946,17 @@ def create_router(
         Deleting a non-existent guideline will return 404.
         No content will be returned from a successful deletion.
         """
-
-        await guideline_store.read_guideline(
-            guideline_set=agent_id,
-            guideline_id=guideline_id,
+        guidelines = await store_queries.list_guidelines_for_agent(
+            agent_id=agent_id,
         )
 
-        await guideline_store.delete_guideline(
-            guideline_set=agent_id,
-            guideline_id=guideline_id,
-        )
+        if not any(g.id == guideline_id for g in guidelines):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Guideline is not global or associated with the specified agent",
+            )
+
+        await guideline_store.delete_guideline(guideline_id=guideline_id)
 
         for c in chain(
             await guideline_connection_store.list_connections(indirect=False, source=guideline_id),

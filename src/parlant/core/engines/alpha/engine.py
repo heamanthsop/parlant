@@ -74,6 +74,7 @@ from parlant.core.engines.types import Context, Engine, UtteranceReason, Utteran
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolContext, ToolId
 
 
@@ -728,7 +729,7 @@ class AlphaEngine(Engine):
         all_stored_guidelines = [
             g
             for g in await self._guideline_store.list_guidelines(
-                guideline_set=context.agent.id,
+                guideline_tags=[TagId(f"agent_id::{context.agent.id}")],
             )
             if g.enabled
         ]
@@ -747,7 +748,6 @@ class AlphaEngine(Engine):
         # Step 3: Load connected guidelines that may not have
         # been inferrable just by looking at the interaction.
         inferred_propositions = await self._propose_connected_guidelines(
-            guideline_set=context.agent.id,
             propositions=proposition_result.propositions,
         )
 
@@ -770,7 +770,6 @@ class AlphaEngine(Engine):
 
     async def _propose_connected_guidelines(
         self,
-        guideline_set: str,
         propositions: Sequence[GuidelineProposition],
     ) -> Sequence[GuidelineProposition]:
         # Some guidelines cannot be inferred simply by evaluating an interaction.
@@ -799,7 +798,6 @@ class AlphaEngine(Engine):
                     continue
 
                 connected_guideline = await self._guideline_store.read_guideline(
-                    guideline_set=guideline_set,
                     guideline_id=connected_guideline_id,
                 )
 
@@ -957,6 +955,7 @@ class AlphaEngine(Engine):
                         action=utterance.action,
                     ),
                     enabled=True,
+                    tags=[],
                 ),
                 rationale=rationales[utterance.reason],
                 score=10,

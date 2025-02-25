@@ -23,6 +23,7 @@ from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
 from parlant.core.services.tools.service_registry import ServiceRegistry
+from parlant.core.tags import TagId
 from parlant.core.tools import LocalToolService, ToolId
 
 from tests.test_utilities import (
@@ -40,12 +41,17 @@ async def create_and_connect(
 ) -> list[Guideline]:
     guidelines = [
         await container[GuidelineStore].create_guideline(
-            guideline_set=agent_id,
             condition=gc.condition,
             action=gc.action,
         )
         for gc in guideline_contents
     ]
+
+    for guideline in guidelines:
+        _ = await container[GuidelineStore].add_tag(
+            guideline_id=guideline.id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
+        )
 
     for source, target in zip(guidelines, guidelines[1:]):
         await container[GuidelineConnectionStore].create_connection(
@@ -104,7 +110,6 @@ async def test_that_a_guideline_can_be_deleted(
     guideline_store = container[GuidelineStore]
 
     guideline_to_delete = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to unsubscribe",
         action="ask for confirmation",
     )
@@ -114,9 +119,7 @@ async def test_that_a_guideline_can_be_deleted(
     ).raise_for_status()
 
     with raises(ItemNotFoundError):
-        await guideline_store.read_guideline(
-            guideline_set=agent_id, guideline_id=guideline_to_delete.id
-        )
+        await guideline_store.read_guideline(guideline_id=guideline_to_delete.id)
 
 
 async def test_that_an_unapproved_invoice_is_rejected(
@@ -275,7 +278,6 @@ async def test_that_a_connection_to_an_existing_guideline_is_created(
     guideline_store = container[GuidelineStore]
 
     existing_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer asks about the weather",
         action="provide the current weather update",
     )
@@ -347,9 +349,13 @@ async def test_that_a_guideline_can_be_read_by_id(
     guideline_store = container[GuidelineStore]
 
     stored_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer asks about the weather",
         action="provide the current weather update",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=stored_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     item = (
@@ -541,9 +547,10 @@ async def test_that_reading_a_guideline_lists_both_direct_and_indirect_connectio
     container: Container,
     agent_id: AgentId,
 ) -> None:
+    guideline_store = container[GuidelineStore]
+
     guidelines = [
-        await container[GuidelineStore].create_guideline(
-            guideline_set=agent_id,
+        await guideline_store.create_guideline(
             condition=condition,
             action=action,
         )
@@ -555,6 +562,12 @@ async def test_that_reading_a_guideline_lists_both_direct_and_indirect_connectio
             ("E", "F"),
         ]
     ]
+
+    for guideline in guidelines:
+        _ = await guideline_store.add_tag(
+            guideline_id=guideline.id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
+        )
 
     for source, target in zip(guidelines, guidelines[1:]):
         await container[GuidelineConnectionStore].create_connection(
@@ -611,9 +624,13 @@ async def test_that_a_tool_association_can_be_added(
     )
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     service_name = "local"
@@ -689,9 +706,13 @@ async def test_that_a_tool_association_can_be_removed(
     )
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     service_name = "local"
@@ -758,9 +779,13 @@ async def test_that_guideline_deletion_removes_tool_associations(
     )
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     service_name = "local"
@@ -785,9 +810,13 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_lo
     guideline_store = container[GuidelineStore]
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     service_name = "local"
@@ -821,9 +850,13 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_op
     service_registry = container[ServiceRegistry]
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     tool_name = "nonexistent_tool"
@@ -865,9 +898,13 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_sd
     service_registry = container[ServiceRegistry]
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer wants to get meeting details",
         action="get meeting event information",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     tool_name = "nonexistent_tool"
@@ -907,20 +944,33 @@ async def test_that_an_existing_guideline_can_be_updated(
     connection_store = container[GuidelineConnectionStore]
 
     existing_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer greets you",
         action="reply with 'Hello'",
     )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=existing_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     connected_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="reply with 'Hello'",
         action="finish with a smile",
     )
 
+    _ = await guideline_store.add_tag(
+        guideline_id=connected_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     connected_guideline_post_update = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="reply with 'Howdy!'",
         action="finish with a smile",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=connected_guideline_post_update.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     await connection_store.create_connection(
@@ -1000,9 +1050,13 @@ async def test_that_an_updated_guideline_can_entail_an_added_guideline(
     connection_store = container[GuidelineConnectionStore]
 
     existing_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer greets you",
         action="reply with 'Hello'",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=existing_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     new_aciton = "reply with 'Howdy!'"
@@ -1091,7 +1145,7 @@ async def test_that_an_updated_guideline_can_entail_an_added_guideline(
 
     assert len(items) == 2
 
-    updated_guideline = await guideline_store.read_guideline(agent_id, existing_guideline.id)
+    updated_guideline = await guideline_store.read_guideline(existing_guideline.id)
 
     added_guideline_id = (
         items[1]["guideline"]["id"]
@@ -1099,7 +1153,7 @@ async def test_that_an_updated_guideline_can_entail_an_added_guideline(
         else items[0]["guideline"]["id"]
     )
 
-    added_guideline = await guideline_store.read_guideline(agent_id, added_guideline_id)
+    added_guideline = await guideline_store.read_guideline(added_guideline_id)
 
     updated_connections = await connection_store.list_connections(
         indirect=False, source=updated_guideline.id
@@ -1119,14 +1173,23 @@ async def test_that_guideline_update_retains_existing_connections_with_disabled_
     connection_store = container[GuidelineConnectionStore]
 
     existing_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer greets you",
         action="reply with 'Hello'",
     )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=existing_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
     connected_guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="reply with 'Hello'",
         action="finish with a smile",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=connected_guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     await connection_store.create_connection(
@@ -1193,9 +1256,13 @@ async def test_that_a_guideline_can_be_disabled(
     guideline_store = container[GuidelineStore]
 
     guideline = await guideline_store.create_guideline(
-        guideline_set=agent_id,
         condition="the customer greets you",
         action="reply with 'Hello'",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     response = (
@@ -1209,3 +1276,72 @@ async def test_that_a_guideline_can_be_disabled(
 
     updated_guideline = response.json()["guideline"]
     assert not updated_guideline["enabled"]
+
+
+async def test_that_retrieve_a_guideline_associated_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer greets you",
+        action="reply with 'Hello'",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.get(f"/agents/{agent_id}/guidelines/{guideline.id}")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_updating_a_guideline_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer greets you",
+        action="reply with 'Hello'",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.patch(
+        f"/agents/{agent_id}/guidelines/{guideline.id}",
+        json={"enabled": False},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_deleting_a_guideline_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer greets you",
+        action="reply with 'Hello'",
+    )
+
+    _ = await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.delete(f"/agents/{agent_id}/guidelines/{guideline.id}")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND

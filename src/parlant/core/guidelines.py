@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
-from parlant.core.persistence.common import ObjectId
+from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.persistence.document_database import (
     BaseDocument,
     DocumentDatabase,
@@ -30,6 +30,7 @@ from parlant.core.persistence.document_database_helper import (
     DocumentStoreMigrationHelper,
     DocumentMigrationHelper,
 )
+from parlant.core.tags import TagId
 
 GuidelineId = NewType("GuidelineId", str)
 
@@ -46,13 +47,16 @@ class Guideline:
     creation_utc: datetime
     content: GuidelineContent
     enabled: bool
+    tags: Sequence[TagId]
 
     def __str__(self) -> str:
         return f"When {self.content.condition}, then {self.content.action}"
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+
 
 class GuidelineUpdateParams(TypedDict, total=False):
-    guideline_set: str
     condition: str
     action: str
     enabled: bool
@@ -62,29 +66,27 @@ class GuidelineStore(ABC):
     @abstractmethod
     async def create_guideline(
         self,
-        guideline_set: str,
         condition: str,
         action: str,
         creation_utc: Optional[datetime] = None,
+        enabled: bool = True,
     ) -> Guideline: ...
 
     @abstractmethod
     async def list_guidelines(
         self,
-        guideline_set: str,
+        guideline_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Guideline]: ...
 
     @abstractmethod
     async def read_guideline(
         self,
-        guideline_set: str,
         guideline_id: GuidelineId,
     ) -> Guideline: ...
 
     @abstractmethod
     async def delete_guideline(
         self,
-        guideline_set: str,
         guideline_id: GuidelineId,
     ) -> None: ...
 
@@ -98,8 +100,22 @@ class GuidelineStore(ABC):
     @abstractmethod
     async def find_guideline(
         self,
-        guideline_set: str,
         guideline_content: GuidelineContent,
+    ) -> Guideline: ...
+
+    @abstractmethod
+    async def add_tag(
+        self,
+        guideline_id: GuidelineId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Guideline: ...
+
+    @abstractmethod
+    async def remove_tag(
+        self,
+        guideline_id: GuidelineId,
+        tag_id: TagId,
     ) -> Guideline: ...
 
 
@@ -112,7 +128,7 @@ class _GuidelineDocument_V0_1_0(TypedDict, total=False):
     action: str
 
 
-class _GuidelineDocument(TypedDict, total=False):
+class _GuidelineDocument_V0_2_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -122,19 +138,38 @@ class _GuidelineDocument(TypedDict, total=False):
     enabled: bool
 
 
+class _GuidelineDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    condition: str
+    action: str
+    enabled: bool
+
+
+class _GuidelineTagAssociationDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    guideline_id: GuidelineId
+    tag_id: TagId
+
+
 class GuidelineDocumentStore(GuidelineStore):
-    VERSION = Version.from_string("0.2.0")
+    VERSION = Version.from_string("0.3.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
         self._collection: DocumentCollection[_GuidelineDocument]
+        self._tag_association_collection: DocumentCollection[_GuidelineTagAssociationDocument]
+
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             d = cast(_GuidelineDocument_V0_1_0, doc)
-            return _GuidelineDocument(
+            return _GuidelineDocument_V0_2_0(
                 id=d["id"],
                 version=Version.String("0.2.0"),
                 creation_utc=d["creation_utc"],
@@ -144,9 +179,32 @@ class GuidelineDocumentStore(GuidelineStore):
                 enabled=True,
             )
 
+        async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            d = cast(_GuidelineDocument_V0_2_0, doc)
+            return _GuidelineDocument(
+                id=d["id"],
+                version=Version.String("0.3.0"),
+                creation_utc=d["creation_utc"],
+                condition=d["condition"],
+                action=d["action"],
+                enabled=d["enabled"],
+            )
+
         return await DocumentMigrationHelper[_GuidelineDocument](
-            self, {"0.1.0": v0_1_0_to_v_0_2_0}
+            self,
+            {
+                "0.1.0": v0_1_0_to_v_0_2_0,
+                "0.2.0": v0_2_0_to_v_0_3_0,
+            },
         ).migrate(doc)
+
+    async def _association_document_loader(
+        self, doc: BaseDocument
+    ) -> Optional[_GuidelineTagAssociationDocument]:
+        if doc["version"] == "0.3.0":
+            return cast(_GuidelineTagAssociationDocument, doc)
+
+        return None
 
     async def __aenter__(self) -> Self:
         async with DocumentStoreMigrationHelper(
@@ -158,6 +216,12 @@ class GuidelineDocumentStore(GuidelineStore):
                 name="guidelines",
                 schema=_GuidelineDocument,
                 document_loader=self._document_loader,
+            )
+
+            self._tag_association_collection = await self._database.get_or_create_collection(
+                name="guideline_tag_associations",
+                schema=_GuidelineTagAssociationDocument,
+                document_loader=self._association_document_loader,
             )
 
         return self
@@ -173,22 +237,27 @@ class GuidelineDocumentStore(GuidelineStore):
     def _serialize(
         self,
         guideline: Guideline,
-        guideline_set: str,
     ) -> _GuidelineDocument:
         return _GuidelineDocument(
             id=ObjectId(guideline.id),
             version=self.VERSION.to_string(),
             creation_utc=guideline.creation_utc.isoformat(),
-            guideline_set=guideline_set,
             condition=guideline.content.condition,
             action=guideline.content.action,
             enabled=guideline.enabled,
         )
 
-    def _deserialize(
+    async def _deserialize(
         self,
         guideline_document: _GuidelineDocument,
     ) -> Guideline:
+        tags = [
+            d["tag_id"]
+            for d in await self._tag_association_collection.find(
+                {"guideline_id": {"$eq": guideline_document["id"]}}
+            )
+        ]
+
         return Guideline(
             id=GuidelineId(guideline_document["id"]),
             creation_utc=datetime.fromisoformat(guideline_document["creation_utc"]),
@@ -196,12 +265,12 @@ class GuidelineDocumentStore(GuidelineStore):
                 condition=guideline_document["condition"], action=guideline_document["action"]
             ),
             enabled=guideline_document["enabled"],
+            tags=tags,
         )
 
     @override
     async def create_guideline(
         self,
-        guideline_set: str,
         condition: str,
         action: str,
         creation_utc: Optional[datetime] = None,
@@ -218,12 +287,12 @@ class GuidelineDocumentStore(GuidelineStore):
                     action=action,
                 ),
                 enabled=enabled,
+                tags=[],
             )
 
             await self._collection.insert_one(
                 document=self._serialize(
                     guideline=guideline,
-                    guideline_set=guideline_set,
                 )
             )
 
@@ -232,57 +301,71 @@ class GuidelineDocumentStore(GuidelineStore):
     @override
     async def list_guidelines(
         self,
-        guideline_set: str,
+        guideline_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Guideline]:
+        filters: Where = {}
+
         async with self._lock.reader_lock:
-            return [
-                self._deserialize(d)
-                for d in await self._collection.find(
-                    filters={
-                        "guideline_set": {"$eq": guideline_set},
+            if guideline_tags is not None:
+                if len(guideline_tags) == 0:
+                    guideline_ids = {
+                        doc["guideline_id"]
+                        for doc in await self._tag_association_collection.find(filters={})
                     }
-                )
+                    filters = (
+                        {"$or": [{"id": {"$ne": id}} for id in guideline_ids]}
+                        if guideline_ids
+                        else {}
+                    )
+                else:
+                    tag_filters: Where = {
+                        "$or": [{"tag_id": {"$eq": tag}} for tag in guideline_tags]
+                    }
+                    tag_associations = await self._tag_association_collection.find(
+                        filters=tag_filters
+                    )
+                    guideline_ids = {assoc["guideline_id"] for assoc in tag_associations}
+
+                    if not guideline_ids:
+                        return []
+
+                    filters = {"$or": [{"id": {"$eq": id}} for id in guideline_ids]}
+
+            return [
+                await self._deserialize(d) for d in await self._collection.find(filters=filters)
             ]
 
     @override
     async def read_guideline(
         self,
-        guideline_set: str,
         guideline_id: GuidelineId,
     ) -> Guideline:
         async with self._lock.reader_lock:
             guideline_document = await self._collection.find_one(
                 filters={
-                    "guideline_set": {"$eq": guideline_set},
                     "id": {"$eq": guideline_id},
                 }
             )
 
         if not guideline_document:
-            raise ItemNotFoundError(
-                item_id=UniqueId(guideline_id), message=f"with guideline_set '{guideline_set}'"
-            )
+            raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
-        return self._deserialize(guideline_document)
+        return await self._deserialize(guideline_document=guideline_document)
 
     @override
     async def delete_guideline(
         self,
-        guideline_set: str,
         guideline_id: GuidelineId,
     ) -> None:
         async with self._lock.writer_lock:
             result = await self._collection.delete_one(
                 filters={
-                    "guideline_set": {"$eq": guideline_set},
                     "id": {"$eq": guideline_id},
                 }
             )
 
         if not result.deleted_document:
-            raise ItemNotFoundError(
-                item_id=UniqueId(guideline_id), message=f"with guideline_set '{guideline_set}'"
-            )
+            raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
     @override
     async def update_guideline(
@@ -293,11 +376,6 @@ class GuidelineDocumentStore(GuidelineStore):
         async with self._lock.writer_lock:
             guideline_document = _GuidelineDocument(
                 {
-                    **(
-                        {"guideline_set": params["guideline_set"]}
-                        if "guideline_set" in params
-                        else {}
-                    ),
                     **({"condition": params["condition"]} if "condition" in params else {}),
                     **({"action": params["action"]} if "action" in params else {}),
                     **({"enabled": params["enabled"]} if "enabled" in params else {}),
@@ -311,18 +389,16 @@ class GuidelineDocumentStore(GuidelineStore):
 
         assert result.updated_document
 
-        return self._deserialize(result.updated_document)
+        return await self._deserialize(guideline_document=result.updated_document)
 
     @override
     async def find_guideline(
         self,
-        guideline_set: str,
         guideline_content: GuidelineContent,
     ) -> Guideline:
         async with self._lock.reader_lock:
             guideline_document = await self._collection.find_one(
                 filters={
-                    "guideline_set": {"$eq": guideline_set},
                     "condition": {"$eq": guideline_content.condition},
                     "action": {"$eq": guideline_content.action},
                 }
@@ -330,8 +406,63 @@ class GuidelineDocumentStore(GuidelineStore):
 
         if not guideline_document:
             raise ItemNotFoundError(
-                item_id=UniqueId(f"{guideline_content.condition}{guideline_content.action}"),
-                message=f"with guideline_set '{guideline_set}'",
+                item_id=UniqueId(f"{guideline_content.condition}{guideline_content.action}")
             )
 
-        return self._deserialize(guideline_document)
+        return await self._deserialize(guideline_document=guideline_document)
+
+    @override
+    async def add_tag(
+        self,
+        guideline_id: GuidelineId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Guideline:
+        async with self._lock.writer_lock:
+            guideline = await self.read_guideline(guideline_id)
+
+            if tag_id in guideline.tags:
+                return guideline
+
+            creation_utc = creation_utc or datetime.now(timezone.utc)
+
+            association_document: _GuidelineTagAssociationDocument = {
+                "id": ObjectId(generate_id()),
+                "version": self.VERSION.to_string(),
+                "creation_utc": creation_utc.isoformat(),
+                "guideline_id": guideline_id,
+                "tag_id": tag_id,
+            }
+
+            _ = await self._tag_association_collection.insert_one(document=association_document)
+
+            guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
+
+        if not guideline_document:
+            raise ItemNotFoundError(item_id=UniqueId(guideline_id))
+
+        return await self._deserialize(guideline_document=guideline_document)
+
+    @override
+    async def remove_tag(
+        self,
+        guideline_id: GuidelineId,
+        tag_id: TagId,
+    ) -> Guideline:
+        async with self._lock.writer_lock:
+            delete_result = await self._tag_association_collection.delete_one(
+                {
+                    "guideline_id": {"$eq": guideline_id},
+                    "tag_id": {"$eq": tag_id},
+                }
+            )
+
+            if delete_result.deleted_count == 0:
+                raise ItemNotFoundError(item_id=UniqueId(tag_id))
+
+            guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
+
+        if not guideline_document:
+            raise ItemNotFoundError(item_id=UniqueId(guideline_id))
+
+        return await self._deserialize(guideline_document=guideline_document)

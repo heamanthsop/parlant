@@ -193,7 +193,6 @@ async def test_guideline_creation_and_loading_data_from_file(
     async with JSONFileDocumentDatabase(context.container[Logger], new_file) as guideline_db:
         async with GuidelineDocumentStore(guideline_db) as guideline_store:
             guideline = await guideline_store.create_guideline(
-                guideline_set=context.agent_id,
                 condition="Creating a guideline with JSONFileDatabase implementation",
                 action="Expecting it to show in the guidelines json file",
             )
@@ -204,7 +203,6 @@ async def test_guideline_creation_and_loading_data_from_file(
     assert len(guidelines_from_json["guidelines"]) == 1
 
     json_guideline = guidelines_from_json["guidelines"][0]
-    assert json_guideline["guideline_set"] == context.agent_id
 
     assert json_guideline["condition"] == guideline.content.condition
     assert json_guideline["action"] == guideline.content.action
@@ -213,7 +211,6 @@ async def test_guideline_creation_and_loading_data_from_file(
     async with JSONFileDocumentDatabase(context.container[Logger], new_file) as guideline_db:
         async with GuidelineDocumentStore(guideline_db) as guideline_store:
             second_guideline = await guideline_store.create_guideline(
-                guideline_set=context.agent_id,
                 condition="Second guideline creation",
                 action="Additional test entry in the JSON file",
             )
@@ -224,7 +221,6 @@ async def test_guideline_creation_and_loading_data_from_file(
     assert len(guidelines_from_json["guidelines"]) == 2
 
     second_json_guideline = guidelines_from_json["guidelines"][1]
-    assert second_json_guideline["guideline_set"] == context.agent_id
 
     assert second_json_guideline["condition"] == second_guideline.content.condition
     assert second_json_guideline["action"] == second_guideline.content.action
@@ -241,12 +237,11 @@ async def test_guideline_retrieval(
     async with JSONFileDocumentDatabase(context.container[Logger], new_file) as guideline_db:
         async with GuidelineDocumentStore(guideline_db) as guideline_store:
             await guideline_store.create_guideline(
-                guideline_set=context.agent_id,
                 condition="Test condition for loading",
                 action="Test content for loading guideline",
             )
 
-            loaded_guidelines = await guideline_store.list_guidelines(context.agent_id)
+            loaded_guidelines = await guideline_store.list_guidelines()
 
         loaded_guideline_list = list(loaded_guidelines)
 
@@ -506,7 +501,6 @@ async def test_successful_loading_of_an_empty_json_file(
     async with JSONFileDocumentDatabase(context.container[Logger], new_file) as guideline_db:
         async with GuidelineDocumentStore(guideline_db) as guideline_store:
             await guideline_store.create_guideline(
-                guideline_set=context.agent_id,
                 condition="Create a guideline just for testing",
                 action="Expect it to appear in the guidelines JSON file eventually",
             )
@@ -517,7 +511,9 @@ async def test_successful_loading_of_an_empty_json_file(
     assert len(guidelines_from_json["guidelines"]) == 1
 
     json_guideline = guidelines_from_json["guidelines"][0]
-    assert json_guideline["guideline_set"] == context.agent_id
+
+    assert json_guideline["condition"] == "Create a guideline just for testing"
+    assert json_guideline["action"] == "Expect it to appear in the guidelines JSON file eventually"
 
 
 async def test_evaluation_creation(

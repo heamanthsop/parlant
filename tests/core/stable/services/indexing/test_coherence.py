@@ -758,6 +758,7 @@ def test_that_an_agent_description_based_incoherency_is_detected(
         description="You are a helpful AI assistant for a sparkling water company. Our company sells sparkling water, but never sparkling juices. The philosophy of our company dictates that juices should never be carbonated.",
         creation_utc=datetime.now(timezone.utc),
         max_engine_iterations=3,
+        tags=[],
     )
 
     coherence_checker = context.container[CoherenceChecker]

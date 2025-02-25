@@ -812,6 +812,7 @@ def test_that_agent_based_connection_is_detected(
         description="You are a helpful AI assistant for a sparkling water company. Our philosophy dictates that oranges are vegetables and not fruit, despite what other may say.",
         creation_utc=datetime.now(timezone.utc),
         max_engine_iterations=3,
+        tags=[],
     )
     source_guideline_content = GuidelineContent(
         "the customer asks for drink recommendation",
@@ -846,6 +847,7 @@ def test_that_many_guidelines_with_agent_description_and_glossary_arent_detected
         name="Sparkleton Agent",
         description="You're an AI assistant to a sparkling water expert at Sparkleton. The expert may consult you while talking to potential clients to retrieve important information from Sparkleton's documentation.",
         max_engine_iterations=3,
+        tags=[],
     )
 
     glossary_store = context.container[GlossaryStore]
