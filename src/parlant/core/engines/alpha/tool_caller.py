@@ -599,7 +599,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                 result["description"] = description
 
             if examples := descriptor.get("examples"):
-                result["examples"] = examples
+                result["extraction_examples__only_for_reference"] = examples
 
             match options.source:
                 case "any":

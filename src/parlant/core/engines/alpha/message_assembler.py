@@ -295,7 +295,7 @@ FRAGMENT BANK:
                         for i, example in enumerate(field.examples, start=1):
                             examples.append(f"{i}) {example}")
 
-                        field_description += f" -- Examples: {'; '.join(examples)}"
+                        field_description += f" -- Example Extractions (only use these for reference on how to properly extract values in the right format): {'; '.join(examples)}"
 
                     fragment_dict["fields"][field.name] = field_description
 
@@ -351,7 +351,7 @@ Do not disregard a guideline because you believe its 'when' condition or rationa
         return "\n".join(
             f"""
 Example {i} - {shot.description}: ###
-{self._format_shot(shot)} 
+{self._format_shot(shot)}
 ###
 """
             for i, shot in enumerate(shots, start=1)
