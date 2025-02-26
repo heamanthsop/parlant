@@ -58,7 +58,6 @@ from parlant.core.guideline_tool_associations import (
 )
 from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.store_queries import StoreQueries
 from parlant.core.tags import TagId
 from parlant.core.tools import ToolId
 
@@ -492,7 +491,6 @@ guideline_example = {
 
 def create_router(
     application: Application,
-    store_queries: StoreQueries,
     guideline_store: GuidelineStore,
     guideline_connection_store: GuidelineConnectionStore,
     service_registry: ServiceRegistry,
@@ -643,8 +641,8 @@ def create_router(
         Returns both direct and indirect connections between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
-        guidelines = await store_queries.list_guidelines_for_agent(
-            agent_id=agent_id,
+        guidelines = await guideline_store.list_guidelines(
+            guideline_tags=[TagId(f"agent_id::{agent_id}")],
         )
 
         guideline = next(
@@ -655,7 +653,7 @@ def create_router(
         if not guideline:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Guideline is not global or associated with the specified agent",
+                detail="Guideline is not associated with the specified agent",
             )
 
         connections = await get_guideline_connections(
@@ -726,8 +724,8 @@ def create_router(
         Guidelines are returned in no guaranteed order.
         Does not include connections or tool associations.
         """
-        guidelines = await store_queries.list_guidelines_for_agent(
-            agent_id=agent_id,
+        guidelines = await guideline_store.list_guidelines(
+            guideline_tags=[TagId(f"agent_id::{agent_id}")],
         )
 
         return [
@@ -795,8 +793,8 @@ def create_router(
                 params=GuidelineUpdateParams(enabled=params.enabled),
             )
 
-        guidelines = await store_queries.list_guidelines_for_agent(
-            agent_id=agent_id,
+        guidelines = await guideline_store.list_guidelines(
+            guideline_tags=[TagId(f"agent_id::{agent_id}")],
         )
 
         if params.connections and params.connections.add:
@@ -810,13 +808,13 @@ def create_router(
                     if not any(g.id == req.target for g in guidelines):
                         raise HTTPException(
                             status_code=status.HTTP_404_NOT_FOUND,
-                            detail="The target guideline is not global or associated with the specified agent",
+                            detail="The target guideline is not associated with the specified agent",
                         )
                 elif req.target == guideline.id:
                     if not any(g.id == req.source for g in guidelines):
                         raise HTTPException(
                             status_code=status.HTTP_404_NOT_FOUND,
-                            detail="The source guideline is not global or associated with the specified agent",
+                            detail="The source guideline is not associated with the specified agent",
                         )
                 else:
                     raise HTTPException(
@@ -946,14 +944,14 @@ def create_router(
         Deleting a non-existent guideline will return 404.
         No content will be returned from a successful deletion.
         """
-        guidelines = await store_queries.list_guidelines_for_agent(
-            agent_id=agent_id,
+        guidelines = await guideline_store.list_guidelines(
+            guideline_tags=[TagId(f"agent_id::{agent_id}")],
         )
 
         if not any(g.id == guideline_id for g in guidelines):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Guideline is not global or associated with the specified agent",
+                detail="Guideline is not associated with the specified agent",
             )
 
         await guideline_store.delete_guideline(guideline_id=guideline_id)
