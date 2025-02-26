@@ -358,6 +358,15 @@ class GuidelineDocumentStore(GuidelineStore):
                 }
             )
 
+            for doc in await self._tag_association_collection.find(
+                filters={
+                    "guideline_id": {"$eq": guideline_id},
+                }
+            ):
+                await self._tag_association_collection.delete_one(
+                    filters={"id": {"$eq": doc["id"]}}
+                )
+
         if not result.deleted_document:
             raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
