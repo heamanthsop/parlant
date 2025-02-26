@@ -18,13 +18,12 @@ from lagom import Container
 from pytest import mark
 
 from parlant.core.agents import AgentId
-from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Session
 from parlant.core.context_variables import ContextVariableStore
 from parlant.core.engines.alpha.engine import load_fresh_context_variable_value
 from parlant.core.tags import TagId
 from parlant.core.tools import LocalToolService, ToolId
-
+from parlant.core.entity_cq import EntityQueries, EntityCommands
 
 from tests.core.common.utils import ContextOfTest
 
@@ -77,7 +76,8 @@ async def test_that_value_is_not_refreshed_when_freshness_rules_are_not_met(
     await create_fetch_account_balance_tool(context.container)
 
     context_variable_store = context.container[ContextVariableStore]
-    service_registry = context.container[ServiceRegistry]
+    entity_queries = context.container[EntityQueries]
+    entity_commands = context.container[EntityCommands]
 
     context_variable = await context_variable_store.create_variable(
         name=variable_name,
@@ -98,8 +98,8 @@ async def test_that_value_is_not_refreshed_when_freshness_rules_are_not_met(
     )
 
     await load_fresh_context_variable_value(
-        context_variable_store=context_variable_store,
-        service_registry=service_registry,
+        entity_queries=entity_queries,
+        entity_commands=entity_commands,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,
@@ -147,7 +147,8 @@ async def test_that_value_refreshes_when_freshness_rules_are_met(
     await create_fetch_account_balance_tool(context.container)
 
     context_variable_store = context.container[ContextVariableStore]
-    service_registry = context.container[ServiceRegistry]
+    entity_queries = context.container[EntityQueries]
+    entity_commands = context.container[EntityCommands]
 
     context_variable = await context_variable_store.create_variable(
         name=variable_name,
@@ -168,8 +169,8 @@ async def test_that_value_refreshes_when_freshness_rules_are_met(
     )
 
     value = await load_fresh_context_variable_value(
-        context_variable_store=context_variable_store,
-        service_registry=service_registry,
+        entity_queries=entity_queries,
+        entity_commands=entity_commands,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,
@@ -194,7 +195,8 @@ async def test_that_value_is_created_when_need_to_be_freshed(
     await create_fetch_account_balance_tool(context.container)
 
     context_variable_store = context.container[ContextVariableStore]
-    service_registry = context.container[ServiceRegistry]
+    entity_queries = context.container[EntityQueries]
+    entity_commands = context.container[EntityCommands]
 
     context_variable = await context_variable_store.create_variable(
         name=variable_name,
@@ -208,8 +210,8 @@ async def test_that_value_is_created_when_need_to_be_freshed(
     )
 
     created_value = await load_fresh_context_variable_value(
-        context_variable_store=context_variable_store,
-        service_registry=service_registry,
+        entity_queries=entity_queries,
+        entity_commands=entity_commands,
         agent_id=agent_id,
         session=new_session,
         variable=context_variable,

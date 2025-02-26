@@ -58,6 +58,7 @@ from parlant.core.evaluations import (
     EvaluationStatus,
     EvaluationStore,
 )
+from parlant.core.entity_cq import EntityQueries, EntityCommands
 from parlant.core.guideline_connections import (
     GuidelineConnectionDocumentStore,
     GuidelineConnectionStore,
@@ -283,6 +284,9 @@ async def setup_container() -> AsyncIterator[Container]:
     c[CoherenceChecker] = Singleton(CoherenceChecker)
     c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
     c[EvaluationListener] = Singleton(PollingEvaluationListener)
+
+    c[EntityQueries] = Singleton(EntityQueries)
+    c[EntityCommands] = Singleton(EntityCommands)
 
     c[Engine] = Singleton(AlphaEngine)
     c[Application] = lambda rc: Application(rc)

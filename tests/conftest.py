@@ -99,7 +99,7 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
 )
 from parlant.core.shots import ShotCollection
-from parlant.core.entity_cq import EntityQueries
+from parlant.core.entity_cq import EntityQueries, EntityCommands
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.core.tools import LocalToolService
 
@@ -262,7 +262,7 @@ async def container(
         )
 
         container[EntityQueries] = Singleton(EntityQueries)
-
+        container[EntityCommands] = Singleton(EntityCommands)
         for generation_schema in (
             GuidelinePropositionsSchema,
             FluidMessageSchema,
