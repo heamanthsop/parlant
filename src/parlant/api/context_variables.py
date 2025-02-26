@@ -30,7 +30,6 @@ from parlant.core.context_variables import (
     ContextVariableValueId,
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.store_queries import StoreQueries
 from parlant.core.tags import TagId
 from parlant.core.tools import ToolId
 
@@ -322,7 +321,6 @@ IncludeValuesQuery: TypeAlias = Annotated[
 def create_router(
     context_variable_store: ContextVariableStore,
     service_registry: ServiceRegistry,
-    store_queries: StoreQueries,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -428,7 +426,10 @@ def create_router(
 
             return params
 
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
+
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -467,7 +468,10 @@ def create_router(
         agent_id: AgentIdPath,
     ) -> None:
         """Deletes all context variables and their values for the provided agent ID"""
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
+
         for v in variables:
             await context_variable_store.delete_variable(id=v.id)
 
@@ -490,7 +494,9 @@ def create_router(
         """
         Deletes a specific context variable and all its values.
         """
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -516,7 +522,9 @@ def create_router(
         agent_id: AgentIdPath,
     ) -> Sequence[ContextVariableDTO]:
         """Lists all context variables set for the provided agent"""
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
 
         return [
             ContextVariableDTO(
@@ -563,7 +571,9 @@ def create_router(
         If `key="DEFAULT"`, the update applies to all customers.
         The `params` parameter contains the actual context information being stored.
         """
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -609,7 +619,9 @@ def create_router(
 
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         """
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -656,7 +668,9 @@ def create_router(
 
         Can return all customer or tag values for this variable type if include_values=True.
         """
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
         variable = next((v for v in variables if v.id == variable_id), None)
 
         if variable is None:
@@ -723,7 +737,9 @@ def create_router(
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         Removes only the value for the specified key while keeping the variable's configuration.
         """
-        variables = await store_queries.list_context_variables_for_agent(agent_id)
+        variables = await context_variable_store.list_variables(
+            variable_tags=[TagId(f"agent_id::{agent_id}")],
+        )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -53,7 +53,6 @@ from parlant.core.services.indexing.behavioral_change_evaluation import (
 )
 from parlant.core.loggers import Logger
 from parlant.core.application import Application
-from parlant.core.store_queries import StoreQueries
 from parlant.core.tags import TagStore
 
 ASGIApplication: TypeAlias = Callable[
@@ -103,7 +102,6 @@ async def create_api_app(container: Container) -> ASGIApplication:
     service_registry = container[ServiceRegistry]
     nlp_service = container[NLPService]
     application = container[Application]
-    store_queries = container[StoreQueries]
 
     api_app = FastAPI()
 
@@ -161,7 +159,6 @@ async def create_api_app(container: Container) -> ASGIApplication:
     agent_router.include_router(
         guidelines.create_router(
             application=application,
-            store_queries=store_queries,
             guideline_store=guideline_store,
             guideline_connection_store=guideline_connection_store,
             service_registry=service_registry,
@@ -177,7 +174,6 @@ async def create_api_app(container: Container) -> ASGIApplication:
         variables.create_router(
             context_variable_store=context_variable_store,
             service_registry=service_registry,
-            store_queries=store_queries,
         ),
     )
 

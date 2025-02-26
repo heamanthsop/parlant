@@ -74,7 +74,8 @@ from parlant.core.engines.types import Context, Engine, UtteranceReason, Utteran
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
-from parlant.core.store_queries import StoreQueries
+from parlant.core.entity_cq import EntityQueries
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolContext, ToolId
 
 
@@ -155,7 +156,7 @@ class AlphaEngine(Engine):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
-        store_queries: StoreQueries,
+        entity_queries: EntityQueries,
         agent_store: AgentStore,
         session_store: SessionStore,
         customer_store: CustomerStore,
@@ -173,7 +174,7 @@ class AlphaEngine(Engine):
         self._logger = logger
         self._correlator = correlator
 
-        self._store_queries = store_queries
+        self._entity_queries = entity_queries
         self._agent_store = agent_store
         self._session_store = session_store
         self._customer_store = customer_store
@@ -694,7 +695,7 @@ class AlphaEngine(Engine):
         self,
         context: _LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
-        variables_supported_by_agent = await self._store_queries.list_context_variables_for_agent(
+        variables_supported_by_agent = await self._entity_queries.list_context_variables_for_agent(
             agent_id=context.agent.id,
         )
 
@@ -728,7 +729,7 @@ class AlphaEngine(Engine):
         # Step 1: Retrieve all of the enabled guidelines for this agent.
         all_stored_guidelines = [
             g
-            for g in await self._store_queries.list_guidelines_for_agent(
+            for g in await self._entity_queries.list_guidelines_for_agent(
                 agent_id=context.agent.id,
             )
             if g.enabled
@@ -904,8 +905,8 @@ class AlphaEngine(Engine):
 
         if query:
             return await self._glossary_store.find_relevant_terms(
-                term_set=context.agent.id,
                 query=query,
+                term_tags=[TagId(f"agent_id::{context.agent.id}")],
             )
 
         return []

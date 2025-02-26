@@ -22,6 +22,7 @@ from parlant.core.guidelines import GuidelineContent
 from parlant.core.services.indexing.guideline_connection_proposer import (
     GuidelineConnectionProposer,
 )
+from parlant.core.tags import TagId
 from tests.core.common.utils import ContextOfTest
 
 
@@ -230,14 +231,19 @@ def test_that_a_connection_is_proposed_based_on_given_glossary(
     connection_proposer = context.container[GuidelineConnectionProposer]
     glossary_store = context.container[GlossaryStore]
 
-    context.sync_await(
+    term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="walnut",
             description="walnut is an altcoin",
         )
     )
 
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
+        )
+    )
     source_guideline_content = GuidelineContent(
         "the customer asks about walnut prices",
         "provide the current walnut prices",
@@ -269,18 +275,30 @@ def test_that_a_connection_is_proposed_based_on_multiple_glossary_terms(
     connection_proposer = context.container[GuidelineConnectionProposer]
     glossary_store = context.container[GlossaryStore]
 
-    context.sync_await(
+    first_term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="walnut",
             description="walnut is an altcoin",
         )
     )
-    context.sync_await(
+    second_term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="the tall tree",
             description="the tall tree is a German website for purchasing virtual goods",
+        )
+    )
+
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=first_term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
+        )
+    )
+
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=second_term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
         )
     )
 
@@ -740,11 +758,17 @@ def test_that_misspelled_entailing_guidelines_are_connected(
     connection_proposer = context.container[GuidelineConnectionProposer]
     glossary_store = context.container[GlossaryStore]
 
-    context.sync_await(
+    term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="walnut",
             description="walnut is an altcoin",
+        )
+    )
+
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
         )
     )
 
@@ -852,28 +876,45 @@ def test_that_many_guidelines_with_agent_description_and_glossary_arent_detected
 
     glossary_store = context.container[GlossaryStore]
 
-    context.sync_await(
+    first_term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="Sparkleton",
             description="The top sparkling water company in the world",
             synonyms=["sparkleton", "sparkletown", "the company"],
         )
     )
     context.sync_await(
+        glossary_store.add_tag(
+            term_id=first_term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
+        )
+    )
+
+    second_term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="tomatola",
             description="A type of cola made out of tomatoes",
             synonyms=["tomato cola"],
         )
     )
     context.sync_await(
+        glossary_store.add_tag(
+            term_id=second_term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
+        )
+    )
+
+    third_term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent.id,
             name="carbon coin",
             description="a virtual currency awarded to customers. Can be used to buy any Sparkleton product",
             synonyms=["cc", "C coin"],
+        )
+    )
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=third_term.id,
+            tag_id=TagId(f"agent_id::{agent.id}"),
         )
     )
 

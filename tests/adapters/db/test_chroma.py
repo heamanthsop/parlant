@@ -33,6 +33,7 @@ from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ObjectId
 
 from parlant.core.persistence.vector_database import BaseDocument
+from parlant.core.tags import TagId
 from tests.test_utilities import SyncAwaiter
 
 
@@ -360,25 +361,36 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                 embedder_type=type(await container[NLPService].get_embedder()),
             ) as glossary_chroma_store:
                 bazoo = await glossary_chroma_store.create_term(
-                    term_set=agent_id,
                     name="Bazoo",
                     description="a type of cow",
                 )
 
                 shazoo = await glossary_chroma_store.create_term(
-                    term_set=agent_id,
                     name="Shazoo",
                     description="a type of zebra",
                 )
 
                 kazoo = await glossary_chroma_store.create_term(
-                    term_set=agent_id,
                     name="Kazoo",
                     description="a type of horse",
                 )
 
+                await glossary_chroma_store.add_tag(
+                    term_id=kazoo.id,
+                    tag_id=TagId(f"agent_id::{agent_id}"),
+                )
+
+                await glossary_chroma_store.add_tag(
+                    term_id=shazoo.id,
+                    tag_id=TagId(f"agent_id::{agent_id}"),
+                )
+
+                await glossary_chroma_store.add_tag(
+                    term_id=bazoo.id,
+                    tag_id=TagId(f"agent_id::{agent_id}"),
+                )
+
                 terms = await glossary_chroma_store.find_relevant_terms(
-                    agent_id,
                     ("walla " * 5000)
                     + "Kazoo"
                     + ("balla " * 5000)
@@ -386,6 +398,7 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     + ("kalla " * 5000)
                     + "Bazoo",
                     max_terms=3,
+                    term_tags=[TagId(f"agent_id::{agent_id}")],
                 )
 
                 assert len(terms) == 3
@@ -625,9 +638,13 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
             allow_migration=True,
         ) as store:
             term = await store.create_term(
-                term_set=agent_id,
                 name="Bazoo",
                 description="a type of cow",
+            )
+
+            await store.add_tag(
+                term_id=term.id,
+                tag_id=TagId(f"agent_id::{agent_id}"),
             )
 
     async with create_database(context) as chroma_db:
@@ -709,3 +726,71 @@ async def test_that_documents_are_migrated_and_reindexed_for_new_embedder_type(
             d["id"] == ObjectId("2") and d["new_name"] == "Document 2" for d in migrated_docs
         )
         assert all(d["version"] == Version.String("2.0.0") for d in migrated_docs)
+
+
+async def test_that_in_filter_works_with_list_of_strings(
+    context: _TestContext,
+) -> None:
+    async with create_database(context) as chroma_db:
+        async with GlossaryVectorStore(
+            vector_db=chroma_db,
+            embedder_factory=EmbedderFactory(context.container),
+            embedder_type=NoOpEmbedder,
+            allow_migration=True,
+        ) as store:
+            first_term = await store.create_term(
+                name="Bazoo",
+                description="a type of cow",
+            )
+            second_term = await store.create_term(
+                name="Shazoo",
+                description="a type of cow",
+            )
+            third_term = await store.create_term(
+                name="Fazoo",
+                description="a type of cow",
+            )
+
+            await store.add_tag(
+                term_id=first_term.id,
+                tag_id=TagId("a"),
+            )
+
+            await store.add_tag(
+                term_id=first_term.id,
+                tag_id=TagId("b"),
+            )
+
+            await store.add_tag(
+                term_id=second_term.id,
+                tag_id=TagId("b"),
+            )
+
+            await store.add_tag(
+                term_id=third_term.id,
+                tag_id=TagId("c"),
+            )
+
+            await store.add_tag(
+                term_id=third_term.id,
+                tag_id=TagId("d"),
+            )
+
+            terms = await store.list_terms(term_tags=[TagId("a"), TagId("b")])
+            assert len(terms) == 2
+            assert terms[0].id == first_term.id
+            assert terms[1].id == second_term.id
+
+            terms = await store.list_terms(term_tags=[TagId("a"), TagId("b"), TagId("c")])
+            assert len(terms) == 3
+            assert terms[0].id == first_term.id
+            assert terms[1].id == second_term.id
+            assert terms[2].id == third_term.id
+
+            terms = await store.list_terms(
+                term_tags=[TagId("a"), TagId("b"), TagId("c"), TagId("d")]
+            )
+            assert len(terms) == 3
+            assert terms[0].id == first_term.id
+            assert terms[1].id == second_term.id
+            assert terms[2].id == third_term.id

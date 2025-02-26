@@ -16,6 +16,7 @@ from pytest_bdd import given, parsers
 
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.glossary import GlossaryStore
+from parlant.core.tags import TagId
 
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
@@ -30,11 +31,16 @@ def given_the_term_definition(
 ) -> None:
     glossary_store = context.container[GlossaryStore]
     agent_id = context.sync_await(context.container[AgentStore].read_agent(agent_id)).id
-    context.sync_await(
+    term = context.sync_await(
         glossary_store.create_term(
-            term_set=agent_id,
             name=term_name,
             description=term_description,
+        )
+    )
+    context.sync_await(
+        glossary_store.add_tag(
+            term_id=term.id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
         )
     )
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, HTTPException, Path, status
 from typing import Annotated, Optional, Sequence, TypeAlias
 from pydantic import Field
 
@@ -21,6 +21,7 @@ from parlant.api.common import apigen_config, ExampleJson
 from parlant.core.agents import AgentId
 from parlant.core.common import DefaultBaseModel
 from parlant.core.glossary import TermUpdateParams, GlossaryStore, TermId
+from parlant.core.tags import TagId
 
 API_GROUP = "glossary"
 
@@ -174,10 +175,14 @@ def create_router(
         - `synonyms` defaults to an empty list if not provided
         """
         term = await glossary_store.create_term(
-            term_set=agent_id,
             name=params.name,
             description=params.description,
             synonyms=params.synonyms,
+        )
+
+        await glossary_store.add_tag(
+            term_id=term.id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
         )
 
         return TermDTO(
@@ -209,7 +214,15 @@ def create_router(
         """
         Retrieves details of a specific term by ID for a given agent.
         """
-        term = await glossary_store.read_term(term_set=agent_id, term_id=term_id)
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+
+        term = next((term for term in terms if term.id == term_id), None)
+
+        if term is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Term not found for the provided agent",
+            )
 
         return TermDTO(
             id=term.id,
@@ -242,7 +255,7 @@ def create_router(
         Returns an empty list if no terms associated to the provided agent's ID.
         Terms are returned in no guaranteed order.
         """
-        terms = await glossary_store.list_terms(term_set=agent_id)
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
 
         return [
             TermDTO(
@@ -295,8 +308,17 @@ def create_router(
 
             return params
 
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+
+        term = next((term for term in terms if term.id == term_id), None)
+
+        if term is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Term not found for the provided agent",
+            )
+
         term = await glossary_store.update_term(
-            term_set=agent_id,
             term_id=term_id,
             params=from_dto(params),
         )
@@ -332,8 +354,24 @@ def create_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
-        await glossary_store.read_term(term_set=agent_id, term_id=term_id)
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
 
-        await glossary_store.delete_term(term_set=agent_id, term_id=term_id)
+        term = next((term for term in terms if term.id == term_id), None)
+
+        if term is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Term not found for the provided agent",
+            )
+
+        updated_term = await glossary_store.remove_tag(
+            term_id=term_id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
+        )
+
+        if not updated_term.tags:
+            await glossary_store.delete_term(
+                term_id=term_id,
+            )
 
     return router

@@ -14,8 +14,11 @@
 
 from fastapi import status
 import httpx
+from lagom import Container
 
 from parlant.core.agents import AgentId
+from parlant.core.glossary import GlossaryStore
+from parlant.core.tags import TagId
 
 
 async def test_that_a_term_can_be_created(
@@ -229,3 +232,68 @@ async def test_that_a_term_can_be_deleted(
 
     read_response = await async_client.get(f"/agents/{agent_id}/terms/{name}")
     assert read_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_retrieve_a_term_associated_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    glossary_store = container[GlossaryStore]
+    term = await glossary_store.create_term(
+        name="guideline",
+        description="when and then statements",
+        synonyms=["rule", "principle"],
+    )
+
+    await glossary_store.add_tag(
+        term_id=term.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.get(f"/agents/{agent_id}/terms/{term.id}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    glossary_store = container[GlossaryStore]
+
+    term = await glossary_store.create_term(
+        name="guideline",
+        description="when and then statements",
+        synonyms=["rule", "principle"],
+    )
+
+    await glossary_store.add_tag(
+        term_id=term.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.patch(f"/agents/{agent_id}/terms/{term.id}", json={})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    agent_id: AgentId,
+) -> None:
+    glossary_store = container[GlossaryStore]
+
+    term = await glossary_store.create_term(
+        name="guideline",
+        description="when and then statements",
+        synonyms=["rule", "principle"],
+    )
+
+    await glossary_store.add_tag(
+        term_id=term.id,
+        tag_id=TagId("agent_id::wrong_agent"),
+    )
+
+    response = await async_client.delete(f"/agents/{agent_id}/terms/{term.id}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND

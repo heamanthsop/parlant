@@ -255,13 +255,19 @@ def create_guideline(
     return guideline
 
 
-def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
+def create_term(
+    name: str,
+    description: str,
+    synonyms: list[str] = [],
+    tags: list[TagId] = [],
+) -> Term:
     return Term(
         id=TermId("-"),
         creation_utc=datetime.now(timezone.utc),
         name=name,
         description=description,
         synonyms=synonyms,
+        tags=tags,
     )
 
 

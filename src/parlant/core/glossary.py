@@ -22,10 +22,14 @@ from typing_extensions import override, Self, Required
 from parlant.core import async_utils
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, Version, generate_id, UniqueId, md5_checksum
-from parlant.core.persistence.common import ObjectId
+from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.persistence.vector_database import BaseDocument, VectorCollection, VectorDatabase
-from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
+from parlant.core.persistence.vector_database_helper import (
+    VectorDocumentMigrationHelper,
+    VectorDocumentStoreMigrationHelper,
+)
+from parlant.core.tags import TagId
 
 
 TermId = NewType("TermId", str)
@@ -38,6 +42,7 @@ class Term:
     name: str
     description: str
     synonyms: list[str]
+    tags: list[TagId]
 
     def __repr__(self) -> str:
         term_string = f"Name: '{self.name}', Description: {self.description}"
@@ -59,7 +64,6 @@ class GlossaryStore:
     @abstractmethod
     async def create_term(
         self,
-        term_set: str,
         name: str,
         description: str,
         creation_utc: Optional[datetime] = None,
@@ -69,7 +73,6 @@ class GlossaryStore:
     @abstractmethod
     async def update_term(
         self,
-        term_set: str,
         term_id: TermId,
         params: TermUpdateParams,
     ) -> Term: ...
@@ -77,32 +80,45 @@ class GlossaryStore:
     @abstractmethod
     async def read_term(
         self,
-        term_set: str,
         term_id: TermId,
     ) -> Term: ...
 
     @abstractmethod
     async def list_terms(
         self,
-        term_set: str,
+        term_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]: ...
 
     @abstractmethod
     async def delete_term(
         self,
-        term_set: str,
         term_id: TermId,
     ) -> None: ...
 
     @abstractmethod
     async def find_relevant_terms(
         self,
-        term_set: str,
         query: str,
+        term_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]: ...
 
+    @abstractmethod
+    async def add_tag(
+        self,
+        term_id: TermId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Term: ...
 
-class _TermDocument(TypedDict, total=False):
+    @abstractmethod
+    async def remove_tag(
+        self,
+        term_id: TermId,
+        tag_id: TagId,
+    ) -> Term: ...
+
+
+class _TermDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     content: str
@@ -114,8 +130,20 @@ class _TermDocument(TypedDict, total=False):
     synonyms: Optional[str]
 
 
+class _TermDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    content: str
+    checksum: Required[str]
+    creation_utc: str
+    name: str
+    description: str
+    synonyms: Optional[str]
+    tags: str
+
+
 class GlossaryVectorStore(GlossaryStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(
         self,
@@ -133,10 +161,26 @@ class GlossaryVectorStore(GlossaryStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, document: BaseDocument) -> Optional[_TermDocument]:
-        if document["version"] == "0.1.0":
-            return cast(_TermDocument, document)
+        async def v0_1_0_to_v_0_2_0(document: BaseDocument) -> Optional[BaseDocument]:
+            d = cast(_TermDocument_v0_1_0, document)
+            return _TermDocument(
+                id=d["id"],
+                version=Version.String("0.2.0"),
+                content=d["content"],
+                checksum=d["checksum"],
+                creation_utc=d["creation_utc"],
+                name=d["name"],
+                description=d["description"],
+                synonyms=d["synonyms"],
+                tags=f"agent_id::{d['term_set']}",
+            )
 
-        return None
+        return await VectorDocumentMigrationHelper[_TermDocument](
+            self,
+            {
+                "0.1.0": v0_1_0_to_v_0_2_0,
+            },
+        ).migrate(document)
 
     async def __aenter__(self) -> Self:
         async with VectorDocumentStoreMigrationHelper(
@@ -161,17 +205,22 @@ class GlossaryVectorStore(GlossaryStore):
     ) -> None:
         pass
 
-    def _serialize(self, term: Term, term_set: str, content: str, checksum: str) -> _TermDocument:
+    def _serialize(
+        self,
+        term: Term,
+        content: str,
+        checksum: str,
+    ) -> _TermDocument:
         return _TermDocument(
             id=ObjectId(term.id),
             version=self.VERSION.to_string(),
             content=content,
             checksum=checksum,
-            term_set=term_set,
             creation_utc=term.creation_utc.isoformat(),
             name=term.name,
             description=term.description,
             synonyms=(", ").join(term.synonyms) if term.synonyms is not None else "",
+            tags=", ".join(term.tags),
         )
 
     def _deserialize(self, term_document: _TermDocument) -> Term:
@@ -181,12 +230,12 @@ class GlossaryVectorStore(GlossaryStore):
             name=term_document["name"],
             description=term_document["description"],
             synonyms=term_document["synonyms"].split(", ") if term_document["synonyms"] else [],
+            tags=[TagId(t) for t in term_document["tags"].split(", ")],
         )
 
     @override
     async def create_term(
         self,
-        term_set: str,
         name: str,
         description: str,
         creation_utc: Optional[datetime] = None,
@@ -199,6 +248,7 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=synonyms,
+                tags=[],
             )
 
             term = Term(
@@ -207,12 +257,12 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=list(synonyms) if synonyms else [],
+                tags=[],
             )
 
             await self._collection.insert_one(
                 document=self._serialize(
                     term=term,
-                    term_set=term_set,
                     content=content,
                     checksum=md5_checksum(content),
                 )
@@ -223,14 +273,13 @@ class GlossaryVectorStore(GlossaryStore):
     @override
     async def update_term(
         self,
-        term_set: str,
         term_id: TermId,
         params: TermUpdateParams,
     ) -> Term:
         async with self._lock.writer_lock:
-            document_to_update = await self._collection.find_one(
-                {"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]}
-            )
+            term = await self.read_term(term_id)
+
+            document_to_update = await self._collection.find_one(filters={"id": {"$eq": term_id}})
 
             if not document_to_update:
                 raise ItemNotFoundError(item_id=UniqueId(term_id))
@@ -247,10 +296,11 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=synonyms,
+                tags=term.tags,
             )
 
             update_result = await self._collection.update_one(
-                filters={"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]},
+                filters={"id": {"$eq": term_id}},
                 params={
                     "content": content,
                     "name": name,
@@ -267,47 +317,50 @@ class GlossaryVectorStore(GlossaryStore):
     @override
     async def read_term(
         self,
-        term_set: str,
         term_id: TermId,
     ) -> Term:
         async with self._lock.reader_lock:
-            term_document = await self._collection.find_one(
-                filters={"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]}
-            )
+            term_document = await self._collection.find_one(filters={"id": {"$eq": term_id}})
 
         if not term_document:
-            raise ItemNotFoundError(item_id=UniqueId(term_id), message=f"term_set={term_set}")
+            raise ItemNotFoundError(item_id=UniqueId(term_id))
 
         return self._deserialize(term_document=term_document)
 
     @override
     async def list_terms(
         self,
-        term_set: str,
+        term_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]:
         async with self._lock.reader_lock:
-            return [
-                self._deserialize(term_document=d)
-                for d in await self._collection.find(filters={"term_set": {"$eq": term_set}})
-            ]
+            if term_tags is not None:
+                if len(term_tags) == 0:
+                    return [
+                        self._deserialize(term)
+                        for term in await self._collection.find(filters={"tags": {"$eq": ""}})
+                    ]
+                else:
+                    return [
+                        self._deserialize(term)
+                        for term in await self._collection.find(
+                            filters={"tags": {"$in": [ObjectId(tag) for tag in term_tags]}}
+                        )
+                    ]
+            else:
+                return [self._deserialize(term) for term in await self._collection.find(filters={})]
 
     @override
     async def delete_term(
         self,
-        term_set: str,
         term_id: TermId,
     ) -> None:
         async with self._lock.writer_lock:
-            term_document = await self._collection.find_one(
-                filters={"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]}
-            )
+            term_document = await self._collection.find_one(filters={"id": {"$eq": term_id}})
 
             if not term_document:
                 raise ItemNotFoundError(item_id=UniqueId(term_id))
 
-            await self._collection.delete_one(
-                filters={"$and": [{"term_set": {"$eq": term_set}}, {"id": {"$eq": term_id}}]}
-            )
+            await self._collection.delete_one(filters={"id": {"$eq": term_id}})
 
     async def _query_chunks(self, query: str) -> list[str]:
         max_length = self._embedder.max_tokens // 5
@@ -334,16 +387,21 @@ class GlossaryVectorStore(GlossaryStore):
     @override
     async def find_relevant_terms(
         self,
-        term_set: str,
         query: str,
+        term_tags: Optional[Sequence[TagId]] = None,
         max_terms: int = 20,
     ) -> Sequence[Term]:
         async with self._lock.reader_lock:
             queries = await self._query_chunks(query)
 
+            filters: Where = {}
+
+            if term_tags:
+                filters = {"tags": {"$in": [ObjectId(tag) for tag in term_tags]}}
+
             tasks = [
                 self._collection.find_similar_documents(
-                    filters={"term_set": {"$eq": term_set}},
+                    filters=filters,
                     query=q,
                     k=max_terms,
                 )
@@ -361,12 +419,90 @@ class GlossaryVectorStore(GlossaryStore):
         name: str,
         description: str,
         synonyms: Optional[Sequence[str]],
+        tags: Sequence[TagId],
     ) -> str:
         content = f"{name}"
 
         if synonyms:
             content += f", {', '.join(synonyms)}"
 
+        if tags:
+            content += f", {', '.join(tags)}"
+
         content += f": {description}"
 
         return content
+
+    async def add_tag(
+        self,
+        term_id: TermId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Term:
+        async with self._lock.writer_lock:
+            term = await self.read_term(term_id)
+
+            if tag_id in term.tags:
+                return term
+
+            creation_utc = creation_utc or datetime.now(timezone.utc)
+
+            term.tags.append(tag_id)
+
+            await self._collection.update_one(
+                filters={"id": {"$eq": term_id}},
+                params={
+                    "tags": ", ".join(term.tags),
+                    "checksum": md5_checksum(
+                        self._assemble_term_content(
+                            name=term.name,
+                            description=term.description,
+                            synonyms=term.synonyms,
+                            tags=term.tags,
+                        )
+                    ),
+                },
+            )
+
+            term_document = await self._collection.find_one({"id": {"$eq": term_id}})
+
+        if not term_document:
+            raise ItemNotFoundError(item_id=UniqueId(term_id))
+
+        return self._deserialize(term_document=term_document)
+
+    @override
+    async def remove_tag(
+        self,
+        term_id: TermId,
+        tag_id: TagId,
+    ) -> Term:
+        async with self._lock.writer_lock:
+            term = await self.read_term(term_id)
+
+            if tag_id not in term.tags:
+                return term
+
+            term.tags.remove(tag_id)
+
+            await self._collection.update_one(
+                filters={"id": {"$eq": term_id}},
+                params={
+                    "tags": ", ".join(term.tags),
+                    "checksum": md5_checksum(
+                        self._assemble_term_content(
+                            name=term.name,
+                            description=term.description,
+                            synonyms=term.synonyms,
+                            tags=term.tags,
+                        )
+                    ),
+                },
+            )
+
+            term_document = await self._collection.find_one({"id": {"$eq": term_id}})
+
+        if not term_document:
+            raise ItemNotFoundError(item_id=UniqueId(term_id))
+
+        return self._deserialize(term_document=term_document)

@@ -99,7 +99,7 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
 )
 from parlant.core.shots import ShotCollection
-from parlant.core.store_queries import StoreQueries
+from parlant.core.entity_cq import EntityQueries
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.core.tools import LocalToolService
 
@@ -261,7 +261,7 @@ async def container(
             )
         )
 
-        container[StoreQueries] = Singleton(StoreQueries)
+        container[EntityQueries] = Singleton(EntityQueries)
 
         for generation_schema in (
             GuidelinePropositionsSchema,

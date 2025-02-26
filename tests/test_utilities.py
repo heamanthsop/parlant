@@ -212,12 +212,18 @@ async def create_term(
     description: str,
     synonyms: list[str],
 ) -> Term:
-    return await container[GlossaryStore].create_term(
-        term_set=agent_id,
+    term = await container[GlossaryStore].create_term(
         name=name,
         description=description,
         synonyms=synonyms,
     )
+
+    await container[GlossaryStore].add_tag(
+        term_id=term.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
+    )
+
+    return term
 
 
 async def create_context_variable(

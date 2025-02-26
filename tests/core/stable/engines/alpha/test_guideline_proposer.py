@@ -273,13 +273,16 @@ def create_guideline(
     return guideline
 
 
-def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
+def create_term(
+    name: str, description: str, synonyms: list[str] = [], tags: list[TagId] = []
+) -> Term:
     return Term(
         id=TermId("-"),
         creation_utc=datetime.now(timezone.utc),
         name=name,
         description=description,
         synonyms=synonyms,
+        tags=tags,
     )
 
 
@@ -532,11 +535,13 @@ def test_that_guidelines_are_proposed_based_on_glossary(
         create_term(
             name="skateboard",
             description="a time-travelling device",
+            tags=[TagId(f"agent_id::{agent.id}")],
         ),
         create_term(
             name="Pinewood Rash Syndrome",
             description="allergy to pinewood trees",
             synonyms=["Pine Rash", "PRS"],
+            tags=[TagId(f"agent_id::{agent.id}")],
         ),
     ]
     conversation_context: list[tuple[str, str]] = [
