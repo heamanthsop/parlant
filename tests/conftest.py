@@ -253,9 +253,10 @@ async def container(
         embedder_factory = EmbedderFactory(container)
         container[GlossaryStore] = await stack.enter_async_context(
             GlossaryVectorStore(
-                await stack.enter_async_context(
+                vector_db=await stack.enter_async_context(
                     TransientVectorDatabase(container[Logger], embedder_factory)
                 ),
+                document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type=embedder_type,
             )

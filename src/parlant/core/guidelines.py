@@ -180,14 +180,8 @@ class GuidelineDocumentStore(GuidelineStore):
             )
 
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            d = cast(_GuidelineDocument_V0_2_0, doc)
-            return _GuidelineDocument(
-                id=d["id"],
-                version=Version.String("0.3.0"),
-                creation_utc=d["creation_utc"],
-                condition=d["condition"],
-                action=d["action"],
-                enabled=d["enabled"],
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
             )
 
         return await DocumentMigrationHelper[_GuidelineDocument](

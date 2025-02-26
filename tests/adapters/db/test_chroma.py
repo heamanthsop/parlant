@@ -23,6 +23,7 @@ from pytest import fixture, raises
 from chromadb.api.types import IncludeEnum
 
 from parlant.adapters.nlp.openai_service import OpenAITextEmbedding3Large
+from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.vector_db.chroma import ChromaCollection, ChromaDatabase
 from parlant.core.agents import AgentStore, AgentId
 from parlant.core.common import Version, md5_checksum
@@ -31,7 +32,6 @@ from parlant.core.nlp.embedding import EmbedderFactory, NoOpEmbedder
 from parlant.core.loggers import Logger
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ObjectId
-
 from parlant.core.persistence.vector_database import BaseDocument
 from parlant.core.tags import TagId
 from tests.test_utilities import SyncAwaiter
@@ -356,7 +356,8 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
             container[Logger], Path(temp_dir), EmbedderFactory(container)
         ) as chroma_db:
             async with GlossaryVectorStore(
-                chroma_db,
+                vector_db=chroma_db,
+                document_db=TransientDocumentDatabase(),
                 embedder_factory=EmbedderFactory(container),
                 embedder_type=type(await container[NLPService].get_embedder()),
             ) as glossary_chroma_store:
@@ -421,6 +422,7 @@ async def test_that_when_persistence_and_store_version_match_allows_store_to_ope
     async with create_database(context) as chroma_db:
         async with GlossaryVectorStore(
             vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
             embedder_factory=EmbedderFactory(context.container),
             embedder_type=NoOpEmbedder,
             allow_migration=False,
@@ -601,6 +603,7 @@ async def test_that_migration_error_raised_when_version_mismatch_and_migration_d
         with raises(MigrationRequired) as exc_info:
             async with GlossaryVectorStore(
                 vector_db=chroma_db,
+                document_db=TransientDocumentDatabase(),
                 embedder_factory=EmbedderFactory(context.container),
                 embedder_type=NoOpEmbedder,
                 allow_migration=False,
@@ -616,6 +619,7 @@ async def test_that_new_store_creates_metadata_with_correct_version(
     async with create_database(context) as chroma_db:
         async with GlossaryVectorStore(
             vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
             embedder_factory=EmbedderFactory(context.container),
             embedder_type=OpenAITextEmbedding3Large,
             allow_migration=False,
@@ -633,6 +637,7 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
     async with create_database(context) as chroma_db:
         async with GlossaryVectorStore(
             vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
             embedder_factory=EmbedderFactory(context.container),
             embedder_type=OpenAITextEmbedding3Large,
             allow_migration=True,
@@ -650,6 +655,7 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
     async with create_database(context) as chroma_db:
         async with GlossaryVectorStore(
             vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
             embedder_factory=EmbedderFactory(context.container),
             embedder_type=NoOpEmbedder,
             allow_migration=True,
@@ -734,6 +740,7 @@ async def test_that_in_filter_works_with_list_of_strings(
     async with create_database(context) as chroma_db:
         async with GlossaryVectorStore(
             vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
             embedder_factory=EmbedderFactory(context.container),
             embedder_type=NoOpEmbedder,
             allow_migration=True,

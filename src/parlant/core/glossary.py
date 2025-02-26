@@ -24,11 +24,21 @@ from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.common import ItemNotFoundError, Version, generate_id, UniqueId, md5_checksum
 from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
-from parlant.core.persistence.vector_database import BaseDocument, VectorCollection, VectorDatabase
+from parlant.core.persistence.vector_database import (
+    BaseDocument as VectorBaseDocument,
+    VectorCollection,
+    VectorDatabase,
+)
 from parlant.core.persistence.vector_database_helper import (
     VectorDocumentMigrationHelper,
     VectorDocumentStoreMigrationHelper,
 )
+from parlant.core.persistence.document_database import (
+    DocumentCollection,
+    DocumentDatabase,
+    BaseDocument,
+)
+from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 from parlant.core.tags import TagId
 
 
@@ -142,37 +152,41 @@ class _TermDocument(TypedDict, total=False):
     tags: str
 
 
+class _TermTagAssociationDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    term_id: TermId
+    tag_id: TagId
+
+
 class GlossaryVectorStore(GlossaryStore):
     VERSION = Version.from_string("0.2.0")
 
     def __init__(
         self,
         vector_db: VectorDatabase,
+        document_db: DocumentDatabase,
         embedder_type: type[Embedder],
         embedder_factory: EmbedderFactory,
         allow_migration: bool = True,
     ):
         self._vector_db = vector_db
+        self._document_db = document_db
+
         self._collection: VectorCollection[_TermDocument]
+        self._association_collection: DocumentCollection[_TermTagAssociationDocument]
+
         self._allow_migration = allow_migration
         self._embedder = embedder_factory.create_embedder(embedder_type)
         self._embedder_type = embedder_type
 
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, document: BaseDocument) -> Optional[_TermDocument]:
-        async def v0_1_0_to_v_0_2_0(document: BaseDocument) -> Optional[BaseDocument]:
-            d = cast(_TermDocument_v0_1_0, document)
-            return _TermDocument(
-                id=d["id"],
-                version=Version.String("0.2.0"),
-                content=d["content"],
-                checksum=d["checksum"],
-                creation_utc=d["creation_utc"],
-                name=d["name"],
-                description=d["description"],
-                synonyms=d["synonyms"],
-                tags=f"agent_id::{d['term_set']}",
+    async def _document_loader(self, document: VectorBaseDocument) -> Optional[_TermDocument]:
+        async def v0_1_0_to_v_0_2_0(document: VectorBaseDocument) -> Optional[VectorBaseDocument]:
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
             )
 
         return await VectorDocumentMigrationHelper[_TermDocument](
@@ -181,6 +195,11 @@ class GlossaryVectorStore(GlossaryStore):
                 "0.1.0": v0_1_0_to_v_0_2_0,
             },
         ).migrate(document)
+
+    async def _association_document_loader(
+        self, document: BaseDocument
+    ) -> Optional[_TermTagAssociationDocument]:
+        return cast(_TermTagAssociationDocument, document)
 
     async def __aenter__(self) -> Self:
         async with VectorDocumentStoreMigrationHelper(
@@ -193,6 +212,16 @@ class GlossaryVectorStore(GlossaryStore):
                 schema=_TermDocument,
                 embedder_type=self._embedder_type,
                 document_loader=self._document_loader,
+            )
+        async with DocumentStoreMigrationHelper(
+            store=self,
+            database=self._document_db,
+            allow_migration=self._allow_migration,
+        ):
+            self._association_collection = await self._document_db.get_or_create_collection(
+                name="glossary_tag_associations",
+                schema=_TermTagAssociationDocument,
+                document_loader=self._association_document_loader,
             )
 
         return self
@@ -223,14 +252,18 @@ class GlossaryVectorStore(GlossaryStore):
             tags=", ".join(term.tags),
         )
 
-    def _deserialize(self, term_document: _TermDocument) -> Term:
+    async def _deserialize(self, term_document: _TermDocument) -> Term:
+        tags = await self._association_collection.find(
+            filters={"term_id": {"$eq": term_document["id"]}}
+        )
+
         return Term(
             id=TermId(term_document["id"]),
             creation_utc=datetime.fromisoformat(term_document["creation_utc"]),
             name=term_document["name"],
             description=term_document["description"],
             synonyms=term_document["synonyms"].split(", ") if term_document["synonyms"] else [],
-            tags=[TagId(t) for t in term_document["tags"].split(", ")],
+            tags=[TagId(t["tag_id"]) for t in tags],
         )
 
     @override
@@ -248,7 +281,6 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=synonyms,
-                tags=[],
             )
 
             term = Term(
@@ -271,14 +303,25 @@ class GlossaryVectorStore(GlossaryStore):
         return term
 
     @override
+    async def read_term(
+        self,
+        term_id: TermId,
+    ) -> Term:
+        async with self._lock.reader_lock:
+            term_document = await self._collection.find_one(filters={"id": {"$eq": term_id}})
+
+        if not term_document:
+            raise ItemNotFoundError(item_id=UniqueId(term_id))
+
+        return await self._deserialize(term_document=term_document)
+
+    @override
     async def update_term(
         self,
         term_id: TermId,
         params: TermUpdateParams,
     ) -> Term:
         async with self._lock.writer_lock:
-            term = await self.read_term(term_id)
-
             document_to_update = await self._collection.find_one(filters={"id": {"$eq": term_id}})
 
             if not document_to_update:
@@ -296,7 +339,6 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=synonyms,
-                tags=term.tags,
             )
 
             update_result = await self._collection.update_one(
@@ -312,42 +354,36 @@ class GlossaryVectorStore(GlossaryStore):
 
         assert update_result.updated_document
 
-        return self._deserialize(term_document=update_result.updated_document)
-
-    @override
-    async def read_term(
-        self,
-        term_id: TermId,
-    ) -> Term:
-        async with self._lock.reader_lock:
-            term_document = await self._collection.find_one(filters={"id": {"$eq": term_id}})
-
-        if not term_document:
-            raise ItemNotFoundError(item_id=UniqueId(term_id))
-
-        return self._deserialize(term_document=term_document)
+        return await self._deserialize(term_document=update_result.updated_document)
 
     @override
     async def list_terms(
         self,
         term_tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]:
+        filters: Where = {}
+
         async with self._lock.reader_lock:
             if term_tags is not None:
                 if len(term_tags) == 0:
-                    return [
-                        self._deserialize(term)
-                        for term in await self._collection.find(filters={"tags": {"$eq": ""}})
-                    ]
+                    term_ids = {
+                        doc["term_id"]
+                        for doc in await self._association_collection.find(filters={})
+                    }
+                    filters = {"$or": [{"id": {"$ne": id}} for id in term_ids]} if term_ids else {}
                 else:
-                    return [
-                        self._deserialize(term)
-                        for term in await self._collection.find(
-                            filters={"tags": {"$in": [ObjectId(tag) for tag in term_tags]}}
-                        )
-                    ]
-            else:
-                return [self._deserialize(term) for term in await self._collection.find(filters={})]
+                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in term_tags]}
+                    tag_associations = await self._association_collection.find(filters=tag_filters)
+                    term_ids = {assoc["term_id"] for assoc in tag_associations}
+
+                    if not term_ids:
+                        return []
+
+                    filters = {"$or": [{"id": {"$eq": id}} for id in term_ids]}
+
+            return [
+                await self._deserialize(d) for d in await self._collection.find(filters=filters)
+            ]
 
     @override
     async def delete_term(
@@ -356,11 +392,18 @@ class GlossaryVectorStore(GlossaryStore):
     ) -> None:
         async with self._lock.writer_lock:
             term_document = await self._collection.find_one(filters={"id": {"$eq": term_id}})
+            term_tag_associations = await self._association_collection.find(
+                filters={"term_id": {"$eq": term_id}}
+            )
 
             if not term_document:
                 raise ItemNotFoundError(item_id=UniqueId(term_id))
 
             await self._collection.delete_one(filters={"id": {"$eq": term_id}})
+            for tag_association in term_tag_associations:
+                await self._association_collection.delete_one(
+                    filters={"id": {"$eq": tag_association["id"]}}
+                )
 
     async def _query_chunks(self, query: str) -> list[str]:
         max_length = self._embedder.max_tokens // 5
@@ -396,8 +439,9 @@ class GlossaryVectorStore(GlossaryStore):
 
             filters: Where = {}
 
-            if term_tags:
-                filters = {"tags": {"$in": [ObjectId(tag) for tag in term_tags]}}
+            term_ids = await self.list_terms(term_tags=term_tags)
+            if term_ids:
+                filters = {"id": {"$in": [str(id) for id in term_ids]}}
 
             tasks = [
                 self._collection.find_similar_documents(
@@ -412,22 +456,18 @@ class GlossaryVectorStore(GlossaryStore):
         unique_results = list(set(all_results))
         top_results = sorted(unique_results, key=lambda r: r.distance)[:max_terms]
 
-        return [self._deserialize(r.document) for r in top_results]
+        return [await self._deserialize(r.document) for r in top_results]
 
     def _assemble_term_content(
         self,
         name: str,
         description: str,
         synonyms: Optional[Sequence[str]],
-        tags: Sequence[TagId],
     ) -> str:
         content = f"{name}"
 
         if synonyms:
             content += f", {', '.join(synonyms)}"
-
-        if tags:
-            content += f", {', '.join(tags)}"
 
         content += f": {description}"
 
@@ -447,29 +487,22 @@ class GlossaryVectorStore(GlossaryStore):
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            term.tags.append(tag_id)
+            association_document: _TermTagAssociationDocument = {
+                "id": ObjectId(generate_id()),
+                "version": self.VERSION.to_string(),
+                "creation_utc": creation_utc.isoformat(),
+                "term_id": term_id,
+                "tag_id": tag_id,
+            }
 
-            await self._collection.update_one(
-                filters={"id": {"$eq": term_id}},
-                params={
-                    "tags": ", ".join(term.tags),
-                    "checksum": md5_checksum(
-                        self._assemble_term_content(
-                            name=term.name,
-                            description=term.description,
-                            synonyms=term.synonyms,
-                            tags=term.tags,
-                        )
-                    ),
-                },
-            )
+            _ = await self._association_collection.insert_one(document=association_document)
 
             term_document = await self._collection.find_one({"id": {"$eq": term_id}})
 
         if not term_document:
             raise ItemNotFoundError(item_id=UniqueId(term_id))
 
-        return self._deserialize(term_document=term_document)
+        return await self._deserialize(term_document=term_document)
 
     @override
     async def remove_tag(
@@ -478,31 +511,19 @@ class GlossaryVectorStore(GlossaryStore):
         tag_id: TagId,
     ) -> Term:
         async with self._lock.writer_lock:
-            term = await self.read_term(term_id)
-
-            if tag_id not in term.tags:
-                return term
-
-            term.tags.remove(tag_id)
-
-            await self._collection.update_one(
-                filters={"id": {"$eq": term_id}},
-                params={
-                    "tags": ", ".join(term.tags),
-                    "checksum": md5_checksum(
-                        self._assemble_term_content(
-                            name=term.name,
-                            description=term.description,
-                            synonyms=term.synonyms,
-                            tags=term.tags,
-                        )
-                    ),
-                },
+            delete_result = await self._association_collection.delete_one(
+                {
+                    "term_id": {"$eq": term_id},
+                    "tag_id": {"$eq": tag_id},
+                }
             )
+
+            if delete_result.deleted_count == 0:
+                raise ItemNotFoundError(item_id=UniqueId(tag_id))
 
             term_document = await self._collection.find_one({"id": {"$eq": term_id}})
 
         if not term_document:
             raise ItemNotFoundError(item_id=UniqueId(term_id))
 
-        return self._deserialize(term_document=term_document)
+        return await self._deserialize(term_document=term_document)
