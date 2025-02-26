@@ -473,7 +473,13 @@ def create_router(
         )
 
         for v in variables:
-            await context_variable_store.delete_variable(id=v.id)
+            variable = await context_variable_store.remove_variable_tag(
+                variable_id=v.id,
+                tag_id=TagId(f"agent_id::{agent_id}"),
+            )
+
+            if not variable.tags:
+                await context_variable_store.delete_variable(id=v.id)
 
     @router.delete(
         "/{agent_id}/context-variables/{variable_id}",
@@ -503,7 +509,13 @@ def create_router(
                 detail="Variable not found for the provided agent",
             )
 
-        await context_variable_store.delete_variable(id=variable_id)
+        variable = await context_variable_store.remove_variable_tag(
+            variable_id=variable_id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
+        )
+
+        if not variable.tags:
+            await context_variable_store.delete_variable(id=variable_id)
 
     @router.get(
         "/{agent_id}/context-variables",
