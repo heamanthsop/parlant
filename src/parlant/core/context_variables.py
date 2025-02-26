@@ -217,14 +217,8 @@ class ContextVariableDocumentStore(ContextVariableStore):
         self, doc: BaseDocument
     ) -> Optional[_ContextVariableDocument]:
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            d = cast(_ContextVariableDocument_V0_1_0, doc)
-            return _ContextVariableDocument(
-                id=d["id"],
-                version=d["version"],
-                name=d["name"],
-                description=d["description"],
-                tool_id=d["tool_id"],
-                freshness_rules=d["freshness_rules"],
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
             )
 
         return await DocumentMigrationHelper[_ContextVariableDocument](
@@ -441,6 +435,17 @@ class ContextVariableDocumentStore(ContextVariableStore):
             if variable_deletion_result.deleted_count == 0:
                 raise ItemNotFoundError(
                     item_id=UniqueId(id),
+                )
+
+            for doc in await self._variable_tag_association_collection.find(
+                {
+                    "variable_id": {"$eq": id},
+                }
+            ):
+                await self._variable_tag_association_collection.delete_one(
+                    {
+                        "id": {"$eq": doc["id"]},
+                    }
                 )
 
             for k, _ in await self.list_values(variable_id=id):
