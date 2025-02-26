@@ -954,13 +954,31 @@ def create_router(
                 detail="Guideline is not associated with the specified agent",
             )
 
-        await guideline_store.delete_guideline(guideline_id=guideline_id)
+        guideline = await guideline_store.remove_tag(
+            guideline_id=guideline_id,
+            tag_id=TagId(f"agent_id::{agent_id}"),
+        )
 
+        deleted = False
+        if not guideline.tags:
+            await guideline_store.delete_guideline(guideline_id=guideline_id)
+            deleted = True
         for c in chain(
             await guideline_connection_store.list_connections(indirect=False, source=guideline_id),
             await guideline_connection_store.list_connections(indirect=False, target=guideline_id),
         ):
-            await guideline_connection_store.delete_connection(c.id)
+            if deleted:
+                await guideline_connection_store.delete_connection(c.id)
+            else:
+                connected_guideline = (
+                    await guideline_store.read_guideline(c.target)
+                    if c.source == guideline_id
+                    else await guideline_store.read_guideline(c.source)
+                )
+                if connected_guideline.tags and not any(
+                    t in connected_guideline.tags for t in guideline.tags
+                ):
+                    await guideline_connection_store.delete_connection(c.id)
 
         for associastion in await guideline_tool_association_store.list_associations():
             if associastion.guideline_id == guideline_id:
