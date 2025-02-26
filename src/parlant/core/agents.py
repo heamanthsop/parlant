@@ -276,6 +276,15 @@ class AgentDocumentStore(AgentStore):
         async with self._lock.writer_lock:
             result = await self._collection.delete_one({"id": {"$eq": agent_id}})
 
+            for doc in await self._tag_association_collection.find(
+                filters={
+                    "agent_id": {"$eq": agent_id},
+                }
+            ):
+                await self._tag_association_collection.delete_one(
+                    filters={"id": {"$eq": doc["id"]}}
+                )
+
         if result.deleted_count == 0:
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
 
