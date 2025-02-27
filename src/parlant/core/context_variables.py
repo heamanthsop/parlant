@@ -153,7 +153,7 @@ class ContextVariableStore(ABC):
     ) -> ContextVariable: ...
 
 
-class _ContextVariableDocument_V0_1_0(TypedDict, total=False):
+class _ContextVariableDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     variable_set: str
@@ -172,7 +172,7 @@ class _ContextVariableDocument(TypedDict, total=False):
     freshness_rules: Optional[str]
 
 
-class _ContextVariableValueDocument_V0_1_0(TypedDict, total=False):
+class _ContextVariableValueDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     last_modified: str
@@ -232,7 +232,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
         self, doc: BaseDocument
     ) -> Optional[_ContextVariableValueDocument]:
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            d = cast(_ContextVariableValueDocument_V0_1_0, doc)
+            d = cast(_ContextVariableValueDocument_v0_1_0, doc)
             return _ContextVariableValueDocument(
                 id=d["id"],
                 version=Version.String("0.2.0"),
