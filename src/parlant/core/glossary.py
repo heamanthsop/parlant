@@ -149,7 +149,6 @@ class _TermDocument(TypedDict, total=False):
     name: str
     description: str
     synonyms: Optional[str]
-    tags: str
 
 
 class _TermTagAssociationDocument(TypedDict, total=False):
@@ -249,7 +248,6 @@ class GlossaryVectorStore(GlossaryStore):
             name=term.name,
             description=term.description,
             synonyms=(", ").join(term.synonyms) if term.synonyms is not None else "",
-            tags=", ".join(term.tags),
         )
 
     async def _deserialize(self, term_document: _TermDocument) -> Term:
