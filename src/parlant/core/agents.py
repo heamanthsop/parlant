@@ -119,10 +119,14 @@ class AgentDocumentStore(AgentStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_AgentDocument]:
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            return cast(_AgentDocument, doc)
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
+            )
 
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            return cast(_AgentDocument, doc)
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
+            )
 
         return await DocumentMigrationHelper[_AgentDocument](
             self,
