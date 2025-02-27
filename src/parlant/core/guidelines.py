@@ -119,7 +119,7 @@ class GuidelineStore(ABC):
     ) -> Guideline: ...
 
 
-class _GuidelineDocument_V0_1_0(TypedDict, total=False):
+class _GuidelineDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -128,7 +128,7 @@ class _GuidelineDocument_V0_1_0(TypedDict, total=False):
     action: str
 
 
-class _GuidelineDocument_V0_2_0(TypedDict, total=False):
+class _GuidelineDocument_v0_2_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -155,6 +155,19 @@ class _GuidelineTagAssociationDocument(TypedDict, total=False):
     tag_id: TagId
 
 
+async def guideline_document_converter_0_1_0_to_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
+    d = cast(_GuidelineDocument_v0_1_0, doc)
+    return _GuidelineDocument_v0_2_0(
+        id=d["id"],
+        version=Version.String("0.2.0"),
+        creation_utc=d["creation_utc"],
+        guideline_set=d["guideline_set"],
+        condition=d["condition"],
+        action=d["action"],
+        enabled=True,
+    )
+
+
 class GuidelineDocumentStore(GuidelineStore):
     VERSION = Version.from_string("0.3.0")
 
@@ -167,18 +180,6 @@ class GuidelineDocumentStore(GuidelineStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
-        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            d = cast(_GuidelineDocument_V0_1_0, doc)
-            return _GuidelineDocument_V0_2_0(
-                id=d["id"],
-                version=Version.String("0.2.0"),
-                creation_utc=d["creation_utc"],
-                guideline_set=d["guideline_set"],
-                condition=d["condition"],
-                action=d["action"],
-                enabled=True,
-            )
-
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise Exception(
                 "This code should not be reached! Please run the 'parlant-prepare-migration' script."
@@ -187,7 +188,7 @@ class GuidelineDocumentStore(GuidelineStore):
         return await DocumentMigrationHelper[_GuidelineDocument](
             self,
             {
-                "0.1.0": v0_1_0_to_v_0_2_0,
+                "0.1.0": guideline_document_converter_0_1_0_to_0_2_0,
                 "0.2.0": v0_2_0_to_v_0_3_0,
             },
         ).migrate(doc)
@@ -245,7 +246,7 @@ class GuidelineDocumentStore(GuidelineStore):
         self,
         guideline_document: _GuidelineDocument,
     ) -> Guideline:
-        tags = [
+        tag_ids = [
             d["tag_id"]
             for d in await self._tag_association_collection.find(
                 {"guideline_id": {"$eq": guideline_document["id"]}}
@@ -259,7 +260,7 @@ class GuidelineDocumentStore(GuidelineStore):
                 condition=guideline_document["condition"], action=guideline_document["action"]
             ),
             enabled=guideline_document["enabled"],
-            tags=tags,
+            tags=[TagId(tag_id) for tag_id in tag_ids],
         )
 
     @override
@@ -433,7 +434,7 @@ class GuidelineDocumentStore(GuidelineStore):
                 "id": ObjectId(generate_id()),
                 "version": self.VERSION.to_string(),
                 "creation_utc": creation_utc.isoformat(),
-                "guideline_id": guideline_id,
+                "guideline_id": GuidelineId(guideline_id),
                 "tag_id": tag_id,
             }
 
