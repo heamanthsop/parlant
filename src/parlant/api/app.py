@@ -166,7 +166,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         ),
     )
     agent_router.include_router(
-        glossary.create_router(
+        glossary.deprecated_create_router(
             glossary_store=glossary_store,
         ),
     )
@@ -222,6 +222,13 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/tags",
         router=tags.create_router(
             tag_store=tag_store,
+        ),
+    )
+
+    api_app.include_router(
+        prefix="/terms",
+        router=glossary.create_router(
+            glossary_store=glossary_store,
         ),
     )
 
