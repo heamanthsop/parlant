@@ -20,6 +20,7 @@ from pytest import mark, raises
 
 from parlant.core.agents import AgentStore
 from parlant.core.common import ItemNotFoundError
+from parlant.core.tags import TagId
 
 
 async def test_that_an_agent_can_be_created_without_description(
@@ -227,14 +228,9 @@ async def test_that_tags_can_be_removed_from_an_agent(
     agent_store = container[AgentStore]
     agent = await agent_store.create_agent("test-agent")
 
-    (
-        await async_client.patch(
-            f"/agents/{agent.id}",
-            json={
-                "tags": {"add": ["tag1", "tag2", "tag3"]},
-            },
-        )
-    ).raise_for_status()
+    await agent_store.add_tag(agent.id, TagId("tag1"))
+    await agent_store.add_tag(agent.id, TagId("tag2"))
+    await agent_store.add_tag(agent.id, TagId("tag3"))
 
     update_payload = {"tags": {"remove": ["tag1", "tag3"]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
@@ -253,9 +249,8 @@ async def test_that_tags_can_be_added_and_removed_in_same_request(
     agent_store = container[AgentStore]
     agent = await agent_store.create_agent("test-agent")
 
-    (
-        await async_client.patch(f"/agents/{agent.id}", json={"tags": {"add": ["tag1", "tag2"]}})
-    ).raise_for_status()
+    await agent_store.add_tag(agent.id, TagId("tag1"))
+    await agent_store.add_tag(agent.id, TagId("tag2"))
 
     update_payload = {"tags": {"add": ["tag3", "tag4"], "remove": ["tag1"]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
