@@ -66,6 +66,9 @@ class ToolCallEvaluation(DefaultBaseModel):
     the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool: Optional[
         bool
     ] = None
+    # This ARQ is for cases we've observed where many optional arguments are missing
+    # such that the model would be possibly biased to say the tool shouldn't run.
+    can_run_without_optional_parameters_even_if_they_are_missing: bool = True
     should_run: bool
 
 
