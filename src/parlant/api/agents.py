@@ -23,6 +23,7 @@ from typing import Annotated, Optional, Sequence, TypeAlias
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams
 from parlant.core.common import DefaultBaseModel
+from parlant.core.tags import TagId
 
 API_GROUP = "agents"
 
@@ -71,6 +72,29 @@ AgentMaxEngineIterationsField: TypeAlias = Annotated[
     ),
 ]
 
+AgentTagsField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tag IDs associated with the agent",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+AgentTagUpdateAddField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tag IDs to add to the agent",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+AgentTagUpdateRemoveField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tag IDs to remove from the agent",
+        examples=[["tag1", "tag2"]],
+    ),
+]
 agent_example: ExampleJson = {
     "id": "IUCGT-lvpS",
     "name": "Haxon",
@@ -116,6 +140,7 @@ class AgentDTO(
     creation_utc: AgentCreationUTCField
     max_engine_iterations: AgentMaxEngineIterationsField
     composition_mode: CompositionModeDTO
+    tags: AgentTagsField
 
 
 agent_creation_params_example: ExampleJson = {
@@ -151,6 +176,30 @@ agent_update_params_example: ExampleJson = {
 }
 
 
+tags_update_params_example: ExampleJson = {
+    "add": [
+        "t9a8g703f4",
+        "tag_456abc",
+    ],
+    "remove": [
+        "tag_789def",
+        "tag_012ghi",
+    ],
+}
+
+
+class AgentTagUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": tags_update_params_example},
+):
+    """
+    Parameters for updating an existing agent's tags.
+    """
+
+    add: Optional[AgentTagUpdateAddField] = None
+    remove: Optional[AgentTagUpdateRemoveField] = None
+
+
 class AgentUpdateParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": agent_update_params_example},
@@ -166,6 +215,7 @@ class AgentUpdateParamsDTO(
     description: Optional[AgentDescriptionField] = None
     max_engine_iterations: Optional[AgentMaxEngineIterationsField] = None
     composition_mode: Optional[CompositionModeDTO] = None
+    tags: Optional[AgentTagUpdateParamsDTO] = None
 
 
 def create_router(
@@ -216,6 +266,7 @@ def create_router(
             creation_utc=agent.creation_utc,
             max_engine_iterations=agent.max_engine_iterations,
             composition_mode=CompositionModeDTO(agent.composition_mode),
+            tags=agent.tags,
         )
 
     @router.get(
@@ -247,6 +298,7 @@ def create_router(
                 creation_utc=a.creation_utc,
                 max_engine_iterations=a.max_engine_iterations,
                 composition_mode=CompositionModeDTO(a.composition_mode),
+                tags=a.tags,
             )
             for a in agents
         ]
@@ -281,6 +333,7 @@ def create_router(
             creation_utc=agent.creation_utc,
             max_engine_iterations=agent.max_engine_iterations,
             composition_mode=CompositionModeDTO(agent.composition_mode),
+            tags=agent.tags,
         )
 
     @router.patch(
@@ -329,10 +382,26 @@ def create_router(
 
             return params
 
+        if params.tags:
+            if params.tags.add:
+                for tag_id in params.tags.add:
+                    await agent_store.add_tag(
+                        agent_id=agent_id,
+                        tag_id=tag_id,
+                    )
+
+            if params.tags.remove:
+                for tag_id in params.tags.remove:
+                    await agent_store.remove_tag(
+                        agent_id=agent_id,
+                        tag_id=tag_id,
+                    )
+
         agent = await agent_store.update_agent(
             agent_id=agent_id,
             params=from_dto(params),
         )
+
         return AgentDTO(
             id=agent.id,
             name=agent.name,
@@ -340,6 +409,7 @@ def create_router(
             creation_utc=agent.creation_utc,
             max_engine_iterations=agent.max_engine_iterations,
             composition_mode=CompositionModeDTO(agent.composition_mode),
+            tags=agent.tags,
         )
 
     @router.delete(

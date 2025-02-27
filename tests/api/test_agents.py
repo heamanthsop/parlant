@@ -198,3 +198,71 @@ async def test_that_an_agent_can_be_deleted(
 
     with raises(ItemNotFoundError):
         await agent_store.read_agent(agent.id)
+
+
+async def test_that_tags_can_be_added_to_an_agent(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    agent_store = container[AgentStore]
+    agent = await agent_store.create_agent("test-agent")
+
+    update_payload = {"tags": {"add": ["tag1", "tag2"]}}
+    response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
+    response.raise_for_status()
+    updated_agent = response.json()
+
+    assert "tag1" in updated_agent["tags"]
+    assert "tag2" in updated_agent["tags"]
+
+    agent_dto = (await async_client.get(f"/agents/{agent.id}")).raise_for_status().json()
+    assert "tag1" in agent_dto["tags"]
+    assert "tag2" in agent_dto["tags"]
+
+
+async def test_that_tags_can_be_removed_from_an_agent(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    agent_store = container[AgentStore]
+    agent = await agent_store.create_agent("test-agent")
+
+    (
+        await async_client.patch(
+            f"/agents/{agent.id}",
+            json={
+                "tags": {"add": ["tag1", "tag2", "tag3"]},
+            },
+        )
+    ).raise_for_status()
+
+    update_payload = {"tags": {"remove": ["tag1", "tag3"]}}
+    response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
+    response.raise_for_status()
+    updated_agent = response.json()
+
+    assert "tag1" not in updated_agent["tags"]
+    assert "tag2" in updated_agent["tags"]
+    assert "tag3" not in updated_agent["tags"]
+
+
+async def test_that_tags_can_be_added_and_removed_in_same_request(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    agent_store = container[AgentStore]
+    agent = await agent_store.create_agent("test-agent")
+
+    (
+        await async_client.patch(f"/agents/{agent.id}", json={"tags": {"add": ["tag1", "tag2"]}})
+    ).raise_for_status()
+
+    update_payload = {"tags": {"add": ["tag3", "tag4"], "remove": ["tag1"]}}
+    response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
+    response.raise_for_status()
+    updated_agent = response.json()
+
+    assert "tag1" not in updated_agent["tags"]
+    assert "tag2" in updated_agent["tags"]
+    assert "tag3" in updated_agent["tags"]
+    assert "tag4" in updated_agent["tags"]
