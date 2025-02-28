@@ -85,7 +85,7 @@ TermIdPath: TypeAlias = Annotated[
     ),
 ]
 
-term_example: ExampleJson = {
+legacy_term_example: ExampleJson = {
     "id": "term-eth01",
     "name": "Gas",
     "description": "A unit in Ethereum that measures the computational effort to execute transactions or smart contracts",
@@ -93,9 +93,9 @@ term_example: ExampleJson = {
 }
 
 
-class TermDTO(
+class LegacyTermDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": term_example},
+    json_schema_extra={"example": legacy_term_example},
 ):
     """
     Represents a glossary term associated with an agent.
@@ -117,16 +117,16 @@ TermAgentIdPath: TypeAlias = Annotated[
     ),
 ]
 
-term_update_params_example: ExampleJson = {
+legacy_term_update_params_example: ExampleJson = {
     "name": "Gas",
     "description": "A unit in Ethereum that measures the computational effort to execute transactions or smart contracts",
     "synonyms": ["Transaction Fee", "Blockchain Fuel"],
 }
 
 
-class TermUpdateParamsDTO(
+class LegacyTermUpdateParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": term_update_params_example},
+    json_schema_extra={"example": legacy_term_update_params_example},
 ):
     """
     Parameters for updating an existing glossary term.
@@ -139,7 +139,7 @@ class TermUpdateParamsDTO(
     synonyms: Optional[TermSynonymsField] = None
 
 
-def deprecated_create_router(
+def create_legacy_router(
     glossary_store: GlossaryStore,
 ) -> APIRouter:
     router = APIRouter()
@@ -148,11 +148,11 @@ def deprecated_create_router(
         "/{agent_id}/terms",
         status_code=status.HTTP_201_CREATED,
         operation_id="create_term",
-        response_model=TermDTO,
+        response_model=LegacyTermDTO,
         responses={
             status.HTTP_201_CREATED: {
                 "description": "Term successfully created. Returns the complete term object including generated ID",
-                "content": common.example_json_content(term_example),
+                "content": common.example_json_content(legacy_term_example),
             },
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
@@ -163,7 +163,7 @@ def deprecated_create_router(
     async def create_term(
         agent_id: TermAgentIdPath,
         params: TermCreationParamsDTO,
-    ) -> TermDTO:
+    ) -> LegacyTermDTO:
         """
         [DEPRECATED] Creates a new term in the agent's glossary.
 
@@ -190,7 +190,7 @@ def deprecated_create_router(
             tag_id=TagId(f"agent_id::{agent_id}"),
         )
 
-        return TermDTO(
+        return LegacyTermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
@@ -200,11 +200,11 @@ def deprecated_create_router(
     @router.get(
         "/{agent_id}/terms/{term_id}",
         operation_id="read_term",
-        response_model=TermDTO,
+        response_model=LegacyTermDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Term details successfully retrieved. Returns the complete term object",
-                "content": common.example_json_content(term_example),
+                "content": common.example_json_content(legacy_term_example),
             },
             status.HTTP_404_NOT_FOUND: {
                 "description": "Term not found. The specified `agent_id` or `term_id` does not exist"
@@ -215,7 +215,7 @@ def deprecated_create_router(
     async def read_term(
         agent_id: TermAgentIdPath,
         term_id: TermIdPath,
-    ) -> TermDTO:
+    ) -> LegacyTermDTO:
         """
         [DEPRECATED] Retrieves details of a specific term by ID for a given agent.
 
@@ -234,7 +234,7 @@ def deprecated_create_router(
                 detail="Term not found for the provided agent",
             )
 
-        return TermDTO(
+        return LegacyTermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
@@ -244,11 +244,11 @@ def deprecated_create_router(
     @router.get(
         "/{agent_id}/terms",
         operation_id="list_terms",
-        response_model=Sequence[TermDTO],
+        response_model=Sequence[LegacyTermDTO],
         responses={
             status.HTTP_200_OK: {
                 "description": "List of all terms in the agent's glossary.",
-                "content": common.example_json_content([term_example]),
+                "content": common.example_json_content([legacy_term_example]),
             },
             status.HTTP_404_NOT_FOUND: {
                 "description": "Terms not found. The specified `agent_id` does not exist"
@@ -258,7 +258,7 @@ def deprecated_create_router(
     )
     async def list_terms(
         agent_id: TermAgentIdPath,
-    ) -> Sequence[TermDTO]:
+    ) -> Sequence[LegacyTermDTO]:
         """
         [DEPRECATED] Retrieves a list of all terms in the agent's glossary.
 
@@ -273,7 +273,7 @@ def deprecated_create_router(
         terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
 
         return [
-            TermDTO(
+            LegacyTermDTO(
                 id=term.id,
                 name=term.name,
                 description=term.description,
@@ -285,11 +285,11 @@ def deprecated_create_router(
     @router.patch(
         "/{agent_id}/terms/{term_id}",
         operation_id="update_term",
-        response_model=TermDTO,
+        response_model=LegacyTermDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Term successfully updated. Returns the updated term object",
-                "content": common.example_json_content(term_update_params_example),
+                "content": common.example_json_content(legacy_term_update_params_example),
             },
             status.HTTP_404_NOT_FOUND: {
                 "description": "Term not found. The specified `agent_id` or `term_id` does not exist"
@@ -303,9 +303,9 @@ def deprecated_create_router(
     async def update_term(
         agent_id: TermAgentIdPath,
         term_id: TermIdPath,
-        params: TermUpdateParamsDTO,
-    ) -> TermDTO:
-        def from_dto(dto: TermUpdateParamsDTO) -> TermUpdateParams:
+        params: LegacyTermUpdateParamsDTO,
+    ) -> LegacyTermDTO:
+        def from_dto(dto: LegacyTermUpdateParamsDTO) -> TermUpdateParams:
             """
             [DEPRECATED] Updates an existing term's attributes in the agent's glossary.
 
@@ -343,7 +343,7 @@ def deprecated_create_router(
             params=from_dto(params),
         )
 
-        return TermDTO(
+        return LegacyTermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
@@ -410,7 +410,7 @@ TermTagsField: TypeAlias = Annotated[
     ),
 ]
 
-term_with_tags_example: ExampleJson = {
+term_example: ExampleJson = {
     "id": "term-eth01",
     "name": "Gas",
     "description": "A unit in Ethereum that measures the computational effort to execute transactions or smart contracts",
@@ -418,7 +418,7 @@ term_with_tags_example: ExampleJson = {
     "tags": ["tag1", "tag2"],
 }
 
-term_update_with_tags_params_example: ExampleJson = {
+term_update_params_example: ExampleJson = {
     "name": "Gas",
     "description": "A unit in Ethereum that measures the computational effort to execute transactions or smart contracts",
     "synonyms": ["Transaction Fee", "Blockchain Fuel"],
@@ -440,9 +440,9 @@ term_tags_update_params_example: ExampleJson = {
 }
 
 
-class TermWithTagsDTO(
+class TermDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": term_with_tags_example},
+    json_schema_extra={"example": term_example},
 ):
     """
     Represents a glossary term associated with an agent.
@@ -486,9 +486,9 @@ class TermTagsUpdateParamsDTO(
     remove: Optional[TermTagsUpdateRemoveField] = None
 
 
-class TermUpdateWithTagsParamsDTO(
+class TermUpdateParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": term_update_with_tags_params_example},
+    json_schema_extra={"example": term_update_params_example},
 ):
     """
     Parameters for updating an existing glossary term including tags.
@@ -511,11 +511,11 @@ def create_router(
         "",
         status_code=status.HTTP_201_CREATED,
         operation_id="create_term",
-        response_model=TermWithTagsDTO,
+        response_model=TermDTO,
         responses={
             status.HTTP_201_CREATED: {
                 "description": "Term successfully created. Returns the complete term object including generated ID",
-                "content": common.example_json_content(term_with_tags_example),
+                "content": common.example_json_content(term_example),
             },
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
@@ -525,7 +525,7 @@ def create_router(
     )
     async def create_term(
         params: TermCreationParamsDTO,
-    ) -> TermWithTagsDTO:
+    ) -> TermDTO:
         """
         Creates a new term in the glossary.
 
@@ -541,7 +541,7 @@ def create_router(
             synonyms=params.synonyms,
         )
 
-        return TermWithTagsDTO(
+        return TermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
@@ -552,11 +552,11 @@ def create_router(
     @router.get(
         "/{term_id}",
         operation_id="read_term",
-        response_model=TermWithTagsDTO,
+        response_model=TermDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Term details successfully retrieved. Returns the complete term object",
-                "content": common.example_json_content(term_with_tags_example),
+                "content": common.example_json_content(term_example),
             },
             status.HTTP_404_NOT_FOUND: {
                 "description": "Term not found. The specified `term_id` does not exist"
@@ -566,13 +566,13 @@ def create_router(
     )
     async def read_term(
         term_id: TermIdPath,
-    ) -> TermWithTagsDTO:
+    ) -> TermDTO:
         """
         Retrieves details of a specific term by ID.
         """
         term = await glossary_store.read_term(term_id=term_id)
 
-        return TermWithTagsDTO(
+        return TermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
@@ -583,16 +583,16 @@ def create_router(
     @router.get(
         "",
         operation_id="list_terms",
-        response_model=Sequence[TermWithTagsDTO],
+        response_model=Sequence[TermDTO],
         responses={
             status.HTTP_200_OK: {
                 "description": "List of all terms in the glossary.",
-                "content": common.example_json_content([term_with_tags_example]),
+                "content": common.example_json_content([term_example]),
             },
         },
         **apigen_config(group_name=API_GROUP, method_name="list_terms"),
     )
-    async def list_terms() -> Sequence[TermWithTagsDTO]:
+    async def list_terms() -> Sequence[TermDTO]:
         """
         Retrieves a list of all terms in the glossary.
 
@@ -602,7 +602,7 @@ def create_router(
         terms = await glossary_store.list_terms()
 
         return [
-            TermWithTagsDTO(
+            TermDTO(
                 id=term.id,
                 name=term.name,
                 description=term.description,
@@ -615,11 +615,11 @@ def create_router(
     @router.patch(
         "/{term_id}",
         operation_id="update_term",
-        response_model=TermWithTagsDTO,
+        response_model=TermDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Term successfully updated. Returns the updated term object",
-                "content": common.example_json_content(term_update_with_tags_params_example),
+                "content": common.example_json_content(term_update_params_example),
             },
             status.HTTP_404_NOT_FOUND: {
                 "description": "Term not found. The specified `term_id` does not exist"
@@ -632,8 +632,8 @@ def create_router(
     )
     async def update_term(
         term_id: TermIdPath,
-        params: TermUpdateWithTagsParamsDTO,
-    ) -> TermWithTagsDTO:
+        params: TermUpdateParamsDTO,
+    ) -> TermDTO:
         """
         Updates an existing term's attributes in the glossary.
 
@@ -641,7 +641,7 @@ def create_router(
         The term's ID and creation timestamp cannot be modified.
         """
 
-        def from_dto(dto: TermUpdateWithTagsParamsDTO) -> TermUpdateParams:
+        def from_dto(dto: TermUpdateParamsDTO) -> TermUpdateParams:
             params: TermUpdateParams = {}
 
             if dto.name:
@@ -673,7 +673,7 @@ def create_router(
             params=from_dto(params),
         )
 
-        return TermWithTagsDTO(
+        return TermDTO(
             id=term.id,
             name=term.name,
             description=term.description,
