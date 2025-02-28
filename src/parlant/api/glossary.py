@@ -159,6 +159,7 @@ def create_legacy_router(
             },
         },
         **skip_apigen_config(),
+        deprecated=True,
     )
     async def create_term(
         agent_id: TermAgentIdPath,
@@ -211,6 +212,7 @@ def create_legacy_router(
             },
         },
         **skip_apigen_config(),
+        deprecated=True,
     )
     async def read_term(
         agent_id: TermAgentIdPath,
@@ -255,6 +257,7 @@ def create_legacy_router(
             },
         },
         **skip_apigen_config(),
+        deprecated=True,
     )
     async def list_terms(
         agent_id: TermAgentIdPath,
@@ -299,6 +302,7 @@ def create_legacy_router(
             },
         },
         **skip_apigen_config(),
+        deprecated=True,
     )
     async def update_term(
         agent_id: TermAgentIdPath,
@@ -363,6 +367,7 @@ def create_legacy_router(
             },
         },
         **skip_apigen_config(),
+        deprecated=True,
     )
     async def delete_term(
         agent_id: TermAgentIdPath,
