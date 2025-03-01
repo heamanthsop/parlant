@@ -37,7 +37,7 @@ async def tool_id(container: Container) -> ToolId:
     return ToolId("local", "test_tool")
 
 
-async def test_that_context_variable_can_be_created(
+async def test_that_context_variable_can_be_created_by_agent(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
     tool_id: ToolId,
@@ -65,7 +65,7 @@ async def test_that_context_variable_can_be_created(
     assert context_variable["freshness_rules"] == freshness_rules
 
 
-async def test_that_context_variable_can_be_updated(
+async def test_that_context_variable_can_be_updated_by_agent(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -105,7 +105,7 @@ async def test_that_context_variable_can_be_updated(
     assert context_variable_dto["description"] == new_description
 
 
-async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules(
+async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules_by_agent(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -148,7 +148,7 @@ async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules
     assert context_variable_dto["freshness_rules"] == freshness_rules
 
 
-async def test_that_invalid_freshness_rules_raise_error_when_updating_context_variable(
+async def test_that_invalid_freshness_rules_raise_error_when_updating_context_variable_by_agent(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -189,7 +189,7 @@ async def test_that_invalid_freshness_rules_raise_error_when_updating_context_va
     )
 
 
-async def test_that_invalid_freshness_rules_raise_error_when_creating_context_variable(
+async def test_that_invalid_freshness_rules_raise_error_when_creating_context_variable_by_agent(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
     tool_id: ToolId,
@@ -218,7 +218,7 @@ async def test_that_invalid_freshness_rules_raise_error_when_creating_context_va
     )
 
 
-async def test_that_all_context_variables_can_be_deleted(
+async def test_that_all_context_variables_can_be_deleted_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -262,7 +262,7 @@ async def test_that_all_context_variables_can_be_deleted(
     assert len(vars) == 0
 
 
-async def test_that_context_variable_can_be_deleted(
+async def test_that_context_variable_can_be_deleted_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -291,7 +291,7 @@ async def test_that_context_variable_can_be_deleted(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_context_variables_can_be_listed(
+async def test_that_context_variables_can_be_listed_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -347,7 +347,7 @@ async def test_that_context_variables_can_be_listed(
     assert second_variable.freshness_rules is None
 
 
-async def test_that_context_variable_value_can_be_retrieved(
+async def test_that_context_variable_value_can_be_retrieved_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -359,6 +359,11 @@ async def test_that_context_variable_value_can_be_retrieved(
         name="test_variable",
         description="test variable",
         tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId(f"agent_id::{agent_id}"),
     )
 
     key = "test_key"
@@ -379,7 +384,7 @@ async def test_that_context_variable_value_can_be_retrieved(
     assert value["data"] == data
 
 
-async def test_that_context_variable_value_can_be_set(
+async def test_that_context_variable_value_can_be_set_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -430,7 +435,7 @@ async def test_that_context_variable_value_can_be_set(
     assert value["data"] == data
 
 
-async def test_that_context_variable_values_can_be_listed(
+async def test_that_context_variable_values_can_be_listed_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -478,7 +483,7 @@ async def test_that_context_variable_values_can_be_listed(
         assert retrieved_values[key]["data"] == keys_and_data[key]
 
 
-async def test_that_context_variable_value_can_be_deleted(
+async def test_that_context_variable_value_can_be_deleted_by_agent(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -583,3 +588,325 @@ async def test_that_deleting_context_variable_with_wrong_agent_id_returns_404(
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables/{variable.id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_a_context_variable_can_be_created(
+    async_client: httpx.AsyncClient,
+    tool_id: ToolId,
+) -> None:
+    freshness_rules = "0 18 14 5 4"
+
+    response = await async_client.post(
+        "/context-variables",
+        json={
+            "name": "test_variable",
+            "description": "test of context variable",
+            "tool_id": {
+                "service_name": tool_id.service_name,
+                "tool_name": tool_id.tool_name,
+            },
+            "freshness_rules": freshness_rules,
+        },
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    context_variable = response.json()
+    assert context_variable["name"] == "test_variable"
+    assert context_variable["description"] == "test of context variable"
+    assert context_variable["freshness_rules"] == freshness_rules
+    assert context_variable["tags"] == []
+
+
+async def test_that_a_context_variable_can_be_read(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+    freshness_rules = "0 18 14 5 4"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+        freshness_rules=freshness_rules,
+    )
+
+    read_response = await async_client.get(f"/context-variables/{variable.id}")
+    assert read_response.status_code == status.HTTP_200_OK
+
+    data = read_response.json()
+    context_variable_dto = data["context_variable"]
+    assert context_variable_dto["id"] == variable.id
+    assert context_variable_dto["name"] == name
+    assert context_variable_dto["description"] == description
+    assert context_variable_dto["freshness_rules"] == freshness_rules
+    assert context_variable_dto["tags"] == []
+
+
+async def test_that_context_variables_can_be_listed(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    first_variable = await context_variable_store.create_variable(
+        name="variable1",
+        description="description 1",
+        tool_id=tool_id,
+        freshness_rules="0 18 14 5 4",
+    )
+
+    second_variable = await context_variable_store.create_variable(
+        name="variable2",
+        description="description 2",
+        tool_id=tool_id,
+    )
+
+    returned_variables = (await async_client.get("/context-variables")).raise_for_status().json()
+
+    assert len(returned_variables) >= 2
+    first_variable_dto = next(v for v in returned_variables if v["id"] == first_variable.id)
+    second_variable_dto = next(v for v in returned_variables if v["id"] == second_variable.id)
+
+    assert first_variable_dto["name"] == first_variable.name
+    assert second_variable_dto["name"] == second_variable.name
+
+    assert first_variable_dto["description"] == first_variable.description
+    assert second_variable_dto["description"] == second_variable.description
+
+    assert first_variable_dto["freshness_rules"] == first_variable.freshness_rules
+    assert second_variable_dto["freshness_rules"] == second_variable.freshness_rules
+
+
+async def test_that_a_context_variable_can_be_updated_with_new_values(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    updated_name = "updated_test_variable"
+    updated_description = "updated test of variable"
+    freshness_rules = "0 18 14 5 4"
+    tags_to_add = ["tag1", "tag2"]
+
+    update_response = await async_client.patch(
+        f"/context-variables/{variable.id}",
+        json={
+            "name": updated_name,
+            "description": updated_description,
+            "freshness_rules": freshness_rules,
+            "tags": {
+                "add": tags_to_add,
+            },
+        },
+    )
+
+    assert update_response.status_code == status.HTTP_200_OK
+
+    data = update_response.json()
+    assert data["name"] == updated_name
+    assert data["description"] == updated_description
+    assert data["freshness_rules"] == freshness_rules
+    assert set(data["tags"]) == set(tags_to_add)
+
+
+async def test_that_tags_can_be_removed_from_a_context_variable(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId("tag1"),
+    )
+
+    await context_variable_store.add_variable_tag(
+        variable_id=variable.id,
+        tag_id=TagId("tag2"),
+    )
+
+    update_response = await async_client.patch(
+        f"/context-variables/{variable.id}",
+        json={
+            "tags": {
+                "remove": ["tag1"],
+            },
+        },
+    )
+
+    assert update_response.status_code == status.HTTP_200_OK
+    data = update_response.json()
+    assert set(data["tags"]) == {"tag2"}
+
+
+async def test_that_a_context_variable_can_be_deleted(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    (await async_client.delete(f"/context-variables/{variable.id}")).raise_for_status()
+
+    read_response = await async_client.get(f"/context-variables/{variable.id}")
+    assert read_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_context_variable_value_can_be_set_and_retrieved(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    key = "test_key"
+    data = {"value": 42}
+
+    (
+        await async_client.put(
+            f"/context-variables/{variable.id}/{key}",
+            json={"data": data},
+        )
+    ).raise_for_status()
+
+    retrieved_value = (
+        (await async_client.get(f"/context-variables/{variable.id}/{key}"))
+        .raise_for_status()
+        .json()
+    )
+
+    assert retrieved_value["data"] == data
+
+    retrieved_value = (
+        (await async_client.get(f"/context-variables/{variable.id}/{key}"))
+        .raise_for_status()
+        .json()
+    )
+
+    assert retrieved_value["data"] == data
+
+
+async def test_that_context_variable_values_can_be_listed(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    keys_and_data = {
+        "key1": {"value": 1},
+        "key2": {"value": 2},
+        "key3": {"value": 3},
+    }
+
+    for key, data in keys_and_data.items():
+        await async_client.put(
+            f"/context-variables/{variable.id}/{key}",
+            json={"data": data},
+        )
+
+    response = await async_client.get(f"/context-variables/{variable.id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    retrieved_variable = response.json()["context_variable"]
+    assert retrieved_variable["id"] == variable.id
+    assert retrieved_variable["name"] == name
+    assert retrieved_variable["description"] == description
+    assert set(retrieved_variable["tags"]) == set()
+
+    retrieved_values = response.json()["key_value_pairs"]
+
+    assert len(retrieved_values) == len(keys_and_data)
+    for key in keys_and_data:
+        assert key in retrieved_values
+        assert retrieved_values[key]["data"] == keys_and_data[key]
+
+
+async def test_that_context_variable_value_can_be_deleted(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    name = "test_variable"
+    description = "test of context variable"
+
+    variable = await context_variable_store.create_variable(
+        name=name,
+        description=description,
+        tool_id=tool_id,
+    )
+
+    key = "test_key"
+    data = {"value": 42}
+
+    # Create value
+    create_response = await async_client.put(
+        f"/context-variables/{variable.id}/{key}",
+        json={"data": data},
+    )
+    assert create_response.status_code == status.HTTP_200_OK
+
+    # Delete value
+    delete_response = await async_client.delete(f"/context-variables/{variable.id}/{key}")
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    # Verify value is deleted
+    read_response = await async_client.get(f"/context-variables/{variable.id}")
+    assert read_response.status_code == status.HTTP_200_OK
+    assert key not in read_response.json()["key_value_pairs"]

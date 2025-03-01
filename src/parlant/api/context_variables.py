@@ -20,7 +20,13 @@ from typing import Annotated, Optional, Sequence, TypeAlias, cast
 
 from fastapi import APIRouter
 from parlant.api import common
-from parlant.api.common import ToolIdDTO, JSONSerializableDTO, apigen_config, ExampleJson
+from parlant.api.common import (
+    ToolIdDTO,
+    JSONSerializableDTO,
+    apigen_config,
+    ExampleJson,
+    skip_apigen_config,
+)
 from parlant.core.agents import AgentId
 from parlant.core.common import DefaultBaseModel
 from parlant.core.context_variables import (
@@ -67,7 +73,7 @@ ContextVariableDescriptionField: TypeAlias = Annotated[
     ),
 ]
 
-context_variable_example = {
+legacy_context_variable_example = {
     "id": "v9a8r7i6b5",
     "name": "UserBalance",
     "description": "Stores the account balances of users",
@@ -79,9 +85,9 @@ context_variable_example = {
 }
 
 
-class ContextVariableDTO(
+class LegacyContextVariableDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": context_variable_example},
+    json_schema_extra={"example": legacy_context_variable_example},
 ):
     """
     Represents a type of customer or tag data that the agent tracks.
@@ -134,7 +140,7 @@ class ContextVariableCreationParamsDTO(
         return value
 
 
-context_variable_update_params_example = {
+legacy_context_variable_update_params_example = {
     "name": "CustomerBalance",
     "description": "Stores the account balances of users",
     "freshness_rules": "0 8,20 * * *",
@@ -145,9 +151,9 @@ context_variable_update_params_example = {
 }
 
 
-class ContextVariableUpdateParamsDTO(
+class LegacyContextVariableUpdateParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": context_variable_update_params_example},
+    json_schema_extra={"example": legacy_context_variable_update_params_example},
 ):
     """Parameters for updating an existing context variable."""
 
@@ -248,7 +254,7 @@ KeyValuePairsField: TypeAlias = Annotated[
     ),
 ]
 
-context_variable_read_result_example: ExampleJson = {
+legacy_context_variable_read_result_example: ExampleJson = {
     "context_variable": {
         "id": "v9a8r7i6b5",
         "name": "UserBalance",
@@ -281,13 +287,13 @@ context_variable_read_result_example: ExampleJson = {
 }
 
 
-class ContextVariableReadResult(
+class LegacyContextVariableReadResult(
     DefaultBaseModel,
-    json_schema_extra={"example": context_variable_read_result_example},
+    json_schema_extra={"example": legacy_context_variable_read_result_example},
 ):
     """Complete context variable data including its values."""
 
-    context_variable: ContextVariableDTO
+    context_variable: LegacyContextVariableDTO
     key_value_pairs: Optional[KeyValuePairsField] = None
 
 
@@ -318,7 +324,7 @@ IncludeValuesQuery: TypeAlias = Annotated[
 ]
 
 
-def create_router(
+def legacy_create_router(
     context_variable_store: ContextVariableStore,
     service_registry: ServiceRegistry,
 ) -> APIRouter:
@@ -328,25 +334,28 @@ def create_router(
         "/{agent_id}/context-variables",
         status_code=status.HTTP_201_CREATED,
         operation_id="create_variable",
-        response_model=ContextVariableDTO,
+        response_model=LegacyContextVariableDTO,
         responses={
             status.HTTP_201_CREATED: {
                 "description": "Context variable type successfully created",
-                "content": common.example_json_content(context_variable_example),
+                "content": common.example_json_content(legacy_context_variable_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Agent or tool not found"},
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="create"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def create_variable(
         agent_id: AgentIdPath,
         params: ContextVariableCreationParamsDTO,
-    ) -> ContextVariableDTO:
+    ) -> LegacyContextVariableDTO:
         """
-        Creates a new context variable for tracking customer-specific or tag-specific data.
+        [DEPRECATED] Creates a new context variable for tracking customer-specific or tag-specific data.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         Example uses:
         - Track subscription tiers to control feature access
@@ -368,7 +377,7 @@ def create_router(
 
         await context_variable_store.add_variable_tag(variable.id, TagId(f"agent_id::{agent_id}"))
 
-        return ContextVariableDTO(
+        return LegacyContextVariableDTO(
             id=variable.id,
             name=variable.name,
             description=variable.description,
@@ -383,31 +392,34 @@ def create_router(
     @router.patch(
         "/{agent_id}/context-variables/{variable_id}",
         operation_id="update_variable",
-        response_model=ContextVariableDTO,
+        response_model=LegacyContextVariableDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Context variable type successfully updated",
-                "content": common.example_json_content(context_variable_example),
+                "content": common.example_json_content(legacy_context_variable_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable or agent not found"},
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="update"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def update_variable(
         agent_id: AgentIdPath,
         variable_id: ContextVariableIdPath,
-        params: ContextVariableUpdateParamsDTO,
-    ) -> ContextVariableDTO:
+        params: LegacyContextVariableUpdateParamsDTO,
+    ) -> LegacyContextVariableDTO:
         """
-        Updates an existing context variable.
+        [DEPRECATED] Updates an existing context variable.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         Only provided fields will be updated; others remain unchanged.
         """
 
-        def from_dto(dto: ContextVariableUpdateParamsDTO) -> ContextVariableUpdateParams:
+        def from_dto(dto: LegacyContextVariableUpdateParamsDTO) -> ContextVariableUpdateParams:
             params: ContextVariableUpdateParams = {}
 
             if dto.name:
@@ -441,7 +453,7 @@ def create_router(
             params=from_dto(params),
         )
 
-        return ContextVariableDTO(
+        return LegacyContextVariableDTO(
             id=variable.id,
             name=variable.name,
             description=variable.description,
@@ -462,12 +474,17 @@ def create_router(
             status.HTTP_204_NO_CONTENT: {"description": "All context variables deleted"},
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="delete_many"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def delete_all_variables(
         agent_id: AgentIdPath,
     ) -> None:
-        """Deletes all context variables and their values for the provided agent ID"""
+        """
+        [DEPRECATED] Deletes all context variables and their values for the provided agent ID.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
+        """
         variables = await context_variable_store.list_variables(
             variable_tags=[TagId(f"agent_id::{agent_id}")],
         )
@@ -491,14 +508,17 @@ def create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable or agent not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="delete"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def delete_variable(
         agent_id: AgentIdPath,
         variable_id: ContextVariableIdPath,
     ) -> None:
         """
-        Deletes a specific context variable and all its values.
+        [DEPRECATED] Deletes a specific context variable and all its values.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
             variable_tags=[TagId(f"agent_id::{agent_id}")],
@@ -520,26 +540,31 @@ def create_router(
     @router.get(
         "/{agent_id}/context-variables",
         operation_id="list_variables",
-        response_model=Sequence[ContextVariableDTO],
+        response_model=Sequence[LegacyContextVariableDTO],
         responses={
             status.HTTP_200_OK: {
                 "description": "List of all context variable for the provided agent",
-                "content": common.example_json_content([context_variable_example]),
+                "content": common.example_json_content([legacy_context_variable_example]),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="list"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def list_variables(
         agent_id: AgentIdPath,
-    ) -> Sequence[ContextVariableDTO]:
-        """Lists all context variables set for the provided agent"""
+    ) -> Sequence[LegacyContextVariableDTO]:
+        """
+        [DEPRECATED] Lists all context variables set for the provided agent.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
+        """
         variables = await context_variable_store.list_variables(
             variable_tags=[TagId(f"agent_id::{agent_id}")],
         )
 
         return [
-            ContextVariableDTO(
+            LegacyContextVariableDTO(
                 id=variable.id,
                 name=variable.name,
                 description=variable.description,
@@ -568,7 +593,8 @@ def create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="set_value"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def update_variable_value(
         agent_id: AgentIdPath,
@@ -577,7 +603,9 @@ def create_router(
         params: ContextVariableValueUpdateParamsDTO,
     ) -> ContextVariableValueDTO:
         """
-        Updates the value of a context variable.
+        [DEPRECATED] Updates the value of a context variable.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         The `key` represents a customer identifier or a customer tag in the format `tag:{tag_id}`.
         If `key="DEFAULT"`, the update applies to all customers.
@@ -591,10 +619,6 @@ def create_router(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Variable not found for the provided agent",
             )
-
-        _ = await context_variable_store.read_variable(
-            id=variable_id,
-        )
 
         variable_value = await context_variable_store.update_value(
             variable_id=variable_id,
@@ -619,7 +643,8 @@ def create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="get_value"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def read_variable_value(
         agent_id: AgentIdPath,
@@ -627,7 +652,9 @@ def create_router(
         key: ContextVariableKeyPath,
     ) -> ContextVariableValueDTO:
         """
-        Retrieves the value of a context variable for a specific customer or tag.
+        [DEPRECATED] Retrieves the value of a context variable for a specific customer or tag.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         """
@@ -657,26 +684,29 @@ def create_router(
     @router.get(
         "/{agent_id}/context-variables/{variable_id}",
         operation_id="read_variable",
-        response_model=ContextVariableReadResult,
+        response_model=LegacyContextVariableReadResult,
         responses={
             status.HTTP_200_OK: {
                 "description": "Context variable details with optional values",
-                "content": common.example_json_content(context_variable_read_result_example),
+                "content": common.example_json_content(legacy_context_variable_read_result_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable or agent not found"},
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="retrieve"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def read_variable(
         agent_id: AgentIdPath,
         variable_id: ContextVariableIdPath,
         include_values: IncludeValuesQuery = True,
-    ) -> ContextVariableReadResult:
+    ) -> LegacyContextVariableReadResult:
         """
-        Retrieves a context variable's details and optionally its values.
+        [DEPRECATED] Retrieves a context variable's details and optionally its values.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         Can return all customer or tag values for this variable type if include_values=True.
         """
@@ -691,7 +721,7 @@ def create_router(
                 detail="Variable not found for the provided agent",
             )
 
-        variable_dto = ContextVariableDTO(
+        variable_dto = LegacyContextVariableDTO(
             id=variable.id,
             name=variable.name,
             description=variable.description,
@@ -705,7 +735,7 @@ def create_router(
         )
 
         if not include_values:
-            return ContextVariableReadResult(
+            return LegacyContextVariableReadResult(
                 context_variable=variable_dto,
                 key_value_pairs=None,
             )
@@ -714,7 +744,7 @@ def create_router(
             variable_id=variable_id,
         )
 
-        return ContextVariableReadResult(
+        return LegacyContextVariableReadResult(
             context_variable=variable_dto,
             key_value_pairs={
                 key: ContextVariableValueDTO(
@@ -736,7 +766,8 @@ def create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="delete_value"),
+        **skip_apigen_config(),
+        deprecated=True,
     )
     async def delete_value(
         agent_id: AgentIdPath,
@@ -744,7 +775,9 @@ def create_router(
         key: ContextVariableKeyPath,
     ) -> None:
         """
-        Deletes a specific customer's or tag's value for this context variable.
+        [DEPRECATED] Deletes a specific customer's or tag's value for this context variable.
+
+        This endpoint is deprecated. Please use the tag-based context variables API instead.
 
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         Removes only the value for the specified key while keeping the variable's configuration.
@@ -771,5 +804,484 @@ def create_router(
             variable_id=variable_id,
             key=key,
         )
+
+    return router
+
+
+ContextVariableTagsField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tags associated with the context variable",
+    ),
+]
+
+context_variable_example: ExampleJson = {
+    "id": "v9a8r7i6b5",
+    "name": "UserBalance",
+    "description": "Stores the account balances of users",
+    "tool_id": {"service_name": "finance_service", "tool_name": "balance_checker"},
+    "freshness_rules": "0 8,20 * * *",
+    "tags": ["tag:123", "tag:456"],
+}
+
+
+class ContextVariableDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": context_variable_example},
+):
+    """
+    Represents a context variable type.
+    """
+
+    id: ContextVariableIdPath
+    name: ContextVariableNameField
+    description: Optional[ContextVariableDescriptionField] = None
+    tool_id: Optional[ToolIdDTO] = None
+    freshness_rules: Optional[FreshnessRulesField] = None
+    tags: Optional[ContextVariableTagsField] = None
+
+
+context_variable_tags_update_params_example: ExampleJson = {
+    "add": [
+        "t9a8g703f4",
+        "tag_456abc",
+    ],
+    "remove": [
+        "tag_789def",
+        "tag_012ghi",
+    ],
+}
+
+
+ContextVariableTagsUpdateAddField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tag IDs to add to the context variable",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+ContextVariableTagsUpdateRemoveField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        description="List of tag IDs to remove from the context variable",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+
+class ContextVariableTagsUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": context_variable_tags_update_params_example},
+):
+    """
+    Parameters for updating the tags of an existing context variable.
+    """
+
+    add: Optional[ContextVariableTagsUpdateAddField] = None
+    remove: Optional[ContextVariableTagsUpdateRemoveField] = None
+
+
+class ContextVariableUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": legacy_context_variable_update_params_example},
+):
+    """Parameters for updating an existing context variable."""
+
+    name: Optional[ContextVariableNameField] = None
+    description: Optional[ContextVariableDescriptionField] = None
+    tool_id: Optional[ToolIdDTO] = None
+    freshness_rules: Optional[FreshnessRulesField] = None
+    tags: Optional[ContextVariableTagsUpdateParamsDTO] = None
+
+    @field_validator("freshness_rules")
+    @classmethod
+    def validate_freshness_rules(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None:
+            try:
+                croniter(value)
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="the provided freshness_rules. contain an invalid cron expression.",
+                )
+        return value
+
+
+TagIdQuery: TypeAlias = Annotated[
+    Optional[TagId],
+    Query(
+        description="The tag ID to filter context variables by",
+        examples=["tag:123"],
+    ),
+]
+
+
+class ContextVariableReadResult(
+    DefaultBaseModel,
+    json_schema_extra={"example": context_variable_example},
+):
+    """Complete context variable data including its values."""
+
+    context_variable: ContextVariableDTO
+    key_value_pairs: Optional[KeyValuePairsField] = None
+
+
+def create_router(
+    context_variable_store: ContextVariableStore,
+    service_registry: ServiceRegistry,
+) -> APIRouter:
+    router = APIRouter()
+
+    @router.post(
+        "",
+        status_code=status.HTTP_201_CREATED,
+        operation_id="create_variable",
+        response_model=ContextVariableDTO,
+        responses={
+            status.HTTP_201_CREATED: {
+                "description": "Context variable type successfully created",
+                "content": common.example_json_content(context_variable_example),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Tool not found"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY: {
+                "description": "Validation error in request parameters"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="create"),
+    )
+    async def create_variable(
+        params: ContextVariableCreationParamsDTO,
+    ) -> ContextVariableDTO:
+        """
+        Creates a new context variable
+
+        Example uses:
+        - Track subscription tiers to control feature access
+        - Store usage patterns for personalized recommendations
+        - Remember preferences for tailored responses
+        """
+        if params.tool_id:
+            service = await service_registry.read_tool_service(params.tool_id.service_name)
+            _ = await service.read_tool(params.tool_id.tool_name)
+
+        variable = await context_variable_store.create_variable(
+            name=params.name,
+            description=params.description,
+            tool_id=ToolId(params.tool_id.service_name, params.tool_id.tool_name)
+            if params.tool_id
+            else None,
+            freshness_rules=params.freshness_rules,
+        )
+        return ContextVariableDTO(
+            id=variable.id,
+            name=variable.name,
+            description=variable.description,
+            tool_id=ToolIdDTO(
+                service_name=variable.tool_id.service_name, tool_name=variable.tool_id.tool_name
+            )
+            if variable.tool_id
+            else None,
+            freshness_rules=variable.freshness_rules,
+            tags=variable.tags,
+        )
+
+    @router.patch(
+        "/{variable_id}",
+        operation_id="update_variable",
+        response_model=ContextVariableDTO,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Context variable type successfully updated",
+                "content": common.example_json_content(context_variable_example),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY: {
+                "description": "Validation error in request parameters"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="update"),
+    )
+    async def update_variable(
+        variable_id: ContextVariableIdPath,
+        params: ContextVariableUpdateParamsDTO,
+    ) -> ContextVariableDTO:
+        """
+        Updates an existing context variable.
+
+        Only provided fields will be updated; others remain unchanged.
+        """
+
+        def from_dto(dto: ContextVariableUpdateParamsDTO) -> ContextVariableUpdateParams:
+            params: ContextVariableUpdateParams = {}
+
+            if dto.name:
+                params["name"] = dto.name
+
+            if dto.description:
+                params["description"] = dto.description
+
+            if dto.tool_id:
+                params["tool_id"] = ToolId(
+                    service_name=dto.tool_id.service_name, tool_name=dto.tool_id.tool_name
+                )
+
+            if dto.freshness_rules:
+                params["freshness_rules"] = dto.freshness_rules
+
+            return params
+
+        if params.tags:
+            if params.tags.add:
+                for tag in params.tags.add:
+                    await context_variable_store.add_variable_tag(variable_id, tag)
+
+            if params.tags.remove:
+                for tag in params.tags.remove:
+                    await context_variable_store.remove_variable_tag(variable_id, tag)
+
+        updated_variable = await context_variable_store.update_variable(
+            id=variable_id,
+            params=from_dto(params),
+        )
+
+        return ContextVariableDTO(
+            id=updated_variable.id,
+            name=updated_variable.name,
+            description=updated_variable.description,
+            tool_id=ToolIdDTO(
+                service_name=updated_variable.tool_id.service_name,
+                tool_name=updated_variable.tool_id.tool_name,
+            )
+            if updated_variable.tool_id
+            else None,
+            freshness_rules=updated_variable.freshness_rules,
+            tags=updated_variable.tags,
+        )
+
+    @router.get(
+        "",
+        operation_id="list_variables",
+        response_model=Sequence[ContextVariableDTO],
+    )
+    async def list_variables(
+        tag_id: TagIdQuery = None,
+    ) -> Sequence[ContextVariableDTO]:
+        """Lists all context variables set for the provided tag or all context variables if no tag is provided"""
+        if tag_id:
+            variables = await context_variable_store.list_variables(
+                variable_tags=[tag_id],
+            )
+        else:
+            variables = await context_variable_store.list_variables()
+
+        return [
+            ContextVariableDTO(
+                id=v.id,
+                name=v.name,
+                description=v.description,
+                tool_id=ToolIdDTO(
+                    service_name=v.tool_id.service_name, tool_name=v.tool_id.tool_name
+                )
+                if v.tool_id
+                else None,
+                freshness_rules=v.freshness_rules,
+                tags=v.tags,
+            )
+            for v in variables
+        ]
+
+    @router.get(
+        "/{variable_id}",
+        operation_id="read_variable",
+        response_model=ContextVariableReadResult,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Context variable details successfully retrieved",
+                "content": common.example_json_content(context_variable_example),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="retrieve"),
+    )
+    async def read_variable(
+        variable_id: ContextVariableIdPath,
+        include_values: IncludeValuesQuery = True,
+    ) -> ContextVariableReadResult:
+        """
+        Retrieves a context variable's details and optionally its values.
+
+        Can return all customer or tag values for this variable type if include_values=True.
+        """
+        variable = await context_variable_store.read_variable(id=variable_id)
+
+        variable_dto = ContextVariableDTO(
+            id=variable.id,
+            name=variable.name,
+            description=variable.description,
+            tool_id=ToolIdDTO(
+                service_name=variable.tool_id.service_name, tool_name=variable.tool_id.tool_name
+            )
+            if variable.tool_id
+            else None,
+            freshness_rules=variable.freshness_rules,
+            tags=variable.tags,
+        )
+
+        if not include_values:
+            return ContextVariableReadResult(
+                context_variable=variable_dto,
+                key_value_pairs=None,
+            )
+
+        key_value_pairs = await context_variable_store.list_values(variable_id=variable_id)
+
+        return ContextVariableReadResult(
+            context_variable=variable_dto,
+            key_value_pairs={
+                key: ContextVariableValueDTO(
+                    id=value.id,
+                    last_modified=value.last_modified,
+                    data=cast(JSONSerializableDTO, value.data),
+                )
+                for key, value in key_value_pairs
+            },
+        )
+
+    @router.delete(
+        "",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="delete_variables",
+        responses={
+            status.HTTP_204_NO_CONTENT: {"description": "All context variables deleted"},
+            status.HTTP_404_NOT_FOUND: {"description": "Tag not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="delete_many"),
+    )
+    async def delete_variables(
+        tag_id: TagIdQuery = None,
+    ) -> None:
+        """Deletes all context variables for the provided tag"""
+        if tag_id:
+            variables = await context_variable_store.list_variables(
+                variable_tags=[tag_id],
+            )
+            for v in variables:
+                updated_variable = await context_variable_store.remove_variable_tag(
+                    variable_id=v.id,
+                    tag_id=tag_id,
+                )
+                if not updated_variable.tags:
+                    await context_variable_store.delete_variable(id=v.id)
+
+        else:
+            variables = await context_variable_store.list_variables()
+            for v in variables:
+                await context_variable_store.delete_variable(id=v.id)
+
+    @router.delete(
+        "/{variable_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="delete_variable",
+    )
+    async def delete_variable(
+        variable_id: ContextVariableIdPath,
+    ) -> None:
+        """Deletes a context variable"""
+        await context_variable_store.delete_variable(id=variable_id)
+
+    @router.get(
+        "/{variable_id}/{key}",
+        operation_id="read_variable_value",
+        response_model=ContextVariableValueDTO,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Retrieved context value for the customer or tag",
+                "content": common.example_json_content(context_variable_value_example),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="read_value"),
+    )
+    async def read_value(
+        variable_id: ContextVariableIdPath,
+        key: ContextVariableKeyPath,
+    ) -> ContextVariableValueDTO:
+        """Retrieves a customer or tag value for the provided context variable"""
+        _ = await context_variable_store.read_variable(id=variable_id)
+
+        value = await context_variable_store.read_value(variable_id=variable_id, key=key)
+
+        if value:
+            return ContextVariableValueDTO(
+                id=value.id,
+                last_modified=value.last_modified,
+                data=cast(JSONSerializableDTO, value.data),
+            )
+
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    @router.put(
+        "/{variable_id}/{key}",
+        operation_id="update_variable_value",
+        response_model=ContextVariableValueDTO,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Context value successfully updated for the customer or tag",
+                "content": common.example_json_content(context_variable_value_example),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY: {
+                "description": "Validation error in request parameters"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="update_value"),
+    )
+    async def update_value(
+        variable_id: ContextVariableIdPath,
+        key: ContextVariableKeyPath,
+        params: ContextVariableValueUpdateParamsDTO,
+    ) -> ContextVariableValueDTO:
+        """Updates a customer or tag value for the provided context variable"""
+        _ = await context_variable_store.read_variable(id=variable_id)
+
+        value = await context_variable_store.update_value(
+            variable_id=variable_id,
+            key=key,
+            data=params.data,
+        )
+
+        return ContextVariableValueDTO(
+            id=value.id,
+            last_modified=value.last_modified,
+            data=cast(JSONSerializableDTO, value.data),
+        )
+
+    @router.delete(
+        "/{variable_id}/{key}",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="delete_value",
+        responses={
+            status.HTTP_204_NO_CONTENT: {
+                "description": "Context value deleted for the customer or tag"
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="delete_value"),
+    )
+    async def delete_value(
+        variable_id: ContextVariableIdPath,
+        key: ContextVariableKeyPath,
+    ) -> None:
+        """Deletes a customer or tag value for the provided context variable"""
+        _ = await context_variable_store.read_variable(id=variable_id)
+
+        if not context_variable_store.read_value(variable_id=variable_id, key=key):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Value not found for variable '{variable_id}' and key '{key}'",
+            )
+
+        await context_variable_store.delete_value(variable_id=variable_id, key=key)
 
     return router

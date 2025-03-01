@@ -166,12 +166,12 @@ async def create_api_app(container: Container) -> ASGIApplication:
         ),
     )
     agent_router.include_router(
-        glossary.deprecated_create_router(
+        glossary.create_legacy_router(
             glossary_store=glossary_store,
         ),
     )
     agent_router.include_router(
-        variables.create_router(
+        variables.legacy_create_router(
             context_variable_store=context_variable_store,
             service_registry=service_registry,
         ),
@@ -243,6 +243,14 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/fragments",
         router=fragments.create_router(
             fragment_store=fragment_store,
+        ),
+    )
+
+    api_app.include_router(
+        prefix="/context-variables",
+        router=variables.create_router(
+            context_variable_store=context_variable_store,
+            service_registry=service_registry,
         ),
     )
 
