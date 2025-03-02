@@ -835,7 +835,7 @@ term_example = {
 }
 
 
-class TermDTO(
+class PreparationIterationTermDTO(
     DefaultBaseModel,
     json_schema_extra={"example": term_example},
 ):
@@ -848,7 +848,7 @@ class TermDTO(
 
 
 PreparationIterationTermsField: TypeAlias = Annotated[
-    Sequence[TermDTO],
+    Sequence[PreparationIterationTermDTO],
     Field(
         description="List of terms participating in the preparation for this iteration",
     ),
@@ -1029,7 +1029,7 @@ def preparation_iteration_to_dto(iteration: PreparationIteration) -> Preparation
             for tool_call in iteration.tool_calls
         ],
         terms=[
-            TermDTO(
+            PreparationIterationTermDTO(
                 id=term["id"],
                 name=term["name"],
                 description=term["description"],
