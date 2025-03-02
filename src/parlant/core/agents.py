@@ -58,6 +58,7 @@ class Agent:
     description: Optional[str]
     creation_utc: datetime
     max_engine_iterations: int
+    tags: Sequence[TagId]
     composition_mode: CompositionMode = "fluid"
 
 
@@ -95,6 +96,21 @@ class AgentStore(ABC):
         agent_id: AgentId,
     ) -> None: ...
 
+    @abstractmethod
+    async def add_tag(
+        self,
+        agent_id: AgentId,
+        tag_id: TagId,
+        creation_utc: Optional[datetime] = None,
+    ) -> Agent: ...
+
+    @abstractmethod
+    async def remove_tag(
+        self,
+        agent_id: AgentId,
+        tag_id: TagId,
+    ) -> Agent: ...
+
 
 class _AgentDocument(TypedDict, total=False):
     id: ObjectId
@@ -106,8 +122,16 @@ class _AgentDocument(TypedDict, total=False):
     composition_mode: CompositionMode
 
 
+class _AgentTagAssociationDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    agent_id: AgentId
+    tag_id: TagId
+
+
 class AgentDocumentStore(AgentStore):
-    VERSION = Version.from_string("0.2.0")
+    VERSION = Version.from_string("0.3.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False):
         self._database = database
@@ -150,7 +174,7 @@ class AgentDocumentStore(AgentStore):
             database=self._database,
             allow_migration=self._allow_migration,
         ):
-            self._collection = await self._database.get_or_create_collection(
+            self._agents_collection = await self._database.get_or_create_collection(
                 name="agents",
                 schema=_AgentDocument,
                 document_loader=self._document_loader,
@@ -172,7 +196,7 @@ class AgentDocumentStore(AgentStore):
     ) -> bool:
         return False
 
-    def _serialize(self, agent: Agent) -> _AgentDocument:
+    def _serialize_agent(self, agent: Agent) -> _AgentDocument:
         return _AgentDocument(
             id=ObjectId(agent.id),
             version=self.VERSION.to_string(),
@@ -197,6 +221,7 @@ class AgentDocumentStore(AgentStore):
             name=agent_document["name"],
             description=agent_document["description"],
             max_engine_iterations=agent_document["max_engine_iterations"],
+            tags=tags,
             composition_mode=cast(CompositionMode, agent_document.get("composition_mode", "fluid")),
         )
 
@@ -219,10 +244,11 @@ class AgentDocumentStore(AgentStore):
                 description=description,
                 creation_utc=creation_utc,
                 max_engine_iterations=max_engine_iterations,
+                tags=[],
                 composition_mode=composition_mode or "fluid",
             )
 
-            await self._collection.insert_one(document=self._serialize(agent=agent))
+            await self._agents_collection.insert_one(document=self._serialize_agent(agent=agent))
 
         return agent
 
@@ -231,12 +257,15 @@ class AgentDocumentStore(AgentStore):
         self,
     ) -> Sequence[Agent]:
         async with self._lock.reader_lock:
-            return [self._deserialize(d) for d in await self._collection.find(filters={})]
+            return [
+                await self._deserialize_agent(d)
+                for d in await self._agents_collection.find(filters={})
+            ]
 
     @override
     async def read_agent(self, agent_id: AgentId) -> Agent:
         async with self._lock.reader_lock:
-            agent_document = await self._collection.find_one(
+            agent_document = await self._agents_collection.find_one(
                 filters={
                     "id": {"$eq": agent_id},
                 }
@@ -245,7 +274,7 @@ class AgentDocumentStore(AgentStore):
         if not agent_document:
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
 
-        return self._deserialize(agent_document)
+        return await self._deserialize_agent(agent_document=agent_document)
 
     @override
     async def update_agent(
@@ -254,7 +283,7 @@ class AgentDocumentStore(AgentStore):
         params: AgentUpdateParams,
     ) -> Agent:
         async with self._lock.writer_lock:
-            agent_document = await self._collection.find_one(
+            agent_document = await self._agents_collection.find_one(
                 filters={
                     "id": {"$eq": agent_id},
                 }
@@ -263,14 +292,14 @@ class AgentDocumentStore(AgentStore):
             if not agent_document:
                 raise ItemNotFoundError(item_id=UniqueId(agent_id))
 
-            result = await self._collection.update_one(
+            result = await self._agents_collection.update_one(
                 filters={"id": {"$eq": agent_id}},
                 params=cast(_AgentDocument, params),
             )
 
         assert result.updated_document
 
-        return self._deserialize(agent_document=result.updated_document)
+        return await self._deserialize_agent(agent_document=result.updated_document)
 
     @override
     async def delete_agent(
@@ -278,7 +307,7 @@ class AgentDocumentStore(AgentStore):
         agent_id: AgentId,
     ) -> None:
         async with self._lock.writer_lock:
-            result = await self._collection.delete_one({"id": {"$eq": agent_id}})
+            result = await self._agents_collection.delete_one({"id": {"$eq": agent_id}})
 
             for doc in await self._tag_association_collection.find(
                 filters={
