@@ -157,7 +157,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
     agent_router = APIRouter(prefix="/agents")
 
     agent_router.include_router(
-        guidelines.create_router(
+        guidelines.legacy_create_router(
             application=application,
             guideline_store=guideline_store,
             guideline_connection_store=guideline_connection_store,
@@ -251,6 +251,16 @@ async def create_api_app(container: Container) -> ASGIApplication:
         router=variables.create_router(
             context_variable_store=context_variable_store,
             service_registry=service_registry,
+        ),
+    )
+
+    api_app.include_router(
+        prefix="/guidelines",
+        router=guidelines.create_router(
+            guideline_store=guideline_store,
+            guideline_connection_store=guideline_connection_store,
+            service_registry=service_registry,
+            guideline_tool_association_store=guideline_tool_association_store,
         ),
     )
 
