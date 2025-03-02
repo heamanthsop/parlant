@@ -38,6 +38,7 @@ from parlant.client import ParlantClient
 from parlant.client.core import ApiError
 from parlant.client.types import (
     Agent,
+    AgentTagUpdateParams,
     ContextVariable,
     ContextVariableReadResult,
     ContextVariableValue,
@@ -158,6 +159,16 @@ class Actions:
             max_engine_iterations=max_engine_iterations,
             composition_mode=composition_mode,
         )
+
+    @staticmethod
+    def add_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(add=[tag_id]))
+
+    @staticmethod
+    def remove_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(remove=[tag_id]))
 
     @staticmethod
     def create_session(
@@ -1125,6 +1136,24 @@ class Interface:
             )
             Interface._write_success(f"Updated agent (id: {agent_id})")
             Interface._render_agents([agent])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def add_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+        try:
+            Actions.add_agent_tag(ctx, agent_id, tag_id)
+            Interface._write_success(f"Tagged agent (id: {agent_id}, tag_id: {tag_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+        try:
+            Actions.remove_agent_tag(ctx, agent_id, tag_id)
+            Interface._write_success(f"Untagged agent (id: {agent_id}, tag_id: {tag_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2345,6 +2374,20 @@ async def async_main() -> None:
             composition_mode = composition_mode.replace("-", "_")
 
         Interface.update_agent(ctx, id, name, description, max_engine_iterations, composition_mode)
+
+    @agent.command("tag", help="Tag an agent")
+    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
+    @click.pass_context
+    def agent_add_tag(ctx: click.Context, id: str, tag_id: str) -> None:
+        Interface.add_agent_tag(ctx, id, tag_id)
+
+    @agent.command("untag", help="Untag an agent")
+    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
+    @click.pass_context
+    def agent_remove_tag(ctx: click.Context, id: str, tag_id: str) -> None:
+        Interface.remove_agent_tag(ctx, id, tag_id)
 
     @cli.group(help="Manage sessions")
     def session() -> None:
