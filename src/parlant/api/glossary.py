@@ -147,7 +147,7 @@ def create_legacy_router(
     @router.post(
         "/{agent_id}/terms",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_term",
+        operation_id="legacy_create_term",
         response_model=LegacyTermDTO,
         responses={
             status.HTTP_201_CREATED: {
@@ -200,7 +200,7 @@ def create_legacy_router(
 
     @router.get(
         "/{agent_id}/terms/{term_id}",
-        operation_id="read_term",
+        operation_id="legacy_read_term",
         response_model=LegacyTermDTO,
         responses={
             status.HTTP_200_OK: {
@@ -245,7 +245,7 @@ def create_legacy_router(
 
     @router.get(
         "/{agent_id}/terms",
-        operation_id="list_terms",
+        operation_id="legacy_list_terms",
         response_model=Sequence[LegacyTermDTO],
         responses={
             status.HTTP_200_OK: {
@@ -287,7 +287,7 @@ def create_legacy_router(
 
     @router.patch(
         "/{agent_id}/terms/{term_id}",
-        operation_id="update_term",
+        operation_id="legacy_update_term",
         response_model=LegacyTermDTO,
         responses={
             status.HTTP_200_OK: {
@@ -357,7 +357,7 @@ def create_legacy_router(
     @router.delete(
         "/{agent_id}/terms/{term_id}",
         status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_term",
+        operation_id="legacy_delete_term",
         responses={
             status.HTTP_204_NO_CONTENT: {
                 "description": "Term successfully deleted. No content returned"
