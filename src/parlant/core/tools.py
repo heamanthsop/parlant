@@ -37,11 +37,11 @@ from typing_extensions import override, TypedDict
 from parlant.core.common import ItemNotFoundError, JSONSerializable, UniqueId
 
 ToolParameterType = Literal[
+    "array",
     "string",
     "number",
     "integer",
     "boolean",
-    "enum",
 ]
 
 EnumValueType = Union[str, int]
@@ -49,6 +49,7 @@ EnumValueType = Union[str, int]
 
 class ToolParameterDescriptor(TypedDict, total=False):
     type: ToolParameterType
+    item_type: ToolParameterType
     enum: Sequence[EnumValueType]
     description: str
     examples: Sequence[str]
@@ -344,26 +345,31 @@ def validate_tool_arguments(
         param_def, _ = tool.parameters[param_name]
         param_type = param_def["type"]
 
-        if param_type == "enum":
-            allowed_values = param_def.get("enum", [])
-            if arg_value not in allowed_values:
-                message = (
-                    f"Parameter '{param_name}' must be one of {allowed_values}, "
-                    f"but got '{arg_value}'."
-                )
-                raise ToolExecutionError(tool.name, message)
-        else:
-            expected_types = type_map.get(param_type)
-            if expected_types is None:
-                raise ToolExecutionError(
-                    tool.name, f"Parameter '{param_name}' has unknown type '{param_type}'"
-                )
-            if arg_value is not None and type(arg_value) not in expected_types:
-                raise ToolExecutionError(
-                    tool.name,
-                    f"Parameter '{param_name}' must be of type {expected_types}, "
-                    f"but got {type(arg_value).__name__}: {arg_value}",
-                )
+        values = [arg_value]
+
+        if param_type == "array":
+            values = arg_value
+
+        for value in values:
+            if allowed_values := param_def.get("enum", []):
+                if value not in allowed_values:
+                    message = (
+                        f"Parameter '{param_name}' must be one of {allowed_values}, "
+                        f"but got '{value}'."
+                    )
+                    raise ToolExecutionError(tool.name, message)
+            else:
+                expected_types = type_map.get(param_type)
+                if expected_types is None:
+                    raise ToolExecutionError(
+                        tool.name, f"Parameter '{param_name}' has unknown type '{param_type}'"
+                    )
+                if value is not None and type(value) not in expected_types:
+                    raise ToolExecutionError(
+                        tool.name,
+                        f"Parameter '{param_name}' must be of type {expected_types}, "
+                        f"but got {type(value).__name__}: {value}",
+                    )
 
 
 def normalize_tool_arguments(
@@ -377,12 +383,17 @@ def normalize_tool_arguments(
 
 
 def normalize_tool_argument(parameter_type: Any, argument: Any) -> Any:
-    if getattr(parameter_type, "__name__", None) == "Annotated":
-        parameter_type = get_args(parameter_type)[0]
-    if (
-        inspect.isclass(parameter_type)
-        and issubclass(parameter_type, enum.Enum)
-        or parameter_type in [str, int, float, bool]
-    ):
-        return parameter_type(argument)
-    return argument
+    try:
+        if getattr(parameter_type, "__name__", None) == "Annotated":
+            parameter_type = get_args(parameter_type)[0]
+        if (
+            inspect.isclass(parameter_type)
+            and issubclass(parameter_type, enum.Enum)
+            or parameter_type in [str, int, float, bool]
+        ):
+            return parameter_type(argument)
+        return argument
+    except Exception as exc:
+        raise ToolExecutionError(
+            f"Failed to convert argument '{argument}' into a {parameter_type}"
+        ) from exc

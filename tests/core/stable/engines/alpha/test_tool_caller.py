@@ -238,3 +238,78 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
 
     assert "category" in tool_call.arguments
     assert tool_call.arguments["category"] == "peripherals"
+
+
+async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter(
+    container: Container,
+    tool_caller: ToolCaller,
+    agent: Agent,
+) -> None:
+    service_registry = container[ServiceRegistry]
+
+    class ProductCategory(enum.Enum):
+        LAPTOPS = "laptops"
+        PERIPHERALS = "peripherals"
+
+    @tool
+    def available_products_by_category(
+        context: ToolContext, categories: list[ProductCategory]
+    ) -> ToolResult:
+        products_by_category = {
+            ProductCategory.LAPTOPS: ["Lenovo", "Dell"],
+            ProductCategory.PERIPHERALS: ["Razer Keyboard", "Logitech Mouse"],
+        }
+
+        return ToolResult([products_by_category[category] for category in categories])
+
+    conversation_context = [
+        ("customer", "Are you selling computers products?"),
+        ("ai_agent", "Yes"),
+        ("customer", "What available keyboards and laptops do you have?"),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    ordinary_guideline_propositions = [
+        create_guideline_proposition(
+            condition="customer asking a question",
+            action="response in concise and breif answer",
+            score=9,
+            rationale="customer ask a question of what available keyboard do we have",
+        )
+    ]
+
+    tool_enabled_guideline_propositions = {
+        create_guideline_proposition(
+            condition="get all products by a specific category",
+            action="a customer asks for the availability of products from a certain category",
+            score=9,
+            rationale="customer asks for keyboards availability",
+        ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
+    }
+
+    async with run_service_server([available_products_by_category]) as server:
+        await service_registry.update_tool_service(
+            name="my_sdk_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_propositions=ordinary_guideline_propositions,
+            tool_enabled_guideline_propositions=tool_enabled_guideline_propositions,
+            staged_events=[],
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+    assert len(tool_calls) == 1
+    tool_call = tool_calls[0]
+
+    assert "categories" in tool_call.arguments
+    assert isinstance(tool_call.arguments["categories"], str)
+    assert ProductCategory.LAPTOPS.value in tool_call.arguments["categories"]
+    assert ProductCategory.PERIPHERALS.value in tool_call.arguments["categories"]

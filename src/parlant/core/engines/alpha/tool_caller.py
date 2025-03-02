@@ -591,10 +591,16 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
         def _get_param_spec(spec: tuple[ToolParameterDescriptor, ToolParameterOptions]) -> str:
             descriptor, options = spec
 
-            result: dict[str, Any] = {"type": descriptor["type"]}
+            result: dict[str, Any] = {"schema": {"type": descriptor["type"]}}
 
-            if enum := descriptor.get("enum"):
-                result["enum"] = enum
+            if descriptor["type"] == "array":
+                result["schema"]["items"] = {"type": descriptor["item_type"]}
+
+                if enum := descriptor.get("enum"):
+                    result["schema"]["items"]["enum"] = enum
+            else:
+                if enum := descriptor.get("enum"):
+                    result["schema"]["enum"] = enum
 
             if options.description:
                 result["description"] = options.description
