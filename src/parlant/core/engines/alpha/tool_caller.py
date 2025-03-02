@@ -68,7 +68,7 @@ class ToolCallEvaluation(DefaultBaseModel):
     ] = None
     # This ARQ is for cases we've observed where many optional arguments are missing
     # such that the model would be possibly biased to say the tool shouldn't run.
-    can_run_without_optional_parameters_even_if_they_are_missing: bool = True
+    can_run_without_optional_parameters_even_if_they_are_missing: Optional[bool] = True
     should_run: bool
 
 
@@ -829,6 +829,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     ),
                     relevant_subtleties="check_balance(12345) is already staged",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
@@ -853,6 +854,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     comparison_with_rejected_tools_including_references_to_subtleties="There are no tools in the list of rejected tools",
                     relevant_subtleties="no subtleties were detected",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
@@ -904,6 +906,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     ),
                     relevant_subtleties="no subtleties were detected",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=True,
                 )
             ],
@@ -944,6 +947,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     ),
                     relevant_subtleties="two products need to be checked for calories - begin with margherita",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=True,
                 ),
                 ToolCallEvaluation(
@@ -967,6 +971,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     ),
                     relevant_subtleties="two products need to be checked for calories - now check deep dish",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=True,
                 ),
             ],
@@ -1011,6 +1016,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                         "and not just general vehicles."
                     ),
                     the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=True,
                 )
             ],
@@ -1052,6 +1058,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                         "which is better fitting for this case compared to the more general check_vehicle_price"
                     ),
                     the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
@@ -1093,6 +1100,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                         "Here, since the customer inquired about the temperature of a specific room, the check_indoor_temperature is more fitting."
                     ),
                     the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
@@ -1136,6 +1144,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                         "which will provide more accurate results for electronic products"
                     ),
                     the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
@@ -1169,6 +1178,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
                     relevant_subtleties="This is the right tool to run, but we lack information for the date argument",
                     comparison_with_rejected_tools_including_references_to_subtleties="There are no tools in the list of rejected tools",
                     a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    can_run_without_optional_parameters_even_if_they_are_missing=True,
                     should_run=False,
                 )
             ],
