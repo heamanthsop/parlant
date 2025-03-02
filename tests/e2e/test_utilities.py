@@ -35,33 +35,6 @@ class _ServiceDTO(TypedDict):
     url: str
 
 
-class _TermDTO(TypedDict):
-    id: str
-    name: str
-    description: str
-    synonyms: Optional[list[str]]
-
-
-class _ContextVariableDTO(TypedDict):
-    id: str
-    name: str
-    description: Optional[str]
-    tool_id: Optional[str]
-    freshness_rules: Optional[str]
-
-
-class _GuidelineDTO(TypedDict):
-    id: str
-    condition: str
-    action: str
-
-
-class _ContextVariableValueDTO(TypedDict):
-    id: str
-    last_modified: str
-    data: Any
-
-
 LOGGER = logging.getLogger(__name__)
 
 
