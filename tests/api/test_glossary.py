@@ -393,6 +393,59 @@ async def test_that_terms_can_be_listed(
     assert len(created_terms) == 2
 
 
+async def test_that_terms_can_be_listed_with_a_tag(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    glossary_store = container[GlossaryStore]
+
+    first_term = await glossary_store.create_term(
+        name="guideline1",
+        description="description 1",
+        synonyms=["synonym1"],
+    )
+    await glossary_store.add_tag(
+        term_id=first_term.id,
+        tag_id=TagId("tag1"),
+    )
+
+    second_term = await glossary_store.create_term(
+        name="guideline2",
+        description="description 2",
+        synonyms=["synonym2"],
+    )
+    await glossary_store.add_tag(
+        term_id=second_term.id,
+        tag_id=TagId("tag2"),
+    )
+
+    third_term = await glossary_store.create_term(
+        name="guideline3",
+        description="description 3",
+        synonyms=["synonym3"],
+    )
+    await glossary_store.add_tag(
+        term_id=third_term.id,
+        tag_id=TagId("tag1"),
+    )
+
+    response = await async_client.get("/terms?tag_id=tag1")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 2
+
+    first_term_dto = next(term for term in data if term["id"] == first_term.id)
+    third_term_dto = next(term for term in data if term["id"] == third_term.id)
+
+    assert first_term_dto["name"] == first_term.name
+    assert first_term_dto["description"] == first_term.description
+    assert first_term_dto["synonyms"] == first_term.synonyms
+
+    assert third_term_dto["name"] == third_term.name
+    assert third_term_dto["description"] == third_term.description
+    assert third_term_dto["synonyms"] == third_term.synonyms
+
+
 async def test_that_a_term_can_be_updated_with_new_values(
     async_client: httpx.AsyncClient,
 ) -> None:

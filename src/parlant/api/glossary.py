@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Query, status
 from typing import Annotated, Optional, Sequence, TypeAlias
 from pydantic import Field
 
@@ -507,6 +507,15 @@ class TermUpdateParamsDTO(
     tags: Optional[TermTagsUpdateParamsDTO] = None
 
 
+TagIdQuery: TypeAlias = Annotated[
+    Optional[TagId],
+    Query(
+        description="Filter terms by tag ID",
+        examples=["tag1", "tag2"],
+    ),
+]
+
+
 def create_router(
     glossary_store: GlossaryStore,
 ) -> APIRouter:
@@ -597,14 +606,19 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="list_terms"),
     )
-    async def list_terms() -> Sequence[TermDTO]:
+    async def list_terms(
+        tag_id: TagIdQuery = None,
+    ) -> Sequence[TermDTO]:
         """
         Retrieves a list of all terms in the glossary.
 
         Returns an empty list if no terms exist.
         Terms are returned in no guaranteed order.
         """
-        terms = await glossary_store.list_terms()
+        if tag_id:
+            terms = await glossary_store.list_terms(term_tags=[tag_id])
+        else:
+            terms = await glossary_store.list_terms()
 
         return [
             TermDTO(
