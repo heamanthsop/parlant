@@ -17,7 +17,7 @@ import time
 from typing import Any, Mapping
 from typing_extensions import override
 from google import genai  # type: ignore
-from google.genai.errors import ServerError
+from google.genai.errors import ServerError  # type: ignore
 import jsonfinder  # type: ignore
 from pydantic import ValidationError
 
