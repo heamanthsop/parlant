@@ -524,7 +524,7 @@ def legacy_create_router(
     @router.post(
         "/{agent_id}/guidelines",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_guidelines",
+        operation_id="legacy_create_guidelines",
         response_model=LegacyGuidelineCreationResult,
         responses={
             status.HTTP_201_CREATED: {
@@ -626,7 +626,7 @@ def legacy_create_router(
 
     @router.get(
         "/{agent_id}/guidelines/{guideline_id}",
-        operation_id="read_guideline",
+        operation_id="legacy_read_guideline",
         response_model=LegacyGuidelineWithConnectionsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
@@ -714,7 +714,7 @@ def legacy_create_router(
 
     @router.get(
         "/{agent_id}/guidelines",
-        operation_id="list_guidelines",
+        operation_id="legacy_list_guidelines",
         response_model=Sequence[LegacyGuidelineDTO],
         responses={
             status.HTTP_200_OK: {
@@ -754,7 +754,7 @@ def legacy_create_router(
 
     @router.patch(
         "/{agent_id}/guidelines/{guideline_id}",
-        operation_id="update_guideline",
+        operation_id="legacy_update_guideline",
         response_model=LegacyGuidelineWithConnectionsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
@@ -947,7 +947,7 @@ def legacy_create_router(
     @router.delete(
         "/{agent_id}/guidelines/{guideline_id}",
         status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_guideline",
+        operation_id="legacy_delete_guideline",
         responses={
             status.HTTP_204_NO_CONTENT: {
                 "description": "Guideline successfully deleted. No content returned."
