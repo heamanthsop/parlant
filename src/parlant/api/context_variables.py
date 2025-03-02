@@ -333,7 +333,7 @@ def legacy_create_router(
     @router.post(
         "/{agent_id}/context-variables",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_variable",
+        operation_id="legacy_create_variable",
         response_model=LegacyContextVariableDTO,
         responses={
             status.HTTP_201_CREATED: {
@@ -391,7 +391,7 @@ def legacy_create_router(
 
     @router.patch(
         "/{agent_id}/context-variables/{variable_id}",
-        operation_id="update_variable",
+        operation_id="legacy_update_variable",
         response_model=LegacyContextVariableDTO,
         responses={
             status.HTTP_200_OK: {
@@ -469,7 +469,7 @@ def legacy_create_router(
     @router.delete(
         "/{agent_id}/context-variables",
         status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_variables",
+        operation_id="legacy_delete_variables",
         responses={
             status.HTTP_204_NO_CONTENT: {"description": "All context variables deleted"},
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
@@ -501,7 +501,7 @@ def legacy_create_router(
     @router.delete(
         "/{agent_id}/context-variables/{variable_id}",
         status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_variable",
+        operation_id="legacy_delete_variable",
         responses={
             status.HTTP_204_NO_CONTENT: {
                 "description": "Context variable and all its values deleted"
@@ -539,7 +539,7 @@ def legacy_create_router(
 
     @router.get(
         "/{agent_id}/context-variables",
-        operation_id="list_variables",
+        operation_id="legacy_list_variables",
         response_model=Sequence[LegacyContextVariableDTO],
         responses={
             status.HTTP_200_OK: {
@@ -581,7 +581,7 @@ def legacy_create_router(
 
     @router.put(
         "/{agent_id}/context-variables/{variable_id}/{key}",
-        operation_id="update_variable_value",
+        operation_id="legacy_update_variable_value",
         response_model=ContextVariableValueDTO,
         responses={
             status.HTTP_200_OK: {
@@ -634,7 +634,7 @@ def legacy_create_router(
 
     @router.get(
         "/{agent_id}/context-variables/{variable_id}/{key}",
-        operation_id="read_variable_value",
+        operation_id="legacy_read_variable_value",
         response_model=ContextVariableValueDTO,
         responses={
             status.HTTP_200_OK: {
@@ -683,7 +683,7 @@ def legacy_create_router(
 
     @router.get(
         "/{agent_id}/context-variables/{variable_id}",
-        operation_id="read_variable",
+        operation_id="legacy_read_variable",
         response_model=LegacyContextVariableReadResult,
         responses={
             status.HTTP_200_OK: {
@@ -759,7 +759,7 @@ def legacy_create_router(
     @router.delete(
         "/{agent_id}/context-variables/{variable_id}/{key}",
         status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_value",
+        operation_id="legacy_delete_value",
         responses={
             status.HTTP_204_NO_CONTENT: {
                 "description": "Context value deleted for the customer or tag"
