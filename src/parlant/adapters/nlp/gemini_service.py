@@ -14,10 +14,10 @@
 
 import os
 import time
-from google.api_core.exceptions import NotFound, TooManyRequests, ResourceExhausted, ServerError
-from google import genai  # type: ignore
 from typing import Any, Mapping
 from typing_extensions import override
+from google import genai  # type: ignore
+from google.genai.errors import ServerError
 import jsonfinder  # type: ignore
 from pydantic import ValidationError
 
@@ -84,13 +84,6 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
 
     @policy(
         [
-            retry(
-                exceptions=(
-                    NotFound,
-                    TooManyRequests,
-                    ResourceExhausted,
-                )
-            ),
             retry(ServerError, max_attempts=2, wait_times=(1.0, 5.0)),
         ]
     )
@@ -117,7 +110,7 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
                 contents=prompt,
                 config=config,
             )
-        except TooManyRequests:
+        except ServerError:
             self._logger.error(
                 (
                     "Google API rate limit exceeded. Possible reasons:\n"
@@ -251,13 +244,6 @@ class GoogleEmbedder(Embedder):
 
     @policy(
         [
-            retry(
-                exceptions=(
-                    NotFound,
-                    TooManyRequests,
-                    ResourceExhausted,
-                )
-            ),
             retry(ServerError, max_attempts=2, wait_times=(1.0, 5.0)),
         ]
     )
@@ -268,29 +254,12 @@ class GoogleEmbedder(Embedder):
         hints: Mapping[str, Any] = {},
     ) -> EmbeddingResult:
         gemini_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
-
-        try:
-            with self._logger.operation("Embedding text with gemini"):
-                response = await self._client.aio.models.embed_content(  # type: ignore
-                    model=self.model_name,
-                    contents=texts,
-                    config=gemini_api_arguments,
-                )
-        except TooManyRequests:
-            self._logger.error(
-                (
-                    "Google API rate limit exceeded. Possible reasons:\n"
-                    "1. Your account may have insufficient API credits.\n"
-                    "2. You may be using a free-tier account with limited request capacity.\n"
-                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
-                    "Recommended actions:\n"
-                    "- Check your Google API account balance and billing status.\n"
-                    "- Review your API usage limits in Google's dashboard.\n"
-                    "- For more details on rate limits and usage tiers, visit:\n"
-                    "  https://cloud.google.com/docs/quota-and-billing/quotas/quotas-overview"
-                ),
+        with self._logger.operation("Embedding text with gemini"):
+            response = await self._client.aio.models.embed_content(  # type: ignore
+                model=self.model_name,
+                contents=texts,
+                config=gemini_api_arguments,
             )
-            raise
 
         vectors = [data_point.values for data_point in response.embeddings if data_point.values]
         return EmbeddingResult(vectors=vectors)
