@@ -53,6 +53,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 	const [, setSessions] = useAtom(sessionsAtom);
 	const [dialog] = useAtom(dialogAtom);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const contentRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (!isSelected) return;
@@ -155,7 +156,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 			title: 'copy ID',
 			onClick: (e: React.MouseEvent) => {
 				e.stopPropagation();
-				copy(session.id);
+				copy(session.id, contentRef?.current || undefined);
 			},
 			imgPath: 'icons/copy-session.svg',
 		},
@@ -211,7 +212,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 								<img src='icons/more.svg' alt='more' height={14} width={14} />
 							</div>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent side='right' align='start' className='-ms-[10px] flex flex-col gap-[8px] py-[14px] px-[10px] border-none w-[168px] [box-shadow:_0px_8px_20px_-8px_#00000012] rounded-[8px]'>
+						<DropdownMenuContent ref={contentRef} side='right' align='start' className='-ms-[10px] flex flex-col gap-[8px] py-[14px] px-[10px] border-none w-[168px] [box-shadow:_0px_8px_20px_-8px_#00000012] rounded-[8px]'>
 							{sessionActions.map((sessionAction) => (
 								<DropdownMenuItem tabIndex={0} key={sessionAction.title} onClick={sessionAction.onClick} className='gap-0 font-normal text-[14px] px-[20px] font-ubuntu-sans capitalize hover:!bg-[#FAF9FF]'>
 									<img data-testid={sessionAction.title} src={sessionAction.imgPath} height={16} width={18} className='me-[8px]' alt='' />
