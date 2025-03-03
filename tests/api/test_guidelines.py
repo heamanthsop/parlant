@@ -1457,7 +1457,59 @@ async def test_that_a_guideline_can_be_read(
     assert len(item["tool_associations"]) == 0
 
 
-async def test_that_a_guideline_can_be_updated(
+async def test_that_a_guideline_condition_can_be_updated(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer asks about the weather",
+        action="provide the current weather update",
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={
+            "condition": "the customer inquires about weather",
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["condition"] == "the customer inquires about weather"
+    assert updated_guideline["action"] == guideline.content.action
+
+
+async def test_that_a_guideline_action_can_be_updated(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer asks about the weather",
+        action="provide the current weather update",
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={
+            "action": "give current weather information",
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["condition"] == guideline.content.condition
+    assert updated_guideline["action"] == "give current weather information"
+
+
+async def test_that_a_guideline_can_be_disabled(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -1472,6 +1524,30 @@ async def test_that_a_guideline_can_be_updated(
         f"/guidelines/{guideline.id}",
         json={
             "enabled": False,
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["enabled"] is False
+
+
+async def test_that_a_tag_can_be_added_to_guideline(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer asks about the weather",
+        action="provide the current weather update",
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={
             "tags": {
                 "add": ["test_tag"],
             },
@@ -1482,10 +1558,40 @@ async def test_that_a_guideline_can_be_updated(
     updated_guideline = response.json()["guideline"]
 
     assert updated_guideline["id"] == guideline.id
-    assert updated_guideline["condition"] == guideline.content.condition
-    assert updated_guideline["action"] == guideline.content.action
-    assert updated_guideline["enabled"] is False
     assert "test_tag" in updated_guideline["tags"]
+
+
+async def test_that_a_tag_can_be_removed_from_guideline(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer asks about the weather",
+        action="provide the current weather update",
+    )
+
+    # First add a tag
+    await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=TagId("test_tag"),
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={
+            "tags": {
+                "remove": ["test_tag"],
+            },
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert "test_tag" not in updated_guideline["tags"]
 
 
 async def test_that_a_guideline_can_be_deleted(
