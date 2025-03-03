@@ -2204,13 +2204,13 @@ async def async_main() -> None:
         )
 
     @agent.command("delete", help="Delete an agent")
-    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.pass_context
     def agent_remove(ctx: click.Context, id: str) -> None:
         Interface.delete_agent(ctx, id)
 
     @agent.command("view", help="View an agent")
-    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.pass_context
     def agent_view(ctx: click.Context, id: str) -> None:
         Interface.view_agent(ctx, id)
@@ -2266,14 +2266,14 @@ async def async_main() -> None:
         Interface.update_agent(ctx, id, name, description, max_engine_iterations, composition_mode)
 
     @agent.command("tag", help="Tag an agent")
-    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
     def agent_add_tag(ctx: click.Context, id: str, tag_id: str) -> None:
         Interface.add_agent_tag(ctx, id, tag_id)
 
     @agent.command("untag", help="Untag an agent")
-    @click.option("--id", type=str, help="Agent ID", required=True)
+    @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
     def agent_remove_tag(ctx: click.Context, id: str, tag_id: str) -> None:
@@ -2445,7 +2445,6 @@ async def async_main() -> None:
         "--tag-id",
         type=str,
         help="Tag ID",
-        metavar="ID",
         required=False,
     )
     @click.pass_context
@@ -2539,7 +2538,6 @@ async def async_main() -> None:
         "--tag-id",
         type=str,
         help="Tag ID",
-        metavar="ID",
         required=False,
     )
     @click.option(
@@ -2676,33 +2674,33 @@ async def async_main() -> None:
         )
 
     @guideline.command("tag", help="Tag to a guideline")
-    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG", help="Tag", required=True)
+    @click.option("--id", type=str, help="Guideline ID", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
     def guideline_tag(
         ctx: click.Context,
         id: str,
-        tag: str,
+        tag_id: str,
     ) -> None:
         Interface.add_guideline_tag(
             ctx=ctx,
             guideline_id=id,
-            tag_id=tag,
+            tag_id=tag_id,
         )
 
     @guideline.command("untag", help="Untag from a guideline")
-    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG", help="Tag", required=True)
+    @click.option("--id", type=str, help="Guideline ID", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
     def guideline_untag(
         ctx: click.Context,
         id: str,
-        tag: str,
+        tag_id: str,
     ) -> None:
         Interface.remove_guideline_tag(
             ctx=ctx,
             guideline_id=id,
-            tag_id=tag,
+            tag_id=tag_id,
         )
 
     @cli.group(help="Manage an agent's context variables")
@@ -2881,17 +2879,17 @@ async def async_main() -> None:
 
     @variable.command("tag", help="Tag a variable")
     @click.option("--id", type=str, metavar="ID", help="Variable ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG", help="Tag", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
-    def variable_tag(ctx: click.Context, id: str, tag: str) -> None:
-        Interface.add_variable_tag(ctx, id, tag)
+    def variable_tag(ctx: click.Context, id: str, tag_id: str) -> None:
+        Interface.add_variable_tag(ctx, id, tag_id)
 
     @variable.command("untag", help="Untag a variable")
     @click.option("--id", type=str, metavar="ID", help="Variable ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG", help="Tag", required=True)
+    @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
-    def variable_untag(ctx: click.Context, id: str, tag: str) -> None:
-        Interface.remove_variable_tag(ctx, id, tag)
+    def variable_untag(ctx: click.Context, id: str, tag_id: str) -> None:
+        Interface.remove_variable_tag(ctx, id, tag_id)
 
     @cli.group(help="Manage services")
     def service() -> None:
