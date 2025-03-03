@@ -815,18 +815,11 @@ Produce a valid JSON object in the following format: ###
                 continue
 
             if index < len(final_revision.sequenced_rendered_content_fragments):
-                # This check is inside the 'if' to account for possible (erroneous)
-                # divergences between the selected fragments and the list of rendered ones.
-                if (
-                    materialized_fragment.raw_content.lower()
-                    not in final_revision.sequenced_rendered_content_fragments[index].lower()
-                ):
-                    self._logger.warning(
-                        f"Fragment rendering hallucination. ID={materialized_fragment.fragment_id}; ExpectedContent={materialized_fragment.raw_content}; HallucinatedContent={final_revision.sequenced_rendered_content_fragments[index]}"
-                    )
-
                 used_fragments[fragment.id] = fragment.value
             else:
+                self._logger.error(
+                    f"Invalid fragment index. ID={materialized_fragment.fragment_id}; Index={index}"
+                )
                 used_fragments[fragment.id] = "<error: index mismatch>"
 
         match composition_mode:
