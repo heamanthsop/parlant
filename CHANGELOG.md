@@ -19,6 +19,10 @@ All notable changes to Parlant will be documented here.
 - Add clear rate limit error logs for NLP adapters
 - Add enabled/disabled flag for guidelines to facilitate experimentation without deletion
 - Allow different schematic generators to adjust incoming prompts in a structured manner
+- Add tags to context variables
+- Add tags to guidelines
+- Add tags to glossary
+- Add tags to agents
 
 ## [1.6.2] - 2025-01-29
 
