@@ -57,6 +57,7 @@ uvicorn = "^0.32.1"
 # --- optional packages ---
 anthropic = { version = "^0.37.1", optional = true }
 cerebras-cloud-sdk = { version = "^1.19.0", optional = true }
+google-api-core = { version = "^2.24.1", optional = true }
 google-genai = { version = "^1.2.0", optional = true }
 together = { version = "^1.2.12", optional = true }
 torch = { version = "^2.5.1", optional = true }
@@ -90,7 +91,7 @@ cerebras = ["cerebras-cloud-sdk", "torch", "transformers"]
 
 deepseek = ["torch", "transformers"]
 
-gemini = ["google-genai", "torch"]
+gemini = ["google-genai", "google-api-core", "torch"]
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
