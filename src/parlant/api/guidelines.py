@@ -1115,6 +1115,8 @@ class GuidelineUpdateParamsDTO(
 ):
     """Parameters for updating a guideline."""
 
+    condition: Optional[GuidelineConditionField] = None
+    action: Optional[GuidelineActionField] = None
     connections: Optional[GuidelineConnectionUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
     enabled: Optional[GuidelineEnabledField] = None
@@ -1391,10 +1393,18 @@ def create_router(
         """
         _ = await guideline_store.read_guideline(guideline_id=guideline_id)
 
-        if params.enabled is not None:
+        if params.condition or params.action or params.enabled is not None:
+            update_params: GuidelineUpdateParams = {}
+            if params.condition:
+                update_params["condition"] = params.condition
+            if params.action:
+                update_params["action"] = params.action
+            if params.enabled is not None:
+                update_params["enabled"] = params.enabled
+
             await guideline_store.update_guideline(
                 guideline_id=guideline_id,
-                params=GuidelineUpdateParams(enabled=params.enabled),
+                params=GuidelineUpdateParams(**update_params),
             )
 
         if params.connections and params.connections.add:
