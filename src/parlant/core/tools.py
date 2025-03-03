@@ -128,6 +128,9 @@ class ToolParameterOptions:
     adapter: Optional[Callable[[Any], Awaitable[Any]]] = field(default=None)
     """A custom adapter function to convert the inferred value to a type."""
 
+    choice_provider: Optional[Callable[[], Awaitable[list[str]]]] = field(default=None)
+    """A custom function to provide valid choicoes for the parameter's argument."""
+
 
 @dataclass(frozen=True)
 class Tool:

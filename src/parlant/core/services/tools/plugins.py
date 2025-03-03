@@ -235,6 +235,40 @@ async def adapt_tool_arguments(
     return adapted_arguments
 
 
+async def _recompute_and_marshal_tool(tool: Tool) -> Tool:
+    """This function is specifically used to refresh some of the tool's
+    details based on dynamic changes (e.g., updating parameter descriptors
+    based on dynamically-generated enum choices)"""
+    new_parameters = {}
+
+    for name, (old_descriptor, options) in tool.parameters.items():
+        new_descriptor = old_descriptor
+
+        if options.choice_provider:
+            new_descriptor["enum"] = await options.choice_provider()
+
+        marshalled_options = ToolParameterOptions(
+            hidden=options.hidden,
+            source=options.source,
+            description=options.description,
+            significance=options.significance,
+            examples=options.examples,
+            adapter=None,
+            choice_provider=None,
+        )
+
+        new_parameters[name] = (new_descriptor, marshalled_options)
+
+    return Tool(
+        name=tool.name,
+        creation_utc=datetime.now(timezone.utc),
+        description=tool.description,
+        parameters=new_parameters,
+        required=tool.required,
+        consequential=tool.consequential,
+    )
+
+
 def _tool_decorator_impl(
     **kwargs: Unpack[_ToolDecoratorParams],
 ) -> Callable[[ToolFunction], ToolEntry]:
@@ -305,9 +339,9 @@ def _tool_decorator_impl(
 
                     list_item_type = type_args[0]
 
-                    if param_type in type_to_param_type:
+                    if list_item_type in type_to_param_type:
                         param_descriptor["type"] = "array"
-                        param_descriptor["item_type"] = type_to_param_type[param_type]
+                        param_descriptor["item_type"] = type_to_param_type[list_item_type]
                     elif issubclass(list_item_type, enum.Enum):
                         param_descriptor["type"] = "array"
                         param_descriptor["item_type"] = "string"
@@ -487,7 +521,10 @@ class PluginServer:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Tool: '{name}' does not exists",
                 )
-            return ReadToolResponse(tool=spec.tool)
+
+            tool = await _recompute_and_marshal_tool(spec.tool)
+
+            return ReadToolResponse(tool=tool)
 
         @app.post("/tools/{name}/calls")
         async def call_tool(
@@ -673,8 +710,12 @@ class PluginClient(ToolService):
     @override
     async def read_tool(self, name: str) -> Tool:
         response = await self._http_client.get(self._get_url(f"/tools/{name}"))
+
         if response.status_code == status.HTTP_404_NOT_FOUND:
             raise ItemNotFoundError(UniqueId(name))
+        if response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+            raise ToolError(name, "Failed to read tool from remote service")
+
         content = response.json()
         t = content["tool"]
         return Tool(
