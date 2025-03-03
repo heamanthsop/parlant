@@ -466,7 +466,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
                         for doc in await self._variable_tag_association_collection.find(filters={})
                     }
                     filters = (
-                        {"$or": [{"id": {"$ne": id}} for id in variable_ids]}
+                        {"$and": [{"id": {"$ne": id}} for id in variable_ids]}
                         if variable_ids
                         else {}
                     )

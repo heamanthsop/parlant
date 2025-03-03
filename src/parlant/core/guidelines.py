@@ -308,7 +308,7 @@ class GuidelineDocumentStore(GuidelineStore):
                         for doc in await self._tag_association_collection.find(filters={})
                     }
                     filters = (
-                        {"$or": [{"id": {"$ne": id}} for id in guideline_ids]}
+                        {"$and": [{"id": {"$ne": id}} for id in guideline_ids]}
                         if guideline_ids
                         else {}
                     )
