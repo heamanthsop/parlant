@@ -1063,6 +1063,14 @@ def create_router(
         "",
         operation_id="list_variables",
         response_model=Sequence[ContextVariableDTO],
+        responses={
+            status.HTTP_200_OK: {
+                "description": "List of all context variables",
+                "content": common.example_json_content([context_variable_example]),
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_variables(
         tag_id: TagIdQuery = None,
@@ -1183,6 +1191,11 @@ def create_router(
         "/{variable_id}",
         status_code=status.HTTP_204_NO_CONTENT,
         operation_id="delete_variable",
+        responses={
+            status.HTTP_204_NO_CONTENT: {"description": "Context variable deleted"},
+            status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_variable(
         variable_id: ContextVariableIdPath,
@@ -1201,9 +1214,9 @@ def create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
         },
-        **apigen_config(group_name=API_GROUP, method_name="read_value"),
+        **apigen_config(group_name=API_GROUP, method_name="get_value"),
     )
-    async def read_value(
+    async def read_variable_value(
         variable_id: ContextVariableIdPath,
         key: ContextVariableKeyPath,
     ) -> ContextVariableValueDTO:
@@ -1235,9 +1248,9 @@ def create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="update_value"),
+        **apigen_config(group_name=API_GROUP, method_name="set_value"),
     )
-    async def update_value(
+    async def update_variable_value(
         variable_id: ContextVariableIdPath,
         key: ContextVariableKeyPath,
         params: ContextVariableValueUpdateParamsDTO,
