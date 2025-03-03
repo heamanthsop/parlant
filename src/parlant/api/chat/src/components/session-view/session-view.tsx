@@ -74,7 +74,7 @@ export default function SessionView(): ReactElement {
 
 	const regenerateMessageDialog = (index: number) => (sessionId: string) => {
 		const isLastMessage = index === messages.length - 1;
-		const lastUserMessage = messages.findLast((message) => message.source === 'customer' && message.kind === 'message');
+		const lastUserMessage = messages.findLast((message, i) => message.source === 'customer' && message.kind === 'message' && i <= index);
 		const lastUserMessageOffset = lastUserMessage?.offset || messages.length - 1;
 
 		if (isLastMessage) {
