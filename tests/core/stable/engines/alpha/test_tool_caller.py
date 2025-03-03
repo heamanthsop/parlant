@@ -283,6 +283,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id::{agent.id}")],
         )
     ]
 
@@ -292,6 +293,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id::{agent.id}")],
         ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
     }
 
