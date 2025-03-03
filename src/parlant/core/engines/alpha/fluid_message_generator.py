@@ -661,7 +661,7 @@ Produce a valid JSON object in the following format: ###
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
-        if not message_event_response.content.produced_reply:
+        if message_event_response.content.produced_reply is False:
             self._logger.debug("Produced no reply")
             return message_event_response.info, None
 
