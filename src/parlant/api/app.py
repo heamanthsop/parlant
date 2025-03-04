@@ -230,6 +230,8 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/terms",
         router=glossary.create_router(
             glossary_store=glossary_store,
+            agent_store=agent_store,
+            tag_store=tag_store,
         ),
     )
 

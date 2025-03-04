@@ -18,10 +18,10 @@ from pydantic import Field
 
 from parlant.api import common
 from parlant.api.common import apigen_config, ExampleJson, skip_apigen_config
-from parlant.core.agents import AgentId
+from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.glossary import TermUpdateParams, GlossaryStore, TermId
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 API_GROUP = "glossary"
 
@@ -518,6 +518,8 @@ TagIdQuery: TypeAlias = Annotated[
 
 def create_router(
     glossary_store: GlossaryStore,
+    agent_store: AgentStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -675,6 +677,12 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
+                    if tag_id.startswith("agent-id::"):
+                        agent_id = AgentId(tag_id.split("::")[1])
+                        _ = await agent_store.read_agent(agent_id=agent_id)
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
+
                     await glossary_store.add_tag(
                         term_id=term_id,
                         tag_id=tag_id,

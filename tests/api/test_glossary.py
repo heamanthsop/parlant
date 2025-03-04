@@ -449,6 +449,9 @@ async def test_that_terms_can_be_listed_with_a_tag(
 async def test_that_a_term_can_be_updated_with_new_values(
     async_client: httpx.AsyncClient,
 ) -> None:
+    tag1 = (await async_client.post("/tags", json={"name": "tag1"})).raise_for_status().json()
+    tag2 = (await async_client.post("/tags", json={"name": "tag2"})).raise_for_status().json()
+
     name = "guideline"
     description = "when and then statements"
     synonyms = ["rule", "principle"]
@@ -471,7 +474,7 @@ async def test_that_a_term_can_be_updated_with_new_values(
     updated_name = "updated guideline"
     updated_description = "Updated guideline description"
     updated_synonyms = ["instruction"]
-    tags_to_add = ["tag1", "tag2"]
+    tags_to_add = [tag1["id"], tag2["id"]]
 
     update_response = await async_client.patch(
         f"/terms/{term['id']}",
@@ -497,6 +500,9 @@ async def test_that_a_term_can_be_updated_with_new_values(
 async def test_that_tags_can_be_removed_from_a_term(
     async_client: httpx.AsyncClient,
 ) -> None:
+    tag1 = (await async_client.post("/tags", json={"name": "tag1"})).raise_for_status().json()
+    tag2 = (await async_client.post("/tags", json={"name": "tag2"})).raise_for_status().json()
+
     name = "guideline"
     description = "when and then statements"
     synonyms = ["rule", "principle"]
@@ -520,7 +526,7 @@ async def test_that_tags_can_be_removed_from_a_term(
         f"/terms/{term['id']}",
         json={
             "tags": {
-                "add": ["tag1", "tag2"],
+                "add": [tag1["id"], tag2["id"]],
             },
         },
     )
@@ -529,14 +535,14 @@ async def test_that_tags_can_be_removed_from_a_term(
         f"/terms/{term['id']}",
         json={
             "tags": {
-                "remove": ["tag1"],
+                "remove": [tag1["id"]],
             },
         },
     )
 
     assert update_response.status_code == status.HTTP_200_OK
     data = update_response.json()
-    assert set(data["tags"]) == {"tag2"}
+    assert set(data["tags"]) == {tag2["id"]}
 
 
 async def test_that_a_term_can_be_deleted(
@@ -565,3 +571,43 @@ async def test_that_a_term_can_be_deleted(
 
     read_response = await async_client.get(f"/terms/{term['id']}")
     assert read_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_adding_nonexistent_agent_tag_to_term_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    glossary_store = container[GlossaryStore]
+
+    term = await glossary_store.create_term(
+        name="guideline",
+        description="when and then statements",
+        synonyms=["rule", "principle"],
+    )
+
+    response = await async_client.patch(
+        f"/terms/{term.id}",
+        json={"tags": {"add": ["agent-id::nonexistent_agent"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_adding_nonexistent_tag_to_term_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    glossary_store = container[GlossaryStore]
+
+    term = await glossary_store.create_term(
+        name="guideline",
+        description="when and then statements",
+        synonyms=["rule", "principle"],
+    )
+
+    response = await async_client.patch(
+        f"/terms/{term.id}",
+        json={"tags": {"add": ["nonexistent_tag"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
