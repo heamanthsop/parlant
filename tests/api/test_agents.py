@@ -20,7 +20,7 @@ from pytest import mark, raises
 
 from parlant.core.agents import AgentStore
 from parlant.core.common import ItemNotFoundError
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 
 async def test_that_an_agent_can_be_created_without_description(
@@ -206,19 +206,24 @@ async def test_that_tags_can_be_added_to_an_agent(
     container: Container,
 ) -> None:
     agent_store = container[AgentStore]
+    tag_store = container[TagStore]
+
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
+
     agent = await agent_store.create_agent("test-agent")
 
-    update_payload = {"tags": {"add": ["tag1", "tag2"]}}
+    update_payload = {"tags": {"add": [tag1.id, tag2.id]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
     response.raise_for_status()
     updated_agent = response.json()
 
-    assert "tag1" in updated_agent["tags"]
-    assert "tag2" in updated_agent["tags"]
+    assert tag1.id in updated_agent["tags"]
+    assert tag2.id in updated_agent["tags"]
 
     agent_dto = (await async_client.get(f"/agents/{agent.id}")).raise_for_status().json()
-    assert "tag1" in agent_dto["tags"]
-    assert "tag2" in agent_dto["tags"]
+    assert tag1.id in agent_dto["tags"]
+    assert tag2.id in agent_dto["tags"]
 
 
 async def test_that_tags_can_be_removed_from_an_agent(
@@ -247,17 +252,40 @@ async def test_that_tags_can_be_added_and_removed_in_same_request(
     container: Container,
 ) -> None:
     agent_store = container[AgentStore]
+    tag_store = container[TagStore]
+
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
+    tag3 = await tag_store.create_tag("tag3")
+    tag4 = await tag_store.create_tag("tag4")
+
     agent = await agent_store.create_agent("test-agent")
 
-    await agent_store.add_tag(agent.id, TagId("tag1"))
-    await agent_store.add_tag(agent.id, TagId("tag2"))
+    await agent_store.add_tag(agent.id, tag1.id)
+    await agent_store.add_tag(agent.id, tag2.id)
 
-    update_payload = {"tags": {"add": ["tag3", "tag4"], "remove": ["tag1"]}}
+    update_payload = {"tags": {"add": [tag3.id, tag4.id], "remove": [tag1.id]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
     response.raise_for_status()
     updated_agent = response.json()
 
-    assert "tag1" not in updated_agent["tags"]
-    assert "tag2" in updated_agent["tags"]
-    assert "tag3" in updated_agent["tags"]
-    assert "tag4" in updated_agent["tags"]
+    assert tag1.id not in updated_agent["tags"]
+    assert tag2.id in updated_agent["tags"]
+    assert tag3.id in updated_agent["tags"]
+    assert tag4.id in updated_agent["tags"]
+
+
+async def test_that_an_agent_cannot_be_created_with_a_nonexistent_tag(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    agent_store = container[AgentStore]
+
+    agent = await agent_store.create_agent("test-agent")
+
+    response = await async_client.patch(
+        f"/agents/{agent.id}",
+        json={"tags": {"add": ["nonexistent-tag"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND

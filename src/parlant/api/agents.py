@@ -23,7 +23,7 @@ from typing import Annotated, Optional, Sequence, TypeAlias
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams
 from parlant.core.common import DefaultBaseModel
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 API_GROUP = "agents"
 
@@ -220,6 +220,7 @@ class AgentUpdateParamsDTO(
 
 def create_router(
     agent_store: AgentStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -385,6 +386,8 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
+
                     await agent_store.add_tag(
                         agent_id=agent_id,
                         tag_id=tag_id,
