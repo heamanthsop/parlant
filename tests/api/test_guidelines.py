@@ -23,7 +23,7 @@ from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 from parlant.core.tools import LocalToolService, ToolId
 
 from tests.test_utilities import (
@@ -1539,6 +1539,9 @@ async def test_that_a_tag_can_be_added_to_guideline(
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
+
+    tag = await tag_store.create_tag("test_tag")
 
     guideline = await guideline_store.create_guideline(
         condition="the customer asks about the weather",
@@ -1549,7 +1552,7 @@ async def test_that_a_tag_can_be_added_to_guideline(
         f"/guidelines/{guideline.id}",
         json={
             "tags": {
-                "add": ["test_tag"],
+                "add": [tag.id],
             },
         },
     )
@@ -1558,7 +1561,7 @@ async def test_that_a_tag_can_be_added_to_guideline(
     updated_guideline = response.json()["guideline"]
 
     assert updated_guideline["id"] == guideline.id
-    assert "test_tag" in updated_guideline["tags"]
+    assert tag.id in updated_guideline["tags"]
 
 
 async def test_that_a_tag_can_be_removed_from_guideline(
@@ -1706,7 +1709,9 @@ async def test_that_a_tag_can_be_added_to_a_guideline(
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
 
+    tag = await tag_store.create_tag("test_tag")
     guideline = await guideline_store.create_guideline(
         condition="the customer wants to get meeting details",
         action="get meeting event information",
@@ -1714,17 +1719,48 @@ async def test_that_a_tag_can_be_added_to_a_guideline(
 
     response = await async_client.patch(
         f"/guidelines/{guideline.id}",
-        json={"tags": {"add": ["test_tag"]}},
+        json={"tags": {"add": [tag.id]}},
     )
 
     assert response.status_code == status.HTTP_200_OK
     updated_guideline = response.json()["guideline"]
 
     assert updated_guideline["id"] == guideline.id
-    assert updated_guideline["tags"] == ["test_tag"]
+    assert tag.id in updated_guideline["tags"]
 
 
 async def test_that_a_tag_can_be_removed_from_a_guideline(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
+
+    tag = await tag_store.create_tag("test_tag")
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+        action="get meeting event information",
+    )
+
+    await guideline_store.add_tag(
+        guideline_id=guideline.id,
+        tag_id=tag.id,
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={"tags": {"remove": [tag.id]}},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["tags"] == []
+
+
+async def test_that_adding_nonexistent_agent_tag_to_guideline_returns_404(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -1735,18 +1771,28 @@ async def test_that_a_tag_can_be_removed_from_a_guideline(
         action="get meeting event information",
     )
 
-    await guideline_store.add_tag(
-        guideline_id=guideline.id,
-        tag_id=TagId("test_tag"),
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={"tags": {"add": ["agent-id::nonexistent_agent"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_adding_nonexistent_tag_to_guideline_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+        action="get meeting event information",
     )
 
     response = await async_client.patch(
         f"/guidelines/{guideline.id}",
-        json={"tags": {"remove": ["test_tag"]}},
+        json={"tags": {"add": ["nonexistent_tag"]}},
     )
 
-    assert response.status_code == status.HTTP_200_OK
-    updated_guideline = response.json()["guideline"]
-
-    assert updated_guideline["id"] == guideline.id
-    assert updated_guideline["tags"] == []
+    assert response.status_code == status.HTTP_404_NOT_FOUND

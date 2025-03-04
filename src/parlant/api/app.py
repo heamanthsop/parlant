@@ -262,6 +262,8 @@ async def create_api_app(container: Container) -> ASGIApplication:
             guideline_connection_store=guideline_connection_store,
             service_registry=service_registry,
             guideline_tool_association_store=guideline_tool_association_store,
+            agent_store=agent_store,
+            tag_store=tag_store,
         ),
     )
 

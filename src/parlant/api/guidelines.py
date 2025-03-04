@@ -28,6 +28,7 @@ from parlant.api.common import (
     skip_apigen_config,
 )
 from parlant.api.index import InvoiceDTO
+from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import (
     DefaultBaseModel,
 )
@@ -59,7 +60,7 @@ from parlant.core.guideline_tool_associations import (
 )
 from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 from parlant.core.tools import ToolId
 
 from parlant.api.common import (
@@ -1197,6 +1198,8 @@ def create_router(
     guideline_connection_store: GuidelineConnectionStore,
     service_registry: ServiceRegistry,
     guideline_tool_association_store: GuidelineToolAssociationStore,
+    agent_store: AgentStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     """Creates a router for the guidelines API with tag-based paths."""
     router = APIRouter()
@@ -1487,10 +1490,15 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    await guideline_store.add_tag(
-                        guideline_id=guideline_id,
-                        tag_id=tag_id,
-                    )
+                    if tag_id.startswith("agent-id::"):
+                        agent_id = AgentId(tag_id.split("::")[1])
+                        _ = await agent_store.read_agent(agent_id=agent_id)
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
+                        await guideline_store.add_tag(
+                            guideline_id=guideline_id,
+                            tag_id=tag_id,
+                        )
             if params.tags.remove:
                 for tag_id in params.tags.remove:
                     await guideline_store.remove_tag(
