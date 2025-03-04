@@ -68,7 +68,7 @@ class ToolCallEvaluation(DefaultBaseModel):
     ] = None
     # This ARQ is for cases we've observed where many optional arguments are missing
     # such that the model would be possibly biased to say the tool shouldn't run.
-    can_run_without_optional_parameters_even_if_they_are_missing: Optional[bool] = None
+    can_run_without_optional_parameters_even_if_they_are_missing: bool
     should_run: bool
 
 
@@ -455,6 +455,7 @@ Produce a valid JSON object according to the following format:
             "potentially_better_rejected_tool_name": "<IF CANDIDATE TOOL IS A WORSE FIT THAN A REJECTED TOOL, THIS IS THE NAME OF THAT REJECTED TOOL>",
             "potentially_better_rejected_tool_rationale": "<IF CANDIDATE TOOL IS A WORSE FIT THAN A REJECTED TOOL, THIS EXPLAINS WHY>",
             "the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool": <BOOL>,
+            "can_run_without_optional_parameters_even_if_they_are_missing": <BOOL-ALWAYS TRUE>,
             "should_run": <BOOL>
         }}
         ...
