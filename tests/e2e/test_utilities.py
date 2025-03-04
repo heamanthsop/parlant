@@ -273,7 +273,7 @@ class API:
     ) -> Any:
         async with self.make_client() as client:
             response = await client.post(
-                "/terms/",
+                "/terms",
                 json={
                     "name": name,
                     "description": description,
@@ -286,7 +286,7 @@ class API:
     async def list_terms(self) -> Any:
         async with self.make_client() as client:
             response = await client.get(
-                "/terms/",
+                "/terms",
             )
             response.raise_for_status()
 
@@ -307,7 +307,7 @@ class API:
     async def list_guidelines(self) -> Any:
         async with self.make_client() as client:
             response = await client.get(
-                "/guidelines/",
+                "/guidelines",
             )
 
             response.raise_for_status()
@@ -405,7 +405,7 @@ class API:
 
     async def list_context_variables(self) -> Any:
         async with self.make_client() as client:
-            response = await client.get("/context-variables/")
+            response = await client.get("/context-variables")
 
             response.raise_for_status()
 
