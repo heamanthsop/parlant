@@ -154,7 +154,6 @@ async def get_component_versions() -> dict[str, str]:
     glossary_db = await EXIT_STACK.enter_async_context(
         ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory)
     )
-    versions["glossary"] = "unknown"
     with suppress(chromadb.errors.InvalidCollectionException):
         if glossary_db.chroma_client.get_collection("glossary_unembedded"):
             versions["glossary"] = cast(dict[str, Any], await glossary_db.read_metadata())[

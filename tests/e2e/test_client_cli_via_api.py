@@ -851,84 +851,33 @@ async def test_that_a_connection_can_be_deleted(
             guidelines_response = await client.post(
                 f"{SERVER_ADDRESS}/agents/{agent_id}/guidelines/",
                 json={
-                    "invoices": [
-                        {
-                            "payload": {
-                                "kind": "guideline",
-                                "guideline": {
-                                    "content": {
-                                        "condition": "the customer greets you",
-                                        "action": "greet them back with 'Hello'",
-                                    },
-                                    "operation": "add",
-                                    "coherence_check": True,
-                                    "connection_proposition": True,
-                                },
-                            },
-                            "checksum": "checksum_value",
-                            "approved": True,
-                            "data": {
-                                "guideline": {
-                                    "coherence_checks": [],
-                                    "connection_propositions": [
-                                        {
-                                            "check_kind": "connection_with_another_evaluated_guideline",
-                                            "source": {
-                                                "condition": "the customer greets you",
-                                                "action": "greet them back with 'Hello'",
-                                            },
-                                            "target": {
-                                                "condition": "greeting the customer",
-                                                "action": "ask for his health condition",
-                                            },
-                                        }
-                                    ],
-                                },
-                            },
-                            "error": None,
-                        },
-                        {
-                            "payload": {
-                                "kind": "guideline",
-                                "guideline": {
-                                    "content": {
-                                        "condition": "greeting the customer",
-                                        "action": "ask for his health condition",
-                                    },
-                                    "operation": "add",
-                                    "coherence_check": True,
-                                    "connection_proposition": True,
-                                },
-                            },
-                            "checksum": "checksum_value",
-                            "approved": True,
-                            "data": {
-                                "guideline": {
-                                    "coherence_checks": [],
-                                    "connection_propositions": [
-                                        {
-                                            "check_kind": "connection_with_another_evaluated_guideline",
-                                            "source": {
-                                                "condition": "the customer greets you",
-                                                "action": "greet them back with 'Hello'",
-                                            },
-                                            "target": {
-                                                "condition": "greeting the customer",
-                                                "action": "ask for his health condition",
-                                            },
-                                        }
-                                    ],
-                                },
-                            },
-                            "error": None,
-                        },
-                    ]
-                },  # type: ignore
+                    "condition": "the customer greets you",
+                    "action": "greet them back with 'Hello'",
+                },
             )
-
             guidelines_response.raise_for_status()
-            first = guidelines_response.json()["items"][0]["guideline"]["id"]
-            second = guidelines_response.json()["items"][1]["guideline"]["id"]
+
+            first = guidelines_response.json()
+
+            guidelines_response = await client.post(
+                f"{SERVER_ADDRESS}/agents/{agent_id}/guidelines/",
+                json={
+                    "condition": "greeting the customer",
+                    "action": "ask for his health condition",
+                },
+            )
+            guidelines_response.raise_for_status()
+
+            second = guidelines_response.json()
+
+            first = first["items"][0]["guideline"]["id"]
+            second = second["items"][0]["guideline"]["id"]
+
+            connection_response = await client.patch(
+                f"{SERVER_ADDRESS}/guidelines",
+                json={"connections": {"add": [{"source": first, "target": second}]}},
+            )
+            connection_response.raise_for_status()
 
         process = await run_cli(
             "guideline",
