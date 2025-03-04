@@ -237,6 +237,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/customers",
         router=customers.create_router(
             customer_store=customer_store,
+            tag_store=tag_store,
         ),
     )
 

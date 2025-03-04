@@ -244,3 +244,19 @@ async def test_that_extra_can_be_removed(
 
     updated_customer = await customer_store.read_customer(customer.id)
     assert "department" not in updated_customer.extra
+
+
+async def test_that_adding_nonexistent_tag_to_customer_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    customer_store = container[CustomerStore]
+
+    customer = await customer_store.create_customer("test_customer")
+
+    response = await async_client.patch(
+        f"/customers/{customer.id}",
+        json={"tags": {"add": ["nonexistent_tag"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND

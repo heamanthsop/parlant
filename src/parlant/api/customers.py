@@ -21,7 +21,7 @@ from typing import Annotated, Mapping, Optional, Sequence, TypeAlias
 from parlant.api.common import apigen_config, ExampleJson, example_json_content
 from parlant.core.common import DefaultBaseModel
 from parlant.core.customers import CustomerId, CustomerStore
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 API_GROUP = "customers"
 
@@ -215,6 +215,7 @@ class CustomerUpdateParamsDTO(
 
 def create_router(
     customer_store: CustomerStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -366,6 +367,7 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
+                    _ = await tag_store.read_tag(tag_id)
                     await customer_store.add_tag(customer_id, tag_id)
             if params.tags.remove:
                 for tag_id in params.tags.remove:
