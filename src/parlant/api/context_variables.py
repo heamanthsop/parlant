@@ -27,7 +27,7 @@ from parlant.api.common import (
     ExampleJson,
     skip_apigen_config,
 )
-from parlant.core.agents import AgentId
+from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.context_variables import (
     ContextVariableId,
@@ -36,7 +36,7 @@ from parlant.core.context_variables import (
     ContextVariableValueId,
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 from parlant.core.tools import ToolId
 
 API_GROUP = "context-variables"
@@ -930,6 +930,8 @@ class ContextVariableReadResult(
 def create_router(
     context_variable_store: ContextVariableStore,
     service_registry: ServiceRegistry,
+    agent_store: AgentStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -1033,12 +1035,17 @@ def create_router(
 
         if params.tags:
             if params.tags.add:
-                for tag in params.tags.add:
-                    await context_variable_store.add_variable_tag(variable_id, tag)
+                for tag_id in params.tags.add:
+                    if tag_id.startswith("agent-id::"):
+                        agent_id = AgentId(tag_id.split("::")[1])
+                        _ = await agent_store.read_agent(agent_id=agent_id)
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
+                    await context_variable_store.add_variable_tag(variable_id, tag_id)
 
             if params.tags.remove:
-                for tag in params.tags.remove:
-                    await context_variable_store.remove_variable_tag(variable_id, tag)
+                for tag_id in params.tags.remove:
+                    await context_variable_store.remove_variable_tag(variable_id, tag_id)
 
         updated_variable = await context_variable_store.update_variable(
             id=variable_id,

@@ -19,7 +19,7 @@ from pytest import fixture
 
 from parlant.core.agents import AgentId
 from parlant.core.context_variables import ContextVariableStore
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 from parlant.core.tools import LocalToolService, ToolId
 
 
@@ -690,6 +690,10 @@ async def test_that_a_context_variable_can_be_updated_with_new_values(
     tool_id: ToolId,
 ) -> None:
     context_variable_store = container[ContextVariableStore]
+    tag_store = container[TagStore]
+
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
 
     name = "test_variable"
     description = "test of context variable"
@@ -703,7 +707,7 @@ async def test_that_a_context_variable_can_be_updated_with_new_values(
     updated_name = "updated_test_variable"
     updated_description = "updated test of variable"
     freshness_rules = "0 18 14 5 4"
-    tags_to_add = ["tag1", "tag2"]
+    tags_to_add = [tag1.id, tag2.id]
 
     update_response = await async_client.patch(
         f"/context-variables/{variable.id}",
@@ -910,3 +914,43 @@ async def test_that_context_variable_value_can_be_deleted(
     read_response = await async_client.get(f"/context-variables/{variable.id}")
     assert read_response.status_code == status.HTTP_200_OK
     assert key not in read_response.json()["key_value_pairs"]
+
+
+async def test_that_adding_nonexistent_agent_tag_to_context_variable_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    variable = await context_variable_store.create_variable(
+        name="test_variable",
+        description="test of context variable",
+        tool_id=ToolId("local", "test_tool"),
+    )
+
+    response = await async_client.patch(
+        f"/context-variables/{variable.id}",
+        json={"tags": {"add": ["agent-id::nonexistent_agent"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_adding_nonexistent_tag_to_guideline_returns_404(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    context_variable_store = container[ContextVariableStore]
+
+    variable = await context_variable_store.create_variable(
+        name="test_variable",
+        description="test of context variable",
+        tool_id=ToolId("local", "test_tool"),
+    )
+
+    response = await async_client.patch(
+        f"/context-variables/{variable.id}",
+        json={"tags": {"add": ["nonexistent_tag"]}},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
