@@ -148,7 +148,22 @@ async def test_that_a_plugin_reads_a_tool(container: Container) -> None:
     async with run_service_server([my_tool]) as server:
         async with create_client(server, container[EventBufferFactory]) as client:
             returned_tool = await client.read_tool(my_tool.tool.name)
-            assert my_tool.tool == returned_tool
+            assert my_tool.tool.name == returned_tool.name
+            assert my_tool.tool.description == returned_tool.description
+            assert my_tool.tool.required == returned_tool.required
+
+            for param_name, (param_descriptor, param_options) in my_tool.tool.parameters.items():
+                (returned_param_descriptor, returned_param_options) = returned_tool.parameters[
+                    param_name
+                ]
+                assert param_descriptor == returned_param_descriptor
+
+                for option_name, option_field in ToolParameterOptions.model_fields.items():
+                    if not option_field.exclude:
+                        assert (
+                            param_options.model_dump()[option_name]
+                            == returned_param_options.model_dump()[option_name]
+                        )
 
 
 async def test_that_a_plugin_calls_a_tool(tool_context: ToolContext, container: Container) -> None:

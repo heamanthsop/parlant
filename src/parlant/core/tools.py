@@ -32,9 +32,10 @@ from typing import (
     Union,
     get_args,
 )
+from pydantic import Field
 from typing_extensions import override, TypedDict
 
-from parlant.core.common import ItemNotFoundError, JSONSerializable, UniqueId
+from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSerializable, UniqueId
 
 ToolParameterType = Literal[
     "array",
@@ -106,29 +107,30 @@ class ToolResult:
     control: ControlOptions = field(default_factory=lambda: ControlOptions())
 
 
-@dataclass(frozen=True)
-class ToolParameterOptions:
-    hidden: bool = field(default=False)
+class ToolParameterOptions(DefaultBaseModel):
+    hidden: bool = Field(default=False)
     """If true, this parameter is not exposed in tool insights and message generation;
     meaning, agents would not be able to inform customers when it is missing and required."""
 
-    source: Literal["any", "context", "customer"] = field(default="any")
+    source: Literal["any", "context", "customer"] = Field(default="any")
     """Describes what is the expected source for the argument. This can help agents understand
     whether to ask for it directly from the customer, or to seek it elsewhere in the context."""
 
-    description: Optional[str] = field(default=None)
+    description: Optional[str] = Field(default=None)
     """A description of this parameter which should help agents understand how to extract arguments properly."""
 
-    significance: Optional[str] = field(default=None)
+    significance: Optional[str] = Field(default=None)
     """A description of the significance of this parameter for the tool call — why is it needed?"""
 
-    examples: Sequence[Any] = field(default_factory=list)
+    examples: Sequence[Any] = Field(default_factory=list)
     """Examples of arguments which should help agents understand how to extract arguments properly."""
 
-    adapter: Optional[Callable[[Any], Awaitable[Any]]] = field(default=None)
+    adapter: Optional[Callable[[Any], Awaitable[Any]]] = Field(default=None, exclude=True)
     """A custom adapter function to convert the inferred value to a type."""
 
-    choice_provider: Optional[Callable[[], Awaitable[list[str]]]] = field(default=None)
+    choice_provider: Optional[Callable[[], Awaitable[list[str]]]] = Field(
+        default=None, exclude=True
+    )
     """A custom function to provide valid choicoes for the parameter's argument."""
 
 
