@@ -195,6 +195,10 @@ class MessageAssembler(MessageEventComposer):
 
         fragments = await self._fragment_store.list_fragments()
 
+        if not fragments:
+            self._logger.info("No fragments found; skipping response")
+            return []
+
         prompt = self._build_prompt(
             agent=agent,
             context_variables=context_variables,
