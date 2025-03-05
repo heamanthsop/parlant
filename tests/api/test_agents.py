@@ -87,6 +87,38 @@ async def test_that_an_agent_can_be_created_with_max_engine_iterations(
     assert agent["max_engine_iterations"] == 1
 
 
+async def test_that_an_agent_can_be_created_with_default_composition_mode(
+    async_client: httpx.AsyncClient,
+) -> None:
+    response = await async_client.post(
+        "/agents",
+        json={"name": "test-agent"},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    agent = response.json()
+
+    assert agent["name"] == "test-agent"
+    assert agent["composition_mode"] == "fluid"  # Default mode
+
+
+async def test_that_an_agent_can_be_created_with_specific_composition_mode(
+    async_client: httpx.AsyncClient,
+) -> None:
+    response = await async_client.post(
+        "/agents",
+        json={"name": "test-agent", "composition_mode": "strict_assembly"},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    agent = response.json()
+
+    assert agent["name"] == "test-agent"
+    assert agent["composition_mode"] == "strict_assembly"
+
+
 async def test_that_an_agent_can_be_listed(
     async_client: httpx.AsyncClient,
 ) -> None:

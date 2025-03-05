@@ -70,6 +70,7 @@ class AgentStore(ABC):
         description: Optional[str] = None,
         creation_utc: Optional[datetime] = None,
         max_engine_iterations: Optional[int] = None,
+        composition_mode: Optional[CompositionMode] = None,
     ) -> Agent: ...
 
     @abstractmethod

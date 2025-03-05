@@ -167,6 +167,7 @@ class AgentCreationParamsDTO(
     name: AgentNameField
     description: Optional[AgentDescriptionField] = None
     max_engine_iterations: Optional[AgentMaxEngineIterationsField] = None
+    composition_mode: Optional[CompositionModeDTO] = None
 
 
 agent_update_params_example: ExampleJson = {
@@ -258,6 +259,9 @@ def create_router(
             name=params and params.name or "Unnamed Agent",
             description=params and params.description or None,
             max_engine_iterations=params and params.max_engine_iterations or None,
+            composition_mode=params.composition_mode.value
+            if params and params.composition_mode
+            else None,
         )
 
         return AgentDTO(
