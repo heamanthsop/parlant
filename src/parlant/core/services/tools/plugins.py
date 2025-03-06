@@ -245,7 +245,11 @@ async def _recompute_and_marshal_tool(tool: Tool, plugin_data: Mapping[str, Any]
         new_descriptor = old_descriptor
 
         if options.choice_provider:
-            new_descriptor["enum"] = await options.choice_provider(**plugin_data)
+            args = {}
+            for param_name in inspect.signature(options.choice_provider).parameters:
+                if param_name in plugin_data:
+                    args[param_name] = plugin_data[param_name]
+            new_descriptor["enum"] = await options.choice_provider(**args)
 
         marshalled_options = ToolParameterOptions(
             hidden=options.hidden,
