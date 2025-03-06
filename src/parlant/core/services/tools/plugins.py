@@ -235,7 +235,7 @@ async def adapt_tool_arguments(
     return adapted_arguments
 
 
-async def _recompute_and_marshal_tool(tool: Tool) -> Tool:
+async def _recompute_and_marshal_tool(tool: Tool, plugin_data: Mapping[str, Any]) -> Tool:
     """This function is specifically used to refresh some of the tool's
     details based on dynamic changes (e.g., updating parameter descriptors
     based on dynamically-generated enum choices)"""
@@ -245,7 +245,7 @@ async def _recompute_and_marshal_tool(tool: Tool) -> Tool:
         new_descriptor = old_descriptor
 
         if options.choice_provider:
-            new_descriptor["enum"] = await options.choice_provider()
+            new_descriptor["enum"] = await options.choice_provider(**plugin_data)
 
         marshalled_options = ToolParameterOptions(
             hidden=options.hidden,
@@ -522,7 +522,7 @@ class PluginServer:
                     detail=f"Tool: '{name}' does not exists",
                 )
 
-            tool = await _recompute_and_marshal_tool(spec.tool)
+            tool = await _recompute_and_marshal_tool(spec.tool, self.plugin_data)
 
             return ReadToolResponse(tool=tool)
 
