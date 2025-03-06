@@ -1148,5 +1148,4 @@ async def test_that_an_event_with_fragments_can_be_generated(
     event = events[0]
     assert event["data"].get("fragments")
 
-    fragment_ids = event["data"]["fragments"]
-    assert fragment.id in fragment_ids
+    assert any(fragment.id == id for id, _ in event["data"]["fragments"])

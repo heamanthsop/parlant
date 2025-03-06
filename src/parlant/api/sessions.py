@@ -977,7 +977,7 @@ def message_event_data_to_dto(message: MessageEventData) -> MessageEventDataDTO:
         dto.tags = message["tags"]
 
     if "fragments" in message:
-        dto.fragments = list(message["fragments"])
+        dto.fragments = [id for id, _ in message["fragments"]]
 
     return dto
 

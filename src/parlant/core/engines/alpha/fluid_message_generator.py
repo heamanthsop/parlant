@@ -174,6 +174,12 @@ class FluidMessageGenerator(MessageEventComposer):
             self._logger.info("Skipping response; interaction is empty and there are no guidelines")
             return []
 
+        for event in staged_events:
+            if event.kind == "tool":
+                for tool_call in event.data.get("tool_calls", []):  # type: ignore
+                    if "fragments" in tool_call.get("result", {}):  # type: ignore
+                        del tool_call["result"]["fragments"]  # type: ignore
+
         prompt = self._build_prompt(
             agent=agent,
             context_variables=context_variables,

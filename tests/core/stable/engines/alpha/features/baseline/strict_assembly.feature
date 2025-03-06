@@ -42,11 +42,11 @@ Feature: Strict Assembly
         And a fragment, "Right there"
         And a fragment, "Just around the corner"
         And a fragment, "tell you"
-        And a fragment, "You wouldn’t believe it"
+        And a fragment, "You wouldn't believe it"
         And a fragment, "If only I had known"
         And a fragment, "Against all odds"
-        And a fragment, "Let’s be honest"
-        And a fragment, "For what it’s worth"
+        And a fragment, "Let's be honest"
+        And a fragment, "For what it's worth"
         And a fragment, "In the blink of an eye"
         And a fragment, "So far, so good"
         And a fragment, "This changes everything"
@@ -61,8 +61,8 @@ Feature: Strict Assembly
         And a fragment, "The best is yet to come"
         And a fragment, "It is what it is"
         And a fragment, "In the grand scheme of things"
-        And a fragment, "You’re not wrong"
-        And a fragment, "I’ll take your word for it"
+        And a fragment, "You're not wrong"
+        And a fragment, "I'll take your word for it"
         And a fragment, "One step at a time"
         And a fragment, "On second thought"
         And a fragment, "Against my better judgment"
@@ -74,3 +74,58 @@ Feature: Strict Assembly
         And a fragment, "Not in a million years"
         When messages are emitted
         Then the message contains a story about bananas
+
+    Scenario: Assemble a message using tool provided fragments for full qualification requirements
+        Given a guideline "retrieve_qualification_info" to retrieve qualification requirements when asked about educational qualifications
+        And the tool "get_qualification_info"
+        And an association between "retrieve_qualification_info" and "get_qualification_info"
+        And a customer message, "What are the education requirements for the position?"
+        And a fragment, "Educational qualifications are:"
+        And a fragment, "The minimum requirements include"
+        And a fragment, "For this position"
+        And a fragment, "we require"
+        And a fragment, "Additionally"
+        And a fragment, "while not required"
+        And a fragment, "would be considered a plus"
+        And a fragment, "In terms of experience"
+        And a fragment, "we're looking for"
+        And a fragment, "Key technical requirements include"
+        And a fragment, "proficiency in"
+        And a fragment, "expertise with"
+        And a fragment, "demonstrated ability in"
+        When processing is triggered
+        Then a single tool calls event is emitted
+        And a single message event is emitted
+        And the tool calls event contains 1 tool call(s)
+        And the tool calls event contains a call to "get_qualification_info" with fragments
+        And the message contains the text "Bachelor's degree"
+        And the message doesn't contain the text "3+ years working with cloud platforms"
+        And the message doesn't contain the text "Experience leading technical teams"
+        And the message doesn't contain the text "Strong communication abilities"
+
+    Scenario: Assemble a message using tool provided fragments for minimum qualification requirements
+        Given a guideline "retrieve_qualification_info" to retrieve qualification requirements when asked about educational qualifications
+        And the tool "get_minimum_qualification_info"
+        And an association between "retrieve_qualification_info" and "get_minimum_qualification_info"
+        And a customer message, "What are the education requirements for the position?"
+        And a fragment, "Educational qualifications are:"
+        And a fragment, "The minimum requirements include"
+        And a fragment, "For this position"
+        And a fragment, "we require"
+        And a fragment, "Additionally"
+        And a fragment, "while not required"
+        And a fragment, "would be considered a plus"
+        And a fragment, "In terms of experience"
+        And a fragment, "we're looking for"
+        And a fragment, "Key technical requirements include"
+        And a fragment, "proficiency in"
+        And a fragment, "expertise with"
+        And a fragment, "demonstrated ability in"
+        When processing is triggered
+        Then a single tool calls event is emitted
+        And the tool calls event contains 1 tool call(s)
+        And the tool calls event contains a call to "get_minimum_qualification_info" with fragments
+        And a single message event is emitted
+        And the strict assembly message contain the fragment "5+ years development"
+        And the strict assembly message doesn't contain fragment "3+ years working with cloud platforms"
+        And the strict assembly message doesn't contain fragment "Master degree"

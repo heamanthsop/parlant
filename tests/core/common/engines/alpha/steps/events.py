@@ -290,6 +290,35 @@ def then_the_message_mentions(
     ), f"message: '{message}', expected to contain: '{something}'"
 
 
+@step(
+    then,
+    parsers.parse('the strict assembly message contain the fragment "{fragment_text}"'),
+)
+def then_the_assembly_message_contains_fragment_of(
+    emitted_events: list[EmittedEvent],
+    fragment_text: str,
+) -> None:
+    message_event = next(e for e in emitted_events if e.kind == "message")
+    message_data = cast(MessageEventData, message_event.data)
+    assert message_data["fragments"]
+
+    assert any(fragment_text in fragment for _, fragment in message_data["fragments"])
+
+
+@step(
+    then,
+    parsers.parse('the strict assembly message doesn\'t contain fragment "{fragment_text}"'),
+)
+def then_the_assembly_message_does_not_contain_fragment_of(
+    emitted_events: list[EmittedEvent],
+    fragment_text: str,
+) -> None:
+    message_event = next(e for e in emitted_events if e.kind == "message")
+    message_data = cast(MessageEventData, message_event.data)
+
+    assert not any(fragment_text in fragment for _, fragment in message_data["fragments"])
+
+
 @step(then, "no events are emitted")
 def then_no_events_are_emitted(
     emitted_events: list[EmittedEvent],
@@ -459,7 +488,38 @@ def then_the_tool_calls_event_contains_expected_content(
 def then_the_tool_calls_event_is_correlated_with_the_message_event(
     emitted_events: list[EmittedEvent],
 ) -> None:
-    message_event = next(e for e in emitted_events if e.kind == "message")
-    tool_calls_event = next(e for e in emitted_events if e.kind == "tool")
+    tool_events = [e for e in emitted_events if e.kind == "tool"]
+    message_events = [e for e in emitted_events if e.kind == "message"]
 
-    assert message_event.correlation_id == tool_calls_event.correlation_id
+    assert len(tool_events) > 0, "No tool event found"
+    assert len(message_events) > 0, "No message event found"
+
+    tool_event = tool_events[0]
+    message_event = message_events[0]
+
+    assert tool_event.correlation_id == message_event.correlation_id
+
+
+@step(then, parsers.parse('the tool calls event contains a call to "{tool_name}" with fragments'))
+def then_the_tool_calls_event_contains_call_with_fragments(
+    emitted_events: list[EmittedEvent],
+    tool_name: str,
+) -> None:
+    tool_calls = _get_tool_calls(emitted_events)
+
+    # Find the specified tool call
+    matching_tool_calls = [
+        tc
+        for tc in tool_calls
+        if tc["tool_id"].endswith(f":{tool_name}") or tc["tool_id"] == f"local:{tool_name}"
+    ]
+
+    assert len(matching_tool_calls) > 0, f"No tool call found for {tool_name}"
+
+    # Check for fragments in the result
+    tool_call = matching_tool_calls[0]
+    assert "result" in tool_call, f"No result found in tool call: {tool_call}"
+    assert (
+        "fragments" in tool_call["result"]
+    ), f"No fragments found in result: {tool_call['result']}"
+    assert len(tool_call["result"]["fragments"]) > 0, "Empty fragments list in result"

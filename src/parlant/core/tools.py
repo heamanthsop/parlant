@@ -36,6 +36,7 @@ from pydantic import Field
 from typing_extensions import override, TypedDict
 
 from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSerializable, UniqueId
+from parlant.core.fragments import Fragment
 
 ToolParameterType = Literal[
     "array",
@@ -102,9 +103,10 @@ class ControlOptions(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class ToolResult:
-    data: JSONSerializable
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
+    data: Any
+    metadata: Mapping[str, Any] = field(default_factory=dict)
     control: ControlOptions = field(default_factory=lambda: ControlOptions())
+    fragments: Sequence[Fragment] = field(default_factory=list)
 
 
 class ToolParameterOptions(DefaultBaseModel):
