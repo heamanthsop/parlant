@@ -171,6 +171,30 @@ class MessageAssembler(MessageEventComposer):
                         staged_events,
                     )
 
+    async def _get_fragments(
+        self,
+        staged_events: Sequence[EmittedEvent],
+    ) -> list[Fragment]:
+        fragments = list(await self._fragment_store.list_fragments())
+
+        fragments_by_staged_event: list[Fragment] = []
+
+        for i, event in enumerate(staged_events):
+            if event.kind == "tool":
+                for j in range(len(event.data["tool_calls"])):  # type: ignore
+                    fragments_by_staged_event.extend(
+                        Fragment(
+                            id=Fragment.TRANSIENT_ID,
+                            value=f.value,
+                            fields=f.fields,
+                            creation_utc=datetime.now(),
+                            tags=[],
+                        )
+                        for f in staged_events[i].data["tool_calls"][j]["result"].pop("fragments")  # type: ignore
+                    )
+
+        return fragments + fragments_by_staged_event
+
     async def _do_generate_events(
         self,
         event_emitter: EventEmitter,
@@ -194,25 +218,7 @@ class MessageAssembler(MessageEventComposer):
             self._logger.info("Skipping response; interaction is empty and there are no guidelines")
             return []
 
-        fragments = list(await self._fragment_store.list_fragments())
-
-        fragments_by_staged_event: list[Fragment] = []
-
-        for i, event in enumerate(staged_events):
-            if event.kind == "tool":
-                for j in range(len(event.data["tool_calls"])):  # type: ignore
-                    fragments_by_staged_event.extend(
-                        Fragment(
-                            id=Fragment.TRANSIENT_ID,
-                            value=f.value,
-                            fields=f.fields,
-                            creation_utc=datetime.now(),
-                            tags=[],
-                        )
-                        for f in staged_events[i].data["tool_calls"][j]["result"].pop("fragments")  # type: ignore
-                    )
-
-        fragments += fragments_by_staged_event
+        fragments = await self._get_fragments(staged_events)
 
         if not fragments:
             self._logger.info("No fragments found; skipping response")
