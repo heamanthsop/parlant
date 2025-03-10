@@ -75,7 +75,7 @@ Feature: Strict Assembly
         When messages are emitted
         Then the message contains a story about bananas
 
-    Scenario: Assemble a message using tool provided fragments for full qualification requirements
+    Scenario: Message assembler filters out tool-provided qualification data that doesn't match tool-provided fragments
         Given a guideline "retrieve_qualification_info" to retrieve qualification requirements when asked about educational qualifications
         And the tool "get_qualification_info"
         And an association between "retrieve_qualification_info" and "get_qualification_info"
@@ -104,7 +104,7 @@ Feature: Strict Assembly
         And the message doesn't contain the text "Experience leading technical teams"
         And the message doesn't contain the text "Strong communication abilities"
 
-    Scenario: Assemble a message using tool provided fragments for minimum qualification requirements
+    Scenario: Message assembler selects only fragments that contain the qualification data from the tool
         Given a guideline "retrieve_qualification_info" to retrieve qualification requirements when asked about educational qualifications
         And the tool "get_minimum_qualification_info"
         And an association between "retrieve_qualification_info" and "get_minimum_qualification_info"
