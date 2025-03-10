@@ -151,7 +151,7 @@ class FluidMessageGenerator(MessageEventComposer):
                         staged_events,
                     )
 
-    def _get_staged_events(
+    def _format_staged_events(
         self,
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[EmittedEvent]:
@@ -187,8 +187,6 @@ class FluidMessageGenerator(MessageEventComposer):
             # a proactive start of the interaction
             self._logger.info("Skipping response; interaction is empty and there are no guidelines")
             return []
-
-        staged_events = self._get_staged_events(staged_events)
 
         prompt = self._build_prompt(
             agent=agent,

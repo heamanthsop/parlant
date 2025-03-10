@@ -17,7 +17,7 @@ from datetime import datetime
 from itertools import chain
 import json
 import traceback
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence, cast
 
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent, CompositionMode
@@ -179,9 +179,11 @@ class MessageAssembler(MessageEventComposer):
 
         fragments_by_staged_event: list[Fragment] = []
 
-        for i, event in enumerate(staged_events):
+        for event in staged_events:
             if event.kind == "tool":
-                for j in range(len(event.data["tool_calls"])):  # type: ignore
+                event_data: dict[str, Any] = cast(dict[str, Any], event.data)
+                tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
+                for tool_call in tool_calls:
                     fragments_by_staged_event.extend(
                         Fragment(
                             id=Fragment.TRANSIENT_ID,
@@ -190,7 +192,7 @@ class MessageAssembler(MessageEventComposer):
                             creation_utc=datetime.now(),
                             tags=[],
                         )
-                        for f in staged_events[i].data["tool_calls"][j]["result"].pop("fragments")  # type: ignore
+                        for f in tool_call["result"].get("fragments", [])
                     )
 
         return fragments + fragments_by_staged_event

@@ -97,7 +97,8 @@ Feature: Strict Assembly
         Then a single tool calls event is emitted
         And a single message event is emitted
         And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains a call to "get_qualification_info" with fragments
+        And the tool calls event contains a call to "get_qualification_info"
+        the tool call "get_qualification_info" contains fragments
         And the message contains the text "Bachelor's degree"
         And the message doesn't contain the text "3+ years working with cloud platforms"
         And the message doesn't contain the text "Experience leading technical teams"
@@ -124,8 +125,9 @@ Feature: Strict Assembly
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains a call to "get_minimum_qualification_info" with fragments
+        And the tool calls event contains a call to "get_minimum_qualification_info"
+        the tool call "get_minimum_qualification_info" contains fragments
         And a single message event is emitted
-        And the strict assembly message contain the fragment "5+ years development"
-        And the strict assembly message doesn't contain fragment "3+ years working with cloud platforms"
-        And the strict assembly message doesn't contain fragment "Master degree"
+        And the message uses the fragment "5+ years development"
+        And the message doesn\'t use the fragment  "3+ years working with cloud platforms"
+        And the message doesn\'t use the fragment  "Master degree"
