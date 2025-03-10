@@ -76,7 +76,7 @@ class Revision(DefaultBaseModel):
     revision_number: int
     insights_about_the_user: Optional[str] = None
     selected_content_fragments: list[MaterializedFragment]
-    sequenced_rendered_content_fragments: list[str]
+    rendered_content_fragments: list[str]
     composited_fragment_sequence: str
     instructions_followed: Optional[list[str]] = None
     instructions_broken: Optional[list[str]] = None
@@ -741,7 +741,7 @@ Produce a valid JSON object in the following format: ###
             }},
             ...
         ],
-        "sequenced_rendered_content_fragments": [<Each of the chosen fragments, one by one, with their fields replaced by the materialized values, with capitalization or puncutation fixes as needed. DO NOT ADD OR REMOVE ANY WORDS HERE, ONLY PUNCTUATION MARKS ARE ACCEPTABLE AT THIS STAGE.>],
+        "rendered_content_fragments": [<Each of the chosen fragments, one by one, with their fields replaced by the materialized values, with capitalization or puncutation fixes as needed. DO NOT ADD OR REMOVE ANY WORDS HERE, ONLY PUNCTUATION MARKS ARE ACCEPTABLE AT THIS STAGE.>],
         "composited_fragment_sequence": "<a composited version of the sequenced rendering, with ONLY GRAMMATICAL (NON-SEMANTIC) EDITS to make them blend together correctly>",
         "instructions_followed": <list of guidelines and insights that were followed>,
         "instructions_broken": <list of guidelines and insights that were broken>,
@@ -823,7 +823,7 @@ Produce a valid JSON object in the following format: ###
             return message_event_response.info, None
 
         if len(final_revision.selected_content_fragments) != len(
-            final_revision.sequenced_rendered_content_fragments
+            final_revision.rendered_content_fragments
         ):
             self._logger.error(
                 "Selected list of content fragments diverges from list of rendered fragments"
@@ -852,7 +852,7 @@ Produce a valid JSON object in the following format: ###
                 used_fragments.append((Fragment.INVALID_ID, materialized_fragment.raw_content))
                 continue
 
-            if index < len(final_revision.sequenced_rendered_content_fragments):
+            if index < len(final_revision.rendered_content_fragments):
                 used_fragments.append((fragment.id, fragment.value))
             else:
                 self._logger.error(
@@ -868,7 +868,7 @@ Produce a valid JSON object in the following format: ###
                 )
             case "strict_assembly":
                 return message_event_response.info, _MessageAssemblyGenerationResult(
-                    message="".join(final_revision.sequenced_rendered_content_fragments),
+                    message="".join(final_revision.rendered_content_fragments),
                     fragments=used_fragments,
                 )
 
@@ -943,7 +943,7 @@ example_1_expected = AssembledMessageSchema(
                     justification="Render the train schedule",
                 )
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "Here's the relevant train schedule:\n"
                 "Train 101 departs at 10:00 AM and arrives at 12:30 PM.\n"
                 "Train 205 departs at 1:00 PM and arrives at 3:45 PM."
@@ -987,7 +987,7 @@ example_1_expected = AssembledMessageSchema(
                     justification="Render the train schedule",
                 )
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 """\
 Here's the relevant train schedule:
 | Train | Departure | Arrival |
@@ -1101,7 +1101,7 @@ example_2_expected = AssembledMessageSchema(
                     justification="Requested toppings aren't in stock",
                 ),
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "I'd be happy ",
                 "to ",
                 "prepare your burger ",
@@ -1201,7 +1201,7 @@ example_3_expected = AssembledMessageSchema(
                     justification="Lacking menu information in context (note that I can still fill out this fragment field accordingly)",
                 ),
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "I'm sorry, ",
                 "but ",
                 "I'm having trouble accessing our menu at the moment.",
@@ -1272,7 +1272,7 @@ example_4_expected = AssembledMessageSchema(
                     justification="I don't want to keep repeating myself asking for clarifications",
                 ),
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "I apologize for failing to assist you with your issue. ",
                 "If there's anything else I can do for you, please let me know.",
             ],
@@ -1362,7 +1362,7 @@ example_5_expected = AssembledMessageSchema(
                     justification="I should not reveal my thought process",
                 ),
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "Your balance is $1,000. ",
                 "However, ",
                 "I'm unable to disclose details about the specific services I use.",
@@ -1442,7 +1442,7 @@ example_6_expected = AssembledMessageSchema(
                     justification="Offer to help",
                 ),
             ],
-            sequenced_rendered_content_fragments=[
+            rendered_content_fragments=[
                 "Unfortunately, ",
                 "I cannot help you with this topic as I do not have enough information about it. ",
                 "Is there anything else I can assist you with?",

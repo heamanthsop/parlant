@@ -129,5 +129,5 @@ Feature: Strict Assembly
         the tool call "get_minimum_qualification_info" contains fragments
         And a single message event is emitted
         And the message uses the fragment "5+ years development"
-        And the message doesn\'t use the fragment "3+ years working with cloud platforms"
-        And the message doesn\'t use the fragment "Master degree"
+        And the message doesn't use the fragment "3+ years working with cloud platforms"
+        And the message doesn't use the fragment "Master degree"
