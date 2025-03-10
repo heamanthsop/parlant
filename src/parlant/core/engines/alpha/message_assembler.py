@@ -712,7 +712,7 @@ Produce a valid JSON object in the following format: ###
             }},
             ...
         ],
-        "sequenced_rendered_content_fragments": <a raw sequenced list of the chosen fragments with fragment fields replaced by their values, ith capitalization or puncutation fixes as needed. DO NOT ADD ANY WORDS HERE, ONLY PUNCTUATION MARKS ARE ACCEPTABLE AT THIS STAGE.>,
+        "sequenced_rendered_content_fragments": [<Each of the chosen fragments, one by one, with their fields replaced by the materialized values, with capitalization or puncutation fixes as needed. DO NOT ADD OR REMOVE ANY WORDS HERE, ONLY PUNCTUATION MARKS ARE ACCEPTABLE AT THIS STAGE.>],
         "composited_fragment_sequence": "<a composited version of the sequenced rendering, with ONLY GRAMMATICAL (NON-SEMANTIC) EDITS to make them blend together correctly>",
         "instructions_followed": <list of guidelines and insights that were followed>,
         "instructions_broken": <list of guidelines and insights that were broken>,
