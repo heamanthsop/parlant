@@ -309,7 +309,7 @@ def then_the_message_uses_the_fragment(
     then,
     parsers.parse('the message doesn\'t use the fragment "{fragment_text}"'),
 )
-def then_the_assembled_message_does_not_use_the_fragment(
+def then_the_message_does_not_use_the_fragment(
     emitted_events: list[EmittedEvent],
     fragment_text: str,
 ) -> None:
@@ -516,7 +516,7 @@ def then_the_tool_calls_event_contains_call(
     assert len(matching_tool_calls) > 0, f"No tool call found for {tool_name}"
 
 
-@step(then, parsers.parse('the tool call "{tool_name}" contains fragments'))
+@step(then, parsers.parse('the call to "{tool_name}" returns fragments'))
 def then_the_tool_call_contains_fragments(
     emitted_events: list[EmittedEvent],
     tool_name: str,
