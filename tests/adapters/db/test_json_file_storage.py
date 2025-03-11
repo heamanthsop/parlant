@@ -387,7 +387,7 @@ async def test_context_variable_listing(
 
             variables = list(
                 await context_variable_store.list_variables(
-                    variable_tags=[TagId(f"agent_id:{context.agent_id}")]
+                    tags=[TagId(f"agent_id:{context.agent_id}")]
                 )
             )
             assert any(v.id == var1.id for v in variables)
@@ -434,7 +434,7 @@ async def test_context_variable_deletion(
             assert not any(
                 variable.id == v.id
                 for v in await context_variable_store.list_variables(
-                    variable_tags=[TagId(f"agent_id:{context.agent_id}")]
+                    tags=[TagId(f"agent_id:{context.agent_id}")]
                 )
             )
 

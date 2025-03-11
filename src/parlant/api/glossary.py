@@ -226,7 +226,7 @@ def create_legacy_router(
 
         This endpoint will be removed in a future release.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -273,7 +273,7 @@ def create_legacy_router(
         Returns an empty list if no terms associated to the provided agent's ID.
         Terms are returned in no guaranteed order.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
 
         return [
             LegacyTermDTO(
@@ -332,7 +332,7 @@ def create_legacy_router(
 
             return params
 
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -384,7 +384,7 @@ def create_legacy_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -618,7 +618,7 @@ def create_router(
         Terms are returned in no guaranteed order.
         """
         if tag_id:
-            terms = await glossary_store.list_terms(term_tags=[tag_id])
+            terms = await glossary_store.list_terms(tags=[tag_id])
         else:
             terms = await glossary_store.list_terms()
 

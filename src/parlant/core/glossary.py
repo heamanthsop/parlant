@@ -96,7 +96,7 @@ class GlossaryStore:
     @abstractmethod
     async def list_terms(
         self,
-        term_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]: ...
 
     @abstractmethod
@@ -109,7 +109,7 @@ class GlossaryStore:
     async def find_relevant_terms(
         self,
         query: str,
-        term_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]: ...
 
     @abstractmethod
@@ -357,20 +357,20 @@ class GlossaryVectorStore(GlossaryStore):
     @override
     async def list_terms(
         self,
-        term_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Term]:
         filters: Where = {}
 
         async with self._lock.reader_lock:
-            if term_tags is not None:
-                if len(term_tags) == 0:
+            if tags is not None:
+                if len(tags) == 0:
                     term_ids = {
                         doc["term_id"]
                         for doc in await self._association_collection.find(filters={})
                     }
                     filters = {"$and": [{"id": {"$ne": id}} for id in term_ids]} if term_ids else {}
                 else:
-                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in term_tags]}
+                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
                     tag_associations = await self._association_collection.find(filters=tag_filters)
                     term_ids = {assoc["term_id"] for assoc in tag_associations}
 
@@ -429,7 +429,7 @@ class GlossaryVectorStore(GlossaryStore):
     async def find_relevant_terms(
         self,
         query: str,
-        term_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
         max_terms: int = 20,
     ) -> Sequence[Term]:
         async with self._lock.reader_lock:
@@ -437,7 +437,7 @@ class GlossaryVectorStore(GlossaryStore):
 
             filters: Where = {}
 
-            term_ids = await self.list_terms(term_tags=term_tags)
+            term_ids = await self.list_terms(tags=tags)
             if term_ids:
                 filters = {"id": {"$in": [str(id) for id in term_ids]}}
 

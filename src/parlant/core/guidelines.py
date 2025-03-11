@@ -296,13 +296,13 @@ class GuidelineDocumentStore(GuidelineStore):
     @override
     async def list_guidelines(
         self,
-        guideline_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Guideline]:
         filters: Where = {}
 
         async with self._lock.reader_lock:
-            if guideline_tags is not None:
-                if len(guideline_tags) == 0:
+            if tags is not None:
+                if len(tags) == 0:
                     guideline_ids = {
                         doc["guideline_id"]
                         for doc in await self._tag_association_collection.find(filters={})
@@ -313,9 +313,7 @@ class GuidelineDocumentStore(GuidelineStore):
                         else {}
                     )
                 else:
-                    tag_filters: Where = {
-                        "$or": [{"tag_id": {"$eq": tag}} for tag in guideline_tags]
-                    }
+                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
                     tag_associations = await self._tag_association_collection.find(
                         filters=tag_filters
                     )

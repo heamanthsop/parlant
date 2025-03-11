@@ -531,7 +531,7 @@ ADDITIONAL INFORMATION
         test_guideline = f"{{id: 0, when: '{evaluated_guideline.condition}', then: '{evaluated_guideline.action}'}}"
         terms = await self._glossary_store.find_relevant_terms(
             query=test_guideline + causation_candidates,
-            term_tags=[TagId(f"agent_id:{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
 
         builder.add_glossary(terms)

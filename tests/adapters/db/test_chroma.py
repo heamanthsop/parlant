@@ -399,7 +399,7 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     + ("kalla " * 5000)
                     + "Bazoo",
                     max_terms=3,
-                    term_tags=[TagId(f"agent_id:{agent_id}")],
+                    tags=[TagId(f"agent_id:{agent_id}")],
                 )
 
                 assert len(terms) == 3
@@ -783,20 +783,18 @@ async def test_that_in_filter_works_with_list_of_strings(
                 tag_id=TagId("d"),
             )
 
-            terms = await store.list_terms(term_tags=[TagId("a"), TagId("b")])
+            terms = await store.list_terms(tags=[TagId("a"), TagId("b")])
             assert len(terms) == 2
             assert terms[0].id == first_term.id
             assert terms[1].id == second_term.id
 
-            terms = await store.list_terms(term_tags=[TagId("a"), TagId("b"), TagId("c")])
+            terms = await store.list_terms(tags=[TagId("a"), TagId("b"), TagId("c")])
             assert len(terms) == 3
             assert terms[0].id == first_term.id
             assert terms[1].id == second_term.id
             assert terms[2].id == third_term.id
 
-            terms = await store.list_terms(
-                term_tags=[TagId("a"), TagId("b"), TagId("c"), TagId("d")]
-            )
+            terms = await store.list_terms(tags=[TagId("a"), TagId("b"), TagId("c"), TagId("d")])
             assert len(terms) == 3
             assert terms[0].id == first_term.id
             assert terms[1].id == second_term.id

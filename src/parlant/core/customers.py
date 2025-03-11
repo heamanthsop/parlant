@@ -78,7 +78,7 @@ class CustomerStore(ABC):
     @abstractmethod
     async def list_customers(
         self,
-        customer_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Customer]: ...
 
     @abstractmethod
@@ -286,13 +286,13 @@ class CustomerDocumentStore(CustomerStore):
 
     async def list_customers(
         self,
-        customer_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Customer]:
         filters: Where = {}
 
         async with self._lock.reader_lock:
-            if customer_tags is not None:
-                if len(customer_tags) == 0:
+            if tags is not None:
+                if len(tags) == 0:
                     customer_ids = {
                         doc["customer_id"]
                         for doc in await self._tag_association_collection.find(filters={})
@@ -303,9 +303,7 @@ class CustomerDocumentStore(CustomerStore):
                         else {}
                     )
                 else:
-                    tag_filters: Where = {
-                        "$or": [{"tag_id": {"$eq": tag}} for tag in customer_tags]
-                    }
+                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
                     tag_associations = await self._tag_association_collection.find(
                         filters=tag_filters
                     )
