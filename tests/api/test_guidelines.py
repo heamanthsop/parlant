@@ -1373,6 +1373,32 @@ async def test_that_a_guideline_can_be_created(
     assert guideline["tags"] == []
 
 
+async def test_that_a_guideline_can_be_created_with_tags(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+
+    tag_1 = await tag_store.create_tag(name="pricing")
+    tag_2 = await tag_store.create_tag(name="sales")
+
+    response = await async_client.post(
+        "/guidelines",
+        json={
+            "condition": "the customer asks about pricing",
+            "action": "provide current pricing information",
+            "tags": [tag_1.id, tag_2.id],
+        },
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    guideline = response.json()
+    assert guideline["condition"] == "the customer asks about pricing"
+    assert guideline["action"] == "provide current pricing information"
+    assert guideline["tags"] == [tag_1.id, tag_2.id]
+
+
 async def test_that_guidelines_can_be_listed(
     async_client: httpx.AsyncClient,
     container: Container,

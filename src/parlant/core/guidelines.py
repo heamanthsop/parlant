@@ -70,6 +70,7 @@ class GuidelineStore(ABC):
         action: str,
         creation_utc: Optional[datetime] = None,
         enabled: bool = True,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Guideline: ...
 
     @abstractmethod
@@ -270,6 +271,7 @@ class GuidelineDocumentStore(GuidelineStore):
         action: str,
         creation_utc: Optional[datetime] = None,
         enabled: bool = True,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Guideline:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -282,7 +284,7 @@ class GuidelineDocumentStore(GuidelineStore):
                     action=action,
                 ),
                 enabled=enabled,
-                tags=[],
+                tags=tags or [],
             )
 
             await self._collection.insert_one(

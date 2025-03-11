@@ -1046,6 +1046,7 @@ class GuidelineCreationParamsDTO(
     condition: GuidelineConditionField
     action: GuidelineActionField
     enabled: Optional[GuidelineEnabledField] = None
+    tags: Optional[GuidelineTagsField] = None
 
 
 GuidelineTagsUpdateAddField: TypeAlias = Annotated[
@@ -1232,6 +1233,7 @@ def create_router(
             condition=params.condition,
             action=params.action,
             enabled=params.enabled or True,
+            tags=params.tags,
         )
 
         return GuidelineDTO(
