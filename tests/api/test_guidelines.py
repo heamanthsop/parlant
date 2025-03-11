@@ -61,7 +61,7 @@ async def create_and_connect(
     return guidelines
 
 
-async def test_that_a_guideline_by_an_agent_can_be_created(
+async def test_legacy_that_a_guideline_can_be_created(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -102,7 +102,7 @@ async def test_that_a_guideline_by_an_agent_can_be_created(
     assert items[0]["guideline"]["action"] == "greet them back with 'Hello'"
 
 
-async def test_that_a_guideline_by_an_agent_can_be_deleted(
+async def test_legacy_that_a_guideline_can_be_deleted(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -127,7 +127,7 @@ async def test_that_a_guideline_by_an_agent_can_be_deleted(
         await guideline_store.read_guideline(guideline_id=guideline_to_delete.id)
 
 
-async def test_that_an_unapproved_invoice_is_rejected(
+async def test_legacy_that_an_unapproved_invoice_is_rejected(
     async_client: httpx.AsyncClient,
 ) -> None:
     request_data = {
@@ -166,7 +166,7 @@ async def test_that_an_unapproved_invoice_is_rejected(
     assert response_data["detail"] == "Unapproved invoice"
 
 
-async def test_that_a_connection_between_two_introduced_guidelines_by_an_agent_is_created(
+async def test_legacy_that_a_connection_between_two_introduced_guidelines_is_created(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -275,7 +275,7 @@ async def test_that_a_connection_between_two_introduced_guidelines_by_an_agent_i
     assert len(connections) == 1
 
 
-async def test_that_a_connection_to_an_existing_guideline_by_an_agent_is_created(
+async def test_legacy_that_a_connection_to_an_existing_guideline_is_created(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -346,7 +346,7 @@ async def test_that_a_connection_to_an_existing_guideline_by_an_agent_is_created
     assert connections[0].target == introduced_guideline["id"]
 
 
-async def test_that_a_guideline_by_an_agent_can_be_read_by_id(
+async def test_legacy_that_a_guideline_can_be_read_by_id(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -375,7 +375,7 @@ async def test_that_a_guideline_by_an_agent_can_be_read_by_id(
     assert len(item["connections"]) == 0
 
 
-async def test_that_guidelines_by_an_agent_can_be_listed(
+async def test_legacy_that_guidelines_can_be_listed(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -398,7 +398,7 @@ async def test_that_guidelines_by_an_agent_can_be_listed(
     assert any(guideline[1].id == g["id"] for g in response_guidelines)
 
 
-async def test_that_a_connection_by_an_agent_can_be_added_to_a_guideline(
+async def test_legacy_that_a_connection_can_be_added_to_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -448,7 +448,7 @@ async def test_that_a_connection_by_an_agent_can_be_added_to_a_guideline(
     assert response_connections[0]["target"]["id"] == guidelines[1].id
 
 
-async def test_that_a_direct_target_connection_by_an_agent_can_be_removed_from_a_guideline(
+async def test_legacy_that_a_direct_target_connection_can_be_removed_from_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -487,7 +487,7 @@ async def test_that_a_direct_target_connection_by_an_agent_can_be_removed_from_a
     assert len(stored_connections) == 0
 
 
-async def test_that_an_indirect_connection_by_an_agent_cannot_be_removed_from_a_guideline(
+async def test_legacy_that_an_indirect_connection_cannot_be_removed_from_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -521,7 +521,7 @@ async def test_that_an_indirect_connection_by_an_agent_cannot_be_removed_from_a_
     assert len(stored_connections) == 2
 
 
-async def test_that_deleting_a_guideline_by_an_agent_also_deletes_all_of_its_direct_connections(
+async def test_legacy_that_deleting_a_guideline_also_deletes_all_of_its_direct_connections(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -547,7 +547,7 @@ async def test_that_deleting_a_guideline_by_an_agent_also_deletes_all_of_its_dir
     assert not stored_connections
 
 
-async def test_that_reading_a_guideline_by_an_agent_lists_both_direct_and_indirect_connections(
+async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_connections(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -612,7 +612,7 @@ async def test_that_reading_a_guideline_by_an_agent_lists_both_direct_and_indire
         assert c["indirect"] is not is_direct
 
 
-async def test_that_a_tool_association_by_an_agent_can_be_added(
+async def test_legacy_that_a_tool_association_can_be_added(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -693,7 +693,7 @@ async def test_that_a_tool_association_by_an_agent_can_be_added(
     )
 
 
-async def test_that_a_tool_association_by_an_agent_can_be_removed(
+async def test_legacy_that_a_tool_association_can_be_removed(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -766,7 +766,7 @@ async def test_that_a_tool_association_by_an_agent_can_be_removed(
     assert tool_associations == []
 
 
-async def test_that_guideline_by_an_agent_deletion_removes_tool_associations(
+async def test_legacy_that_guideline_deletion_removes_tool_associations(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -807,7 +807,7 @@ async def test_that_guideline_by_an_agent_deletion_removes_tool_associations(
     assert not any(assoc.guideline_id == guideline.id for assoc in associations_after)
 
 
-async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_local_tool_to_a_guideline_by_an_agent(
+async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_local_tool_to_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -846,7 +846,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_lo
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_openapi_tool_to_a_guideline_by_an_agent(
+async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_openapi_tool_to_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -894,7 +894,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_op
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_sdk_tool_to_a_guideline_by_an_agent(
+async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_sdk_tool_to_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -940,7 +940,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_sd
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_an_existing_guideline_by_an_agent_can_be_updated(
+async def test_legacy_that_an_existing_guideline_can_be_updated(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1046,7 +1046,7 @@ async def test_that_an_existing_guideline_by_an_agent_can_be_updated(
     assert updated_connections[0].target == connected_guideline_post_update.id
 
 
-async def test_that_an_updated_guideline_by_an_agent_can_entail_an_added_guideline(
+async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1169,7 +1169,7 @@ async def test_that_an_updated_guideline_by_an_agent_can_entail_an_added_guideli
     assert updated_connections[0].target == added_guideline.id
 
 
-async def test_that_guideline_update_by_an_agent_retains_existing_connections_with_disabled_connection_proposition(
+async def test_legacy_that_guideline_update_retains_existing_connections_with_disabled_connection_proposition(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1253,7 +1253,7 @@ async def test_that_guideline_update_by_an_agent_retains_existing_connections_wi
     assert updated_connections[0].target == connected_guideline.id
 
 
-async def test_that_a_guideline_by_an_agent_can_be_disabled(
+async def test_legacy_that_a_guideline_can_be_disabled(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1283,7 +1283,7 @@ async def test_that_a_guideline_by_an_agent_can_be_disabled(
     assert not updated_guideline["enabled"]
 
 
-async def test_that_retrieving_a_guideline_associated_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_retrieving_a_guideline_associated_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1305,7 +1305,7 @@ async def test_that_retrieving_a_guideline_associated_with_a_wrong_agent_id_retu
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_updating_a_guideline_by_an_agent_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_updating_a_guideline_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -1330,7 +1330,7 @@ async def test_that_updating_a_guideline_by_an_agent_with_a_wrong_agent_id_retur
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_deleting_a_guideline_by_an_agent_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_deleting_a_guideline_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
