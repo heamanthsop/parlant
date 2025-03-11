@@ -954,7 +954,7 @@ async def test_that_adding_nonexistent_agent_tag_to_context_variable_returns_404
 
     response = await async_client.patch(
         f"/context-variables/{variable.id}",
-        json={"tags": {"add": ["agent-id::nonexistent_agent"]}},
+        json={"tags": {"add": ["agent-id:nonexistent_agent"]}},
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND

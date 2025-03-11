@@ -89,7 +89,7 @@ class GuidelineConnectionDocumentStore(GuidelineConnectionStore):
 
             return _GuidelineConnectionDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 creation_utc=doc["creation_utc"],
                 source=doc["source"],
                 target=doc["target"],

@@ -119,6 +119,28 @@ async def test_that_an_agent_can_be_created_with_specific_composition_mode(
     assert agent["composition_mode"] == "strict_assembly"
 
 
+async def test_that_an_agent_can_be_created_with_tags(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
+
+    response = await async_client.post(
+        "/agents",
+        json={"name": "test-agent", "tags": [tag1.id, tag2.id]},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    agent = response.json()
+
+    assert agent["name"] == "test-agent"
+    assert agent["tags"] == [tag1.id, tag2.id]
+
+
 async def test_that_an_agent_can_be_listed(
     async_client: httpx.AsyncClient,
 ) -> None:

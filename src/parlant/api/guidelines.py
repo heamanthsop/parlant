@@ -1229,6 +1229,14 @@ def create_router(
 
         See the [documentation](https://parlant.io/docs/concepts/customization/guidelines) for more information.
         """
+        if params.tags:
+            for tag_id in params.tags:
+                if tag_id.startswith("agent-id:"):
+                    agent_id = AgentId(tag_id.split(":")[1])
+                    _ = await agent_store.read_agent(agent_id=agent_id)
+                else:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
+
         guideline = await guideline_store.create_guideline(
             condition=params.condition,
             action=params.action,
@@ -1492,8 +1500,8 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    if tag_id.startswith("agent-id::"):
-                        agent_id = AgentId(tag_id.split("::")[1])
+                    if tag_id.startswith("agent-id:"):
+                        agent_id = AgentId(tag_id.split(":")[1])
                         _ = await agent_store.read_agent(agent_id=agent_id)
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)

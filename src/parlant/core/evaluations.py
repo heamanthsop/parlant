@@ -246,7 +246,7 @@ class EvaluationDocumentStore(EvaluationStore):
             doc = cast(_EvaluationDocument, doc)
             return _EvaluationDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 agent_id=doc["agent_id"],
                 creation_utc=doc["creation_utc"],
                 status=doc["status"],

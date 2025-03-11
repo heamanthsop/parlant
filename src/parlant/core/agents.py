@@ -71,6 +71,7 @@ class AgentStore(ABC):
         creation_utc: Optional[datetime] = None,
         max_engine_iterations: Optional[int] = None,
         composition_mode: Optional[CompositionMode] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Agent: ...
 
     @abstractmethod
@@ -234,6 +235,7 @@ class AgentDocumentStore(AgentStore):
         creation_utc: Optional[datetime] = None,
         max_engine_iterations: Optional[int] = None,
         composition_mode: Optional[CompositionMode] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Agent:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -245,7 +247,7 @@ class AgentDocumentStore(AgentStore):
                 description=description,
                 creation_utc=creation_utc,
                 max_engine_iterations=max_engine_iterations,
-                tags=[],
+                tags=tags or [],
                 composition_mode=composition_mode or "fluid",
             )
 

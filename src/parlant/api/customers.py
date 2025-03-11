@@ -19,6 +19,7 @@ from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, TypeAlias
 
 from parlant.api.common import apigen_config, ExampleJson, example_json_content
+from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.tags import TagId, TagStore
@@ -217,6 +218,7 @@ class CustomerUpdateParamsDTO(
 def create_router(
     customer_store: CustomerStore,
     tag_store: TagStore,
+    agent_store: AgentStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -245,6 +247,14 @@ def create_router(
         A customer may be created with as little as a `name`.
         `extra` key-value pairs and additional `tags` may be attached to a customer.
         """
+        if params.tags:
+            for tag_id in params.tags:
+                if tag_id.startswith("agent-id:"):
+                    agent_id = AgentId(tag_id.split(":")[1])
+                    _ = await agent_store.read_agent(agent_id=agent_id)
+                else:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
+
         customer = await customer_store.create_customer(
             name=params.name,
             extra=params.extra if params.extra else {},

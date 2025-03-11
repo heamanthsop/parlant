@@ -1005,6 +1005,14 @@ def create_router(
             service = await service_registry.read_tool_service(params.tool_id.service_name)
             _ = await service.read_tool(params.tool_id.tool_name)
 
+        if params.tags:
+            for tag_id in params.tags:
+                if tag_id.startswith("agent-id:"):
+                    agent_id = AgentId(tag_id.split(":")[1])
+                    _ = await agent_store.read_agent(agent_id=agent_id)
+                else:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
+
         variable = await context_variable_store.create_variable(
             name=params.name,
             description=params.description,
@@ -1075,8 +1083,8 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    if tag_id.startswith("agent-id::"):
-                        agent_id = AgentId(tag_id.split("::")[1])
+                    if tag_id.startswith("agent-id:"):
+                        agent_id = AgentId(tag_id.split(":")[1])
                         _ = await agent_store.read_agent(agent_id=agent_id)
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)

@@ -253,6 +253,16 @@ class ContextVariableDocumentStore(ContextVariableStore):
     async def _variable_tag_association_document_loader(
         self, doc: BaseDocument
     ) -> Optional[_ContextVariableTagAssociationDocument]:
+        if doc["version"] == "0.1.0":
+            doc = cast(_ContextVariableTagAssociationDocument, doc)
+            return _ContextVariableTagAssociationDocument(
+                id=doc["id"],
+                version=Version.String("0.2.0"),
+                creation_utc=doc["creation_utc"],
+                variable_id=doc["variable_id"],
+                tag_id=doc["tag_id"],
+            )
+
         return cast(_ContextVariableTagAssociationDocument, doc)
 
     async def __aenter__(self) -> Self:

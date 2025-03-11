@@ -109,6 +109,7 @@ class Actions:
         description: Optional[str],
         max_engine_iterations: Optional[int],
         composition_mode: Optional[str],
+        tags: list[str],
     ) -> Agent:
         client = cast(ParlantClient, ctx.obj.client)
 
@@ -117,6 +118,7 @@ class Actions:
             description=description,
             max_engine_iterations=max_engine_iterations,
             composition_mode=composition_mode,
+            tags=tags,
         )
 
     @staticmethod
@@ -253,6 +255,7 @@ class Actions:
         name: str,
         description: str,
         synonyms: list[str],
+        tags: list[str],
     ) -> Term:
         client = cast(ParlantClient, ctx.obj.client)
 
@@ -260,6 +263,7 @@ class Actions:
             name=name,
             description=description,
             synonyms=synonyms,
+            tags=tags,
         )
 
     @staticmethod
@@ -310,12 +314,14 @@ class Actions:
         ctx: click.Context,
         condition: str,
         action: str,
+        tags: list[str],
     ) -> Guideline:
         client = cast(ParlantClient, ctx.obj.client)
 
         return client.guidelines.create(
             condition=condition,
             action=action,
+            tags=tags,
         )
 
     @staticmethod
@@ -522,6 +528,7 @@ class Actions:
         service_name: Optional[str],
         tool_name: Optional[str],
         freshness_rules: Optional[str],
+        tags: list[str],
     ) -> ContextVariable:
         client = cast(ParlantClient, ctx.obj.client)
 
@@ -532,6 +539,7 @@ class Actions:
             if service_name and tool_name
             else None,
             freshness_rules=freshness_rules,
+            tags=tags,
         )
 
     @staticmethod
@@ -693,9 +701,14 @@ class Actions:
     def create_customer(
         ctx: click.Context,
         name: str,
+        tags: list[str],
     ) -> Customer:
         client = cast(ParlantClient, ctx.obj.client)
-        return client.customers.create(name=name, extra={})
+        return client.customers.create(
+            name=name,
+            extra={},
+            tags=tags,
+        )
 
     @staticmethod
     def update_customer(
@@ -950,10 +963,16 @@ class Interface:
         description: Optional[str],
         max_engine_iterations: Optional[int],
         composition_mode: Optional[str],
+        tags: list[str],
     ) -> None:
         try:
             agent = Actions.create_agent(
-                ctx, name, description, max_engine_iterations, composition_mode
+                ctx,
+                name,
+                description,
+                max_engine_iterations,
+                composition_mode,
+                tags,
             )
 
             Interface._write_success(f"Added agent (id: {agent.id})")
@@ -1216,12 +1235,14 @@ class Interface:
         name: str,
         description: str,
         synonyms: list[str],
+        tags: list[str],
     ) -> None:
         term = Actions.create_term(
             ctx,
             name,
             description,
             synonyms,
+            tags,
         )
 
         Interface._write_success(f"Added term (id: {term.id})")
@@ -1353,12 +1374,14 @@ class Interface:
         ctx: click.Context,
         condition: str,
         action: str,
+        tags: list[str],
     ) -> None:
         try:
             guideline = Actions.create_guideline(
                 ctx,
                 condition,
                 action,
+                tags,
             )
 
             Interface._write_success(f"Added guideline (id: {guideline.id})")
@@ -1652,6 +1675,7 @@ class Interface:
         service_name: Optional[str],
         tool_name: Optional[str],
         freshness_rules: Optional[str],
+        tags: list[str],
     ) -> None:
         variable = Actions.create_variable(
             ctx,
@@ -1660,6 +1684,7 @@ class Interface:
             service_name,
             tool_name,
             freshness_rules,
+            tags,
         )
 
         Interface._write_success(f"Added variable (id: {variable.id})")
@@ -1929,9 +1954,17 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def create_customer(ctx: click.Context, name: str) -> None:
+    def create_customer(
+        ctx: click.Context,
+        name: str,
+        tags: list[str],
+    ) -> None:
         try:
-            customer = Actions.create_customer(ctx, name)
+            customer = Actions.create_customer(
+                ctx,
+                name,
+                tags,
+            )
             Interface._write_success(f"Added customer (id: {customer.id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
@@ -2200,6 +2233,13 @@ async def async_main() -> None:
         help="Composition mode",
         required=False,
     )
+    @click.option(
+        "--tag",
+        type=str,
+        help="Tag ID",
+        required=False,
+        multiple=True,
+    )
     @click.pass_context
     def agent_create(
         ctx: click.Context,
@@ -2207,6 +2247,7 @@ async def async_main() -> None:
         description: Optional[str],
         max_engine_iterations: Optional[int],
         composition_mode: Optional[str],
+        tags: list[str],
     ) -> None:
         if composition_mode:
             composition_mode = composition_mode.replace("-", "_")
@@ -2217,6 +2258,7 @@ async def async_main() -> None:
             description=description,
             max_engine_iterations=max_engine_iterations,
             composition_mode=composition_mode,
+            tags=tags,
         )
 
     @agent.command("delete", help="Delete an agent")
@@ -2395,18 +2437,27 @@ async def async_main() -> None:
         metavar="LIST",
         required=False,
     )
+    @click.option(
+        "--tag",
+        type=str,
+        help="Tag ID",
+        required=False,
+        multiple=True,
+    )
     @click.pass_context
     def glossary_create(
         ctx: click.Context,
         name: str,
         description: str,
         synonyms: Optional[str],
+        tags: list[str],
     ) -> None:
         Interface.create_term(
             ctx,
             name,
             description,
             (synonyms or "").split(","),
+            tags,
         )
 
     @glossary.command("update", help="Update a term")
@@ -2487,16 +2538,25 @@ async def async_main() -> None:
         help="The instruction to perform when the guideline applies",
         required=True,
     )
+    @click.option(
+        "--tag",
+        type=str,
+        help="Tag ID",
+        required=False,
+        multiple=True,
+    )
     @click.pass_context
     def guideline_create(
         ctx: click.Context,
         condition: str,
         action: str,
+        tags: list[str],
     ) -> None:
         Interface.create_guideline(
             ctx=ctx,
             condition=condition,
             action=action,
+            tags=tags,
         )
 
     @guideline.command("update", help="Update a guideline")
@@ -2753,6 +2813,13 @@ async def async_main() -> None:
     )
     @click.option("--tool", type=str, metavar="NAME", help="Tool name", required=False)
     @click.option("--freshness-rules", type=str, help="Variable freshness rules", required=False)
+    @click.option(
+        "--tag",
+        type=str,
+        help="Tag ID",
+        required=False,
+        multiple=True,
+    )
     @click.pass_context
     def variable_create(
         ctx: click.Context,
@@ -2761,6 +2828,7 @@ async def async_main() -> None:
         service: Optional[str],
         tool: Optional[str],
         freshness_rules: Optional[str],
+        tags: list[str],
     ) -> None:
         if service or tool:
             assert service
@@ -2773,6 +2841,7 @@ async def async_main() -> None:
             service_name=service,
             tool_name=tool,
             freshness_rules=freshness_rules,
+            tags=tags,
         )
 
     @variable.command("update", help="Update a context variable")
@@ -2992,16 +3061,27 @@ async def async_main() -> None:
     def customer() -> None:
         pass
 
+    @customer.command("create", help="Create a customer")
+    @click.option("--name", type=str, metavar="NAME", help="Customer name", required=True)
+    @click.option(
+        "--tag",
+        type=str,
+        help="Tag ID",
+        required=False,
+        multiple=True,
+    )
+    @click.pass_context
+    def customer_create(ctx: click.Context, name: str, tags: list[str]) -> None:
+        Interface.create_customer(
+            ctx=ctx,
+            name=name,
+            tags=tags,
+        )
+
     @customer.command("list", help="List customers")
     @click.pass_context
     def customer_list(ctx: click.Context) -> None:
         Interface.list_customers(ctx)
-
-    @customer.command("create", help="Create a customer")
-    @click.option("--name", type=str, metavar="NAME", help="Customer name", required=True)
-    @click.pass_context
-    def customer_create(ctx: click.Context, name: str) -> None:
-        Interface.create_customer(ctx, name)
 
     @customer.command("update", help="Update a customer")
     @click.option("--id", type=str, metavar="ID", help="Customer ID", required=True)

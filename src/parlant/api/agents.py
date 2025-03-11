@@ -150,6 +150,7 @@ agent_creation_params_example: ExampleJson = {
     "description": "Technical Support Assistant",
     "max_engine_iterations": 3,
     "composition_mode": "fluid",
+    "tags": ["tag1", "tag2"],
 }
 
 
@@ -171,6 +172,7 @@ class AgentCreationParamsDTO(
     description: Optional[AgentDescriptionField] = None
     max_engine_iterations: Optional[AgentMaxEngineIterationsField] = None
     composition_mode: Optional[CompositionModeDTO] = None
+    tags: Optional[AgentTagsField] = None
 
 
 agent_update_params_example: ExampleJson = {
@@ -259,6 +261,10 @@ def create_router(
         - `description` defaults to `None`
         - `max_engine_iterations` defaults to `None` (uses system default)
         """
+        if params.tags:
+            for tag_id in params.tags:
+                _ = await tag_store.read_tag(tag_id=tag_id)
+
         agent = await agent_store.create_agent(
             name=params and params.name or "Unnamed Agent",
             description=params and params.description or None,
@@ -266,6 +272,7 @@ def create_router(
             composition_mode=params.composition_mode.value
             if params and params.composition_mode
             else None,
+            tags=params.tags,
         )
 
         return AgentDTO(

@@ -143,7 +143,7 @@ class CustomerDocumentStore(CustomerStore):
             doc = cast(_CustomerDocument, doc)
             return _CustomerDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 creation_utc=doc["creation_utc"],
                 name=doc["name"],
                 extra=doc["extra"],
@@ -158,7 +158,18 @@ class CustomerDocumentStore(CustomerStore):
         self, doc: BaseDocument
     ) -> Optional[_CustomerTagAssociationDocument]:
         if doc["version"] == "0.1.0":
+            doc = cast(_CustomerTagAssociationDocument, doc)
+            return _CustomerTagAssociationDocument(
+                id=doc["id"],
+                version=Version.String("0.2.0"),
+                creation_utc=doc["creation_utc"],
+                customer_id=doc["customer_id"],
+                tag_id=doc["tag_id"],
+            )
+
+        if doc["version"] == "0.2.0":
             return cast(_CustomerTagAssociationDocument, doc)
+
         return None
 
     async def __aenter__(self) -> Self:

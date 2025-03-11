@@ -51,8 +51,8 @@ class Term:
     creation_utc: datetime
     name: str
     description: str
-    synonyms: Sequence[str]
-    tags: Sequence[TagId]
+    synonyms: list[str]
+    tags: list[TagId]
 
     def __repr__(self) -> str:
         term_string = f"Name: '{self.name}', Description: {self.description}"
@@ -289,7 +289,7 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=list(synonyms) if synonyms else [],
-                tags=tags or [],
+                tags=list(tags) if tags else [],
             )
 
             await self._collection.insert_one(
@@ -439,9 +439,9 @@ class GlossaryVectorStore(GlossaryStore):
 
             filters: Where = {}
 
-            term_ids = await self.list_terms(tags=tags)
-            if term_ids:
-                filters = {"id": {"$in": [str(id) for id in term_ids]}}
+            terms = await self.list_terms(tags=tags)
+            if terms:
+                filters = {"id": {"$in": [str(t.id) for t in terms]}}
 
             tasks = [
                 self._collection.find_similar_documents(

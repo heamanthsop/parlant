@@ -398,14 +398,14 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     + "Shazoo"
                     + ("kalla " * 5000)
                     + "Bazoo",
-                    max_terms=3,
                     tags=[TagId(f"agent_id:{agent_id}")],
+                    max_terms=3,
                 )
 
                 assert len(terms) == 3
-                assert any(t == kazoo for t in terms)
-                assert any(t == shazoo for t in terms)
-                assert any(t == bazoo for t in terms)
+                assert any(t.id == kazoo.id for t in terms)
+                assert any(t.id == shazoo.id for t in terms)
+                assert any(t.id == bazoo.id for t in terms)
 
 
 class _TestDocumentV2(BaseDocument):
