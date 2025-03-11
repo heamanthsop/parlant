@@ -19,9 +19,9 @@
   </p>
 </div>
 
-Parlant is an LLM-first conversational AI framework designed to provide developers with the control and precision they need over their AI customer service agents, utilizing behavioral guidelines and runtime supervision. 🔧 🎛️ It's operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
+Parlant is an LLM-first conversational AI framework designed to provide developers with the control and precision they need over their user-facing AI agents, utilizing behavioral guidelines and runtime supervision. 🔧 🎛️ It's operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
 
-**IMPORTANT NOTE:** We're looking for more contributors to help get customer-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
+**IMPORTANT NOTE:** We're looking for more contributors to help get user-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
 
 ## Who uses Parlant?
 Parlant is used to deliver complex AI agents that reliably follow your business rules in use cases such as:
