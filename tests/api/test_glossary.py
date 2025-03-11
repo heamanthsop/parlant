@@ -21,7 +21,7 @@ from parlant.core.glossary import GlossaryStore
 from parlant.core.tags import TagId
 
 
-async def test_that_a_term_can_be_created_by_agent(
+async def test_legacy_that_a_term_can_be_created(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -47,7 +47,7 @@ async def test_that_a_term_can_be_created_by_agent(
     assert data["synonyms"] == synonyms
 
 
-async def test_that_a_term_can_be_created_by_agent_without_synonyms(
+async def test_legacy_that_a_term_can_be_created_without_synonyms(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -71,7 +71,7 @@ async def test_that_a_term_can_be_created_by_agent_without_synonyms(
     assert data["synonyms"] == []
 
 
-async def test_that_a_term_can_be_read_by_agent(
+async def test_legacy_that_a_term_can_be_read(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -99,7 +99,7 @@ async def test_that_a_term_can_be_read_by_agent(
     assert data["synonyms"] == synonyms
 
 
-async def test_that_a_term_can_be_read_by_agent_without_synonyms(
+async def test_legacy_that_a_term_can_be_read_without_synonyms(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -125,7 +125,7 @@ async def test_that_a_term_can_be_read_by_agent_without_synonyms(
     assert data["synonyms"] == []
 
 
-async def test_that_terms_can_be_listed_for_an_agent(
+async def test_legacy_that_terms_can_be_listed(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -161,7 +161,7 @@ async def test_that_terms_can_be_listed_for_an_agent(
     } in terms
 
 
-async def test_that_a_term_can_be_updated_by_agent(
+async def test_legacy_that_a_term_can_be_updated(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -205,7 +205,7 @@ async def test_that_a_term_can_be_updated_by_agent(
     assert data["synonyms"] == updated_synonyms
 
 
-async def test_that_a_term_can_be_deleted_by_agent(
+async def test_legacy_that_a_term_can_be_deleted(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
 ) -> None:
@@ -234,7 +234,7 @@ async def test_that_a_term_can_be_deleted_by_agent(
     assert read_response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_retrieve_a_term_associated_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_retrieve_a_term_associated_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -255,7 +255,7 @@ async def test_that_retrieve_a_term_associated_with_a_wrong_agent_id_returns_a_4
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -277,7 +277,7 @@ async def test_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
+async def test_legacy_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -297,9 +297,6 @@ async def test_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
 
     response = await async_client.delete(f"/agents/{agent_id}/terms/{term.id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
-
-
-# New tag-based API tests
 
 
 async def test_that_a_term_can_be_created(

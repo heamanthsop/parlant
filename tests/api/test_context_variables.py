@@ -606,7 +606,6 @@ async def test_that_a_context_variable_can_be_created(
             "freshness_rules": freshness_rules,
         },
     )
-
     assert response.status_code == status.HTTP_201_CREATED
 
     context_variable = response.json()
