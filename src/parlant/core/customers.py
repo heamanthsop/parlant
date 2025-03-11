@@ -54,6 +54,7 @@ class CustomerStore(ABC):
         name: str,
         extra: Mapping[str, str] = {},
         creation_utc: Optional[datetime] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Customer: ...
 
     @abstractmethod
@@ -219,6 +220,7 @@ class CustomerDocumentStore(CustomerStore):
         name: str,
         extra: Mapping[str, str] = {},
         creation_utc: Optional[datetime] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Customer:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -228,7 +230,7 @@ class CustomerDocumentStore(CustomerStore):
                 name=name,
                 extra=extra,
                 creation_utc=creation_utc,
-                tags=[],
+                tags=tags or [],
             )
 
             await self._customers_collection.insert_one(

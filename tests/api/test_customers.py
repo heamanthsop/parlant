@@ -46,6 +46,27 @@ async def test_that_a_customer_can_be_created(
     assert "creation_utc" in customer
 
 
+async def test_that_a_customer_can_be_created_with_tags(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
+
+    response = await async_client.post(
+        "/customers",
+        json={
+            "name": "John Doe",
+            "tags": [tag1.id, tag2.id],
+        },
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+
+    customer = response.json()
+    assert customer["tags"] == [tag1.id, tag2.id]
+
+
 async def test_that_a_customer_can_be_read(
     async_client: httpx.AsyncClient,
     container: Container,

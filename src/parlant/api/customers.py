@@ -53,16 +53,6 @@ customer_creation_params_example: ExampleJson = {
 }
 
 
-class CustomerCreationParamsDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": customer_creation_params_example},
-):
-    """Parameters for creating a new customer."""
-
-    name: CustomerNameField
-    extra: Optional[CustomerExtra] = None
-
-
 CustomerIdPath: TypeAlias = Annotated[
     CustomerId,
     Path(
@@ -142,6 +132,17 @@ customer_extra_update_params_example: ExampleJson = {
     },
     "remove": ["old_email", "old_title"],
 }
+
+
+class CustomerCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": customer_creation_params_example},
+):
+    """Parameters for creating a new customer."""
+
+    name: CustomerNameField
+    extra: Optional[CustomerExtra] = None
+    tags: Optional[TagIdSequenceField] = None
 
 
 class CustomerExtraUpdateParamsDTO(
@@ -247,6 +248,7 @@ def create_router(
         customer = await customer_store.create_customer(
             name=params.name,
             extra=params.extra if params.extra else {},
+            tags=params.tags,
         )
 
         return CustomerDTO(
