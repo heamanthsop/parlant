@@ -62,7 +62,7 @@ term_creation_params_example: ExampleJson = {
 }
 
 
-class TermCreationParamsDTO(
+class LegacyTermCreationParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": term_creation_params_example},
 ):
@@ -163,7 +163,7 @@ def create_legacy_router(
     )
     async def create_term(
         agent_id: TermAgentIdPath,
-        params: TermCreationParamsDTO,
+        params: LegacyTermCreationParamsDTO,
     ) -> LegacyTermDTO:
         """
         [DEPRECATED] Creates a new term in the agent's glossary.
@@ -415,6 +415,23 @@ TermTagsField: TypeAlias = Annotated[
     ),
 ]
 
+
+class TermCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": term_creation_params_example},
+):
+    """
+    Parameters for creating a new glossary term.
+
+    Use this model when adding new terms to an agent's glossary.
+    """
+
+    name: TermNameField
+    description: TermDescriptionField
+    synonyms: TermSynonymsField
+    tags: Optional[TermTagsField] = None
+
+
 term_example: ExampleJson = {
     "id": "term-eth01",
     "name": "Gas",
@@ -555,6 +572,7 @@ def create_router(
             name=params.name,
             description=params.description,
             synonyms=params.synonyms,
+            tags=params.tags,
         )
 
         return TermDTO(

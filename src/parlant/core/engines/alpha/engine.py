@@ -515,7 +515,7 @@ class AlphaEngine(Engine):
                     id=term.id,
                     name=term.name,
                     description=term.description,
-                    synonyms=term.synonyms,
+                    synonyms=list(term.synonyms),
                 )
                 for term in state.glossary_terms
             ],

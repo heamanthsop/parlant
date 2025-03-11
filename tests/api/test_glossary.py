@@ -18,7 +18,7 @@ from lagom import Container
 
 from parlant.core.agents import AgentId
 from parlant.core.glossary import GlossaryStore
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 
 async def test_legacy_that_a_term_can_be_created(
@@ -323,6 +323,32 @@ async def test_that_a_term_can_be_created(
     assert data["description"] == description
     assert data["synonyms"] == synonyms
     assert data["tags"] == []
+
+
+async def test_that_a_term_can_be_created_with_tags(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+
+    tag1 = await tag_store.create_tag(name="tag1")
+    tag2 = await tag_store.create_tag(name="tag2")
+
+    response = await async_client.post(
+        "/terms",
+        json={
+            "name": "guideline",
+            "description": "when and then statements",
+            "tags": [tag1.id, tag2.id],
+        },
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    data = response.json()
+    assert data["name"] == "guideline"
+    assert data["description"] == "when and then statements"
+    assert data["tags"] == [tag1.id, tag2.id]
 
 
 async def test_that_a_term_can_be_read(

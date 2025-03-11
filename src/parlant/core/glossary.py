@@ -51,8 +51,8 @@ class Term:
     creation_utc: datetime
     name: str
     description: str
-    synonyms: list[str]
-    tags: list[TagId]
+    synonyms: Sequence[str]
+    tags: Sequence[TagId]
 
     def __repr__(self) -> str:
         term_string = f"Name: '{self.name}', Description: {self.description}"
@@ -78,6 +78,7 @@ class GlossaryStore:
         description: str,
         creation_utc: Optional[datetime] = None,
         synonyms: Optional[Sequence[str]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Term: ...
 
     @abstractmethod
@@ -271,6 +272,7 @@ class GlossaryVectorStore(GlossaryStore):
         description: str,
         creation_utc: Optional[datetime] = None,
         synonyms: Optional[Sequence[str]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Term:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
@@ -287,7 +289,7 @@ class GlossaryVectorStore(GlossaryStore):
                 name=name,
                 description=description,
                 synonyms=list(synonyms) if synonyms else [],
-                tags=[],
+                tags=tags or [],
             )
 
             await self._collection.insert_one(
