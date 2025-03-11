@@ -115,7 +115,7 @@ context_variable_creation_params_example = {
 }
 
 
-class ContextVariableCreationParamsDTO(
+class LegacyContextVariableCreationParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": context_variable_creation_params_example},
 ):
@@ -350,7 +350,7 @@ def create_legacy_router(
     )
     async def create_variable(
         agent_id: AgentIdPath,
-        params: ContextVariableCreationParamsDTO,
+        params: LegacyContextVariableCreationParamsDTO,
     ) -> LegacyContextVariableDTO:
         """
         [DEPRECATED] Creates a new context variable for tracking customer-specific or tag-specific data.
@@ -939,6 +939,32 @@ class ContextVariableReadResult(
     key_value_pairs: Optional[KeyValuePairsField] = None
 
 
+class ContextVariableCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": context_variable_creation_params_example},
+):
+    """Parameters for creating a new context variable."""
+
+    name: ContextVariableNameField
+    description: Optional[ContextVariableDescriptionField] = None
+    tool_id: Optional[ToolIdDTO] = None
+    freshness_rules: Optional[FreshnessRulesField] = None
+    tags: Optional[ContextVariableTagsField] = None
+
+    @field_validator("freshness_rules")
+    @classmethod
+    def validate_freshness_rules(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None:
+            try:
+                croniter(value)
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="the provided freshness_rules. contain an invalid cron expression.",
+                )
+        return value
+
+
 def create_router(
     context_variable_store: ContextVariableStore,
     service_registry: ServiceRegistry,
@@ -986,6 +1012,7 @@ def create_router(
             if params.tool_id
             else None,
             freshness_rules=params.freshness_rules,
+            tags=params.tags,
         )
         return ContextVariableDTO(
             id=variable.id,

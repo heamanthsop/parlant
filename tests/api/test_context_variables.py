@@ -615,6 +615,33 @@ async def test_that_a_context_variable_can_be_created(
     assert context_variable["tags"] == []
 
 
+async def test_that_a_context_variable_can_be_created_with_tags(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    tool_id: ToolId,
+) -> None:
+    tag_store = container[TagStore]
+    tag1 = await tag_store.create_tag("tag1")
+    tag2 = await tag_store.create_tag("tag2")
+
+    response = await async_client.post(
+        "/context-variables",
+        json={
+            "name": "test_variable",
+            "description": "test of context variable",
+            "tool_id": {
+                "service_name": tool_id.service_name,
+                "tool_name": tool_id.tool_name,
+            },
+            "tags": [tag1.id, tag2.id],
+        },
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+
+    context_variable = response.json()
+    assert context_variable["tags"] == [tag1.id, tag2.id]
+
+
 async def test_that_a_context_variable_can_be_read(
     async_client: httpx.AsyncClient,
     container: Container,

@@ -82,6 +82,7 @@ class ContextVariableStore(ABC):
         description: Optional[str] = None,
         tool_id: Optional[ToolId] = None,
         freshness_rules: Optional[str] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> ContextVariable: ...
 
     @abstractmethod
@@ -356,6 +357,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
         description: Optional[str] = None,
         tool_id: Optional[ToolId] = None,
         freshness_rules: Optional[str] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> ContextVariable:
         async with self._lock.writer_lock:
             context_variable = ContextVariable(
@@ -364,7 +366,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
                 description=description,
                 tool_id=tool_id,
                 freshness_rules=freshness_rules,
-                tags=[],
+                tags=tags or [],
             )
 
             await self._variable_collection.insert_one(
