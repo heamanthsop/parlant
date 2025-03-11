@@ -40,7 +40,7 @@ def given_the_term_definition(
     context.sync_await(
         glossary_store.add_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
     )
 

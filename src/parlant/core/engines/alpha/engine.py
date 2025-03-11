@@ -163,7 +163,6 @@ class AlphaEngine(Engine):
 
         self._entity_queries = entity_queries
         self._entity_commands = entity_commands
-        self._guideline_proposer = guideline_proposer
 
         self._guideline_proposer = guideline_proposer
         self._tool_event_generator = tool_event_generator
@@ -246,7 +245,7 @@ class AlphaEngine(Engine):
             raise
 
     async def _load_interaction_state(self, context: Context) -> _InteractionState:
-        history = list(await self._entity_queries.list_events(context.session_id))
+        history = await self._entity_queries.find_events(context.session_id)
         last_known_event_offset = history[-1].offset if history else -1
 
         return _InteractionState(
@@ -676,7 +675,7 @@ class AlphaEngine(Engine):
         self,
         context: _LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
-        variables_supported_by_agent = await self._entity_queries.list_context_variables_for_agent(
+        variables_supported_by_agent = await self._entity_queries.find_context_variables_for_agent(
             agent_id=context.agent.id,
         )
 
@@ -710,7 +709,7 @@ class AlphaEngine(Engine):
         # Step 1: Retrieve all of the enabled guidelines for this agent.
         all_stored_guidelines = [
             g
-            for g in await self._entity_queries.list_guidelines_for_agent(
+            for g in await self._entity_queries.find_guidelines_for_agent(
                 agent_id=context.agent.id,
             )
             if g.enabled
@@ -770,7 +769,7 @@ class AlphaEngine(Engine):
         for proposition in propositions:
             connected_guideline_ids = {
                 c.target
-                for c in await self._entity_queries.list_guideline_connections(
+                for c in await self._entity_queries.find_guideline_connections(
                     indirect=True,
                     source=proposition.guideline.id,
                 )
@@ -841,7 +840,7 @@ class AlphaEngine(Engine):
         # This allows for optimized control and data flow in the engine.
 
         guideline_tool_associations = list(
-            await self._entity_queries.list_guideline_tool_associations()
+            await self._entity_queries.find_guideline_tool_associations()
         )
         guideline_propositions_by_id = {p.guideline.id: p for p in guideline_propositions}
 
@@ -885,9 +884,9 @@ class AlphaEngine(Engine):
             query += str([e.data for e in state.tool_events])
 
         if query:
-            return await self._entity_queries.find_relevant_glossary(
+            return await self._entity_queries.find_relevant_glossary_terms(
                 query=query,
-                term_tags=[TagId(f"agent_id::{context.agent.id}")],
+                tags=[TagId(f"agent_id:{context.agent.id}")],
             )
 
         return []

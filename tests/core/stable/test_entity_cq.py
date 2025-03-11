@@ -39,7 +39,7 @@ async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.list_guidelines_for_agent(agent.id)
+    result = await entity_queries.find_guidelines_for_agent(agent.id)
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id
@@ -57,7 +57,7 @@ async def test_that_list_guidelines_global_guideline_is_returned(
         action="action 1",
     )
 
-    result = await entity_queries.list_guidelines_for_agent(agent.id)
+    result = await entity_queries.find_guidelines_for_agent(agent.id)
 
     assert len(result) == 1
     assert result[0].id == global_guideline.id
@@ -82,7 +82,7 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
 
     await guideline_store.add_tag(
         guideline_id=first_guideline.id,
-        tag_id=TagId(f"agent_id::{agent.id}"),
+        tag_id=TagId(f"agent_id:{agent.id}"),
     )
 
     await guideline_store.add_tag(
@@ -90,7 +90,7 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.list_guidelines_for_agent(agent.id)
+    result = await entity_queries.find_guidelines_for_agent(agent.id)
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id

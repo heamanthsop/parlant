@@ -535,13 +535,13 @@ def test_that_guidelines_are_proposed_based_on_glossary(
         create_term(
             name="skateboard",
             description="a time-travelling device",
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_term(
             name="Pinewood Rash Syndrome",
             description="allergy to pinewood trees",
             synonyms=["Pine Rash", "PRS"],
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
     ]
     conversation_context: list[tuple[str, str]] = [
@@ -676,17 +676,17 @@ def test_that_guidelines_are_proposed_based_on_staged_tool_calls_and_context_var
         create_context_variable(
             name="user_id_1",
             data={"name": "Jimmy McGill", "ID": 566317},
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_context_variable(
             name="user_id_2",
             data={"name": "Bob Bobberson", "ID": 199877},
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_context_variable(
             name="user_id_3",
             data={"name": "Dorothy Dortmund", "ID": 816779},
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
     ]
     conversation_guideline_names: list[str] = ["suggest_drink_underage", "suggest_drink_adult"]

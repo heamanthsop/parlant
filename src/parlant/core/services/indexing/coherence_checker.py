@@ -440,7 +440,7 @@ Expected Output:
         builder.add_agent_identity(agent)
         terms = await self._glossary_store.find_relevant_terms(
             query=guideline_to_evaluate_text + comparison_candidates_text,
-            term_tags=[TagId(f"agent_id::{agent.id}")],
+            term_tags=[TagId(f"agent_id:{agent.id}")],
         )
         builder.add_glossary(terms)
 
@@ -692,7 +692,7 @@ Expected Output:
         builder.add_agent_identity(agent)
         terms = await self._glossary_store.find_relevant_terms(
             query=guideline_to_evaluate_text + comparison_candidates_text,
-            term_tags=[TagId(f"agent_id::{agent.id}")],
+            term_tags=[TagId(f"agent_id:{agent.id}")],
         )
         builder.add_glossary(terms)
 

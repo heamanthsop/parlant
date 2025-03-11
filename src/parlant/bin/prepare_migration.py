@@ -79,6 +79,7 @@ sys.path.append(".")
 LOGGER = StdoutLogger(
     correlator=ContextualCorrelator(),
     log_level=LogLevel.INFO,
+    logger_id="parlant.bin.prepare_migration",
 )
 
 
@@ -456,7 +457,7 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "guideline_id": GuidelineId(guideline["id"]),
                 "tag_id": TagId(
-                    f"agent_id::{cast(_GuidelineDocument_v0_1_0, guideline)['guideline_set']}"
+                    f"agent_id:{cast(_GuidelineDocument_v0_1_0, guideline)['guideline_set']}"
                 ),
             }
         )
@@ -509,7 +510,7 @@ async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "variable_id": ContextVariableId(context_variable["id"]),
                 "tag_id": TagId(
-                    f"agent_id::{cast(_ContextVariableDocument_v0_1_0, context_variable)['variable_set']}"
+                    f"agent_id:{cast(_ContextVariableDocument_v0_1_0, context_variable)['variable_set']}"
                 ),
             }
         )
@@ -643,7 +644,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "term_id": TermId(term["id"]),
                 "tag_id": TagId(
-                    f"agent_id::{cast(_ContextVariableDocument_v0_1_0, term)['variable_set']}"
+                    f"agent_id:{cast(_ContextVariableDocument_v0_1_0, term)['variable_set']}"
                 ),
             }
         )
@@ -673,17 +674,6 @@ async def detect_required_migrations() -> list[tuple[str, str, str]]:
 
         for migration in applicable_migrations:
             required_migrations.append(migration)
-
-    if required_migrations:
-        rich.print("[green]Current component versions:")
-        for component, version in component_versions.items():
-            rich.print(f"  - {component}: {version}")
-
-        for migration_component, from_version, to_version in required_migrations:
-            current_version = component_versions[migration_component]
-            rich.print(
-                f"[yellow]Migration required: {migration_component} {current_version} -> {to_version}"
-            )
 
     return required_migrations
 

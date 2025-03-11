@@ -25,7 +25,7 @@ from parlant.api.common import (
     JSONSerializableDTO,
     apigen_config,
     ExampleJson,
-    skip_apigen_config,
+    apigen_skip_config,
 )
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
@@ -324,7 +324,7 @@ IncludeValuesQuery: TypeAlias = Annotated[
 ]
 
 
-def legacy_create_router(
+def create_legacy_router(
     context_variable_store: ContextVariableStore,
     service_registry: ServiceRegistry,
 ) -> APIRouter:
@@ -345,7 +345,7 @@ def legacy_create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def create_variable(
@@ -375,7 +375,7 @@ def legacy_create_router(
             freshness_rules=params.freshness_rules,
         )
 
-        await context_variable_store.add_variable_tag(variable.id, TagId(f"agent_id::{agent_id}"))
+        await context_variable_store.add_variable_tag(variable.id, TagId(f"agent_id:{agent_id}"))
 
         return LegacyContextVariableDTO(
             id=variable.id,
@@ -403,7 +403,7 @@ def legacy_create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def update_variable(
@@ -439,7 +439,7 @@ def legacy_create_router(
             return params
 
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         if variable_id not in [v.id for v in variables]:
@@ -474,7 +474,7 @@ def legacy_create_router(
             status.HTTP_204_NO_CONTENT: {"description": "All context variables deleted"},
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def delete_all_variables(
@@ -486,13 +486,13 @@ def legacy_create_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         for v in variables:
             variable = await context_variable_store.remove_variable_tag(
                 variable_id=v.id,
-                tag_id=TagId(f"agent_id::{agent_id}"),
+                tag_id=TagId(f"agent_id:{agent_id}"),
             )
 
             if not variable.tags:
@@ -508,7 +508,7 @@ def legacy_create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable or agent not found"},
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def delete_variable(
@@ -521,7 +521,7 @@ def legacy_create_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -531,7 +531,7 @@ def legacy_create_router(
 
         variable = await context_variable_store.remove_variable_tag(
             variable_id=variable_id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
         if not variable.tags:
@@ -548,7 +548,7 @@ def legacy_create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def list_variables(
@@ -560,7 +560,7 @@ def legacy_create_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         return [
@@ -593,7 +593,7 @@ def legacy_create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def update_variable_value(
@@ -612,7 +612,7 @@ def legacy_create_router(
         The `params` parameter contains the actual context information being stored.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -643,7 +643,7 @@ def legacy_create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def read_variable_value(
@@ -659,7 +659,7 @@ def legacy_create_router(
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -695,7 +695,7 @@ def legacy_create_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def read_variable(
@@ -711,7 +711,7 @@ def legacy_create_router(
         Can return all customer or tag values for this variable type if include_values=True.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         variable = next((v for v in variables if v.id == variable_id), None)
 
@@ -766,7 +766,7 @@ def legacy_create_router(
             },
             status.HTTP_404_NOT_FOUND: {"description": "Variable, agent, or key not found"},
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def delete_value(
@@ -783,7 +783,7 @@ def legacy_create_router(
         Removes only the value for the specified key while keeping the variable's configuration.
         """
         variables = await context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -882,9 +882,21 @@ class ContextVariableTagsUpdateParamsDTO(
     remove: Optional[ContextVariableTagsUpdateRemoveField] = None
 
 
+context_variable_update_params_example: ExampleJson = {
+    "name": "UserBalance",
+    "description": "Stores the account balances of users",
+    "tool_id": {"service_name": "finance_service", "tool_name": "balance_checker"},
+    "freshness_rules": "0 8,20 * * *",
+    "tags": {
+        "add": ["tag:123", "tag:456"],
+        "remove": ["tag:789", "tag:012"],
+    },
+}
+
+
 class ContextVariableUpdateParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": legacy_context_variable_update_params_example},
+    json_schema_extra={"example": context_variable_update_params_example},
 ):
     """Parameters for updating an existing context variable."""
 
@@ -1085,7 +1097,7 @@ def create_router(
         """Lists all context variables set for the provided tag or all context variables if no tag is provided"""
         if tag_id:
             variables = await context_variable_store.list_variables(
-                variable_tags=[tag_id],
+                tags=[tag_id],
             )
         else:
             variables = await context_variable_store.list_variables()
@@ -1179,7 +1191,7 @@ def create_router(
         """Deletes all context variables for the provided tag"""
         if tag_id:
             variables = await context_variable_store.list_variables(
-                variable_tags=[tag_id],
+                tags=[tag_id],
             )
             for v in variables:
                 updated_variable = await context_variable_store.remove_variable_tag(

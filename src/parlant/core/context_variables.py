@@ -100,7 +100,7 @@ class ContextVariableStore(ABC):
     @abstractmethod
     async def list_variables(
         self,
-        variable_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[ContextVariable]: ...
 
     @abstractmethod
@@ -454,13 +454,13 @@ class ContextVariableDocumentStore(ContextVariableStore):
     @override
     async def list_variables(
         self,
-        variable_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[ContextVariable]:
         filters: Where = {}
 
         async with self._lock.reader_lock:
-            if variable_tags is not None:
-                if len(variable_tags) == 0:
+            if tags is not None:
+                if len(tags) == 0:
                     variable_ids = {
                         doc["variable_id"]
                         for doc in await self._variable_tag_association_collection.find(filters={})
@@ -471,9 +471,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
                         else {}
                     )
                 else:
-                    tag_filters: Where = {
-                        "$or": [{"tag_id": {"$eq": tag}} for tag in variable_tags]
-                    }
+                    tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
                     tag_associations = await self._variable_tag_association_collection.find(
                         filters=tag_filters
                     )

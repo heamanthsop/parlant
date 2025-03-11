@@ -241,7 +241,7 @@ def test_that_a_connection_is_proposed_based_on_given_glossary(
     context.sync_await(
         glossary_store.add_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
     source_guideline_content = GuidelineContent(
@@ -291,14 +291,14 @@ def test_that_a_connection_is_proposed_based_on_multiple_glossary_terms(
     context.sync_await(
         glossary_store.add_tag(
             term_id=first_term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 
     context.sync_await(
         glossary_store.add_tag(
             term_id=second_term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 
@@ -768,7 +768,7 @@ def test_that_misspelled_entailing_guidelines_are_connected(
     context.sync_await(
         glossary_store.add_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 
@@ -886,7 +886,7 @@ def test_that_many_guidelines_with_agent_description_and_glossary_arent_detected
     context.sync_await(
         glossary_store.add_tag(
             term_id=first_term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 
@@ -900,7 +900,7 @@ def test_that_many_guidelines_with_agent_description_and_glossary_arent_detected
     context.sync_await(
         glossary_store.add_tag(
             term_id=second_term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 
@@ -914,7 +914,7 @@ def test_that_many_guidelines_with_agent_description_and_glossary_arent_detected
     context.sync_await(
         glossary_store.add_tag(
             term_id=third_term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 

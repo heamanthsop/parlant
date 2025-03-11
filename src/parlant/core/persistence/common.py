@@ -70,8 +70,6 @@ LogicalOperator = TypedDict(
 
 Where = Union[WhereExpression, LogicalOperator]
 
-a: Where = {"tags": {"$in": ["a", "b"]}}
-
 
 def _evaluate_filter(
     operator: str,

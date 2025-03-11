@@ -315,7 +315,7 @@ def base_test_that_correct_guidelines_are_proposed(
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     conversation_guidelines = {
-        name: create_guideline_by_name(context, name, tags=[TagId(f"agent_id::{agent.id}")])
+        name: create_guideline_by_name(context, name, tags=[TagId(f"agent_id:{agent.id}")])
         for name in conversation_guideline_names
     }
     relevant_guidelines = [
@@ -602,7 +602,7 @@ def test_that_guidelines_based_on_context_variables_arent_proposed_repetitively(
         create_context_variable(
             name="season",
             data={"season": "Summer"},
-            tags=[TagId(f"agent_id::{agent.id}")],
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
     ]
 

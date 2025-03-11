@@ -50,7 +50,7 @@ async def create_and_connect(
     for guideline in guidelines:
         _ = await container[GuidelineStore].add_tag(
             guideline_id=guideline.id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
@@ -116,7 +116,7 @@ async def test_that_a_guideline_by_an_agent_can_be_deleted(
 
     await guideline_store.add_tag(
         guideline_id=guideline_to_delete.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     (
@@ -360,7 +360,7 @@ async def test_that_a_guideline_by_an_agent_can_be_read_by_id(
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     item = (
@@ -571,7 +571,7 @@ async def test_that_reading_a_guideline_by_an_agent_lists_both_direct_and_indire
     for guideline in guidelines:
         _ = await guideline_store.add_tag(
             guideline_id=guideline.id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
@@ -635,7 +635,7 @@ async def test_that_a_tool_association_by_an_agent_can_be_added(
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     service_name = "local"
@@ -717,7 +717,7 @@ async def test_that_a_tool_association_by_an_agent_can_be_removed(
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     service_name = "local"
@@ -790,7 +790,7 @@ async def test_that_guideline_by_an_agent_deletion_removes_tool_associations(
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     service_name = "local"
@@ -821,7 +821,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_lo
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     service_name = "local"
@@ -861,7 +861,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_op
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     tool_name = "nonexistent_tool"
@@ -909,7 +909,7 @@ async def test_that_an_http_404_is_thrown_when_associating_with_a_nonexistent_sd
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     tool_name = "nonexistent_tool"
@@ -955,7 +955,7 @@ async def test_that_an_existing_guideline_by_an_agent_can_be_updated(
 
     _ = await guideline_store.add_tag(
         guideline_id=existing_guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     connected_guideline = await guideline_store.create_guideline(
@@ -965,7 +965,7 @@ async def test_that_an_existing_guideline_by_an_agent_can_be_updated(
 
     _ = await guideline_store.add_tag(
         guideline_id=connected_guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     connected_guideline_post_update = await guideline_store.create_guideline(
@@ -975,7 +975,7 @@ async def test_that_an_existing_guideline_by_an_agent_can_be_updated(
 
     _ = await guideline_store.add_tag(
         guideline_id=connected_guideline_post_update.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     await connection_store.create_connection(
@@ -1061,7 +1061,7 @@ async def test_that_an_updated_guideline_by_an_agent_can_entail_an_added_guideli
 
     _ = await guideline_store.add_tag(
         guideline_id=existing_guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     new_aciton = "reply with 'Howdy!'"
@@ -1184,7 +1184,7 @@ async def test_that_guideline_update_by_an_agent_retains_existing_connections_wi
 
     _ = await guideline_store.add_tag(
         guideline_id=existing_guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     connected_guideline = await guideline_store.create_guideline(
@@ -1194,7 +1194,7 @@ async def test_that_guideline_update_by_an_agent_retains_existing_connections_wi
 
     _ = await guideline_store.add_tag(
         guideline_id=connected_guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     await connection_store.create_connection(
@@ -1267,7 +1267,7 @@ async def test_that_a_guideline_by_an_agent_can_be_disabled(
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     response = (
@@ -1297,7 +1297,7 @@ async def test_that_retrieving_a_guideline_associated_with_a_wrong_agent_id_retu
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.get(f"/agents/{agent_id}/guidelines/{guideline.id}")
@@ -1319,7 +1319,7 @@ async def test_that_updating_a_guideline_by_an_agent_with_a_wrong_agent_id_retur
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.patch(
@@ -1344,7 +1344,7 @@ async def test_that_deleting_a_guideline_by_an_agent_with_a_wrong_agent_id_retur
 
     _ = await guideline_store.add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.delete(f"/agents/{agent_id}/guidelines/{guideline.id}")

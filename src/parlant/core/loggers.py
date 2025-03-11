@@ -190,15 +190,6 @@ class CorrelationalLogger(Logger):
             return scopes
         return ""
 
-    def add_handler(self, handler: logging.Handler) -> None:
-        handler_exists = any(
-            isinstance(existing_handler, type(handler))
-            for existing_handler in self.raw_logger.handlers
-        )
-
-        if not handler_exists:
-            self.raw_logger.addHandler(handler)
-
 
 class StdoutLogger(CorrelationalLogger):
     def __init__(
@@ -208,7 +199,7 @@ class StdoutLogger(CorrelationalLogger):
         logger_id: str | None = None,
     ) -> None:
         super().__init__(correlator, log_level, logger_id)
-        self.add_handler(logging.StreamHandler())
+        self.raw_logger.addHandler(logging.StreamHandler())
 
 
 class FileLogger(CorrelationalLogger):
@@ -227,7 +218,7 @@ class FileLogger(CorrelationalLogger):
         ]
 
         for handler in handlers:
-            self.add_handler(handler)
+            self.raw_logger.addHandler(handler)
 
 
 class CompositeLogger(Logger):

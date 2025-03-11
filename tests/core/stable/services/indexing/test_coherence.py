@@ -47,7 +47,7 @@ async def nlp_test_action_contradiction(
     guideline_b_text = f"""{{when: "{incoherence.guideline_b.condition}", then: "{incoherence.guideline_b.action}"}}"""
     terms = await glossary_store.find_relevant_terms(
         query=guideline_a_text + guideline_b_text,
-        term_tags=[TagId(f"agent_id::{agent.id}")],
+        term_tags=[TagId(f"agent_id:{agent.id}")],
     )
     context = f"""Two guidelines are said to have contradicting 'then' statements if applying both of their 'then' statements would result in a contradiction or an illogical action.
 
@@ -74,7 +74,7 @@ async def nlp_test_condition_entailment(
     guideline_b_text = f"""{{when: "{incoherence.guideline_b.condition}", then: {incoherence.guideline_b.action}"}}"""
     terms = await glossary_store.find_relevant_terms(
         query=guideline_a_text + guideline_b_text,
-        term_tags=[TagId(f"agent_id::{agent.id}")],
+        term_tags=[TagId(f"agent_id:{agent.id}")],
     )
     entailment_found_text = (
         "found" if incoherence.IncoherenceKind == IncoherenceKind.STRICT else "not found"
@@ -716,7 +716,7 @@ def test_that_a_glossary_based_incoherency_is_detected(
     context.sync_await(
         glossary_store.add_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id::{agent.id}"),
+            tag_id=TagId(f"agent_id:{agent.id}"),
         )
     )
 

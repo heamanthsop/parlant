@@ -825,7 +825,7 @@ async def test_that_a_message_can_be_inspected(
     context_variable = await create_context_variable(
         container=container,
         name="Customer full name",
-        tags=[TagId(f"agent_id::{agent_id}")],
+        tags=[TagId(f"agent_id:{agent_id}")],
     )
 
     await set_context_variable_value(

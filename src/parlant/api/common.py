@@ -29,7 +29,7 @@ def apigen_config(group_name: str, method_name: str) -> Mapping[str, Any]:
     }
 
 
-def skip_apigen_config() -> Mapping[str, Any]:
+def apigen_skip_config() -> Mapping[str, Any]:
     return {
         "openapi_extra": {
             "x-fern-ignore": True,

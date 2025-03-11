@@ -17,7 +17,7 @@ from typing import Annotated, Optional, Sequence, TypeAlias
 from pydantic import Field
 
 from parlant.api import common
-from parlant.api.common import apigen_config, ExampleJson, skip_apigen_config
+from parlant.api.common import apigen_config, ExampleJson, apigen_skip_config
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.glossary import TermUpdateParams, GlossaryStore, TermId
@@ -158,7 +158,7 @@ def create_legacy_router(
                 "description": "Validation error in request parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def create_term(
@@ -188,7 +188,7 @@ def create_legacy_router(
 
         await glossary_store.add_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
         return LegacyTermDTO(
@@ -211,7 +211,7 @@ def create_legacy_router(
                 "description": "Term not found. The specified `agent_id` or `term_id` does not exist"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def read_term(
@@ -226,7 +226,7 @@ def create_legacy_router(
 
         This endpoint will be removed in a future release.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -256,7 +256,7 @@ def create_legacy_router(
                 "description": "Terms not found. The specified `agent_id` does not exist"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def list_terms(
@@ -273,7 +273,7 @@ def create_legacy_router(
         Returns an empty list if no terms associated to the provided agent's ID.
         Terms are returned in no guaranteed order.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
 
         return [
             LegacyTermDTO(
@@ -301,7 +301,7 @@ def create_legacy_router(
                 "description": "Validation error in update parameters"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def update_term(
@@ -332,7 +332,7 @@ def create_legacy_router(
 
             return params
 
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -366,7 +366,7 @@ def create_legacy_router(
                 "description": "Term not found. The specified `agent_id` or `term_id` does not exist"
             },
         },
-        **skip_apigen_config(),
+        **apigen_skip_config(),
         deprecated=True,
     )
     async def delete_term(
@@ -384,7 +384,7 @@ def create_legacy_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
-        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id::{agent_id}")])
+        terms = await glossary_store.list_terms(term_tags=[TagId(f"agent_id:{agent_id}")])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -396,7 +396,7 @@ def create_legacy_router(
 
         updated_term = await glossary_store.remove_tag(
             term_id=term_id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
         if not updated_term.tags:

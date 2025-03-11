@@ -233,7 +233,7 @@ class _EvaluationDocument(TypedDict, total=False):
 
 
 class EvaluationDocumentStore(EvaluationStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -243,6 +243,19 @@ class EvaluationDocumentStore(EvaluationStore):
 
     async def document_loader(self, doc: BaseDocument) -> Optional[_EvaluationDocument]:
         if doc["version"] == "0.1.0":
+            doc = cast(_EvaluationDocument, doc)
+            return _EvaluationDocument(
+                id=doc["id"],
+                version=self.VERSION.to_string(),
+                agent_id=doc["agent_id"],
+                creation_utc=doc["creation_utc"],
+                status=doc["status"],
+                error=doc["error"],
+                invoices=doc["invoices"],
+                progress=doc["progress"],
+            )
+
+        if doc["version"] == "0.2.0":
             return cast(_EvaluationDocument, doc)
 
         return None

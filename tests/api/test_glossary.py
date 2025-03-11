@@ -248,7 +248,7 @@ async def test_that_retrieve_a_term_associated_with_a_wrong_agent_id_returns_a_4
 
     await glossary_store.add_tag(
         term_id=term.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.get(f"/agents/{agent_id}/terms/{term.id}")
@@ -270,7 +270,7 @@ async def test_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
 
     await glossary_store.add_tag(
         term_id=term.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.patch(f"/agents/{agent_id}/terms/{term.id}", json={})
@@ -292,7 +292,7 @@ async def test_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
 
     await glossary_store.add_tag(
         term_id=term.id,
-        tag_id=TagId("agent_id::wrong_agent"),
+        tag_id=TagId("agent_id:wrong_agent"),
     )
 
     response = await async_client.delete(f"/agents/{agent_id}/terms/{term.id}")

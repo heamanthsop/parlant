@@ -76,54 +76,34 @@ class EntityQueries:
     ) -> Customer:
         return await self._customer_store.read_customer(customer_id)
 
-    async def list_guidelines_for_agent(
+    async def find_guidelines_for_agent(
         self,
         agent_id: AgentId,
     ) -> Sequence[Guideline]:
         agent_guidelines = await self._guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
-        global_guidelines = await self._guideline_store.list_guidelines(guideline_tags=[])
+        global_guidelines = await self._guideline_store.list_guidelines(tags=[])
 
         agent = await self._agent_store.read_agent(agent_id)
         guidelines_for_agent_tags = await self._guideline_store.list_guidelines(
-            guideline_tags=[tag for tag in agent.tags]
+            tags=[tag for tag in agent.tags]
         )
 
         all_guidelines = set(chain(agent_guidelines, global_guidelines, guidelines_for_agent_tags))
         return list(all_guidelines)
 
-    async def list_customers_for_agent(
-        self,
-        agent_id: AgentId,
-    ) -> Sequence[Customer]:
-        agent_customers = await self._customer_store.list_customers(
-            customer_tags=[TagId(f"agent_id::{agent_id}")],
-        )
-        global_customers = await self._customer_store.list_customers(
-            customer_tags=[],
-        )
-        agent = await self._agent_store.read_agent(agent_id)
-        customers_for_agent_tags = await self._customer_store.list_customers(
-            customer_tags=[tag for tag in agent.tags]
-        )
-
-        all_customers = set(chain(agent_customers, global_customers, customers_for_agent_tags))
-        return list(all_customers)
-
-    async def list_context_variables_for_agent(
+    async def find_context_variables_for_agent(
         self,
         agent_id: AgentId,
     ) -> Sequence[ContextVariable]:
         agent_context_variables = await self._context_variable_store.list_variables(
-            variable_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
-        global_context_variables = await self._context_variable_store.list_variables(
-            variable_tags=[]
-        )
+        global_context_variables = await self._context_variable_store.list_variables(tags=[])
         agent = await self._agent_store.read_agent(agent_id)
         context_variables_for_agent_tags = await self._context_variable_store.list_variables(
-            variable_tags=[tag for tag in agent.tags]
+            tags=[tag for tag in agent.tags]
         )
 
         all_context_variables = set(
@@ -140,13 +120,13 @@ class EntityQueries:
     ) -> Optional[ContextVariableValue]:
         return await self._context_variable_store.read_value(variable_id, key)
 
-    async def list_events(
+    async def find_events(
         self,
         session_id: SessionId,
     ) -> Sequence[Event]:
         return await self._session_store.list_events(session_id)
 
-    async def list_guideline_connections(
+    async def find_guideline_connections(
         self,
         source: Optional[GuidelineId] = None,
         target: Optional[GuidelineId] = None,
@@ -158,17 +138,17 @@ class EntityQueries:
             indirect=indirect,
         )
 
-    async def list_guideline_tool_associations(
+    async def find_guideline_tool_associations(
         self,
     ) -> Sequence[GuidelineToolAssociation]:
         return await self._guideline_tool_association_store.list_associations()
 
-    async def find_relevant_glossary(
+    async def find_relevant_glossary_terms(
         self,
         query: str,
-        term_tags: Sequence[TagId],
+        tags: Sequence[TagId],
     ) -> Sequence[Term]:
-        return await self._glossary_store.find_relevant_terms(query, term_tags)
+        return await self._glossary_store.find_relevant_terms(query, tags)
 
     async def read_tool_service(
         self,

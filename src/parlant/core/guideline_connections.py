@@ -74,7 +74,7 @@ class _GuidelineConnectionDocument(TypedDict, total=False):
 
 
 class GuidelineConnectionDocumentStore(GuidelineConnectionStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -85,6 +85,17 @@ class GuidelineConnectionDocumentStore(GuidelineConnectionStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineConnectionDocument]:
         if doc["version"] == "0.1.0":
+            doc = cast(_GuidelineConnectionDocument, doc)
+
+            return _GuidelineConnectionDocument(
+                id=doc["id"],
+                version=self.VERSION.to_string(),
+                creation_utc=doc["creation_utc"],
+                source=doc["source"],
+                target=doc["target"],
+            )
+
+        if doc["version"] == "0.2.0":
             return cast(_GuidelineConnectionDocument, doc)
 
         return None

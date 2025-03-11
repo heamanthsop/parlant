@@ -25,7 +25,7 @@ from parlant.api.common import (
     PayloadKindDTO,
     ToolIdDTO,
     apigen_config,
-    skip_apigen_config,
+    apigen_skip_config,
 )
 from parlant.api.index import InvoiceDTO
 from parlant.core.agents import AgentId, AgentStore
@@ -509,7 +509,7 @@ async def _get_guideline_connections(
     return [(c, guideline_id not in [c.source.id, c.target.id]) for c in connections]
 
 
-def legacy_create_router(
+def create_legacy_router(
     application: Application,
     guideline_store: GuidelineStore,
     guideline_connection_store: GuidelineConnectionStore,
@@ -538,7 +538,7 @@ def legacy_create_router(
             },
         },
         deprecated=True,
-        **skip_apigen_config(),
+        **apigen_skip_config(),
     )
     async def create_guidelines(
         agent_id: agents.AgentIdPath,
@@ -567,7 +567,7 @@ def legacy_create_router(
         for id in guideline_ids:
             _ = await guideline_store.add_tag(
                 guideline_id=id,
-                tag_id=TagId(f"agent_id::{agent_id}"),
+                tag_id=TagId(f"agent_id:{agent_id}"),
             )
 
         guidelines = [await guideline_store.read_guideline(guideline_id=id) for id in guideline_ids]
@@ -637,7 +637,7 @@ def legacy_create_router(
             status.HTTP_404_NOT_FOUND: {"description": "Guideline or agent not found"},
         },
         deprecated=True,
-        **skip_apigen_config(),
+        **apigen_skip_config(),
     )
     async def read_guideline(
         agent_id: agents.AgentIdPath,
@@ -652,7 +652,7 @@ def legacy_create_router(
         Tool associations indicate which tools the guideline can use.
         """
         guidelines = await guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         guideline = next(
@@ -725,7 +725,7 @@ def legacy_create_router(
             status.HTTP_404_NOT_FOUND: {"description": "Agent not found"},
         },
         deprecated=True,
-        **skip_apigen_config(),
+        **apigen_skip_config(),
     )
     async def list_guidelines(
         agent_id: agents.AgentIdPath,
@@ -740,7 +740,7 @@ def legacy_create_router(
         Does not include connections or tool associations.
         """
         guidelines = await guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         return [
@@ -770,7 +770,7 @@ def legacy_create_router(
             },
         },
         deprecated=True,
-        **skip_apigen_config(),
+        **apigen_skip_config(),
     )
     async def update_guideline(
         agent_id: agents.AgentIdPath,
@@ -793,7 +793,7 @@ def legacy_create_router(
         - Tool services and tools must exist before creating associations
         """
         guidelines = await guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
         guideline = next(
             (g for g in guidelines if g.id == guideline_id),
@@ -813,7 +813,7 @@ def legacy_create_router(
             )
 
         guidelines = await guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         if params.connections and params.connections.add:
@@ -956,7 +956,7 @@ def legacy_create_router(
             status.HTTP_404_NOT_FOUND: {"description": "Guideline or agent not found"},
         },
         deprecated=True,
-        **skip_apigen_config(),
+        **apigen_skip_config(),
     )
     async def delete_guideline(
         agent_id: agents.AgentIdPath,
@@ -972,7 +972,7 @@ def legacy_create_router(
         No content will be returned from a successful deletion.
         """
         guidelines = await guideline_store.list_guidelines(
-            guideline_tags=[TagId(f"agent_id::{agent_id}")],
+            tags=[TagId(f"agent_id:{agent_id}")],
         )
 
         if not any(g.id == guideline_id for g in guidelines):
@@ -983,7 +983,7 @@ def legacy_create_router(
 
         guideline = await guideline_store.remove_tag(
             guideline_id=guideline_id,
-            tag_id=TagId(f"agent_id::{agent_id}"),
+            tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
         deleted = False
@@ -1266,7 +1266,7 @@ def create_router(
         """
         if tag_id:
             guidelines = await guideline_store.list_guidelines(
-                guideline_tags=[tag_id],
+                tags=[tag_id],
             )
         else:
             guidelines = await guideline_store.list_guidelines()

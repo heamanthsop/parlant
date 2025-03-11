@@ -124,7 +124,7 @@ async def test_that_an_evaluation_of_a_coherent_guideline_completes_with_an_appr
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent.id}"),
+        TagId(f"agent_id:{agent.id}"),
     )
 
     evaluation_id = await evaluation_service.create_evaluation_task(
@@ -176,7 +176,7 @@ async def test_that_an_evaluation_of_an_incoherent_guideline_completes_with_an_u
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent.id}"),
+        TagId(f"agent_id:{agent.id}"),
     )
 
     evaluation_id = await evaluation_service.create_evaluation_task(
@@ -433,7 +433,7 @@ async def test_that_an_evaluation_validation_failed_due_to_duplicate_guidelines_
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent.id}"),
+        TagId(f"agent_id:{agent.id}"),
     )
 
     with raises(EvaluationValidationError) as exc:
@@ -478,7 +478,7 @@ async def test_that_an_evaluation_completes_and_contains_a_connection_propositio
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent.id}"),
+        TagId(f"agent_id:{agent.id}"),
     )
 
     evaluation_id = await evaluation_service.create_evaluation_task(

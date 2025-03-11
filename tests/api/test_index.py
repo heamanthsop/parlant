@@ -248,7 +248,7 @@ async def test_that_an_evaluation_can_be_fetched_with_a_detailed_approved_invoic
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     evaluation_id = (
@@ -421,7 +421,7 @@ async def test_that_an_evaluation_that_failed_due_to_guideline_duplication_with_
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     duplicate_payload = {
@@ -793,7 +793,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_approve
 
     _ = await guideline_store.add_tag(
         existing_guideline.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     update_payload = {
@@ -845,7 +845,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
 
     _ = await guideline_store.add_tag(
         guideline.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     guideline_to_override = await guideline_store.create_guideline(
@@ -855,7 +855,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
 
     _ = await guideline_store.add_tag(
         guideline_to_override.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     update_payload = {
@@ -1039,7 +1039,7 @@ async def test_that_evaluation_task_with_conflicting_updated_and_added_guideline
 
     _ = await guideline_store.add_tag(
         existing_guideline.id,
-        TagId(f"agent_id::{agent_id}"),
+        TagId(f"agent_id:{agent_id}"),
     )
 
     updated_guideline_content = {

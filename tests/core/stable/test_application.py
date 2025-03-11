@@ -72,7 +72,7 @@ async def proactive_agent_id(
 
     await container[GuidelineStore].add_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     return agent_id

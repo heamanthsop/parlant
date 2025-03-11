@@ -75,7 +75,7 @@ class GuidelineStore(ABC):
     @abstractmethod
     async def list_guidelines(
         self,
-        guideline_tags: Optional[Sequence[TagId]] = None,
+        tags: Optional[Sequence[TagId]] = None,
     ) -> Sequence[Guideline]: ...
 
     @abstractmethod
