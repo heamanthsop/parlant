@@ -108,6 +108,7 @@ class Actions:
         name: str,
         description: Optional[str],
         max_engine_iterations: Optional[int],
+        composition_mode: Optional[str],
     ) -> Agent:
         client = cast(ParlantClient, ctx.obj.client)
 
@@ -115,6 +116,7 @@ class Actions:
             name=name,
             description=description,
             max_engine_iterations=max_engine_iterations,
+            composition_mode=composition_mode,
         )
 
     @staticmethod
@@ -947,9 +949,12 @@ class Interface:
         name: str,
         description: Optional[str],
         max_engine_iterations: Optional[int],
+        composition_mode: Optional[str],
     ) -> None:
         try:
-            agent = Actions.create_agent(ctx, name, description, max_engine_iterations)
+            agent = Actions.create_agent(
+                ctx, name, description, max_engine_iterations, composition_mode
+            )
 
             Interface._write_success(f"Added agent (id: {agent.id})")
             Interface._render_agents([agent])
@@ -2189,18 +2194,29 @@ async def async_main() -> None:
         help="Max engine iterations",
         required=False,
     )
+    @click.option(
+        "--composition-mode",
+        type=click.Choice(["fluid", "strict-assembly", "composited-assembly", "fluid-assembly"]),
+        help="Composition mode",
+        required=False,
+    )
     @click.pass_context
     def agent_create(
         ctx: click.Context,
         name: str,
         description: Optional[str],
         max_engine_iterations: Optional[int],
+        composition_mode: Optional[str],
     ) -> None:
+        if composition_mode:
+            composition_mode = composition_mode.replace("-", "_")
+
         Interface.create_agent(
             ctx=ctx,
             name=name,
             description=description,
             max_engine_iterations=max_engine_iterations,
+            composition_mode=composition_mode,
         )
 
     @agent.command("delete", help="Delete an agent")
@@ -2244,7 +2260,7 @@ async def async_main() -> None:
     @click.option(
         "--composition-mode",
         "-c",
-        type=click.Choice(["fluid", "fluid-assembly", "composited-assembly", "fluid-assembly"]),
+        type=click.Choice(["fluid", "strict-assembly", "composited-assembly", "fluid-assembly"]),
         help="Composition mode",
         required=False,
     )

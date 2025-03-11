@@ -101,6 +101,8 @@ agent_example: ExampleJson = {
     "description": "Technical Support Assistant",
     "creation_utc": "2024-03-24T12:00:00Z",
     "max_engine_iterations": 3,
+    "composition_mode": "fluid",
+    "tags": ["tag1", "tag2"],
 }
 
 
@@ -147,6 +149,7 @@ agent_creation_params_example: ExampleJson = {
     "name": "Haxon",
     "description": "Technical Support Assistant",
     "max_engine_iterations": 3,
+    "composition_mode": "fluid",
 }
 
 
@@ -174,6 +177,7 @@ agent_update_params_example: ExampleJson = {
     "name": "Haxon",
     "description": "Technical Support Assistant",
     "max_engine_iterations": 3,
+    "composition_mode": "fluid",
 }
 
 

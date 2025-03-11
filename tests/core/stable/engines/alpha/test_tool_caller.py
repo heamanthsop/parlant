@@ -31,7 +31,14 @@ from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Event, EventSource
 from parlant.core.tags import TagId
-from parlant.core.tools import LocalToolService, Tool, ToolContext, ToolId, ToolResult
+from parlant.core.tools import (
+    LocalToolService,
+    Tool,
+    ToolContext,
+    ToolId,
+    ToolParameterOptions,
+    ToolResult,
+)
 
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import run_service_server
@@ -361,6 +368,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id::{agent.id}")],
         )
     ]
 
@@ -370,6 +378,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id::{agent.id}")],
         ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
     }
 
