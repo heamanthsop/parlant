@@ -1246,7 +1246,7 @@ class Interface:
         )
 
         Interface._write_success(f"Added term (id: {term.id})")
-        Interface._print_table([term.__dict__])
+        Interface._render_glossary([term])
 
     @staticmethod
     def update_term(
@@ -1934,7 +1934,7 @@ class Interface:
                 "ID": customer.id,
                 "Name": customer.name,
                 "Extra": customer.extra,
-                "Tag IDs": ", ".join(customer.tags),
+                "Tags": ", ".join(customer.tags),
             }
             for customer in customers
         ]
@@ -1967,6 +1967,7 @@ class Interface:
                 tags,
             )
             Interface._write_success(f"Added customer (id: {customer.id})")
+            Interface._render_customers([customer])
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
