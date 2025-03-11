@@ -1636,6 +1636,7 @@ class Interface:
                 "Service Name": variable.tool_id.service_name if variable.tool_id else "",
                 "Tool Name": variable.tool_id.tool_name if variable.tool_id else "",
                 "Freshness Rules": variable.freshness_rules,
+                "Tags": ", ".join(variable.tags or []),
             }
             for variable in variables
         ]
@@ -2236,7 +2237,7 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        help="Tag ID",
+        help="Tag ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2247,7 +2248,7 @@ async def async_main() -> None:
         description: Optional[str],
         max_engine_iterations: Optional[int],
         composition_mode: Optional[str],
-        tags: list[str],
+        tag: tuple[str],
     ) -> None:
         if composition_mode:
             composition_mode = composition_mode.replace("-", "_")
@@ -2258,7 +2259,7 @@ async def async_main() -> None:
             description=description,
             max_engine_iterations=max_engine_iterations,
             composition_mode=composition_mode,
-            tags=tags,
+            tags=list(tag),
         )
 
     @agent.command("delete", help="Delete an agent")
@@ -2440,7 +2441,7 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        help="Tag ID",
+        help="Tag ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2450,14 +2451,14 @@ async def async_main() -> None:
         name: str,
         description: str,
         synonyms: Optional[str],
-        tags: list[str],
+        tag: tuple[str],
     ) -> None:
         Interface.create_term(
             ctx,
             name,
             description,
             (synonyms or "").split(","),
-            tags,
+            list(tag),
         )
 
     @glossary.command("update", help="Update a term")
@@ -2541,7 +2542,7 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        help="Tag ID",
+        help="Tag ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2550,13 +2551,13 @@ async def async_main() -> None:
         ctx: click.Context,
         condition: str,
         action: str,
-        tags: list[str],
+        tag: tuple[str],
     ) -> None:
         Interface.create_guideline(
             ctx=ctx,
             condition=condition,
             action=action,
-            tags=tags,
+            tags=list(tag),
         )
 
     @guideline.command("update", help="Update a guideline")
@@ -2816,7 +2817,7 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        help="Tag ID",
+        help="Tag ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2828,7 +2829,7 @@ async def async_main() -> None:
         service: Optional[str],
         tool: Optional[str],
         freshness_rules: Optional[str],
-        tags: list[str],
+        tag: tuple[str],
     ) -> None:
         if service or tool:
             assert service
@@ -2841,7 +2842,7 @@ async def async_main() -> None:
             service_name=service,
             tool_name=tool,
             freshness_rules=freshness_rules,
-            tags=tags,
+            tags=list(tag),
         )
 
     @variable.command("update", help="Update a context variable")
@@ -3066,16 +3067,20 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        help="Tag ID",
+        help="Tag ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
     @click.pass_context
-    def customer_create(ctx: click.Context, name: str, tags: list[str]) -> None:
+    def customer_create(
+        ctx: click.Context,
+        name: str,
+        tag: tuple[str],
+    ) -> None:
         Interface.create_customer(
-            ctx=ctx,
-            name=name,
-            tags=tags,
+            ctx,
+            name,
+            list(tag),
         )
 
     @customer.command("list", help="List customers")
