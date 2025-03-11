@@ -37,7 +37,7 @@ async def tool_id(container: Container) -> ToolId:
     return ToolId("local", "test_tool")
 
 
-async def test_that_context_variable_can_be_created_by_agent(
+async def test_legacy_that_context_variable_can_be_created(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
     tool_id: ToolId,
@@ -65,7 +65,7 @@ async def test_that_context_variable_can_be_created_by_agent(
     assert context_variable["freshness_rules"] == freshness_rules
 
 
-async def test_that_context_variable_can_be_updated_by_agent(
+async def test_legacy_that_context_variable_can_be_updated(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -81,7 +81,7 @@ async def test_that_context_variable_can_be_updated_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -105,7 +105,7 @@ async def test_that_context_variable_can_be_updated_by_agent(
     assert context_variable_dto["description"] == new_description
 
 
-async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules_by_agent(
+async def test_legacy_that_context_variable_can_be_updated_with_a_valid_freshness_rules(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -121,7 +121,7 @@ async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -148,7 +148,7 @@ async def test_that_context_variable_can_be_updated_with_a_valid_freshness_rules
     assert context_variable_dto["freshness_rules"] == freshness_rules
 
 
-async def test_that_invalid_freshness_rules_raise_error_when_updating_context_variable_by_agent(
+async def test_legacy_that_invalid_freshness_rules_raise_error_when_updating_context_variable(
     container: Container,
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
@@ -164,7 +164,7 @@ async def test_that_invalid_freshness_rules_raise_error_when_updating_context_va
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     new_name = "updated_test_variable"
@@ -189,7 +189,7 @@ async def test_that_invalid_freshness_rules_raise_error_when_updating_context_va
     )
 
 
-async def test_that_invalid_freshness_rules_raise_error_when_creating_context_variable_by_agent(
+async def test_legacy_that_invalid_freshness_rules_raise_error_when_creating_context_variable(
     async_client: httpx.AsyncClient,
     agent_id: AgentId,
     tool_id: ToolId,
@@ -218,7 +218,7 @@ async def test_that_invalid_freshness_rules_raise_error_when_creating_context_va
     )
 
 
-async def test_that_all_context_variables_can_be_deleted_by_agent(
+async def test_legacy_that_all_context_variables_can_be_deleted(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -234,7 +234,7 @@ async def test_that_all_context_variables_can_be_deleted_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=first_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     second_variable = await context_variable_store.create_variable(
@@ -245,24 +245,22 @@ async def test_that_all_context_variables_can_be_deleted_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=second_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
-    vars = await context_variable_store.list_variables(
-        variable_tags=[TagId(f"agent_id::{agent_id}")]
-    )
+    vars = await context_variable_store.list_variables(tags=[TagId(f"agent_id:{agent_id}")])
     assert len(vars) == 2
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables")
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     vars = await context_variable_store.list_variables(
-        variable_tags=[TagId(f"agent_id::{agent_id}")],
+        tags=[TagId(f"agent_id:{agent_id}")],
     )
     assert len(vars) == 0
 
 
-async def test_that_context_variable_can_be_deleted_by_agent(
+async def test_legacy_that_context_variable_can_be_deleted(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -278,7 +276,7 @@ async def test_that_context_variable_can_be_deleted_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable_to_delete.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     (
@@ -291,7 +289,7 @@ async def test_that_context_variable_can_be_deleted_by_agent(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_context_variables_can_be_listed_by_agent(
+async def test_legacy_that_context_variables_can_be_listed(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -315,12 +313,12 @@ async def test_that_context_variables_can_be_listed_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=first_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     await context_variable_store.add_variable_tag(
         variable_id=second_variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
     variables = (
         (await async_client.get(f"/agents/{agent_id}/context-variables")).raise_for_status().json()
@@ -347,7 +345,7 @@ async def test_that_context_variables_can_be_listed_by_agent(
     assert second_variable.freshness_rules is None
 
 
-async def test_that_context_variable_value_can_be_retrieved_by_agent(
+async def test_legacy_that_context_variable_value_can_be_retrieved(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -363,7 +361,7 @@ async def test_that_context_variable_value_can_be_retrieved_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     key = "test_key"
@@ -384,7 +382,7 @@ async def test_that_context_variable_value_can_be_retrieved_by_agent(
     assert value["data"] == data
 
 
-async def test_that_context_variable_value_can_be_set_by_agent(
+async def test_legacy_that_context_variable_value_can_be_set(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -401,7 +399,7 @@ async def test_that_context_variable_value_can_be_set_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     key = "yam_choock"
@@ -435,7 +433,7 @@ async def test_that_context_variable_value_can_be_set_by_agent(
     assert value["data"] == data
 
 
-async def test_that_context_variable_values_can_be_listed_by_agent(
+async def test_legacy_that_context_variable_values_can_be_listed(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -451,7 +449,7 @@ async def test_that_context_variable_values_can_be_listed_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     keys_and_data = {
@@ -483,7 +481,7 @@ async def test_that_context_variable_values_can_be_listed_by_agent(
         assert retrieved_values[key]["data"] == keys_and_data[key]
 
 
-async def test_that_context_variable_value_can_be_deleted_by_agent(
+async def test_legacy_that_context_variable_value_can_be_deleted(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -499,7 +497,7 @@ async def test_that_context_variable_value_can_be_deleted_by_agent(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id::{agent_id}"),
+        tag_id=TagId(f"agent_id:{agent_id}"),
     )
 
     key = "yam_choock"
@@ -520,7 +518,7 @@ async def test_that_context_variable_value_can_be_deleted_by_agent(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_reading_context_variable_with_wrong_agent_id_returns_404(
+async def test_legacy_that_reading_context_variable_with_wrong_agent_id_returns_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -535,14 +533,14 @@ async def test_that_reading_context_variable_with_wrong_agent_id_returns_404(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId("agent_id::wrong_agent_id"),
+        tag_id=TagId("agent_id:wrong_agent_id"),
     )
 
     response = await async_client.get(f"/agents/{agent_id}/context-variables/{variable.id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_updating_context_variable_with_wrong_agent_id_returns_404(
+async def test_legacy_that_updating_context_variable_with_wrong_agent_id_returns_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -557,7 +555,7 @@ async def test_that_updating_context_variable_with_wrong_agent_id_returns_404(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId("agent_id::wrong_agent_id"),
+        tag_id=TagId("agent_id:wrong_agent_id"),
     )
 
     response = await async_client.patch(
@@ -568,7 +566,7 @@ async def test_that_updating_context_variable_with_wrong_agent_id_returns_404(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_deleting_context_variable_with_wrong_agent_id_returns_404(
+async def test_legacy_that_deleting_context_variable_with_wrong_agent_id_returns_404(
     async_client: httpx.AsyncClient,
     container: Container,
     agent_id: AgentId,
@@ -583,7 +581,7 @@ async def test_that_deleting_context_variable_with_wrong_agent_id_returns_404(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId("agent_id::wrong_agent_id"),
+        tag_id=TagId("agent_id:wrong_agent_id"),
     )
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables/{variable.id}")
