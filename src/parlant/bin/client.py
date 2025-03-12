@@ -950,6 +950,7 @@ class Interface:
                 "Description": a.description or "",
                 "Max Engine Iterations": a.max_engine_iterations,
                 "Composition Mode": a.composition_mode.replace("_", "-"),
+                "Tags": ", ".join(a.tags),
             }
             for a in agents
         ]
@@ -1654,19 +1655,7 @@ class Interface:
             rich.print("No variables found")
             return
 
-        variable_items = [
-            {
-                "ID": variable.id,
-                "Name": variable.name,
-                "Description": variable.description or "",
-                "Service Name": variable.tool_id.service_name if variable.tool_id else "",
-                "Tool Name": variable.tool_id.tool_name if variable.tool_id else "",
-                "Freshness Rules": variable.freshness_rules,
-            }
-            for variable in variables
-        ]
-
-        Interface._print_table(variable_items)
+        Interface._render_variables(variables)
 
     @staticmethod
     def create_variable(
