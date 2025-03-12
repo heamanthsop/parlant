@@ -2104,7 +2104,7 @@ class Interface:
                     for s in f.fields
                 ]
                 or "",
-                "Tags": f.tags or "",
+                "Tags": ", ".join(f.tags),
                 "Creation Date": reformat_datetime(f.creation_utc),
             }
             for f in fragments

@@ -3532,7 +3532,7 @@ pydantic = "^2.9.2"
 type = "git"
 url = "https://github.com/emcie-co/parlant-client-python.git"
 reference = "sets_to_tags"
-resolved_reference = "61f8159da113132f8f418da7f84529c170111981"
+resolved_reference = "9f18a8f0fb18af42a964f839e2fcf34953cb55da"
 
 [[package]]
 name = "parlant-qna"
