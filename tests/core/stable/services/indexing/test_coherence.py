@@ -714,7 +714,7 @@ def test_that_a_glossary_based_incoherency_is_detected(
     )
 
     context.sync_await(
-        glossary_store.add_tag(
+        glossary_store.upsert_tag(
             term_id=term.id,
             tag_id=TagId(f"agent_id:{agent.id}"),
         )

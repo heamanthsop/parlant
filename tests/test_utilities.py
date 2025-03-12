@@ -218,7 +218,7 @@ async def create_term(
         synonyms=synonyms,
     )
 
-    await container[GlossaryStore].add_tag(
+    await container[GlossaryStore].upsert_tag(
         term_id=term.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -265,7 +265,7 @@ async def create_guideline(
         action=action,
     )
 
-    _ = await container[GuidelineStore].add_tag(
+    _ = await container[GuidelineStore].upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )

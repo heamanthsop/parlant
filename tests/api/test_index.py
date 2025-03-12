@@ -246,7 +246,7 @@ async def test_that_an_evaluation_can_be_fetched_with_a_detailed_approved_invoic
         action="provide the current weather update",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )
@@ -419,7 +419,7 @@ async def test_that_an_evaluation_that_failed_due_to_guideline_duplication_with_
         action="greet them back with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )
@@ -791,7 +791,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_approve
         action="provide assistance",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         existing_guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )
@@ -843,7 +843,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
         action="respond with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )
@@ -853,7 +853,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
         action="respond with 'Goodbye'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_to_override.id,
         TagId(f"agent_id:{agent_id}"),
     )
@@ -1037,7 +1037,7 @@ async def test_that_evaluation_task_with_conflicting_updated_and_added_guideline
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         existing_guideline.id,
         TagId(f"agent_id:{agent_id}"),
     )

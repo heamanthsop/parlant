@@ -70,7 +70,7 @@ async def proactive_agent_id(
         action="Greet the customer",
     )
 
-    await container[GuidelineStore].add_tag(
+    await container[GuidelineStore].upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )

@@ -105,19 +105,19 @@ class GuidelineStore(ABC):
     ) -> Guideline: ...
 
     @abstractmethod
-    async def add_tag(
+    async def upsert_tag(
         self,
         guideline_id: GuidelineId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Guideline: ...
+    ) -> bool: ...
 
     @abstractmethod
     async def remove_tag(
         self,
         guideline_id: GuidelineId,
         tag_id: TagId,
-    ) -> Guideline: ...
+    ) -> None: ...
 
 
 class _GuidelineDocument_v0_1_0(TypedDict, total=False):
@@ -427,17 +427,17 @@ class GuidelineDocumentStore(GuidelineStore):
         return await self._deserialize(guideline_document=guideline_document)
 
     @override
-    async def add_tag(
+    async def upsert_tag(
         self,
         guideline_id: GuidelineId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Guideline:
+    ) -> bool:
         async with self._lock.writer_lock:
             guideline = await self.read_guideline(guideline_id)
 
             if tag_id in guideline.tags:
-                return guideline
+                return False
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -456,14 +456,14 @@ class GuidelineDocumentStore(GuidelineStore):
         if not guideline_document:
             raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
-        return await self._deserialize(guideline_document=guideline_document)
+        return True
 
     @override
     async def remove_tag(
         self,
         guideline_id: GuidelineId,
         tag_id: TagId,
-    ) -> Guideline:
+    ) -> None:
         async with self._lock.writer_lock:
             delete_result = await self._tag_association_collection.delete_one(
                 {
@@ -479,5 +479,3 @@ class GuidelineDocumentStore(GuidelineStore):
 
         if not guideline_document:
             raise ItemNotFoundError(item_id=UniqueId(guideline_id))
-
-        return await self._deserialize(guideline_document=guideline_document)

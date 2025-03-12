@@ -376,17 +376,17 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     description="a type of horse",
                 )
 
-                await glossary_chroma_store.add_tag(
+                await glossary_chroma_store.upsert_tag(
                     term_id=kazoo.id,
                     tag_id=TagId(f"agent_id:{agent_id}"),
                 )
 
-                await glossary_chroma_store.add_tag(
+                await glossary_chroma_store.upsert_tag(
                     term_id=shazoo.id,
                     tag_id=TagId(f"agent_id:{agent_id}"),
                 )
 
-                await glossary_chroma_store.add_tag(
+                await glossary_chroma_store.upsert_tag(
                     term_id=bazoo.id,
                     tag_id=TagId(f"agent_id:{agent_id}"),
                 )
@@ -647,7 +647,7 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
                 description="a type of cow",
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=term.id,
                 tag_id=TagId(f"agent_id:{agent_id}"),
             )
@@ -758,27 +758,27 @@ async def test_that_in_filter_works_with_list_of_strings(
                 description="a type of cow",
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=first_term.id,
                 tag_id=TagId("a"),
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=first_term.id,
                 tag_id=TagId("b"),
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=second_term.id,
                 tag_id=TagId("b"),
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=third_term.id,
                 tag_id=TagId("c"),
             )
 
-            await store.add_tag(
+            await store.upsert_tag(
                 term_id=third_term.id,
                 tag_id=TagId("d"),
             )

@@ -83,19 +83,19 @@ class CustomerStore(ABC):
     ) -> Sequence[Customer]: ...
 
     @abstractmethod
-    async def add_tag(
+    async def upsert_tag(
         self,
         customer_id: CustomerId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Customer: ...
+    ) -> bool: ...
 
     @abstractmethod
     async def remove_tag(
         self,
         customer_id: CustomerId,
         tag_id: TagId,
-    ) -> Customer: ...
+    ) -> None: ...
 
     @abstractmethod
     async def add_extra(
@@ -348,17 +348,17 @@ class CustomerDocumentStore(CustomerStore):
             raise ItemNotFoundError(item_id=UniqueId(customer_id))
 
     @override
-    async def add_tag(
+    async def upsert_tag(
         self,
         customer_id: CustomerId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Customer:
+    ) -> bool:
         async with self._lock.writer_lock:
             customer = await self.read_customer(customer_id)
 
             if tag_id in customer.tags:
-                return customer
+                return False
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -379,14 +379,14 @@ class CustomerDocumentStore(CustomerStore):
         if not customer_document:
             raise ItemNotFoundError(item_id=UniqueId(customer_id))
 
-        return await self._deserialize_customer(customer_document=customer_document)
+        return True
 
     @override
     async def remove_tag(
         self,
         customer_id: CustomerId,
         tag_id: TagId,
-    ) -> Customer:
+    ) -> None:
         async with self._lock.writer_lock:
             delete_result = await self._tag_association_collection.delete_one(
                 {
@@ -405,7 +405,7 @@ class CustomerDocumentStore(CustomerStore):
         if not customer_document:
             raise ItemNotFoundError(item_id=UniqueId(customer_id))
 
-        return await self._deserialize_customer(customer_document=customer_document)
+        return None
 
     @override
     async def add_extra(

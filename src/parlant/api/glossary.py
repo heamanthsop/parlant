@@ -186,7 +186,7 @@ def create_legacy_router(
             synonyms=params.synonyms,
         )
 
-        await glossary_store.add_tag(
+        await glossary_store.upsert_tag(
             term_id=term.id,
             tag_id=TagId(f"agent_id:{agent_id}"),
         )
@@ -394,12 +394,14 @@ def create_legacy_router(
                 detail="Term not found for the provided agent",
             )
 
-        updated_term = await glossary_store.remove_tag(
+        await glossary_store.remove_tag(
             term_id=term_id,
             tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
-        if not updated_term.tags:
+        term = await glossary_store.read_term(term_id=term_id)
+
+        if not term.tags:
             await glossary_store.delete_term(
                 term_id=term_id,
             )
@@ -568,6 +570,7 @@ def create_router(
         Default behaviors:
         - `synonyms` defaults to an empty list if not provided
         """
+        tags = []
         if params.tags:
             for tag_id in params.tags:
                 if tag_id.startswith("agent-id:"):
@@ -582,7 +585,7 @@ def create_router(
             name=params.name,
             description=params.description,
             synonyms=params.synonyms,
-            tags=tags,
+            tags=tags or None,
         )
 
         return TermDTO(
@@ -711,7 +714,7 @@ def create_router(
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)
 
-                    await glossary_store.add_tag(
+                    await glossary_store.upsert_tag(
                         term_id=term_id,
                         tag_id=tag_id,
                     )

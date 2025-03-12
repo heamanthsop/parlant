@@ -246,7 +246,7 @@ async def test_legacy_that_retrieve_a_term_associated_with_a_wrong_agent_id_retu
         synonyms=["rule", "principle"],
     )
 
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=term.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -268,7 +268,7 @@ async def test_legacy_that_updating_a_term_with_a_wrong_agent_id_returns_a_404(
         synonyms=["rule", "principle"],
     )
 
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=term.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -290,7 +290,7 @@ async def test_legacy_that_deleting_a_term_with_a_wrong_agent_id_returns_a_404(
         synonyms=["rule", "principle"],
     )
 
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=term.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -430,7 +430,7 @@ async def test_that_terms_can_be_listed_with_a_tag(
         description="description 1",
         synonyms=["synonym1"],
     )
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=first_term.id,
         tag_id=TagId("tag1"),
     )
@@ -440,7 +440,7 @@ async def test_that_terms_can_be_listed_with_a_tag(
         description="description 2",
         synonyms=["synonym2"],
     )
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=second_term.id,
         tag_id=TagId("tag2"),
     )
@@ -450,7 +450,7 @@ async def test_that_terms_can_be_listed_with_a_tag(
         description="description 3",
         synonyms=["synonym3"],
     )
-    await glossary_store.add_tag(
+    await glossary_store.upsert_tag(
         term_id=third_term.id,
         tag_id=TagId("tag1"),
     )

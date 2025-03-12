@@ -122,7 +122,7 @@ async def test_that_an_evaluation_of_a_coherent_guideline_completes_with_an_appr
         action="provide information on available upgrade options and benefits",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent.id}"),
     )
@@ -174,7 +174,7 @@ async def test_that_an_evaluation_of_an_incoherent_guideline_completes_with_an_u
         action="Escalate the request to product management for special consideration",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent.id}"),
     )
@@ -431,7 +431,7 @@ async def test_that_an_evaluation_validation_failed_due_to_duplicate_guidelines_
         action="greet them back with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent.id}"),
     )
@@ -476,7 +476,7 @@ async def test_that_an_evaluation_completes_and_contains_a_connection_propositio
         action="provide the current weather update",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline.id,
         TagId(f"agent_id:{agent.id}"),
     )

@@ -14,7 +14,7 @@ async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
     agent_store = container[AgentStore]
     guideline_store = container[GuidelineStore]
 
-    await agent_store.add_tag(
+    await agent_store.upsert_tag(
         agent_id=agent.id,
         tag_id=TagId("tag_1"),
     )
@@ -29,12 +29,12 @@ async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
         action="action 2",
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=first_guideline.id,
         tag_id=TagId("tag_1"),
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=second_guideline.id,
         tag_id=TagId("tag_2"),
     )
@@ -80,12 +80,12 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
         action="action 2",
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=first_guideline.id,
         tag_id=TagId(f"agent_id:{agent.id}"),
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=second_guideline.id,
         tag_id=TagId("tag_2"),
     )

@@ -565,7 +565,7 @@ def create_legacy_router(
         )
 
         for id in guideline_ids:
-            _ = await guideline_store.add_tag(
+            _ = await guideline_store.upsert_tag(
                 guideline_id=id,
                 tag_id=TagId(f"agent_id:{agent_id}"),
             )
@@ -981,13 +981,15 @@ def create_legacy_router(
                 detail="Guideline is not associated with the specified agent",
             )
 
-        guideline = await guideline_store.remove_tag(
+        await guideline_store.remove_tag(
             guideline_id=guideline_id,
             tag_id=TagId(f"agent_id:{agent_id}"),
         )
 
+        updated_guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
+
         deleted = False
-        if not guideline.tags:
+        if not updated_guideline.tags:
             await guideline_store.delete_guideline(guideline_id=guideline_id)
             deleted = True
         for c in chain(
@@ -1003,7 +1005,7 @@ def create_legacy_router(
                     else await guideline_store.read_guideline(c.source)
                 )
                 if connected_guideline.tags and not any(
-                    t in connected_guideline.tags for t in guideline.tags
+                    t in connected_guideline.tags for t in updated_guideline.tags
                 ):
                     await guideline_connection_store.delete_connection(c.id)
 
@@ -1229,6 +1231,7 @@ def create_router(
 
         See the [documentation](https://parlant.io/docs/concepts/customization/guidelines) for more information.
         """
+        tags = []
         if params.tags:
             for tag_id in params.tags:
                 if tag_id.startswith("agent-id:"):
@@ -1243,7 +1246,7 @@ def create_router(
             condition=params.condition,
             action=params.action,
             enabled=params.enabled or True,
-            tags=tags,
+            tags=tags or None,
         )
 
         return GuidelineDTO(
@@ -1507,7 +1510,7 @@ def create_router(
                         _ = await agent_store.read_agent(agent_id=agent_id)
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)
-                        await guideline_store.add_tag(
+                        await guideline_store.upsert_tag(
                             guideline_id=guideline_id,
                             tag_id=tag_id,
                         )

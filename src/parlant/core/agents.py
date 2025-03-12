@@ -99,19 +99,19 @@ class AgentStore(ABC):
     ) -> None: ...
 
     @abstractmethod
-    async def add_tag(
+    async def upsert_tag(
         self,
         agent_id: AgentId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Agent: ...
+    ) -> bool: ...
 
     @abstractmethod
     async def remove_tag(
         self,
         agent_id: AgentId,
         tag_id: TagId,
-    ) -> Agent: ...
+    ) -> None: ...
 
 
 class _AgentDocument(TypedDict, total=False):
@@ -336,17 +336,17 @@ class AgentDocumentStore(AgentStore):
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
 
     @override
-    async def add_tag(
+    async def upsert_tag(
         self,
         agent_id: AgentId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Agent:
+    ) -> bool:
         async with self._lock.writer_lock:
             agent = await self.read_agent(agent_id)
 
             if tag_id in agent.tags:
-                return agent
+                return False
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -365,14 +365,14 @@ class AgentDocumentStore(AgentStore):
         if not agent_document:
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
 
-        return await self._deserialize_agent(agent_document=agent_document)
+        return True
 
     @override
     async def remove_tag(
         self,
         agent_id: AgentId,
         tag_id: TagId,
-    ) -> Agent:
+    ) -> None:
         async with self._lock.writer_lock:
             delete_result = await self._tag_association_collection.delete_one(
                 {
@@ -388,5 +388,3 @@ class AgentDocumentStore(AgentStore):
 
         if not agent_document:
             raise ItemNotFoundError(item_id=UniqueId(agent_id))
-
-        return await self._deserialize_agent(agent_document=agent_document)

@@ -114,19 +114,19 @@ class GlossaryStore:
     ) -> Sequence[Term]: ...
 
     @abstractmethod
-    async def add_tag(
+    async def upsert_tag(
         self,
         term_id: TermId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Term: ...
+    ) -> bool: ...
 
     @abstractmethod
     async def remove_tag(
         self,
         term_id: TermId,
         tag_id: TagId,
-    ) -> Term: ...
+    ) -> None: ...
 
 
 class _TermDocument_v0_1_0(TypedDict, total=False):
@@ -483,17 +483,17 @@ class GlossaryVectorStore(GlossaryStore):
 
         return content
 
-    async def add_tag(
+    async def upsert_tag(
         self,
         term_id: TermId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
-    ) -> Term:
+    ) -> bool:
         async with self._lock.writer_lock:
             term = await self.read_term(term_id)
 
             if tag_id in term.tags:
-                return term
+                return False
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -512,14 +512,14 @@ class GlossaryVectorStore(GlossaryStore):
         if not term_document:
             raise ItemNotFoundError(item_id=UniqueId(term_id))
 
-        return await self._deserialize(term_document=term_document)
+        return True
 
     @override
     async def remove_tag(
         self,
         term_id: TermId,
         tag_id: TagId,
-    ) -> Term:
+    ) -> None:
         async with self._lock.writer_lock:
             delete_result = await self._association_collection.delete_one(
                 {
@@ -535,5 +535,3 @@ class GlossaryVectorStore(GlossaryStore):
 
         if not term_document:
             raise ItemNotFoundError(item_id=UniqueId(term_id))
-
-        return await self._deserialize(term_document=term_document)

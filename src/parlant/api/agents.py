@@ -261,6 +261,8 @@ def create_router(
         - `description` defaults to `None`
         - `max_engine_iterations` defaults to `None` (uses system default)
         """
+        tags = []
+
         if params.tags:
             for tag_id in params.tags:
                 _ = await tag_store.read_tag(tag_id=tag_id)
@@ -274,7 +276,7 @@ def create_router(
             composition_mode=params.composition_mode.value
             if params and params.composition_mode
             else None,
-            tags=tags,
+            tags=tags or None,
         )
 
         return AgentDTO(
@@ -405,7 +407,7 @@ def create_router(
                 for tag_id in params.tags.add:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
-                    await agent_store.add_tag(
+                    await agent_store.upsert_tag(
                         agent_id=agent_id,
                         tag_id=tag_id,
                     )

@@ -213,7 +213,7 @@ async def test_that_a_tag_can_be_removed(
 
     customer = await customer_store.create_customer(name=name)
 
-    await customer_store.add_tag(customer_id=customer.id, tag_id=tag.id)
+    await customer_store.upsert_tag(customer_id=customer.id, tag_id=tag.id)
 
     update_response = await async_client.patch(
         f"/customers/{customer.id}",

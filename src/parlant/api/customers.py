@@ -247,6 +247,8 @@ def create_router(
         A customer may be created with as little as a `name`.
         `extra` key-value pairs and additional `tags` may be attached to a customer.
         """
+        tags = []
+
         if params.tags:
             for tag_id in params.tags:
                 if tag_id.startswith("agent-id:"):
@@ -260,7 +262,7 @@ def create_router(
         customer = await customer_store.create_customer(
             name=params.name,
             extra=params.extra if params.extra else {},
-            tags=tags,
+            tags=tags or None,
         )
 
         return CustomerDTO(
@@ -382,7 +384,7 @@ def create_router(
             if params.tags.add:
                 for tag_id in params.tags.add:
                     _ = await tag_store.read_tag(tag_id)
-                    await customer_store.add_tag(customer_id, tag_id)
+                    await customer_store.upsert_tag(customer_id, tag_id)
             if params.tags.remove:
                 for tag_id in params.tags.remove:
                     await customer_store.remove_tag(customer_id, tag_id)

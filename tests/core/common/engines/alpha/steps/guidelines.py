@@ -41,7 +41,7 @@ def given_a_guideline_to_when(
     )
 
     _ = context.sync_await(
-        guideline_store.add_tag(
+        guideline_store.upsert_tag(
             guideline.id,
             TagId(f"agent_id:{agent_id}"),
         )
@@ -69,7 +69,7 @@ def given_a_guideline_name_to_when(
     )
 
     _ = context.sync_await(
-        guideline_store.add_tag(
+        guideline_store.upsert_tag(
             context.guidelines[guideline_name].id,
             TagId(f"agent_id:{agent_id}"),
         )
@@ -89,7 +89,7 @@ def given_50_other_random_guidelines(
             action=action,
         )
 
-        _ = await guideline_store.add_tag(
+        _ = await guideline_store.upsert_tag(
             guideline.id,
             TagId(f"agent_id:{agent_id}"),
         )
@@ -337,7 +337,7 @@ def given_the_guideline_called(
             action=action,
         )
 
-        _ = await guideline_store.add_tag(
+        _ = await guideline_store.upsert_tag(
             guideline.id,
             TagId(f"agent_id:{agent_id}"),
         )

@@ -291,9 +291,9 @@ async def test_that_tags_can_be_removed_from_an_agent(
     agent_store = container[AgentStore]
     agent = await agent_store.create_agent("test-agent")
 
-    await agent_store.add_tag(agent.id, TagId("tag1"))
-    await agent_store.add_tag(agent.id, TagId("tag2"))
-    await agent_store.add_tag(agent.id, TagId("tag3"))
+    await agent_store.upsert_tag(agent.id, TagId("tag1"))
+    await agent_store.upsert_tag(agent.id, TagId("tag2"))
+    await agent_store.upsert_tag(agent.id, TagId("tag3"))
 
     update_payload = {"tags": {"remove": ["tag1", "tag3"]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)
@@ -319,8 +319,8 @@ async def test_that_tags_can_be_added_and_removed_in_same_request(
 
     agent = await agent_store.create_agent("test-agent")
 
-    await agent_store.add_tag(agent.id, tag1.id)
-    await agent_store.add_tag(agent.id, tag2.id)
+    await agent_store.upsert_tag(agent.id, tag1.id)
+    await agent_store.upsert_tag(agent.id, tag2.id)
 
     update_payload = {"tags": {"add": [tag3.id, tag4.id], "remove": [tag1.id]}}
     response = await async_client.patch(f"/agents/{agent.id}", json=update_payload)

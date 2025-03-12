@@ -248,6 +248,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/fragments",
         router=fragments.create_router(
             fragment_store=fragment_store,
+            tag_store=tag_store,
         ),
     )
 

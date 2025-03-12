@@ -163,12 +163,12 @@ class Actions:
         )
 
     @staticmethod
-    def add_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def add_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(add=[tag_id]))
 
     @staticmethod
-    def remove_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def remove_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(remove=[tag_id]))
 
@@ -1047,18 +1047,18 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def add_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def add_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
         try:
-            Actions.add_agent_tag(ctx, agent_id, tag_id)
+            Actions.add_tag(ctx, agent_id, tag_id)
             Interface._write_success(f"Tagged agent (id: {agent_id}, tag_id: {tag_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def remove_agent_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def remove_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
         try:
-            Actions.remove_agent_tag(ctx, agent_id, tag_id)
+            Actions.remove_tag(ctx, agent_id, tag_id)
             Interface._write_success(f"Untagged agent (id: {agent_id}, tag_id: {tag_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
@@ -2318,15 +2318,15 @@ async def async_main() -> None:
     @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
-    def agent_add_tag(ctx: click.Context, id: str, tag_id: str) -> None:
-        Interface.add_agent_tag(ctx, id, tag_id)
+    def agent_tag(ctx: click.Context, id: str, tag_id: str) -> None:
+        Interface.add_tag(ctx, id, tag_id)
 
     @agent.command("untag", help="Untag an agent")
     @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
     @click.option("--tag-id", type=str, help="Tag ID", required=True)
     @click.pass_context
     def agent_remove_tag(ctx: click.Context, id: str, tag_id: str) -> None:
-        Interface.remove_agent_tag(ctx, id, tag_id)
+        Interface.remove_tag(ctx, id, tag_id)
 
     @cli.group(help="Manage sessions")
     def session() -> None:

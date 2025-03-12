@@ -48,7 +48,7 @@ async def create_and_connect(
     ]
 
     for guideline in guidelines:
-        _ = await container[GuidelineStore].add_tag(
+        _ = await container[GuidelineStore].upsert_tag(
             guideline_id=guideline.id,
             tag_id=TagId(f"agent_id:{agent_id}"),
         )
@@ -114,7 +114,7 @@ async def test_legacy_that_a_guideline_can_be_deleted(
         action="ask for confirmation",
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=guideline_to_delete.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -358,7 +358,7 @@ async def test_legacy_that_a_guideline_can_be_read_by_id(
         action="provide the current weather update",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -569,7 +569,7 @@ async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_co
     ]
 
     for guideline in guidelines:
-        _ = await guideline_store.add_tag(
+        _ = await guideline_store.upsert_tag(
             guideline_id=guideline.id,
             tag_id=TagId(f"agent_id:{agent_id}"),
         )
@@ -633,7 +633,7 @@ async def test_legacy_that_a_tool_association_can_be_added(
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -715,7 +715,7 @@ async def test_legacy_that_a_tool_association_can_be_removed(
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -788,7 +788,7 @@ async def test_legacy_that_guideline_deletion_removes_tool_associations(
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -819,7 +819,7 @@ async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexis
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -859,7 +859,7 @@ async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexis
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -907,7 +907,7 @@ async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexis
         action="get meeting event information",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -953,7 +953,7 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=existing_guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -963,7 +963,7 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
         action="finish with a smile",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=connected_guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -973,7 +973,7 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
         action="finish with a smile",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=connected_guideline_post_update.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -1059,7 +1059,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=existing_guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -1182,7 +1182,7 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=existing_guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -1192,7 +1192,7 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
         action="finish with a smile",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=connected_guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -1265,7 +1265,7 @@ async def test_legacy_that_a_guideline_can_be_disabled(
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId(f"agent_id:{agent_id}"),
     )
@@ -1295,7 +1295,7 @@ async def test_legacy_that_retrieving_a_guideline_associated_with_a_wrong_agent_
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -1317,7 +1317,7 @@ async def test_legacy_that_updating_a_guideline_with_a_wrong_agent_id_returns_a_
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -1342,7 +1342,7 @@ async def test_legacy_that_deleting_a_guideline_with_a_wrong_agent_id_returns_a_
         action="reply with 'Hello'",
     )
 
-    _ = await guideline_store.add_tag(
+    _ = await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId("agent_id:wrong_agent"),
     )
@@ -1446,12 +1446,12 @@ async def test_that_guidelines_can_be_listed_by_tag(
         action="action 2",
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=first_guideline.id,
         tag_id=TagId("tag_1"),
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=second_guideline.id,
         tag_id=TagId("tag_2"),
     )
@@ -1607,7 +1607,7 @@ async def test_that_a_tag_can_be_removed_from_guideline(
     )
 
     # First add a tag
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=TagId("test_tag"),
     )
@@ -1774,7 +1774,7 @@ async def test_that_a_tag_can_be_removed_from_a_guideline(
         action="get meeting event information",
     )
 
-    await guideline_store.add_tag(
+    await guideline_store.upsert_tag(
         guideline_id=guideline.id,
         tag_id=tag.id,
     )

@@ -1005,6 +1005,8 @@ def create_router(
             service = await service_registry.read_tool_service(params.tool_id.service_name)
             _ = await service.read_tool(params.tool_id.tool_name)
 
+        tags = []
+
         if params.tags:
             for tag_id in params.tags:
                 if tag_id.startswith("agent-id:"):
@@ -1022,8 +1024,9 @@ def create_router(
             if params.tool_id
             else None,
             freshness_rules=params.freshness_rules,
-            tags=tags,
+            tags=tags or None,
         )
+
         return ContextVariableDTO(
             id=variable.id,
             name=variable.name,
