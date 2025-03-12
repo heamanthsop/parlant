@@ -129,7 +129,7 @@ class _CustomerTagAssociationDocument(TypedDict, total=False):
 
 
 class CustomerDocumentStore(CustomerStore):
-    VERSION = Version.from_string("0.2.0")
+    VERSION = Version.from_string("0.1.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -140,16 +140,6 @@ class CustomerDocumentStore(CustomerStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_CustomerDocument]:
         if doc["version"] == "0.1.0":
-            doc = cast(_CustomerDocument, doc)
-            return _CustomerDocument(
-                id=doc["id"],
-                version=Version.String("0.2.0"),
-                creation_utc=doc["creation_utc"],
-                name=doc["name"],
-                extra=doc["extra"],
-            )
-
-        if doc["version"] == "0.2.0":
             return cast(_CustomerDocument, doc)
 
         return None
