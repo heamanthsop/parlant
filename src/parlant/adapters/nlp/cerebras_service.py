@@ -124,7 +124,6 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
 
             return SchematicGenerationResult(
                 content=model_content,
-                prompt=prompt,
                 info=GenerationInfo(
                     schema_name=self.schema.__name__,
                     model=self.id,
