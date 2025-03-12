@@ -1387,16 +1387,21 @@ async def test_that_a_guideline_can_be_created_with_tags(
         json={
             "condition": "the customer asks about pricing",
             "action": "provide current pricing information",
-            "tags": [tag_1.id, tag_2.id],
+            "tags": [tag_1.id, tag_1.id, tag_2.id],
         },
     )
 
     assert response.status_code == status.HTTP_201_CREATED
 
-    guideline = response.json()
-    assert guideline["condition"] == "the customer asks about pricing"
-    assert guideline["action"] == "provide current pricing information"
-    assert guideline["tags"] == [tag_1.id, tag_2.id]
+    guideline_dto = (
+        (await async_client.get(f"/guidelines/{response.json()['id']}")).raise_for_status().json()
+    )
+
+    assert guideline_dto["guideline"]["condition"] == "the customer asks about pricing"
+    assert guideline_dto["guideline"]["action"] == "provide current pricing information"
+
+    assert len(guideline_dto["guideline"]["tags"]) == 2
+    assert set(guideline_dto["guideline"]["tags"]) == {tag_1.id, tag_2.id}
 
 
 async def test_that_guidelines_can_be_listed(

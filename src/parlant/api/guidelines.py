@@ -1237,11 +1237,13 @@ def create_router(
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
+            tags = list(set(params.tags))
+
         guideline = await guideline_store.create_guideline(
             condition=params.condition,
             action=params.action,
             enabled=params.enabled or True,
-            tags=params.tags,
+            tags=tags,
         )
 
         return GuidelineDTO(

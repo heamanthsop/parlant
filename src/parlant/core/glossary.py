@@ -300,6 +300,16 @@ class GlossaryVectorStore(GlossaryStore):
                 )
             )
 
+            for tag in tags or []:
+                await self._association_collection.insert_one(
+                    document={
+                        "id": ObjectId(generate_id()),
+                        "version": self.VERSION.to_string(),
+                        "creation_utc": creation_utc.isoformat(),
+                        "term_id": term.id,
+                        "tag_id": tag,
+                    }
+                )
         return term
 
     @override

@@ -576,11 +576,13 @@ def create_router(
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
+            tags = list(set(params.tags))
+
         term = await glossary_store.create_term(
             name=params.name,
             description=params.description,
             synonyms=params.synonyms,
-            tags=params.tags,
+            tags=tags,
         )
 
         return TermDTO(

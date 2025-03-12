@@ -633,13 +633,19 @@ async def test_that_a_context_variable_can_be_created_with_tags(
                 "service_name": tool_id.service_name,
                 "tool_name": tool_id.tool_name,
             },
-            "tags": [tag1.id, tag2.id],
+            "tags": [tag1.id, tag1.id, tag2.id],
         },
     )
     assert response.status_code == status.HTTP_201_CREATED
 
-    context_variable = response.json()
-    assert context_variable["tags"] == [tag1.id, tag2.id]
+    context_variable_dto = (
+        (await async_client.get(f"/context-variables/{response.json()['id']}"))
+        .raise_for_status()
+        .json()
+    )
+
+    assert len(context_variable_dto["context_variable"]["tags"]) == 2
+    assert set(context_variable_dto["context_variable"]["tags"]) == {tag1.id, tag2.id}
 
 
 async def test_that_a_context_variable_can_be_read(

@@ -339,16 +339,19 @@ async def test_that_a_term_can_be_created_with_tags(
         json={
             "name": "guideline",
             "description": "when and then statements",
-            "tags": [tag1.id, tag2.id],
+            "tags": [tag1.id, tag1.id, tag2.id],
         },
     )
 
     assert response.status_code == status.HTTP_201_CREATED
 
-    data = response.json()
-    assert data["name"] == "guideline"
-    assert data["description"] == "when and then statements"
-    assert data["tags"] == [tag1.id, tag2.id]
+    term_dto = (await async_client.get(f"/terms/{response.json()['id']}")).raise_for_status().json()
+
+    assert term_dto["name"] == "guideline"
+    assert term_dto["description"] == "when and then statements"
+
+    assert len(term_dto["tags"]) == 2
+    assert set(term_dto["tags"]) == {tag1.id, tag2.id}
 
 
 async def test_that_a_term_can_be_read(

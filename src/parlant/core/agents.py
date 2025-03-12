@@ -253,6 +253,17 @@ class AgentDocumentStore(AgentStore):
 
             await self._agents_collection.insert_one(document=self._serialize_agent(agent=agent))
 
+            for tag in tags or []:
+                await self._tag_association_collection.insert_one(
+                    document={
+                        "id": ObjectId(generate_id()),
+                        "version": self.VERSION.to_string(),
+                        "creation_utc": creation_utc.isoformat(),
+                        "agent_id": agent.id,
+                        "tag_id": tag,
+                    }
+                )
+
         return agent
 
     @override

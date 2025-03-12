@@ -383,6 +383,17 @@ class ContextVariableDocumentStore(ContextVariableStore):
                 self._serialize_context_variable(context_variable)
             )
 
+            for tag in tags or []:
+                await self._variable_tag_association_collection.insert_one(
+                    document={
+                        "id": ObjectId(generate_id()),
+                        "version": self.VERSION.to_string(),
+                        "creation_utc": datetime.now(timezone.utc).isoformat(),
+                        "variable_id": context_variable.id,
+                        "tag_id": tag,
+                    }
+                )
+
         return context_variable
 
     @override

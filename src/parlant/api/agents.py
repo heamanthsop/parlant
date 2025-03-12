@@ -265,6 +265,8 @@ def create_router(
             for tag_id in params.tags:
                 _ = await tag_store.read_tag(tag_id=tag_id)
 
+            tags = list(set(params.tags))
+
         agent = await agent_store.create_agent(
             name=params and params.name or "Unnamed Agent",
             description=params and params.description or None,
@@ -272,7 +274,7 @@ def create_router(
             composition_mode=params.composition_mode.value
             if params and params.composition_mode
             else None,
-            tags=params.tags,
+            tags=tags,
         )
 
         return AgentDTO(

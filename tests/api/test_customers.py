@@ -58,13 +58,17 @@ async def test_that_a_customer_can_be_created_with_tags(
         "/customers",
         json={
             "name": "John Doe",
-            "tags": [tag1.id, tag2.id],
+            "tags": [tag1.id, tag1.id, tag2.id],
         },
     )
     assert response.status_code == status.HTTP_201_CREATED
 
-    customer = response.json()
-    assert customer["tags"] == [tag1.id, tag2.id]
+    customer_dto = (
+        (await async_client.get(f"/customers/{response.json()['id']}")).raise_for_status().json()
+    )
+
+    assert len(customer_dto["tags"]) == 2
+    assert set(customer_dto["tags"]) == {tag1.id, tag2.id}
 
 
 async def test_that_a_customer_can_be_read(

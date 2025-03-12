@@ -255,10 +255,12 @@ def create_router(
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
+            tags = list(set(params.tags))
+
         customer = await customer_store.create_customer(
             name=params.name,
             extra=params.extra if params.extra else {},
-            tags=params.tags,
+            tags=tags,
         )
 
         return CustomerDTO(

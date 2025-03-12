@@ -238,6 +238,17 @@ class CustomerDocumentStore(CustomerStore):
                 document=self._serialize_customer(customer=customer)
             )
 
+            for tag in tags or []:
+                await self._tag_association_collection.insert_one(
+                    document={
+                        "id": ObjectId(generate_id()),
+                        "version": self.VERSION.to_string(),
+                        "creation_utc": creation_utc.isoformat(),
+                        "customer_id": customer.id,
+                        "tag_id": tag,
+                    }
+                )
+
         return customer
 
     @override

@@ -1013,6 +1013,8 @@ def create_router(
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
+            tags = list(set(params.tags))
+
         variable = await context_variable_store.create_variable(
             name=params.name,
             description=params.description,
@@ -1020,7 +1022,7 @@ def create_router(
             if params.tool_id
             else None,
             freshness_rules=params.freshness_rules,
-            tags=params.tags,
+            tags=tags,
         )
         return ContextVariableDTO(
             id=variable.id,

@@ -130,15 +130,19 @@ async def test_that_an_agent_can_be_created_with_tags(
 
     response = await async_client.post(
         "/agents",
-        json={"name": "test-agent", "tags": [tag1.id, tag2.id]},
+        json={"name": "test-agent", "tags": [tag1.id, tag1.id, tag2.id]},
     )
 
     assert response.status_code == status.HTTP_201_CREATED
 
-    agent = response.json()
+    agent_dto = (
+        (await async_client.get(f"/agents/{response.json()['id']}")).raise_for_status().json()
+    )
 
-    assert agent["name"] == "test-agent"
-    assert agent["tags"] == [tag1.id, tag2.id]
+    assert agent_dto["name"] == "test-agent"
+
+    assert len(agent_dto["tags"]) == 2
+    assert set(agent_dto["tags"]) == {tag1.id, tag2.id}
 
 
 async def test_that_an_agent_can_be_listed(
