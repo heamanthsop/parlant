@@ -60,7 +60,7 @@ from parlant.core.guideline_tool_associations import (
 )
 from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import TagId, TagStore, Tag
 from parlant.core.tools import ToolId
 
 from parlant.api.common import (
@@ -567,7 +567,7 @@ def create_legacy_router(
         for id in guideline_ids:
             _ = await guideline_store.upsert_tag(
                 guideline_id=id,
-                tag_id=TagId(f"agent_id:{agent_id}"),
+                tag_id=Tag.for_agent_id(agent_id),
             )
 
         guidelines = [await guideline_store.read_guideline(guideline_id=id) for id in guideline_ids]
@@ -652,7 +652,7 @@ def create_legacy_router(
         Tool associations indicate which tools the guideline can use.
         """
         guidelines = await guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         guideline = next(
@@ -740,7 +740,7 @@ def create_legacy_router(
         Does not include connections or tool associations.
         """
         guidelines = await guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         return [
@@ -793,7 +793,7 @@ def create_legacy_router(
         - Tool services and tools must exist before creating associations
         """
         guidelines = await guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         guideline = next(
             (g for g in guidelines if g.id == guideline_id),
@@ -813,7 +813,7 @@ def create_legacy_router(
             )
 
         guidelines = await guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         if params.connections and params.connections.add:
@@ -972,7 +972,7 @@ def create_legacy_router(
         No content will be returned from a successful deletion.
         """
         guidelines = await guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         if not any(g.id == guideline_id for g in guidelines):
@@ -983,7 +983,7 @@ def create_legacy_router(
 
         await guideline_store.remove_tag(
             guideline_id=guideline_id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
 
         updated_guideline = await guideline_store.read_guideline(guideline_id=guideline_id)

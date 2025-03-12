@@ -65,7 +65,7 @@ from parlant.core.persistence.vector_database import (
     BaseDocument as VectorBaseDocument,
     identity_loader as vector_identity_loader,
 )
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, Tag
 
 DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
 PARLANT_HOME_DIR = Path(os.environ.get("PARLANT_HOME", DEFAULT_HOME_DIR))
@@ -456,8 +456,8 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
                 "version": Version.String("0.3.0"),
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "guideline_id": GuidelineId(guideline["id"]),
-                "tag_id": TagId(
-                    f"agent_id:{cast(_GuidelineDocument_v0_1_0, guideline)['guideline_set']}"
+                "tag_id": Tag.for_agent_id(
+                    cast(_GuidelineDocument_v0_1_0, guideline)["guideline_set"]
                 ),
             }
         )
@@ -509,8 +509,8 @@ async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
                 "version": Version.String("0.2.0"),
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "variable_id": ContextVariableId(context_variable["id"]),
-                "tag_id": TagId(
-                    f"agent_id:{cast(_ContextVariableDocument_v0_1_0, context_variable)['variable_set']}"
+                "tag_id": Tag.for_agent_id(
+                    cast(_ContextVariableDocument_v0_1_0, context_variable)["variable_set"]
                 ),
             }
         )

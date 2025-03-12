@@ -21,7 +21,7 @@ from parlant.api.common import apigen_config, ExampleJson, apigen_skip_config
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.glossary import TermUpdateParams, GlossaryStore, TermId
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import TagId, TagStore, Tag
 
 API_GROUP = "glossary"
 
@@ -188,7 +188,7 @@ def create_legacy_router(
 
         await glossary_store.upsert_tag(
             term_id=term.id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
 
         return LegacyTermDTO(
@@ -226,7 +226,7 @@ def create_legacy_router(
 
         This endpoint will be removed in a future release.
         """
-        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[Tag.for_agent_id(agent_id)])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -273,7 +273,7 @@ def create_legacy_router(
         Returns an empty list if no terms associated to the provided agent's ID.
         Terms are returned in no guaranteed order.
         """
-        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[Tag.for_agent_id(agent_id)])
 
         return [
             LegacyTermDTO(
@@ -332,7 +332,7 @@ def create_legacy_router(
 
             return params
 
-        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[Tag.for_agent_id(agent_id)])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -384,7 +384,7 @@ def create_legacy_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
-        terms = await glossary_store.list_terms(tags=[TagId(f"agent_id:{agent_id}")])
+        terms = await glossary_store.list_terms(tags=[Tag.for_agent_id(agent_id)])
 
         term = next((term for term in terms if term.id == term_id), None)
 
@@ -396,7 +396,7 @@ def create_legacy_router(
 
         await glossary_store.remove_tag(
             term_id=term_id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
 
         term = await glossary_store.read_term(term_id=term_id)
@@ -573,9 +573,8 @@ def create_router(
         tags = []
         if params.tags:
             for tag_id in params.tags:
-                if tag_id.startswith("agent-id:"):
-                    agent_id = AgentId(tag_id.split(":")[1])
-                    _ = await agent_store.read_agent(agent_id=agent_id)
+                if agent_id := Tag.extract_agent_id(tag_id):
+                    _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 

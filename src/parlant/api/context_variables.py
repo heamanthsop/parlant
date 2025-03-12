@@ -36,7 +36,7 @@ from parlant.core.context_variables import (
     ContextVariableValueId,
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import TagId, TagStore, Tag
 from parlant.core.tools import ToolId
 
 API_GROUP = "context-variables"
@@ -375,7 +375,7 @@ def create_legacy_router(
             freshness_rules=params.freshness_rules,
         )
 
-        await context_variable_store.add_variable_tag(variable.id, TagId(f"agent_id:{agent_id}"))
+        await context_variable_store.add_variable_tag(variable.id, Tag.for_agent_id(agent_id))
 
         return LegacyContextVariableDTO(
             id=variable.id,
@@ -439,7 +439,7 @@ def create_legacy_router(
             return params
 
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         if variable_id not in [v.id for v in variables]:
@@ -486,13 +486,13 @@ def create_legacy_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         for v in variables:
             variable = await context_variable_store.remove_variable_tag(
                 variable_id=v.id,
-                tag_id=TagId(f"agent_id:{agent_id}"),
+                tag_id=Tag.for_agent_id(agent_id),
             )
 
             if not variable.tags:
@@ -521,7 +521,7 @@ def create_legacy_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -531,7 +531,7 @@ def create_legacy_router(
 
         variable = await context_variable_store.remove_variable_tag(
             variable_id=variable_id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
 
         if not variable.tags:
@@ -560,7 +560,7 @@ def create_legacy_router(
         This endpoint is deprecated. Please use the tag-based context variables API instead.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
 
         return [
@@ -612,7 +612,7 @@ def create_legacy_router(
         The `params` parameter contains the actual context information being stored.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -659,7 +659,7 @@ def create_legacy_router(
         The key should be a customer identifier or a customer tag in the format `tag:{tag_id}`.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
@@ -711,7 +711,7 @@ def create_legacy_router(
         Can return all customer or tag values for this variable type if include_values=True.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         variable = next((v for v in variables if v.id == variable_id), None)
 
@@ -783,7 +783,7 @@ def create_legacy_router(
         Removes only the value for the specified key while keeping the variable's configuration.
         """
         variables = await context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         if variable_id not in [v.id for v in variables]:
             raise HTTPException(
