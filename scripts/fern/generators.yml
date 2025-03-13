@@ -1,5 +1,6 @@
 api:
-  path: openapi/parlant.openapi.json
+  specs:
+    - openapi: openapi/parlant.openapi.json
 default-group: local
 groups:
   local:

@@ -18,7 +18,6 @@ import asyncio
 from contextlib import asynccontextmanager, AsyncExitStack
 from dataclasses import dataclass
 import importlib
-import json
 import os
 import traceback
 from lagom import Container, Singleton
@@ -31,6 +30,7 @@ from pathlib import Path
 import sys
 import uvicorn
 
+from parlant.bin.prepare_migration import detect_required_migrations
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import guideline_proposer
@@ -58,6 +58,7 @@ from parlant.core.evaluations import (
     EvaluationStatus,
     EvaluationStore,
 )
+from parlant.core.entity_cq import EntityQueries, EntityCommands
 from parlant.core.guideline_connections import (
     GuidelineConnectionDocumentStore,
     GuidelineConnectionStore,
@@ -284,6 +285,9 @@ async def setup_container() -> AsyncIterator[Container]:
     c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
     c[EvaluationListener] = Singleton(PollingEvaluationListener)
 
+    c[EntityQueries] = Singleton(EntityQueries)
+    c[EntityCommands] = Singleton(EntityCommands)
+
     c[Engine] = Singleton(AlphaEngine)
     c[Application] = lambda rc: Application(rc)
 
@@ -343,6 +347,9 @@ async def initialize_container(
     fragment_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "fragments.json")
     )
+    glossary_tags_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "glossary_tags.json")
+    )
 
     try:
         c[AgentStore] = await EXIT_STACK.enter_async_context(AgentDocumentStore(agents_db, migrate))
@@ -401,9 +408,10 @@ async def initialize_container(
         embedder_factory = EmbedderFactory(c)
         c[GlossaryStore] = await EXIT_STACK.enter_async_context(
             GlossaryVectorStore(
-                await EXIT_STACK.enter_async_context(
+                vector_db=await EXIT_STACK.enter_async_context(
                     ChromaDatabase(c[Logger], PARLANT_HOME_DIR, embedder_factory),
                 ),
+                document_db=glossary_tags_db,
                 embedder_type=type(await nlp_service.get_embedder()),
                 embedder_factory=embedder_factory,
             )
@@ -446,25 +454,18 @@ async def recover_server_tasks(
             await evaluator.run_evaluation(evaluation)
 
 
-def _alert_user_to_migrations_when_upgrading_from_a_version_before_1_7_0() -> None:
-    # Check if the system is ready for version >1.7.0
-    # Checking if the Parlant server is compatible by examining the agent version
-    if (PARLANT_HOME_DIR / "agents.json").exists():
-        with open(PARLANT_HOME_DIR / "agents.json", "r") as agents_db:
-            raw_data = json.load(agents_db)
-            agents = raw_data.get("agents")
-            if agents and agents[0].get("version") == "0.1.0":
-                die(
-                    "You're running a particulary old version of Parlant.\n"
-                    "To upgrade your existing data to the new schema version, please run\n"
-                    "`parlant-prepare-migration` and then re-run the server with `--migrate`."
-                )
+async def check_required_schema_migrations() -> None:
+    if await detect_required_migrations():
+        die(
+            "You're running a particularly old version of Parlant.\n"
+            "To upgrade your existing data to the new schema version, please run\n"
+            "`parlant-prepare-migration` and then re-run the server with `--migrate`."
+        )
 
 
 @asynccontextmanager
 async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
-    # TODO: Deprecate this check in future versions
-    _alert_user_to_migrations_when_upgrading_from_a_version_before_1_7_0()
+    await check_required_schema_migrations()
 
     global EXIT_STACK
 

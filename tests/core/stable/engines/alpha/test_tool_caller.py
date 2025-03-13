@@ -30,6 +30,7 @@ from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Event, EventSource
+from parlant.core.tags import TagId
 from parlant.core.tools import (
     LocalToolService,
     Tool,
@@ -82,6 +83,7 @@ def create_guideline_proposition(
     action: str,
     score: int,
     rationale: str,
+    tags: list[TagId],
 ) -> GuidelineProposition:
     guideline = Guideline(
         id=GuidelineId(generate_id()),
@@ -91,6 +93,7 @@ def create_guideline_proposition(
             action=action,
         ),
         enabled=True,
+        tags=tags,
     )
 
     return GuidelineProposition(guideline=guideline, score=score, rationale=rationale)
@@ -144,6 +147,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
     ]
 
@@ -153,6 +157,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id:{agent.id}")],
         ): [ToolId(service_name="local", tool_name=tool.name)]
     }
 
@@ -210,6 +215,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
     ]
 
@@ -219,6 +225,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id:{agent.id}")],
         ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
     }
 
@@ -283,6 +290,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
     ]
 
@@ -292,6 +300,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id:{agent.id}")],
         ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
     }
 
@@ -359,6 +368,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             action="response in concise and breif answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
+            tags=[TagId(f"agent_id:{agent.id}")],
         )
     ]
 
@@ -368,6 +378,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             action="a customer asks for the availability of products from a certain category",
             score=9,
             rationale="customer asks for keyboards availability",
+            tags=[TagId(f"agent_id:{agent.id}")],
         ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
     }
 

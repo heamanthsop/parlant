@@ -99,6 +99,7 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
 )
 from parlant.core.shots import ShotCollection
+from parlant.core.entity_cq import EntityQueries, EntityCommands
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.core.tools import LocalToolService
 
@@ -252,14 +253,17 @@ async def container(
         embedder_factory = EmbedderFactory(container)
         container[GlossaryStore] = await stack.enter_async_context(
             GlossaryVectorStore(
-                await stack.enter_async_context(
+                vector_db=await stack.enter_async_context(
                     TransientVectorDatabase(container[Logger], embedder_factory)
                 ),
+                document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type=embedder_type,
             )
         )
 
+        container[EntityQueries] = Singleton(EntityQueries)
+        container[EntityCommands] = Singleton(EntityCommands)
         for generation_schema in (
             GuidelinePropositionsSchema,
             FluidMessageSchema,

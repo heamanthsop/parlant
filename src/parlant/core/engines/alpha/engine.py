@@ -24,13 +24,13 @@ from typing import Optional, Sequence, cast
 from croniter import croniter
 from typing_extensions import override
 
-from parlant.core.agents import Agent, AgentId, AgentStore
+from parlant.core.agents import Agent, AgentId
 from parlant.core.context_variables import (
     ContextVariable,
-    ContextVariableStore,
     ContextVariableValue,
+    ContextVariableStore,
 )
-from parlant.core.customers import Customer, CustomerStore
+from parlant.core.customers import Customer
 from parlant.core.engines.alpha.fluid_message_generator import FluidMessageGenerator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
 from parlant.core.engines.alpha.message_assembler import MessageAssembler
@@ -38,13 +38,8 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
 from parlant.core.engines.alpha.tool_caller import ToolInsights
-from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent, GuidelineStore
-from parlant.core.guideline_connections import GuidelineConnectionStore
-from parlant.core.guideline_tool_associations import (
-    GuidelineToolAssociationStore,
-)
-from parlant.core.glossary import Term, GlossaryStore
-from parlant.core.services.tools.service_registry import ServiceRegistry
+from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
+from parlant.core.glossary import Term
 from parlant.core.sessions import (
     ContextVariable as StoredContextVariable,
     Event,
@@ -54,7 +49,6 @@ from parlant.core.sessions import (
     PreparationIteration,
     PreparationIterationGenerations,
     Session,
-    SessionStore,
     Term as StoredTerm,
     ToolEventData,
 )
@@ -74,6 +68,8 @@ from parlant.core.engines.types import Context, Engine, UtteranceReason, Utteran
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
+from parlant.core.entity_cq import EntityQueries, EntityCommands
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolContext, ToolId
 
 
@@ -154,15 +150,8 @@ class AlphaEngine(Engine):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
-        agent_store: AgentStore,
-        session_store: SessionStore,
-        customer_store: CustomerStore,
-        context_variable_store: ContextVariableStore,
-        glossary_store: GlossaryStore,
-        guideline_store: GuidelineStore,
-        guideline_connection_store: GuidelineConnectionStore,
-        service_registry: ServiceRegistry,
-        guideline_tool_association_store: GuidelineToolAssociationStore,
+        entity_queries: EntityQueries,
+        entity_commands: EntityCommands,
         guideline_proposer: GuidelineProposer,
         tool_event_generator: ToolEventGenerator,
         fluid_message_generator: FluidMessageGenerator,
@@ -172,15 +161,8 @@ class AlphaEngine(Engine):
         self._logger = logger
         self._correlator = correlator
 
-        self._agent_store = agent_store
-        self._session_store = session_store
-        self._customer_store = customer_store
-        self._context_variable_store = context_variable_store
-        self._glossary_store = glossary_store
-        self._guideline_store = guideline_store
-        self._guideline_connection_store = guideline_connection_store
-        self._service_registry = service_registry
-        self._guideline_tool_association_store = guideline_tool_association_store
+        self._entity_queries = entity_queries
+        self._entity_commands = entity_commands
 
         self._guideline_proposer = guideline_proposer
         self._tool_event_generator = tool_event_generator
@@ -263,7 +245,7 @@ class AlphaEngine(Engine):
             raise
 
     async def _load_interaction_state(self, context: Context) -> _InteractionState:
-        history = list(await self._session_store.list_events(context.session_id))
+        history = await self._entity_queries.find_events(context.session_id)
         last_known_event_offset = history[-1].offset if history else -1
 
         return _InteractionState(
@@ -343,7 +325,7 @@ class AlphaEngine(Engine):
             )
 
             # Save results for later inspection.
-            await self._session_store.create_inspection(
+            await self._entity_commands.create_inspection(
                 session_id=context.session.id,
                 correlation_id=self._correlator.correlation_id,
                 preparation_iterations=preparation_iteration_inspections,
@@ -391,7 +373,7 @@ class AlphaEngine(Engine):
             )
 
             # Save results for later inspection.
-            await self._session_store.create_inspection(
+            await self._entity_commands.create_inspection(
                 session_id=context.session.id,
                 correlation_id=self._correlator.correlation_id,
                 preparation_iterations=[],
@@ -413,9 +395,9 @@ class AlphaEngine(Engine):
     ) -> _LoadedContext:
         # Load the full entities from storage.
 
-        agent = await self._agent_store.read_agent(context.agent_id)
-        session = await self._session_store.read_session(context.session_id)
-        customer = await self._customer_store.read_customer(session.customer_id)
+        agent = await self._entity_queries.read_agent(context.agent_id)
+        session = await self._entity_queries.read_session(context.session_id)
+        customer = await self._entity_queries.read_customer(session.customer_id)
 
         if load_interaction:
             interaction = await self._load_interaction_state(context)
@@ -533,7 +515,7 @@ class AlphaEngine(Engine):
                     id=term.id,
                     name=term.name,
                     description=term.description,
-                    synonyms=term.synonyms,
+                    synonyms=list(term.synonyms),
                 )
                 for term in state.glossary_terms
             ],
@@ -582,7 +564,7 @@ class AlphaEngine(Engine):
                     f"Changing session {context.session.id} mode to '{new_session_mode}'"
                 )
 
-                await self._session_store.update_session(
+                await self._entity_commands.update_session(
                     session_id=context.session.id,
                     params={
                         "mode": new_session_mode,
@@ -693,8 +675,8 @@ class AlphaEngine(Engine):
         self,
         context: _LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
-        variables_supported_by_agent = await self._context_variable_store.list_variables(
-            variable_set=context.agent.id,
+        variables_supported_by_agent = await self._entity_queries.find_context_variables_for_agent(
+            agent_id=context.agent.id,
         )
 
         result = []
@@ -727,8 +709,8 @@ class AlphaEngine(Engine):
         # Step 1: Retrieve all of the enabled guidelines for this agent.
         all_stored_guidelines = [
             g
-            for g in await self._guideline_store.list_guidelines(
-                guideline_set=context.agent.id,
+            for g in await self._entity_queries.find_guidelines_for_agent(
+                agent_id=context.agent.id,
             )
             if g.enabled
         ]
@@ -747,7 +729,7 @@ class AlphaEngine(Engine):
         # Step 3: Load connected guidelines that may not have
         # been inferrable just by looking at the interaction.
         inferred_propositions = await self._propose_connected_guidelines(
-            guideline_set=context.agent.id,
+            all_stored_guidelines=all_stored_guidelines,
             propositions=proposition_result.propositions,
         )
 
@@ -770,7 +752,7 @@ class AlphaEngine(Engine):
 
     async def _propose_connected_guidelines(
         self,
-        guideline_set: str,
+        all_stored_guidelines: Sequence[Guideline],
         propositions: Sequence[GuidelineProposition],
     ) -> Sequence[GuidelineProposition]:
         # Some guidelines cannot be inferred simply by evaluating an interaction.
@@ -787,7 +769,7 @@ class AlphaEngine(Engine):
         for proposition in propositions:
             connected_guideline_ids = {
                 c.target
-                for c in await self._guideline_connection_store.list_connections(
+                for c in await self._entity_queries.find_guideline_connections(
                     indirect=True,
                     source=proposition.guideline.id,
                 )
@@ -798,9 +780,8 @@ class AlphaEngine(Engine):
                     # no need to add this connected one as it's already an assumed proposition
                     continue
 
-                connected_guideline = await self._guideline_store.read_guideline(
-                    guideline_set=guideline_set,
-                    guideline_id=connected_guideline_id,
+                connected_guideline = next(
+                    g for g in all_stored_guidelines if g.id == connected_guideline_id
                 )
 
                 connected_guidelines_by_proposition[proposition].append(
@@ -859,7 +840,7 @@ class AlphaEngine(Engine):
         # This allows for optimized control and data flow in the engine.
 
         guideline_tool_associations = list(
-            await self._guideline_tool_association_store.list_associations()
+            await self._entity_queries.find_guideline_tool_associations()
         )
         guideline_propositions_by_id = {p.guideline.id: p for p in guideline_propositions}
 
@@ -903,9 +884,9 @@ class AlphaEngine(Engine):
             query += str([e.data for e in state.tool_events])
 
         if query:
-            return await self._glossary_store.find_relevant_terms(
-                term_set=context.agent.id,
+            return await self._entity_queries.find_relevant_glossary_terms(
                 query=query,
+                tags=[TagId(f"agent_id:{context.agent.id}")],
             )
 
         return []
@@ -957,6 +938,7 @@ class AlphaEngine(Engine):
                         action=utterance.action,
                     ),
                     enabled=True,
+                    tags=[],
                 ),
                 rationale=rationales[utterance.reason],
                 score=10,
@@ -971,8 +953,8 @@ class AlphaEngine(Engine):
         key: str,
     ) -> Optional[ContextVariableValue]:
         return await load_fresh_context_variable_value(
-            context_variable_store=self._context_variable_store,
-            service_registery=self._service_registry,
+            entity_queries=self._entity_queries,
+            entity_commands=self._entity_commands,
             agent_id=context.agent.id,
             session=context.session,
             variable=variable,
@@ -982,8 +964,8 @@ class AlphaEngine(Engine):
 
 # This is module-level and public for isolated testability purposes.
 async def load_fresh_context_variable_value(
-    context_variable_store: ContextVariableStore,
-    service_registery: ServiceRegistry,
+    entity_queries: EntityQueries,
+    entity_commands: EntityCommands,
     agent_id: AgentId,
     session: Session,
     variable: ContextVariable,
@@ -991,8 +973,7 @@ async def load_fresh_context_variable_value(
     current_time: datetime = datetime.now(timezone.utc),
 ) -> Optional[ContextVariableValue]:
     # Load the existing value
-    value = await context_variable_store.read_value(
-        variable_set=agent_id,
+    value = await entity_queries.read_context_variable_value(
         variable_id=variable.id,
         key=key,
     )
@@ -1021,7 +1002,7 @@ async def load_fresh_context_variable_value(
         customer_id=session.customer_id,
     )
 
-    tool_service = await service_registery.read_tool_service(variable.tool_id.service_name)
+    tool_service = await entity_queries.read_tool_service(variable.tool_id.service_name)
 
     tool_result = await tool_service.call_tool(
         variable.tool_id.tool_name,
@@ -1029,8 +1010,7 @@ async def load_fresh_context_variable_value(
         arguments={},
     )
 
-    return await context_variable_store.update_value(
-        variable_set=agent_id,
+    return await entity_commands.update_context_variable_value(
         variable_id=variable.id,
         key=key,
         data=tool_result.data,

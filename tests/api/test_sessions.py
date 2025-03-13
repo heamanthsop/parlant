@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from parlant.core.engines.alpha.fluid_message_generator import FluidMessageSchema
 from parlant.core.fragments import FragmentStore
 from parlant.core.nlp.service import NLPService
+from parlant.core.tags import TagId
 from parlant.core.tools import ToolResult
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams
 from parlant.core.async_utils import Timeout
@@ -823,13 +824,12 @@ async def test_that_a_message_can_be_inspected(
 
     context_variable = await create_context_variable(
         container=container,
-        agent_id=agent_id,
         name="Customer full name",
+        tags=[TagId(f"agent_id:{agent_id}")],
     )
 
     await set_context_variable_value(
         container=container,
-        agent_id=agent_id,
         variable_id=context_variable.id,
         key=session.customer_id,
         data=customer.name,

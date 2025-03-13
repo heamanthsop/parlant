@@ -40,6 +40,7 @@ from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import EventSource
 from parlant.core.glossary import TermId
 
+from parlant.core.tags import TagId
 from tests.core.common.utils import ContextOfTest, create_event_message
 
 
@@ -232,7 +233,11 @@ def propose_guidelines(
 
 
 def create_guideline(
-    context: ContextOfTest, guideline_name: str, condition: str, action: str
+    context: ContextOfTest,
+    guideline_name: str,
+    condition: str,
+    action: str,
+    tags: list[TagId],
 ) -> Guideline:
     guideline = Guideline(
         id=GuidelineId(generate_id()),
@@ -242,6 +247,7 @@ def create_guideline(
             condition=condition,
             action=action,
         ),
+        tags=tags,
     )
 
     context.guidelines[guideline_name] = guideline
@@ -249,22 +255,34 @@ def create_guideline(
     return guideline
 
 
-def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
+def create_term(
+    name: str,
+    description: str,
+    synonyms: list[str] = [],
+    tags: list[TagId] = [],
+) -> Term:
     return Term(
         id=TermId("-"),
         creation_utc=datetime.now(timezone.utc),
         name=name,
         description=description,
         synonyms=synonyms,
+        tags=tags,
     )
 
 
 def create_context_variable(
     name: str,
     data: JSONSerializable,
+    tags: list[TagId],
 ) -> tuple[ContextVariable, ContextVariableValue]:
     return ContextVariable(
-        id=ContextVariableId("-"), name=name, description="", tool_id=None, freshness_rules=None
+        id=ContextVariableId("-"),
+        name=name,
+        description="",
+        tool_id=None,
+        freshness_rules=None,
+        tags=tags,
     ), ContextVariableValue(
         ContextVariableValueId("-"), last_modified=datetime.now(timezone.utc), data=data
     )
@@ -273,12 +291,14 @@ def create_context_variable(
 def create_guideline_by_name(
     context: ContextOfTest,
     guideline_name: str,
+    tags: list[TagId],
 ) -> Guideline:
     guideline = create_guideline(
         context=context,
         guideline_name=guideline_name,
         condition=GUIDELINES_DICT[guideline_name]["condition"],
         action=GUIDELINES_DICT[guideline_name]["action"],
+        tags=tags,
     )
     return guideline
 
@@ -295,7 +315,8 @@ def base_test_that_correct_guidelines_are_proposed(
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     conversation_guidelines = {
-        name: create_guideline_by_name(context, name) for name in conversation_guideline_names
+        name: create_guideline_by_name(context, name, tags=[TagId(f"agent_id:{agent.id}")])
+        for name in conversation_guideline_names
     }
     relevant_guidelines = [
         conversation_guidelines[name]
@@ -581,7 +602,8 @@ def test_that_guidelines_based_on_context_variables_arent_proposed_repetitively(
         create_context_variable(
             name="season",
             data={"season": "Summer"},
-        ),
+            tags=[TagId(f"agent_id:{agent.id}")],
+        )
     ]
 
     conversation_guideline_names: list[str] = ["summer_sale"]

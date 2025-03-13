@@ -417,7 +417,7 @@ class SessionDocumentStore(SessionStore):
             doc = cast(_SessionDocument, doc)
             return _SessionDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 creation_utc=doc["creation_utc"],
                 customer_id=doc["customer_id"],
                 agent_id=doc["agent_id"],
@@ -434,7 +434,7 @@ class SessionDocumentStore(SessionStore):
             doc = cast(_EventDocument, doc)
             return _EventDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 creation_utc=doc["creation_utc"],
                 session_id=doc["session_id"],
                 source=doc["source"],
@@ -453,7 +453,7 @@ class SessionDocumentStore(SessionStore):
             doc = cast(_InspectionDocument_V_0_1_0, doc)
             return _InspectionDocument(
                 id=doc["id"],
-                version=self.VERSION.to_string(),
+                version=Version.String("0.2.0"),
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=[

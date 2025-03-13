@@ -21,7 +21,7 @@ from typing import Annotated, Mapping, Optional, Sequence, Set, TypeAlias, cast
 
 
 from parlant.api.common import GuidelineIdField, ExampleJson, JSONSerializableDTO, apigen_config
-from parlant.api.glossary import TermDTO
+from parlant.api.glossary import TermSynonymsField, TermIdPath, TermNameField, TermDescriptionField
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.application import Application
 from parlant.core.async_utils import Timeout
@@ -827,9 +827,28 @@ PreparationIterationToolCallsField: TypeAlias = Annotated[
     ),
 ]
 
+term_example = {
+    "id": "term_123xyz",
+    "name": "balance",
+    "description": "The current amount of money in an account",
+    "synonyms": ["funds", "account balance", "available funds"],
+}
+
+
+class PreparationIterationTermDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": term_example},
+):
+    """A term participating in the preparation for an iteration."""
+
+    id: TermIdPath
+    name: TermNameField
+    description: TermDescriptionField
+    synonyms: TermSynonymsField
+
 
 PreparationIterationTermsField: TypeAlias = Annotated[
-    Sequence[TermDTO],
+    Sequence[PreparationIterationTermDTO],
     Field(
         description="List of terms participating in the preparation for this iteration",
     ),
@@ -1010,7 +1029,7 @@ def preparation_iteration_to_dto(iteration: PreparationIteration) -> Preparation
             for tool_call in iteration.tool_calls
         ],
         terms=[
-            TermDTO(
+            PreparationIterationTermDTO(
                 id=term["id"],
                 name=term["name"],
                 description=term["description"],

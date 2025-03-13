@@ -45,6 +45,7 @@ from parlant.core.sessions import EventSource
 from parlant.core.loggers import Logger
 from parlant.core.glossary import TermId
 
+from parlant.core.tags import TagId
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import SyncAwaiter
 
@@ -252,7 +253,12 @@ def propose_guidelines(
     return list(chain.from_iterable(guideline_proposition_result.batches))
 
 
-def create_guideline(context: ContextOfTest, condition: str, action: str) -> Guideline:
+def create_guideline(
+    context: ContextOfTest,
+    condition: str,
+    action: str,
+    tags: list[TagId] = [],
+) -> Guideline:
     guideline = Guideline(
         id=GuidelineId(generate_id()),
         creation_utc=datetime.now(timezone.utc),
@@ -261,29 +267,37 @@ def create_guideline(context: ContextOfTest, condition: str, action: str) -> Gui
             action=action,
         ),
         enabled=True,
+        tags=tags,
     )
-
-    context.guidelines.append(guideline)
 
     return guideline
 
 
-def create_term(name: str, description: str, synonyms: list[str] = []) -> Term:
+def create_term(
+    name: str, description: str, synonyms: list[str] = [], tags: list[TagId] = []
+) -> Term:
     return Term(
         id=TermId("-"),
         creation_utc=datetime.now(timezone.utc),
         name=name,
         description=description,
         synonyms=synonyms,
+        tags=tags,
     )
 
 
 def create_context_variable(
     name: str,
     data: JSONSerializable,
+    tags: list[TagId],
 ) -> tuple[ContextVariable, ContextVariableValue]:
     return ContextVariable(
-        id=ContextVariableId("-"), name=name, description="", tool_id=None, freshness_rules=None
+        id=ContextVariableId("-"),
+        name=name,
+        description="",
+        tool_id=None,
+        freshness_rules=None,
+        tags=tags,
     ), ContextVariableValue(
         ContextVariableValueId("-"), last_modified=datetime.now(timezone.utc), data=data
     )
@@ -473,6 +487,7 @@ def test_that_guidelines_are_proposed_based_on_agent_description(
         description="You are an agent working for a skateboarding manufacturer. You help customers by discussing and recommending our products."
         "Your role is only to consult customers, and not to actually sell anything, as we sell our products in-store.",
         max_engine_iterations=3,
+        tags=[],
     )
 
     conversation_context: list[tuple[str, str]] = [
@@ -520,11 +535,13 @@ def test_that_guidelines_are_proposed_based_on_glossary(
         create_term(
             name="skateboard",
             description="a time-travelling device",
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_term(
             name="Pinewood Rash Syndrome",
             description="allergy to pinewood trees",
             synonyms=["Pine Rash", "PRS"],
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
     ]
     conversation_context: list[tuple[str, str]] = [
@@ -659,14 +676,17 @@ def test_that_guidelines_are_proposed_based_on_staged_tool_calls_and_context_var
         create_context_variable(
             name="user_id_1",
             data={"name": "Jimmy McGill", "ID": 566317},
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_context_variable(
             name="user_id_2",
             data={"name": "Bob Bobberson", "ID": 199877},
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
         create_context_variable(
             name="user_id_3",
             data={"name": "Dorothy Dortmund", "ID": 816779},
+            tags=[TagId(f"agent_id:{agent.id}")],
         ),
     ]
     conversation_guideline_names: list[str] = ["suggest_drink_underage", "suggest_drink_adult"]
