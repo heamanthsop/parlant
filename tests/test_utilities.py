@@ -404,7 +404,7 @@ class CachedSchematicGenerator(SchematicGenerator[TBaseModel]):
 
     def _generate_id(
         self,
-        prompt: str,
+        prompt: str | PromptBuilder,
         hints: Mapping[str, Any],
     ) -> str:
         sorted_hints = json.dumps(dict(sorted(hints.items())), sort_keys=True)

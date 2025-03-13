@@ -117,7 +117,7 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
     @override
     async def generate(
         self,
-        prompt: str,
+        prompt: str | PromptBuilder,
         hints: Mapping[str, Any] = {},
     ) -> SchematicGenerationResult[T]:
         with self._logger.operation(f"OpenAI LLM Request ({self.schema.__name__})"):
@@ -410,7 +410,7 @@ class OpenAIService(NLPService):
     async def get_schematic_generator(self, t: type[T]) -> OpenAISchematicGenerator[T]:
         if t == ToolCallInferenceSchema:
             return GPT_4o[t](self._logger)  # type: ignore
-        return GPT_4o_24_08_06[t](self._logger)  # type: ignore
+        return GPT_4o_Mini[t](self._logger)  # type: ignore
 
     @override
     async def get_embedder(self) -> Embedder:
