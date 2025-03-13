@@ -16,6 +16,7 @@ import {ImperativePanelHandle} from 'react-resizable-panels';
 import Tooltip from '../ui/custom/tooltip';
 import {copy} from '@/lib/utils';
 import MessageLogs from './message-logs';
+import IndexedDBData from './indexeddb-data';
 
 interface DefInterface {
 	level?: Level;
@@ -68,25 +69,29 @@ const MessageDetails = ({
 	}, [event?.id]);
 
 	useEffect(() => {
-		const hasFilters = Object.keys(filters || {}).length;
-		if (logs && filters) {
-			if (!hasFilters && filters) setFilteredLogs(logs);
-			else {
-				setFilteredLogs(getMessageLogsWithFilters(event?.correlation_id as string, (filters || {}) as {level: string; types?: string[]; content?: string[]}));
-				(setFilterTabs as React.Dispatch<React.SetStateAction<Filter[]>>)((tabFilters: Filter[]) => {
-					if (!tabFilters.length && hasFilters) {
-						const filter = {id: Date.now(), def: filters, name: 'Logs'};
-						setCurrFilterTabs(filter.id);
-						return [filter];
-					}
-					const tab = tabFilters.find((t) => t.id === currFilterTabs);
-					if (!tab) return tabFilters;
-					tab.def = filters;
-					return [...tabFilters];
-				});
+		const setLogsFn = async () => {
+			const hasFilters = Object.keys(filters || {}).length;
+			if (logs && filters) {
+				if (!hasFilters && filters) setFilteredLogs(logs);
+				else {
+					const filtered = await getMessageLogsWithFilters(event?.correlation_id as string, filters as {level: string; types?: string[]; content?: string[]});
+					setFilteredLogs(filtered);
+					(setFilterTabs as React.Dispatch<React.SetStateAction<Filter[]>>)((tabFilters: Filter[]) => {
+						if (!tabFilters.length && hasFilters) {
+							const filter = {id: Date.now(), def: filters, name: 'Logs'};
+							setCurrFilterTabs(filter.id);
+							return [filter];
+						}
+						const tab = tabFilters.find((t) => t.id === currFilterTabs);
+						if (!tab) return tabFilters;
+						tab.def = filters;
+						return [...tabFilters];
+					});
+				}
 			}
-		}
-		if (!filters && logs?.length) setFilters({});
+			if (!filters && logs?.length) setFilters({});
+		};
+		setLogsFn();
 	}, [logs, filters]);
 
 	useEffect(() => {
@@ -98,7 +103,11 @@ const MessageDetails = ({
 
 	useEffect(() => {
 		if (!event?.correlation_id) return;
-		setLogs(getMessageLogs(event.correlation_id));
+		const setLogsFn = async () => {
+			const logs = await getMessageLogs(event.correlation_id);
+			setLogs(logs);
+		};
+		setLogsFn();
 	}, [event?.correlation_id]);
 
 	const deleteFilterTab = (id: number | undefined) => {
@@ -157,6 +166,7 @@ const MessageDetails = ({
 							applyFn={(types, level, content) => setFilters({types, level, content})}
 						/>
 					)}
+					{event && logs && <IndexedDBData />}
 					{!event && <EmptyState title='Feeling curious?' subTitle='Select a message for additional actions and information about its process.' />}
 					{event && logs && !logs?.length && (
 						<EmptyState

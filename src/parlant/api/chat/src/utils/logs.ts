@@ -1,64 +1,68 @@
 import {Log} from './interfaces';
-import {groupBy} from './obj';
 
-const logLevels = ['WARNING', 'INFO', 'DEBUG', 'ERROR', 'CRITICAL'];
+const logLevels = ['WARNING', 'INFO', 'DEBUG'];
+export const DB_NAME = 'Parlant';
+const STORE_NAME = 'logs';
 
-// const getLocalStorageSize = (): number => {
-// 	let totalBytes = 0;
+function openDB() {
+	return new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open(DB_NAME, 1);
+		request.onupgradeneeded = () => {
+			const db = request.result;
+			if (!db.objectStoreNames.contains(STORE_NAME)) {
+				db.createObjectStore(STORE_NAME, {autoIncrement: true});
+			}
+		};
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
 
-// 	for (let i = 0; i < localStorage.length; i++) {
-// 		const key = localStorage.key(i) || '';
-// 		const value = localStorage.getItem(key) || '';
-// 		totalBytes += key.length + value.length;
-// 	}
+async function getLogs(correlation_id: string): Promise<Log[]> {
+	const db = await openDB();
+	return new Promise((resolve, reject) => {
+		const transaction = db.transaction(STORE_NAME, 'readonly');
+		const store = transaction.objectStore(STORE_NAME);
+		const count = store.count();
+		count.onsuccess = () => console.log('ccc', count.result);
+		const request = store.get(correlation_id);
+		request.onsuccess = () => resolve(request.result || []);
+		request.onerror = () => reject(request.error);
+	});
+}
 
-// 	return totalBytes / (1024 * 1024);
-// };
+export const handleChatLogs = async (log: Log) => {
+	const db = await openDB();
+	const transaction = db.transaction(STORE_NAME, 'readwrite');
+	const store = transaction.objectStore(STORE_NAME);
 
-const setLocalStorageItem = (logsJson: Record<string, string>, recursive?: boolean): boolean | void => {
-	try {
-		if (!localStorage) return;
-		localStorage.setItem('logs', JSON.stringify(logsJson));
-		if (recursive) return true;
-	} catch (e) {
-		if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-			const firstKey = Object.keys(logsJson)?.[0];
-			if (firstKey) delete logsJson[firstKey];
-			return setLocalStorageItem(logsJson, true);
+	const logEntry = store.get(log.correlation_id);
+
+	logEntry.onsuccess = () => {
+		const data = logEntry.result;
+		if (!data) {
+			store.put([log], log.correlation_id);
+		} else {
+			data.push(log);
+			store.put(data, log.correlation_id);
 		}
-	}
+	};
+	logEntry.onerror = () => console.error(logEntry.error);
 };
 
-export const handleChatLogs = (log: Log) => {
-	if (!localStorage) return;
-	let eventsChanged = false;
-	const logsJson = JSON.parse(localStorage.logs || '{}');
-	if (!logsJson[log.correlation_id]) {
-		eventsChanged = true;
-		logsJson[log.correlation_id] = [];
-	}
-
-	logsJson[log.correlation_id].push(log);
-	const setStorage = setLocalStorageItem(logsJson);
-	eventsChanged ||= !!setStorage;
-	return eventsChanged ? new Set(Object.keys(logsJson)) : null;
+export const getMessageLogs = async (correlation_id: string): Promise<Log[]> => {
+	return getLogs(correlation_id);
 };
 
-export const getMessageLogs = (correlation_id: string): Log[] => {
-	if (!localStorage) return [];
-	const logsJson = JSON.parse(localStorage.logs || '{}');
-	return logsJson[correlation_id] || [];
-};
-
-export const getMessageLogsWithFilters = (correlation_id: string, filters: {level: string; types?: string[]; content?: string[]}): Log[] => {
-	const logs = getMessageLogs(correlation_id);
+export const getMessageLogsWithFilters = async (correlation_id: string, filters: {level: string; types?: string[]; content?: string[]}): Promise<Log[]> => {
+	const logs = await getMessageLogs(correlation_id);
 	const escapedWords = filters?.content?.map((word) => word.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1'));
-	const pattern = escapedWords && escapedWords.map((word) => `\\[?${word}\\]?`).join('[\\s\\S]*');
+	const pattern = escapedWords && escapedWords.map((word) => `\[?${word}\]?`).join('[sS]*');
 	const levelIndex = filters.level ? logLevels.indexOf(filters.level) : null;
 	const validLevels = filters.level ? new Set(logLevels.filter((_, i) => i <= (levelIndex as number))) : null;
 	const filterTypes = filters.types?.length ? new Set(filters.types) : null;
 
-	const filteredLogs = logs.filter((log) => {
+	return logs.filter((log) => {
 		if (validLevels && !validLevels.has(log.level)) return false;
 		if (pattern) {
 			const regex = new RegExp(pattern, 'i');
@@ -70,19 +74,5 @@ export const getMessageLogsWithFilters = (correlation_id: string, filters: {leve
 			return filterTypes.has(type);
 		}
 		return true;
-	});
-	return filteredLogs;
-};
-
-export const getMessageLogsBy = (type: 'level' | 'source', correlation_id: string): any => {
-	if (!correlation_id) return {};
-	const logsJson = JSON.parse(localStorage.logs || '{}');
-	if (type === 'level') {
-		return groupBy(logsJson[correlation_id], (val: Log) => val.level);
-	}
-	const values = logsJson[correlation_id];
-	return groupBy(values, (val: Log) => {
-		const match = val.message.match(/^\[([^\]]+)\]/);
-		return match ? match[1] : 'General';
 	});
 };
