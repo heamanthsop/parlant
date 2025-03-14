@@ -1,54 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {getIndexedDBSize} from '@/lib/utils';
-import {DB_NAME} from '@/utils/logs';
+import {clearIndexedDBData, getIndexedDBSize} from '@/utils/logs';
 import {Trash} from 'lucide-react';
 import {useEffect, useState} from 'react';
 import {toast} from 'sonner';
 import {twJoin} from 'tailwind-merge';
 
-function clearIndexedDBData(dbName: string, objectStoreName: string) {
-	return new Promise((resolve, reject) => {
-		const request = indexedDB.open(dbName);
-
-		request.onerror = (event) => {
-			const target = event?.target as any;
-			const error = target?.error;
-			reject(error);
-		};
-
-		request.onsuccess = (event) => {
-			const target = event?.target as any;
-			const db = target?.result;
-			const transaction = db.transaction(objectStoreName, 'readwrite');
-			const objectStore = transaction.objectStore(objectStoreName);
-			const clearRequest = objectStore.clear();
-
-			clearRequest.onsuccess = () => {
-				resolve(null);
-			};
-
-			clearRequest.onerror = (clearEvent: any) => {
-				reject(clearEvent.target.error);
-			};
-
-			transaction.oncomplete = () => {
-				db.close();
-			};
-		};
-	});
-}
-
 const IndexedDBData = ({eventId, logsDeleted}: {eventId?: string; logsDeleted?: () => void}) => {
 	const [estimatedDataInMB, setEstimatedDataInMB] = useState<number | null>(null);
 
 	const setData = async () => {
-		const estimated = await getIndexedDBSize(DB_NAME);
+		const estimated = await getIndexedDBSize();
 		setEstimatedDataInMB(estimated);
 	};
 
 	async function handleClearDataClick() {
 		try {
-			await clearIndexedDBData('Parlant', 'logs');
+			await clearIndexedDBData();
 			setData();
 			toast.success('IndexedDB data cleared successfully.');
 			logsDeleted?.();
