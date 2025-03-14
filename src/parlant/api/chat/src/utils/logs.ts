@@ -24,7 +24,7 @@ async function getLogs(correlation_id: string): Promise<Log[]> {
 		const transaction = db.transaction(STORE_NAME, 'readonly');
 		const store = transaction.objectStore(STORE_NAME);
 		const count = store.count();
-		count.onsuccess = () => console.log('ccc', count.result);
+		count.onsuccess = () => console.log('log count', count.result);
 		const request = store.get(correlation_id);
 		request.onsuccess = () => resolve(request.result || []);
 		request.onerror = () => reject(request.error);

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {getIndexedDBSize} from '@/lib/utils';
 import {DB_NAME} from '@/utils/logs';
 import {Trash} from 'lucide-react';
@@ -10,20 +11,23 @@ function clearIndexedDBData(dbName: string, objectStoreName: string) {
 		const request = indexedDB.open(dbName);
 
 		request.onerror = (event) => {
-			reject(event.target.error);
+			const target = event?.target as any;
+			const error = target?.error;
+			reject(error);
 		};
 
 		request.onsuccess = (event) => {
-			const db = event.target.result;
+			const target = event?.target as any;
+			const db = target?.result;
 			const transaction = db.transaction(objectStoreName, 'readwrite');
 			const objectStore = transaction.objectStore(objectStoreName);
 			const clearRequest = objectStore.clear();
 
 			clearRequest.onsuccess = () => {
-				resolve();
+				resolve(null);
 			};
 
-			clearRequest.onerror = (clearEvent) => {
+			clearRequest.onerror = (clearEvent: any) => {
 				reject(clearEvent.target.error);
 			};
 
@@ -34,7 +38,7 @@ function clearIndexedDBData(dbName: string, objectStoreName: string) {
 	});
 }
 
-const IndexedDBData = () => {
+const IndexedDBData = ({eventId, logsDeleted}: {eventId?: string; logsDeleted?: () => void}) => {
 	const [estimatedDataInMB, setEstimatedDataInMB] = useState<number | null>(null);
 
 	const setData = async () => {
@@ -47,6 +51,7 @@ const IndexedDBData = () => {
 			await clearIndexedDBData('Parlant', 'logs');
 			setData();
 			toast.success('IndexedDB data cleared successfully.');
+			logsDeleted?.();
 		} catch (e) {
 			console.log('Error clearing IndexedDB data', e);
 			toast.error('Error clearing IndexedDB data');
@@ -55,11 +60,12 @@ const IndexedDBData = () => {
 
 	useEffect(() => {
 		setData();
-	}, []);
+	}, [eventId]);
+
 	const dataInMB = estimatedDataInMB ? +estimatedDataInMB.toFixed(1) : null;
 	return (
 		<div className={twJoin('ps-[10px] text-[11px] flex items-center gap-[5px] z-[1] bg-white absolute bottom-0 w-full', !dataInMB && 'hidden')}>
-			<div>The logs use approximately {dataInMB} MB of storage (indexedDB)</div>
+			<div>The logs use approximately {dataInMB}MB of storage (indexedDB)</div>
 			<Trash role='button' onClick={handleClearDataClick} size={13} />
 		</div>
 	);
