@@ -39,7 +39,6 @@ from parlant.core.context_variables import (
 )
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.glossary import (
-    _TermDocument,
     _TermDocument_v0_1_0,
     _TermTagAssociationDocument,
     TermId,
@@ -53,7 +52,7 @@ from parlant.core.guidelines import (
     _GuidelineDocument_v0_1_0,
 )
 from parlant.core.loggers import LogLevel, StdoutLogger
-from parlant.core.nlp.embedding import EmbedderFactory, NoOpEmbedder
+from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import (
     BaseDocument,
@@ -61,10 +60,6 @@ from parlant.core.persistence.document_database import (
     identity_loader,
 )
 from parlant.core.persistence.document_database_helper import _MetadataDocument
-from parlant.core.persistence.vector_database import (
-    BaseDocument as VectorBaseDocument,
-    identity_loader as vector_identity_loader,
-)
 from parlant.core.tags import TagId, Tag
 
 DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
@@ -616,40 +611,49 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
         _association_document_loader,
     )
 
-    unembedded_collection = await db.get_or_create_collection(
-        "glossary_unembedded",
-        VectorBaseDocument,
-        NoOpEmbedder,
-        vector_identity_loader,
-    )
+    chroma_unembedded_collection = next(
+        (
+            collection
+            for collection in db.chroma_client.list_collections()
+            if collection.name == "glossary_unembedded"
+        ),
+        None,
+    ) or db.chroma_client.create_collection(name="glossary_unembedded")
 
-    for term in await unembedded_collection.find(filters={}):
-        term = cast(_TermDocument_v0_1_0, term)
-        new_term: _TermDocument = {
-            "id": term["id"],
-            "version": Version.String("0.2.0"),
-            "checksum": md5_checksum(term["content"] + datetime.now(timezone.utc).isoformat()),
-            "content": term["content"],
-            "creation_utc": term["creation_utc"],
-            "name": term["name"],
-            "description": term["description"],
-            "synonyms": term["synonyms"],
-        }
-
-        await unembedded_collection.delete_one(filters={"id": {"$eq": ObjectId(term["id"])}})
-        await unembedded_collection.insert_one(new_term)
-
-        await glossary_tags_collection.insert_one(
-            {
-                "id": ObjectId(generate_id()),
+    if metadatas := chroma_unembedded_collection.get()["metadatas"]:
+        for doc in metadatas:
+            new_doc = {
+                "id": doc["id"],
                 "version": Version.String("0.2.0"),
-                "creation_utc": datetime.now(timezone.utc).isoformat(),
-                "term_id": TermId(term["id"]),
-                "tag_id": TagId(
-                    f"agent_id:{cast(_ContextVariableDocument_v0_1_0, term)['variable_set']}"
+                "checksum": md5_checksum(
+                    cast(str, doc["content"]) + datetime.now(timezone.utc).isoformat()
                 ),
+                "content": doc["content"],
+                "creation_utc": doc["creation_utc"],
+                "name": doc["name"],
+                "description": doc["description"],
+                "synonyms": doc["synonyms"],
             }
-        )
+
+            chroma_unembedded_collection.delete(
+                where=cast(chromadb.Where, {"id": {"$eq": cast(str, doc["id"])}})
+            )
+            chroma_unembedded_collection.add(
+                ids=[cast(str, doc["id"])],
+                documents=[cast(str, doc["content"])],
+                metadatas=[cast(chromadb.Metadata, new_doc)],
+                embeddings=[0],
+            )
+
+            await glossary_tags_collection.insert_one(
+                {
+                    "id": ObjectId(generate_id()),
+                    "version": Version.String("0.2.0"),
+                    "creation_utc": datetime.now(timezone.utc).isoformat(),
+                    "term_id": TermId(cast(str, doc["id"])),
+                    "tag_id": TagId(f"agent_id:{cast(_TermDocument_v0_1_0, doc)['term_set']}"),
+                }
+            )
 
     await db.upsert_metadata("version", Version.String("0.2.0"))
 
