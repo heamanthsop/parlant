@@ -109,9 +109,9 @@ def register_migration(
     return decorator
 
 
-async def get_component_versions() -> dict[str, str]:
+async def get_component_versions() -> list[tuple[str, str]]:
     """Get current versions of all components"""
-    versions = {}
+    versions = []
 
     def _get_version_from_json_file(
         file_path: Path,
@@ -135,21 +135,21 @@ async def get_component_versions() -> dict[str, str]:
         "agents",
     )
     if agents_version:
-        versions["agents"] = agents_version
+        versions.append(("agents", agents_version))
 
     guidelines_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "guidelines.json",
         "guidelines",
     )
     if guidelines_version:
-        versions["guidelines"] = guidelines_version
+        versions.append(("guidelines", guidelines_version))
 
     context_vars_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "context_variables.json",
         "context_variables",
     )
     if context_vars_version:
-        versions["context_variables"] = context_vars_version
+        versions.append(("context_variables", context_vars_version))
 
     embedder_factory = EmbedderFactory(Container())
     glossary_db = await EXIT_STACK.enter_async_context(
@@ -157,9 +157,9 @@ async def get_component_versions() -> dict[str, str]:
     )
     with suppress(chromadb.errors.InvalidCollectionException):
         if glossary_db.chroma_client.get_collection("glossary_unembedded"):
-            versions["glossary"] = cast(dict[str, Any], await glossary_db.read_metadata())[
-                "version"
-            ]
+            versions.append(
+                ("glossary", cast(dict[str, Any], await glossary_db.read_metadata())["version"])
+            )
 
     return versions
 
@@ -593,6 +593,8 @@ async def migrate_agents_0_2_0_to_0_3_0() -> None:
 
 @register_migration("glossary", "0.1.0", "0.2.0")
 async def migrate_glossary_0_1_0_to_0_2_0() -> None:
+    rich.print("[green]Starting migration for glossary 0.1.0 -> 0.2.0")
+
     async def _association_document_loader(
         doc: BaseDocument,
     ) -> Optional[_TermTagAssociationDocument]:
@@ -656,11 +658,10 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
 async def detect_required_migrations() -> list[tuple[str, str, str]]:
     component_versions = await get_component_versions()
+    rich.print(f"[green]Component versions: {component_versions}")
     required_migrations = []
 
-    for component in component_versions:
-        current_version = component_versions[component]
-
+    for component, current_version in component_versions:
         applicable_migrations = []
         for key in migration_registry:
             migration_component, from_version, to_version = key

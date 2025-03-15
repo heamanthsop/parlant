@@ -1175,14 +1175,14 @@ class Interface:
         for i, iteration in enumerate(inspection.trace.preparation_iterations):
             rich.print(Text(f"Iteration #{i}:", style="bold yellow"))
 
-            rich.print(Text(f"{INDENT}Guideline Propositions:", style="bold"))
+            rich.print(Text(f"{INDENT}Guideline Match Items:", style="bold"))
 
-            if iteration.guideline_propositions:
-                for proposition in iteration.guideline_propositions:
-                    rich.print(f"{INDENT*2}Condition: {proposition.condition}")
-                    rich.print(f"{INDENT*2}Action: {proposition.action}")
-                    rich.print(f"{INDENT*2}Relevance Score: {proposition.score}/10")
-                    rich.print(f"{INDENT*2}Rationale: {proposition.rationale}\n")
+            if iteration.guideline_match_items:
+                for item in iteration.guideline_match_items:
+                    rich.print(f"{INDENT*2}Condition: {item.condition}")
+                    rich.print(f"{INDENT*2}Action: {item.action}")
+                    rich.print(f"{INDENT*2}Relevance Score: {item.score}/10")
+                    rich.print(f"{INDENT*2}Rationale: {item.rationale}\n")
             else:
                 rich.print(f"{INDENT*2}(none)\n")
 
@@ -3273,7 +3273,7 @@ async def async_main() -> None:
         help="Stream server logs",
     )
     @click.option(
-        "--guideline-proposer", "-g", is_flag=True, help="Filter logs by [GuidelineProposer]"
+        "--guideline-matcher", "-g", is_flag=True, help="Filter logs by [GuidelineMatcher]"
     )
     @click.option("--tool-caller", "-t", is_flag=True, help="Filter logs by [ToolCaller]")
     @click.option(
@@ -3303,7 +3303,7 @@ async def async_main() -> None:
     @click.pass_context
     def log_view(
         ctx: click.Context,
-        guideline_proposer: bool,
+        guideline_matcher: bool,
         tool_caller: bool,
         message_event_composer: bool,
         intersection_patterns: tuple[str],
@@ -3311,8 +3311,8 @@ async def async_main() -> None:
     ) -> None:
         union_pattern_list = list(union_patterns)
 
-        if guideline_proposer:
-            union_pattern_list.append("[GuidelineProposer]")
+        if guideline_matcher:
+            union_pattern_list.append("[GuidelineMatcher]")
         if tool_caller:
             union_pattern_list.append("[ToolCaller]")
         if message_event_composer:

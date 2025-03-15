@@ -166,6 +166,7 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
                         output_tokens=response.usage_metadata.candidates_token_count,
                         extra={
                             "cached_input_tokens": response.usage_metadata.cached_content_token_count
+                            or 0
                         },
                     ),
                 ),

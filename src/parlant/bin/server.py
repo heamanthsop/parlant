@@ -33,7 +33,7 @@ import uvicorn
 from parlant.bin.prepare_migration import detect_required_migrations
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.vector_db.chroma import ChromaDatabase
-from parlant.core.engines.alpha import guideline_proposer
+from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import fluid_message_generator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
@@ -87,10 +87,10 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
 )
 from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCallerInferenceShot
-from parlant.core.engines.alpha.guideline_proposer import (
-    GuidelineProposer,
-    GuidelinePropositionShot,
-    GuidelinePropositionsSchema,
+from parlant.core.engines.alpha.guideline_matcher import (
+    GuidelineMatcher,
+    GuidelineMatchItemShot,
+    GuidelineMatchItemsSchema,
 )
 from parlant.core.engines.alpha.fluid_message_generator import (
     FluidMessageGenerator,
@@ -269,14 +269,14 @@ async def setup_container() -> AsyncIterator[Container]:
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
-    c[ShotCollection[GuidelinePropositionShot]] = guideline_proposer.shot_collection
+    c[ShotCollection[GuidelineMatchItemShot]] = guideline_matcher.shot_collection
     c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
     c[ShotCollection[FluidMessageGeneratorShot]] = fluid_message_generator.shot_collection
 
     c[LifecycleHooks] = LifecycleHooks()
     c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
-    c[GuidelineProposer] = Singleton(GuidelineProposer)
+    c[GuidelineMatcher] = Singleton(GuidelineMatcher)
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[FluidMessageGenerator] = Singleton(FluidMessageGenerator)
 
@@ -421,8 +421,8 @@ async def initialize_container(
         die("Please re-run with `--migrate` to migrate your data to the new version.")
         sys.exit(1)
 
-    c[SchematicGenerator[GuidelinePropositionsSchema]] = await nlp_service.get_schematic_generator(
-        GuidelinePropositionsSchema
+    c[SchematicGenerator[GuidelineMatchItemsSchema]] = await nlp_service.get_schematic_generator(
+        GuidelineMatchItemsSchema
     )
     c[SchematicGenerator[FluidMessageSchema]] = await nlp_service.get_schematic_generator(
         FluidMessageSchema

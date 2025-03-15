@@ -25,7 +25,7 @@ from parlant.core.agents import Agent
 from parlant.core.common import JSONSerializable, generate_id, DefaultBaseModel
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_proposition import GuidelineProposition
+from parlant.core.engines.alpha.guideline_match_item import GuidelineMatchItem
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.loggers import Logger
@@ -146,8 +146,8 @@ class ToolCaller:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        ordinary_guideline_propositions: Sequence[GuidelineProposition],
-        tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
+        ordinary_guideline_match_items: Sequence[GuidelineMatchItem],
+        tool_enabled_guideline_match_items: Mapping[GuidelineMatchItem, Sequence[ToolId]],
         staged_events: Sequence[EmittedEvent],
     ) -> InferenceToolCallsResult:
         with self._logger.scope("ToolCaller"):
@@ -156,8 +156,8 @@ class ToolCaller:
                 context_variables,
                 interaction_history,
                 terms,
-                ordinary_guideline_propositions,
-                tool_enabled_guideline_propositions,
+                ordinary_guideline_match_items,
+                tool_enabled_guideline_match_items,
                 staged_events,
             )
 
@@ -167,11 +167,11 @@ class ToolCaller:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        ordinary_guideline_propositions: Sequence[GuidelineProposition],
-        tool_enabled_guideline_propositions: Mapping[GuidelineProposition, Sequence[ToolId]],
+        ordinary_guideline_match_items: Sequence[GuidelineMatchItem],
+        tool_enabled_guideline_match_items: Mapping[GuidelineMatchItem, Sequence[ToolId]],
         staged_events: Sequence[EmittedEvent],
     ) -> InferenceToolCallsResult:
-        if not tool_enabled_guideline_propositions:
+        if not tool_enabled_guideline_match_items:
             return InferenceToolCallsResult(
                 total_duration=0.0,
                 batch_count=0,
@@ -180,10 +180,10 @@ class ToolCaller:
                 insights=ToolInsights(),
             )
 
-        batches: dict[tuple[ToolId, Tool], list[GuidelineProposition]] = defaultdict(list)
+        batches: dict[tuple[ToolId, Tool], list[GuidelineMatchItem]] = defaultdict(list)
         services: dict[str, ToolService] = {}
 
-        for guideline_proposition, tool_ids in tool_enabled_guideline_propositions.items():
+        for guideline_match_item, tool_ids in tool_enabled_guideline_match_items.items():
             for tool_id in tool_ids:
                 if tool_id.service_name not in services:
                     services[tool_id.service_name] = await self._service_registry.read_tool_service(
@@ -192,7 +192,7 @@ class ToolCaller:
 
                 tool = await services[tool_id.service_name].read_tool(tool_id.tool_name)
 
-                batches[(tool_id, tool)].append(guideline_proposition)
+                batches[(tool_id, tool)].append(guideline_match_item)
 
         t_start = time.time()
 
@@ -203,7 +203,7 @@ class ToolCaller:
                     context_variables=context_variables,
                     interaction_history=interaction_history,
                     terms=terms,
-                    ordinary_guideline_propositions=ordinary_guideline_propositions,
+                    ordinary_guideline_match_items=ordinary_guideline_match_items,
                     candidate_descriptor=(tool_id, tool, props),
                     reference_tools=[
                         tool_descriptor
@@ -241,8 +241,8 @@ class ToolCaller:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        ordinary_guideline_propositions: Sequence[GuidelineProposition],
-        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineProposition]],
+        ordinary_guideline_match_items: Sequence[GuidelineMatchItem],
+        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatchItem]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
     ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
@@ -251,7 +251,7 @@ class ToolCaller:
             context_variables,
             interaction_history,
             terms,
-            ordinary_guideline_propositions,
+            ordinary_guideline_match_items,
             candidate_descriptor,
             reference_tools,
             staged_events,
@@ -393,8 +393,8 @@ Example #{i}: ###
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_event_list: Sequence[Event],
         terms: Sequence[Term],
-        ordinary_guideline_propositions: Sequence[GuidelineProposition],
-        batch: tuple[ToolId, Tool, list[GuidelineProposition]],
+        ordinary_guideline_match_items: Sequence[GuidelineMatchItem],
+        batch: tuple[ToolId, Tool, list[GuidelineMatchItem]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
         shots: Sequence[ToolCallerInferenceShot],
@@ -501,12 +501,12 @@ EXAMPLES
 
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
-            template=self._add_guideline_propositions_section(
-                ordinary_guideline_propositions,
+            template=self._add_guideline_match_items_section(
+                ordinary_guideline_match_items,
                 (batch[0], batch[2]),
             ),
             props={
-                "ordinary_guideline_propositions": ordinary_guideline_propositions,
+                "ordinary_guideline_match_items": ordinary_guideline_match_items,
                 "tool_id_propositions": (batch[0], batch[2]),
             },
         )
@@ -701,17 +701,17 @@ Candidate tool: ###
                 },
             )
 
-    def _add_guideline_propositions_section(
+    def _add_guideline_match_items_section(
         self,
-        ordinary_guideline_propositions: Sequence[GuidelineProposition],
-        tool_id_propositions: tuple[ToolId, list[GuidelineProposition]],
+        ordinary_guideline_match_items: Sequence[GuidelineMatchItem],
+        tool_id_propositions: tuple[ToolId, list[GuidelineMatchItem]],
     ) -> str:
-        all_propositions = list(chain(ordinary_guideline_propositions, tool_id_propositions[1]))
+        all_match_items = list(chain(ordinary_guideline_match_items, tool_id_propositions[1]))
 
-        if all_propositions:
+        if all_match_items:
             guidelines = []
 
-            for i, p in enumerate(all_propositions, start=1):
+            for i, p in enumerate(all_match_items, start=1):
                 guideline = (
                     f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
                 )

@@ -67,7 +67,7 @@ pymongo = "^4.11.1"
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.26.0"
 mypy = "^1.11.1"
-parlant-client = {git = "https://github.com/emcie-co/parlant-client-python.git", branch = "develop"}
+parlant-client = {git = "https://github.com/emcie-co/parlant-client-python.git", branch = "rename_guideline_proposer_to_guideline_matcher"}
 pep8-naming = "^0.13.3"
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.5"
