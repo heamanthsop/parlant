@@ -494,13 +494,13 @@ class AlphaEngine(Engine):
         return PreparationIteration(
             guideline_matches=[
                 StoredGuidelineMatch(
-                    guideline_id=item.guideline.id,
-                    condition=item.guideline.content.condition,
-                    action=item.guideline.content.action,
-                    score=item.score,
-                    rationale=item.rationale,
+                    guideline_id=match.guideline.id,
+                    condition=match.guideline.content.condition,
+                    action=match.guideline.content.action,
+                    score=match.score,
+                    rationale=match.rationale,
                 )
-                for item in chain(
+                for match in chain(
                     state.ordinary_guideline_matches,
                     state.tool_enabled_guideline_matches.keys(),
                 )

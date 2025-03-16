@@ -1178,11 +1178,11 @@ class Interface:
             rich.print(Text(f"{INDENT}Guideline Matches:", style="bold"))
 
             if iteration.guideline_matches:
-                for item in iteration.guideline_matches:
-                    rich.print(f"{INDENT*2}Condition: {item.condition}")
-                    rich.print(f"{INDENT*2}Action: {item.action}")
-                    rich.print(f"{INDENT*2}Relevance Score: {item.score}/10")
-                    rich.print(f"{INDENT*2}Rationale: {item.rationale}\n")
+                for match in iteration.guideline_matches:
+                    rich.print(f"{INDENT*2}Condition: {match.condition}")
+                    rich.print(f"{INDENT*2}Action: {match.action}")
+                    rich.print(f"{INDENT*2}Relevance Score: {match.score}/10")
+                    rich.print(f"{INDENT*2}Rationale: {match.rationale}\n")
             else:
                 rich.print(f"{INDENT*2}(none)\n")
 
