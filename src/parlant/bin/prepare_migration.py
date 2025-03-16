@@ -662,7 +662,6 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
 async def detect_required_migrations() -> list[tuple[str, str, str]]:
     component_versions = await get_component_versions()
-    rich.print(f"[green]Component versions: {component_versions}")
     required_migrations = []
 
     for component, current_version in component_versions:
@@ -693,14 +692,29 @@ async def migrate() -> None:
 
     backup_data()
 
-    for migration_key in required_migrations:
-        component, from_version, to_version = migration_key
-        migration_func = migration_registry[migration_key]
+    applied_migrations = set()
 
-        rich.print(f"[green]Running migration: {component} {from_version} -> {to_version}")
-        await migration_func()
+    while required_migrations:
+        for migration_key in required_migrations:
+            if migration_key in applied_migrations:
+                continue
 
-    rich.print("[green]All migrations completed successfully")
+            component, from_version, to_version = migration_key
+            migration_func = migration_registry[migration_key]
+
+            rich.print(f"[green]Running migration: {component} {from_version} -> {to_version}")
+            await migration_func()
+            applied_migrations.add(migration_key)
+
+        new_required_migrations = await detect_required_migrations()
+        required_migrations = [m for m in new_required_migrations if m not in applied_migrations]
+
+        if not required_migrations:
+            rich.print("[green]No more migrations required.")
+
+    rich.print(
+        f"[green]All migrations completed successfully. Applied {len(applied_migrations)} migrations in total."
+    )
 
 
 def die(message: str) -> NoReturn:
