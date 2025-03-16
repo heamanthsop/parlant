@@ -29,10 +29,10 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchItemsSchema,
+    GuidelineMatchesSchema,
 )
-from parlant.core.engines.alpha.guideline_match_item import (
-    GuidelineMatchItem,
+from parlant.core.engines.alpha.guideline_match import (
+    GuidelineMatch,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -202,10 +202,10 @@ def match_guidelines(
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
-) -> Sequence[GuidelineMatchItem]:
+) -> Sequence[GuidelineMatch]:
     guideline_matcher = GuidelineMatcher(
         context.container[Logger],
-        context.container[SchematicGenerator[GuidelineMatchItemsSchema]],
+        context.container[SchematicGenerator[GuidelineMatchesSchema]],
     )
 
     interaction_history = [
@@ -217,7 +217,7 @@ def match_guidelines(
         for i, (source, message) in enumerate(conversation_context)
     ]
 
-    guideline_match_item_result = context.sync_await(
+    guideline_matching_result = context.sync_await(
         guideline_matcher.match_guidelines(
             agent=agent,
             customer=customer,
@@ -229,7 +229,7 @@ def match_guidelines(
         )
     )
 
-    return list(chain.from_iterable(guideline_match_item_result.batches))
+    return list(chain.from_iterable(guideline_matching_result.batches))
 
 
 def create_guideline(
@@ -324,7 +324,7 @@ def base_test_that_correct_guidelines_are_matched(
         if name in relevant_guideline_names
     ]
 
-    guideline_match_items = match_guidelines(
+    guideline_matches = match_guidelines(
         context,
         agent,
         customer,
@@ -333,7 +333,7 @@ def base_test_that_correct_guidelines_are_matched(
         terms=terms,
         staged_events=staged_events,
     )
-    matched_item_guidelines = [p.guideline for p in guideline_match_items]
+    matched_item_guidelines = [p.guideline for p in guideline_matches]
 
     assert set(matched_item_guidelines) == set(relevant_guidelines)
 

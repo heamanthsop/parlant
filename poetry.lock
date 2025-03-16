@@ -3514,7 +3514,7 @@ pydantic = "^2.9.2"
 type = "git"
 url = "https://github.com/emcie-co/parlant-client-python.git"
 reference = "rename_guideline_proposer_to_guideline_matcher"
-resolved_reference = "c5620debd19fe66705317ed9302004f4e3e9b384"
+resolved_reference = "65dd06578260d18e200b6ba91ef414f76a27ba1d"
 
 [[package]]
 name = "parse"

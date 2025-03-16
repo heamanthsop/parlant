@@ -68,8 +68,8 @@ from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchItemShot,
-    GuidelineMatchItemsSchema,
+    GuidelineMatchShot,
+    GuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.fluid_message_generator import (
     FluidMessageGenerator,
@@ -265,7 +265,7 @@ async def container(
         container[EntityQueries] = Singleton(EntityQueries)
         container[EntityCommands] = Singleton(EntityCommands)
         for generation_schema in (
-            GuidelineMatchItemsSchema,
+            GuidelineMatchesSchema,
             FluidMessageSchema,
             AssembledMessageSchema,
             ToolCallInferenceSchema,
@@ -279,7 +279,7 @@ async def container(
                 generation_schema,
             )
 
-        container[ShotCollection[GuidelineMatchItemShot]] = guideline_matcher.shot_collection
+        container[ShotCollection[GuidelineMatchShot]] = guideline_matcher.shot_collection
         container[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
         container[ShotCollection[FluidMessageGeneratorShot]] = (
             fluid_message_generator.shot_collection
@@ -332,12 +332,12 @@ class NoCachedGenerations:
 @fixture
 def no_cache(container: Container) -> None:
     if isinstance(
-        container[SchematicGenerator[GuidelineMatchItemsSchema]],
+        container[SchematicGenerator[GuidelineMatchesSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[GuidelineMatchItemsSchema],
-            container[SchematicGenerator[GuidelineMatchItemsSchema]],
+            CachedSchematicGenerator[GuidelineMatchesSchema],
+            container[SchematicGenerator[GuidelineMatchesSchema]],
         ).use_cache = False
 
     if isinstance(

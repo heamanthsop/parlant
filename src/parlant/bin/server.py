@@ -89,8 +89,8 @@ from parlant.core.guideline_tool_associations import (
 from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCallerInferenceShot
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchItemShot,
-    GuidelineMatchItemsSchema,
+    GuidelineMatchShot,
+    GuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.fluid_message_generator import (
     FluidMessageGenerator,
@@ -269,7 +269,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
-    c[ShotCollection[GuidelineMatchItemShot]] = guideline_matcher.shot_collection
+    c[ShotCollection[GuidelineMatchShot]] = guideline_matcher.shot_collection
     c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
     c[ShotCollection[FluidMessageGeneratorShot]] = fluid_message_generator.shot_collection
 
@@ -421,8 +421,8 @@ async def initialize_container(
         die("Please re-run with `--migrate` to migrate your data to the new version.")
         sys.exit(1)
 
-    c[SchematicGenerator[GuidelineMatchItemsSchema]] = await nlp_service.get_schematic_generator(
-        GuidelineMatchItemsSchema
+    c[SchematicGenerator[GuidelineMatchesSchema]] = await nlp_service.get_schematic_generator(
+        GuidelineMatchesSchema
     )
     c[SchematicGenerator[FluidMessageSchema]] = await nlp_service.get_schematic_generator(
         FluidMessageSchema

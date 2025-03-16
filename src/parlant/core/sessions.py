@@ -151,7 +151,7 @@ class StatusEventData(TypedDict):
     data: JSONSerializable
 
 
-class GuidelineMatchItem(TypedDict):
+class GuidelineMatch(TypedDict):
     guideline_id: GuidelineId
     condition: str
     action: str
@@ -181,20 +181,20 @@ class MessageGenerationInspection:
 
 
 @dataclass(frozen=True)
-class GuidelineMatchItemInspection:
+class GuidelineMatchingInspection:
     total_duration: float
     batches: Sequence[GenerationInfo]
 
 
 @dataclass(frozen=True)
 class PreparationIterationGenerations:
-    guideline_match_item: GuidelineMatchItemInspection
+    guideline_matching: GuidelineMatchingInspection
     tool_calls: Sequence[GenerationInfo]
 
 
 @dataclass(frozen=True)
 class PreparationIteration:
-    guideline_match_items: Sequence[GuidelineMatchItem]
+    guideline_matches: Sequence[GuidelineMatch]
     tool_calls: Sequence[ToolCall]
     terms: Sequence[Term]
     context_variables: Sequence[ContextVariable]
@@ -357,18 +357,18 @@ class _GenerationInfoDocument(TypedDict):
     usage: _UsageInfoDocument
 
 
-class _GuidelineMatchItemInspectionDocument(TypedDict):
+class _GuidelineMatchInspectionDocument(TypedDict):
     total_duration: float
     batches: Sequence[_GenerationInfoDocument]
 
 
 class _PreparationIterationGenerationsDocument_V_0_2_0(TypedDict):
-    guideline_proposition: _GuidelineMatchItemInspectionDocument
+    guideline_proposition: _GuidelineMatchInspectionDocument
     tool_calls: Sequence[_GenerationInfoDocument]
 
 
 class _PreparationIterationGenerationsDocument(TypedDict):
-    guideline_match_item: _GuidelineMatchItemInspectionDocument
+    guideline_match: _GuidelineMatchInspectionDocument
     tool_calls: Sequence[_GenerationInfoDocument]
 
 
@@ -383,7 +383,7 @@ class _MessageGenerationInspectionDocument(TypedDict):
 
 
 class _PreparationIterationDocument_V_0_2_0(TypedDict):
-    guideline_propositions: Sequence[GuidelineMatchItem]
+    guideline_propositions: Sequence[GuidelineMatch]
     tool_calls: Sequence[ToolCall]
     terms: Sequence[Term]
     context_variables: Sequence[ContextVariable]
@@ -391,7 +391,7 @@ class _PreparationIterationDocument_V_0_2_0(TypedDict):
 
 
 class _PreparationIterationDocument(TypedDict):
-    guideline_match_items: Sequence[GuidelineMatchItem]
+    guideline_matches: Sequence[GuidelineMatch]
     tool_calls: Sequence[ToolCall]
     terms: Sequence[Term]
     context_variables: Sequence[ContextVariable]
@@ -513,12 +513,12 @@ class SessionDocumentStore(SessionStore):
                 ],
                 preparation_iterations=[
                     _PreparationIterationDocument(
-                        guideline_match_items=i["guideline_propositions"],
+                        guideline_matches=i["guideline_propositions"],
                         tool_calls=i["tool_calls"],
                         terms=i["terms"],
                         context_variables=i["context_variables"],
                         generations=_PreparationIterationGenerationsDocument(
-                            guideline_match_item=_GuidelineMatchItemInspectionDocument(
+                            guideline_match=_GuidelineMatchInspectionDocument(
                                 total_duration=i["generations"]["guideline_proposition"][
                                     "total_duration"
                                 ],
@@ -680,16 +680,16 @@ class SessionDocumentStore(SessionStore):
             ],
             preparation_iterations=[
                 {
-                    "guideline_match_items": i.guideline_match_items,
+                    "guideline_matches": i.guideline_matches,
                     "tool_calls": i.tool_calls,
                     "terms": i.terms,
                     "context_variables": i.context_variables,
                     "generations": _PreparationIterationGenerationsDocument(
-                        guideline_match_item=_GuidelineMatchItemInspectionDocument(
-                            total_duration=i.generations.guideline_match_item.total_duration,
+                        guideline_match=_GuidelineMatchInspectionDocument(
+                            total_duration=i.generations.guideline_matching.total_duration,
                             batches=[
                                 serialize_generation_info(g)
-                                for g in i.generations.guideline_match_item.batches
+                                for g in i.generations.guideline_matching.batches
                             ],
                         ),
                         tool_calls=[serialize_generation_info(g) for g in i.generations.tool_calls],
@@ -727,18 +727,16 @@ class SessionDocumentStore(SessionStore):
             ],
             preparation_iterations=[
                 PreparationIteration(
-                    guideline_match_items=i["guideline_match_items"],
+                    guideline_matches=i["guideline_matches"],
                     tool_calls=i["tool_calls"],
                     terms=i["terms"],
                     context_variables=i["context_variables"],
                     generations=PreparationIterationGenerations(
-                        guideline_match_item=GuidelineMatchItemInspection(
-                            total_duration=i["generations"]["guideline_match_item"][
-                                "total_duration"
-                            ],
+                        guideline_matching=GuidelineMatchingInspection(
+                            total_duration=i["generations"]["guideline_match"]["total_duration"],
                             batches=[
                                 deserialize_generation_info(g)
-                                for g in i["generations"]["guideline_match_item"]["batches"]
+                                for g in i["generations"]["guideline_match"]["batches"]
                             ],
                         ),
                         tool_calls=[

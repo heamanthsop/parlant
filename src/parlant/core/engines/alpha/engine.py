@@ -43,8 +43,8 @@ from parlant.core.glossary import Term
 from parlant.core.sessions import (
     ContextVariable as StoredContextVariable,
     Event,
-    GuidelineMatchItem as StoredGuidelineMatchItem,
-    GuidelineMatchItemInspection,
+    GuidelineMatch as StoredGuidelineMatch,
+    GuidelineMatchingInspection,
     MessageGenerationInspection,
     PreparationIteration,
     PreparationIterationGenerations,
@@ -54,10 +54,10 @@ from parlant.core.sessions import (
 )
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchItemResult,
+    GuidelineMatchingResult,
 )
-from parlant.core.engines.alpha.guideline_match_item import (
-    GuidelineMatchItem,
+from parlant.core.engines.alpha.guideline_match import (
+    GuidelineMatch,
 )
 from parlant.core.engines.alpha.tool_event_generator import (
     ToolEventGenerationResult,
@@ -118,8 +118,8 @@ class _ResponsePreparationState:
 
     context_variables: list[tuple[ContextVariable, ContextVariableValue]]
     glossary_terms: set[Term]
-    ordinary_guideline_match_items: list[GuidelineMatchItem]
-    tool_enabled_guideline_match_items: dict[GuidelineMatchItem, list[ToolId]]
+    ordinary_guideline_matches: list[GuidelineMatch]
+    tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]]
     tool_events: list[EmittedEvent]
     tool_insights: ToolInsights
     iterations_completed: int
@@ -128,11 +128,11 @@ class _ResponsePreparationState:
 
     @property
     def ordinary_guidelines(self) -> list[Guideline]:
-        return [gp.guideline for gp in self.ordinary_guideline_match_items]
+        return [gp.guideline for gp in self.ordinary_guideline_matches]
 
     @property
     def tool_enabled_guidelines(self) -> list[Guideline]:
-        return [gp.guideline for gp in self.tool_enabled_guideline_match_items.keys()]
+        return [gp.guideline for gp in self.tool_enabled_guideline_matches.keys()]
 
     @property
     def guidelines(self) -> list[Guideline]:
@@ -360,10 +360,10 @@ class AlphaEngine(Engine):
             preparation_state = await self._initialize_preparation_state(context)
 
             # Only use the specified utterance requests as guidelines here.
-            preparation_state.ordinary_guideline_match_items.extend(
+            preparation_state.ordinary_guideline_matches.extend(
                 # Utterance requests are reduced to guidelines, to take advantage
                 # of the engine's ability to consistently adhere to guidelines.
-                await self._utterance_requests_to_guideline_match_items(requests)
+                await self._utterance_requests_to_guideline_matches(requests)
             )
 
             # Money time: communicate with the customer given the
@@ -420,8 +420,8 @@ class AlphaEngine(Engine):
         state = _ResponsePreparationState(
             context_variables=[],
             glossary_terms=set(),
-            ordinary_guideline_match_items=[],
-            tool_enabled_guideline_match_items={},
+            ordinary_guideline_matches=[],
+            tool_enabled_guideline_matches={},
             tool_events=[],
             tool_insights=ToolInsights(),
             iterations_completed=0,
@@ -447,10 +447,10 @@ class AlphaEngine(Engine):
         # structured format such that we can distinguish
         # between ordinary and tool-enabled ones.
         (
-            guideline_match_item_result,
-            state.ordinary_guideline_match_items,
-            state.tool_enabled_guideline_match_items,
-        ) = await self._load_guideline_match_items(context, state)
+            guideline_matching_result,
+            state.ordinary_guideline_matches,
+            state.tool_enabled_guideline_matches,
+        ) = await self._load_guideline_matches(context, state)
 
         # Matched guidelines may use glossasry terms, so we need to ground our
         # response by reevaluating the relevant terms given these new guidelines.
@@ -492,8 +492,8 @@ class AlphaEngine(Engine):
 
         # Return structured inspection information, useful for later troubleshooting.
         return PreparationIteration(
-            guideline_match_items=[
-                StoredGuidelineMatchItem(
+            guideline_matches=[
+                StoredGuidelineMatch(
                     guideline_id=item.guideline.id,
                     condition=item.guideline.content.condition,
                     action=item.guideline.content.action,
@@ -501,8 +501,8 @@ class AlphaEngine(Engine):
                     rationale=item.rationale,
                 )
                 for item in chain(
-                    state.ordinary_guideline_match_items,
-                    state.tool_enabled_guideline_match_items.keys(),
+                    state.ordinary_guideline_matches,
+                    state.tool_enabled_guideline_matches.keys(),
                 )
             ],
             tool_calls=[
@@ -530,9 +530,9 @@ class AlphaEngine(Engine):
                 for variable, value in state.context_variables
             ],
             generations=PreparationIterationGenerations(
-                guideline_match_item=GuidelineMatchItemInspection(
-                    total_duration=guideline_match_item_result.total_duration,
-                    batches=guideline_match_item_result.batch_generations,
+                guideline_matching=GuidelineMatchingInspection(
+                    total_duration=guideline_matching_result.total_duration,
+                    batches=guideline_matching_result.batch_generations,
                 ),
                 tool_calls=tool_event_generation_result.generations
                 if tool_event_generation_result
@@ -587,8 +587,8 @@ class AlphaEngine(Engine):
             context_variables=state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(state.glossary_terms),
-            ordinary_guideline_match_items=state.ordinary_guideline_match_items,
-            tool_enabled_guideline_match_items=state.tool_enabled_guideline_match_items,
+            ordinary_guideline_matches=state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=state.tool_enabled_guideline_matches,
             tool_insights=state.tool_insights,
             staged_events=state.tool_events,
         ):
@@ -697,14 +697,14 @@ class AlphaEngine(Engine):
 
         return result
 
-    async def _load_guideline_match_items(
+    async def _load_guideline_matches(
         self,
         context: _LoadedContext,
         state: _ResponsePreparationState,
     ) -> tuple[
-        GuidelineMatchItemResult,
-        list[GuidelineMatchItem],
-        dict[GuidelineMatchItem, list[ToolId]],
+        GuidelineMatchingResult,
+        list[GuidelineMatch],
+        dict[GuidelineMatch, list[ToolId]],
     ]:
         # Step 1: Retrieve all of the enabled guidelines for this agent.
         all_stored_guidelines = [
@@ -716,7 +716,7 @@ class AlphaEngine(Engine):
         ]
 
         # Step 2: Filter the best matches out of those.
-        match_item_result = await self._guideline_matcher.match_guidelines(
+        matching_result = await self._guideline_matcher.match_guidelines(
             agent=context.agent,
             customer=context.customer,
             guidelines=all_stored_guidelines,
@@ -728,33 +728,33 @@ class AlphaEngine(Engine):
 
         # Step 3: Load connected guidelines that may not have
         # been inferrable just by looking at the interaction.
-        inferred_match_items = await self._match_connected_guidelines(
+        inferred_matches = await self._match_connected_guidelines(
             all_stored_guidelines=all_stored_guidelines,
-            match_items=match_item_result.match_items,
+            matches=matching_result.matches,
         )
 
-        # Step 4: Put all match items in one basket, looking at them as a whole.
+        # Step 4: Put all matches in one basket, looking at them as a whole.
         all_relevant_guidelines = [
-            *match_item_result.match_items,
-            *inferred_match_items,
+            *matching_result.matches,
+            *inferred_matches,
         ]
 
         # Step 5: Distinguish between ordinary and tool-enabled guidelines.
         # We do this here as it creates a better subsequent control flow in the engine.
-        tool_enabled_guidelines = await self._find_tool_enabled_guideline_match_items(
-            guideline_match_items=all_relevant_guidelines,
+        tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
+            guideline_matches=all_relevant_guidelines,
         )
         ordinary_guidelines = list(
             set(all_relevant_guidelines).difference(tool_enabled_guidelines),
         )
 
-        return match_item_result, ordinary_guidelines, tool_enabled_guidelines
+        return matching_result, ordinary_guidelines, tool_enabled_guidelines
 
     async def _match_connected_guidelines(
         self,
         all_stored_guidelines: Sequence[Guideline],
-        match_items: Sequence[GuidelineMatchItem],
-    ) -> Sequence[GuidelineMatchItem]:
+        matches: Sequence[GuidelineMatch],
+    ) -> Sequence[GuidelineMatch]:
         # Some guidelines cannot be inferred simply by evaluating an interaction.
         #
         # For example, if we matched a guideline, "When X, Then Y",
@@ -762,19 +762,19 @@ class AlphaEngine(Engine):
         # Such connections are pre-indexed in a graph behind the scenes,
         # and those are the ones we are loading here.
 
-        connected_guidelines_by_match_item = defaultdict[GuidelineMatchItem, list[Guideline]](list)
+        connected_guidelines_by_match = defaultdict[GuidelineMatch, list[Guideline]](list)
 
-        for item in match_items:
+        for match in matches:
             connected_guideline_ids = {
                 c.target
                 for c in await self._entity_queries.find_guideline_connections(
                     indirect=True,
-                    source=item.guideline.id,
+                    source=match.guideline.id,
                 )
             }
 
             for connected_guideline_id in connected_guideline_ids:
-                if any(connected_guideline_id == p.guideline.id for p in match_items):
+                if any(connected_guideline_id == p.guideline.id for p in matches):
                     # no need to add this connected one as it's already an assumed match item
                     continue
 
@@ -782,19 +782,17 @@ class AlphaEngine(Engine):
                     g for g in all_stored_guidelines if g.id == connected_guideline_id
                 )
 
-                connected_guidelines_by_match_item[item].append(
+                connected_guidelines_by_match[match].append(
                     connected_guideline,
                 )
 
-        match_item_and_inferred_guideline_guideline_pairs: list[
-            tuple[GuidelineMatchItem, Guideline]
-        ] = []
+        match_and_inferred_guideline_pairs: list[tuple[GuidelineMatch, Guideline]] = []
 
-        for item, connected_guidelines in connected_guidelines_by_match_item.items():
+        for match, connected_guidelines in connected_guidelines_by_match.items():
             for connected_guideline in connected_guidelines:
                 if existing_connections := [
                     connection
-                    for connection in match_item_and_inferred_guideline_guideline_pairs
+                    for connection in match_and_inferred_guideline_pairs
                     if connection[1] == connected_guideline
                 ]:
                     assert len(existing_connections) == 1
@@ -807,49 +805,49 @@ class AlphaEngine(Engine):
                     # priority of our connected guideline's match item...
                     #
                     # Now try to read that out loud in one go :)
-                    if existing_connection[0].score >= item.score:
+                    if existing_connection[0].score >= match.score:
                         continue  # Stay with existing one
                     else:
                         # This match item's score is higher, so it's better that
                         # we associate the connected guideline with this one.
                         # we'll add it soon, but meanwhile let's remove the old one.
-                        match_item_and_inferred_guideline_guideline_pairs.remove(
+                        match_and_inferred_guideline_pairs.remove(
                             existing_connection,
                         )
 
-                match_item_and_inferred_guideline_guideline_pairs.append(
-                    (item, connected_guideline),
+                match_and_inferred_guideline_pairs.append(
+                    (match, connected_guideline),
                 )
 
         return [
-            GuidelineMatchItem(
+            GuidelineMatch(
                 guideline=connection[1],
                 score=connection[0].score,
                 rationale="Automatically inferred from context",
             )
-            for connection in match_item_and_inferred_guideline_guideline_pairs
+            for connection in match_and_inferred_guideline_pairs
         ]
 
-    async def _find_tool_enabled_guideline_match_items(
+    async def _find_tool_enabled_guideline_matches(
         self,
-        guideline_match_items: Sequence[GuidelineMatchItem],
-    ) -> dict[GuidelineMatchItem, list[ToolId]]:
+        guideline_matches: Sequence[GuidelineMatch],
+    ) -> dict[GuidelineMatch, list[ToolId]]:
         # Create a convenient accessor dict for tool-enabled guidelines (and their tools).
         # This allows for optimized control and data flow in the engine.
 
         guideline_tool_associations = list(
             await self._entity_queries.find_guideline_tool_associations()
         )
-        guideline_match_items_by_id = {p.guideline.id: p for p in guideline_match_items}
+        guideline_matches_by_id = {p.guideline.id: p for p in guideline_matches}
 
         relevant_associations = [
-            a for a in guideline_tool_associations if a.guideline_id in guideline_match_items_by_id
+            a for a in guideline_tool_associations if a.guideline_id in guideline_matches_by_id
         ]
 
-        tools_for_guidelines: dict[GuidelineMatchItem, list[ToolId]] = defaultdict(list)
+        tools_for_guidelines: dict[GuidelineMatch, list[ToolId]] = defaultdict(list)
 
         for association in relevant_associations:
-            tools_for_guidelines[guideline_match_items_by_id[association.guideline_id]].append(
+            tools_for_guidelines[guideline_matches_by_id[association.guideline_id]].append(
                 association.tool_id
             )
 
@@ -900,8 +898,8 @@ class AlphaEngine(Engine):
             context_variables=state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(state.glossary_terms),
-            ordinary_guideline_match_items=state.ordinary_guideline_match_items,
-            tool_enabled_guideline_match_items=state.tool_enabled_guideline_match_items,
+            ordinary_guideline_matches=state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=state.tool_enabled_guideline_matches,
             staged_events=state.tool_events,
         )
 
@@ -909,14 +907,14 @@ class AlphaEngine(Engine):
 
         return result, tool_events, result.insights
 
-    async def _utterance_requests_to_guideline_match_items(
+    async def _utterance_requests_to_guideline_matches(
         self,
         requests: Sequence[UtteranceRequest],
-    ) -> Sequence[GuidelineMatchItem]:
+    ) -> Sequence[GuidelineMatch]:
         # Utterance requests are reduced to guidelines, to take advantage
         # of the engine's ability to consistently adhere to guidelines.
 
-        def utterance_to_match_item(i: int, utterance: UtteranceRequest) -> GuidelineMatchItem:
+        def utterance_to_match(i: int, utterance: UtteranceRequest) -> GuidelineMatch:
             rationales = {
                 UtteranceReason.BUY_TIME: "An external module has determined that this response is necessary, and you must adhere to it.",
                 UtteranceReason.FOLLOW_UP: "An external module has determined that this response is necessary, and you must adhere to it.",
@@ -927,7 +925,7 @@ class AlphaEngine(Engine):
                 UtteranceReason.FOLLOW_UP: "-- RIGHT NOW!",
             }
 
-            return GuidelineMatchItem(
+            return GuidelineMatch(
                 guideline=Guideline(
                     id=GuidelineId(f"<utterance-request-{i}>"),
                     creation_utc=datetime.now(timezone.utc),
@@ -942,7 +940,7 @@ class AlphaEngine(Engine):
                 score=10,
             )
 
-        return [utterance_to_match_item(i, request) for i, request in enumerate(requests, start=1)]
+        return [utterance_to_match(i, request) for i, request in enumerate(requests, start=1)]
 
     async def _load_context_variable_value(
         self,

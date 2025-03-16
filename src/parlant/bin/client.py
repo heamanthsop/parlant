@@ -1175,10 +1175,10 @@ class Interface:
         for i, iteration in enumerate(inspection.trace.preparation_iterations):
             rich.print(Text(f"Iteration #{i}:", style="bold yellow"))
 
-            rich.print(Text(f"{INDENT}Guideline Match Items:", style="bold"))
+            rich.print(Text(f"{INDENT}Guideline Matches:", style="bold"))
 
-            if iteration.guideline_match_items:
-                for item in iteration.guideline_match_items:
+            if iteration.guideline_matches:
+                for item in iteration.guideline_matches:
                     rich.print(f"{INDENT*2}Condition: {item.condition}")
                     rich.print(f"{INDENT*2}Action: {item.action}")
                     rich.print(f"{INDENT*2}Relevance Score: {item.score}/10")

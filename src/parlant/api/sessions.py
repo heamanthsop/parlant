@@ -427,7 +427,7 @@ class ToolCallDTO(
     result: ToolResultDTO
 
 
-GuidelineMatchItemConditionField: TypeAlias = Annotated[
+GuidelineMatchConditionField: TypeAlias = Annotated[
     str,
     Field(
         description="The condition for the guideline",
@@ -435,7 +435,7 @@ GuidelineMatchItemConditionField: TypeAlias = Annotated[
     ),
 ]
 
-GuidelineMatchItemActionField: TypeAlias = Annotated[
+GuidelineMatchActionField: TypeAlias = Annotated[
     str,
     Field(
         description="The action for the guideline",
@@ -443,7 +443,7 @@ GuidelineMatchItemActionField: TypeAlias = Annotated[
     ),
 ]
 
-GuidelineMatchItemScoreField: TypeAlias = Annotated[
+GuidelineMatchScoreField: TypeAlias = Annotated[
     int,
     Field(
         description="The score for the guideline",
@@ -451,7 +451,7 @@ GuidelineMatchItemScoreField: TypeAlias = Annotated[
     ),
 ]
 
-GuidelineMatchItemRationaleField: TypeAlias = Annotated[
+GuidelineMatchRationaleField: TypeAlias = Annotated[
     str,
     Field(
         description="The rationale for the guideline",
@@ -459,7 +459,7 @@ GuidelineMatchItemRationaleField: TypeAlias = Annotated[
     ),
 ]
 
-guideline_match_item_example = {
+guideline_match_example = {
     "guideline_id": "guide_123x",
     "condition": "when customer asks about their balance",
     "action": "check their current balance and provide the amount with currency",
@@ -468,17 +468,17 @@ guideline_match_item_example = {
 }
 
 
-class GuidelineMatchItemDTO(
+class GuidelineMatchDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_match_item_example},
+    json_schema_extra={"example": guideline_match_example},
 ):
-    """A matched guideline action."""
+    """A matched guideline."""
 
     guideline_id: GuidelineIdField
-    condition: GuidelineMatchItemConditionField
-    action: GuidelineMatchItemActionField
-    score: GuidelineMatchItemScoreField
-    rationale: GuidelineMatchItemRationaleField
+    condition: GuidelineMatchConditionField
+    action: GuidelineMatchActionField
+    score: GuidelineMatchScoreField
+    rationale: GuidelineMatchRationaleField
 
 
 ContextVariableIdPath: TypeAlias = Annotated[
@@ -756,7 +756,7 @@ class MessageGenerationInspectionDTO(
     messages: Sequence[Optional[str]]
 
 
-GuidelineMatchItemInspectionTotalDurationField: TypeAlias = Annotated[
+GuidelineMatchingInspectionTotalDurationField: TypeAlias = Annotated[
     float,
     Field(
         description="Amount of time spent matching guidelines",
@@ -765,7 +765,7 @@ GuidelineMatchItemInspectionTotalDurationField: TypeAlias = Annotated[
 ]
 
 
-GuidelineMatchItemInspectionBatchesField: TypeAlias = Annotated[
+GuidelineMatchingInspectionBatchesField: TypeAlias = Annotated[
     Sequence[GenerationInfoDTO],
     Field(
         description="A list of `GenerationInfoDTO` describing the batches of generation executed",
@@ -773,20 +773,20 @@ GuidelineMatchItemInspectionBatchesField: TypeAlias = Annotated[
 ]
 
 
-guideline_match_item_inspection_example = {
+guideline_matching_inspection_example = {
     "total_duration": 3.5,
     "batches": [generation_info_example],
 }
 
 
-class GuidelineMatchItemInspectionDTO(
+class GuidelineMatchingInspectionDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_match_item_inspection_example},
+    json_schema_extra={"example": guideline_matching_inspection_example},
 ):
-    """Inspection data for guideline match item."""
+    """Inspection data for guideline matching."""
 
-    total_duration: GuidelineMatchItemInspectionTotalDurationField
-    batches: GuidelineMatchItemInspectionBatchesField
+    total_duration: GuidelineMatchingInspectionTotalDurationField
+    batches: GuidelineMatchingInspectionBatchesField
 
 
 PreparationIterationGenerationsToolCallsField: TypeAlias = Annotated[
@@ -797,7 +797,7 @@ PreparationIterationGenerationsToolCallsField: TypeAlias = Annotated[
 ]
 
 preparation_iteration_generations_example = {
-    "guideline_match_item": guideline_match_item_inspection_example,
+    "guideline_matching": guideline_matching_inspection_example,
     "tool_calls": [generation_info_example],
 }
 
@@ -808,14 +808,14 @@ class PreparationIterationGenerationsDTO(
 ):
     """Generation information for a preparation iteration."""
 
-    guideline_match_item: GuidelineMatchItemInspectionDTO
+    guideline_matching: GuidelineMatchingInspectionDTO
     tool_calls: PreparationIterationGenerationsToolCallsField
 
 
-PreparationIterationGuidelineMatchItemsField: TypeAlias = Annotated[
-    Sequence[GuidelineMatchItemDTO],
+PreparationIterationGuidelineMatchField: TypeAlias = Annotated[
+    Sequence[GuidelineMatchDTO],
     Field(
-        description="List of guideline match items used in preparation for this iteration",
+        description="List of guideline matches used in preparation for this iteration",
     ),
 ]
 
@@ -864,7 +864,7 @@ PreparationIterationContextVariablesField: TypeAlias = Annotated[
 
 preparation_iteration_example = {
     "generations": preparation_iteration_generations_example,
-    "guideline_match_items": [guideline_match_item_example],
+    "guideline_matches": [guideline_match_example],
     "tool_calls": [tool_call_example],
     "terms": [
         {
@@ -885,7 +885,7 @@ class PreparationIterationDTO(
     """Information about a preparation iteration."""
 
     generations: PreparationIterationGenerationsDTO
-    guideline_match_items: PreparationIterationGuidelineMatchItemsField
+    guideline_matches: PreparationIterationGuidelineMatchField
     tool_calls: PreparationIterationToolCallsField
     terms: PreparationIterationTermsField
     context_variables: PreparationIterationContextVariablesField
@@ -993,11 +993,11 @@ def message_generation_inspection_to_dto(
 def preparation_iteration_to_dto(iteration: PreparationIteration) -> PreparationIterationDTO:
     return PreparationIterationDTO(
         generations=PreparationIterationGenerationsDTO(
-            guideline_match_item=GuidelineMatchItemInspectionDTO(
-                total_duration=iteration.generations.guideline_match_item.total_duration,
+            guideline_matching=GuidelineMatchingInspectionDTO(
+                total_duration=iteration.generations.guideline_matching.total_duration,
                 batches=[
                     generation_info_to_dto(generation)
-                    for generation in iteration.generations.guideline_match_item.batches
+                    for generation in iteration.generations.guideline_matching.batches
                 ],
             ),
             tool_calls=[
@@ -1005,15 +1005,15 @@ def preparation_iteration_to_dto(iteration: PreparationIteration) -> Preparation
                 for generation in iteration.generations.tool_calls
             ],
         ),
-        guideline_match_items=[
-            GuidelineMatchItemDTO(
-                guideline_id=items["guideline_id"],
-                condition=items["condition"],
-                action=items["action"],
-                score=items["score"],
-                rationale=items["rationale"],
+        guideline_matches=[
+            GuidelineMatchDTO(
+                guideline_id=match["guideline_id"],
+                condition=match["condition"],
+                action=match["action"],
+                score=match["score"],
+                rationale=match["rationale"],
             )
-            for items in iteration.guideline_match_items
+            for match in iteration.guideline_matches
         ],
         tool_calls=[
             ToolCallDTO(
