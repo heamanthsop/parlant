@@ -93,12 +93,20 @@ export function clearIndexedDBData(dbName = DB_NAME, objectStoreName = STORE_NAM
 function openDB() {
 	return new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, 1);
-		request.onupgradeneeded = () => {
+
+		request.onupgradeneeded = (event) => {
 			const db = request.result;
+
 			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				db.createObjectStore(STORE_NAME, {autoIncrement: true});
+				// Create the object store with auto-incrementing key
+				const store = db.createObjectStore(STORE_NAME, {autoIncrement: true});
+
+				// Create an index on the timestamp field for chronological ordering
+				// Assuming your records have a "timestamp" property
+				store.createIndex('timestampIndex', 'timestamp', {unique: false});
 			}
 		};
+
 		request.onsuccess = () => resolve(request.result);
 		request.onerror = () => reject(request.error);
 	});
@@ -110,7 +118,7 @@ async function getLogs(correlation_id: string): Promise<Log[]> {
 		const transaction = db.transaction(STORE_NAME, 'readonly');
 		const store = transaction.objectStore(STORE_NAME);
 		const request = store.get(correlation_id);
-		request.onsuccess = () => resolve(request.result || []);
+		request.onsuccess = () => resolve(request.result?.values || []);
 		request.onerror = () => reject(request.error);
 	});
 }
@@ -124,13 +132,12 @@ export const handleChatLogs = async (log: Log) => {
 
 	logEntry.onsuccess = () => {
 		const data = logEntry.result;
-		if (!data) {
-			log.timestamp = Date.now();
-			store.put([log], log.correlation_id);
+		const timestamp = Date.now();
+		if (!data?.values) {
+			store.put({timestamp, values: [log]}, log.correlation_id);
 		} else {
-			log.timestamp = Date.now();
-			data.push(log);
-			store.put(data, log.correlation_id);
+			data.values.push(log);
+			store.put({timestamp, values: data.values}, log.correlation_id);
 		}
 	};
 	logEntry.onerror = () => console.error(logEntry.error);
@@ -169,19 +176,22 @@ export async function getAgentMessageLogsCount(): Promise<Log[][]> {
 		try {
 			const transaction = db.transaction(STORE_NAME, 'readonly');
 			const store = transaction.objectStore(STORE_NAME);
-			const data = store.getAll();
+			const index = store.index('timestampIndex');
+			const data = index.openCursor();
 
-			data.onsuccess = () => {
-				const agentMessages = data.result.filter((item) => item.at(-1).correlation_id.includes('::'));
+			const items: any[] = [];
 
-				db.close();
-				resolve(agentMessages);
+			data.onsuccess = (event) => {
+				const cursor = (event.target as IDBRequest).result;
+				if (cursor) {
+					if (cursor.primaryKey?.includes('::')) items.push(cursor.value);
+					cursor.continue();
+				} else {
+					resolve(items);
+				}
 			};
 
-			data.onerror = () => {
-				db.close();
-				reject(data.error);
-			};
+			data.onerror = () => reject(data.error);
 		} catch (error) {
 			db.close();
 			reject(error);
@@ -241,19 +251,16 @@ export async function deleteOldestLogs(deleteTimestamp = 0): Promise<void> {
 					const data = values[i];
 					let timestamp = Date.now();
 
-					// Extract timestamp from log entries
-					if (Array.isArray(data)) {
-						data.forEach((entry) => {
-							if (entry && entry.timestamp && entry.timestamp < timestamp) {
-								timestamp = entry.timestamp;
-							}
-						});
+					if (Array.isArray(data?.values)) {
+						if (data?.timestamp && data.timestamp < timestamp) {
+							timestamp = data.timestamp;
+						}
 					}
 
 					return {key, timestamp};
 				});
 
-				const keysToDelete = keyTimestamps.filter((item) => item.timestamp < deleteTimestamp).map((item) => item.key);
+				const keysToDelete = keyTimestamps.filter((item) => item.timestamp <= deleteTimestamp).map((item) => item.key);
 
 				if (keysToDelete.length === 0) {
 					console.log('No records found older than the specified timestamp');
@@ -316,8 +323,7 @@ export async function checkAndCleanupLogs(): Promise<void> {
 		const agentMessages = await getAgentMessageLogsCount();
 
 		if (agentMessages[MAX_RECORDS]) {
-			const sortedAgentMessages = agentMessages.sort((itemA: Log[], itemB: Log[]) => (itemA.at(-1)?.timestamp || 0) - (itemB.at(-1)?.timestamp || 0));
-			const recordsToDeleteDate = sortedAgentMessages[agentMessages.length - 1 - MAX_RECORDS]?.at(-1)?.timestamp || 0;
+			const recordsToDeleteDate = agentMessages[agentMessages.length - 1 - MAX_RECORDS]?.timestamp || 0;
 			console.log(`Log count exceeds maximum (${MAX_RECORDS}), deleting logs before ${new Date(recordsToDeleteDate)?.toLocaleString()}`);
 			await deleteOldestLogs(recordsToDeleteDate);
 			console.log('Cleanup completed');
