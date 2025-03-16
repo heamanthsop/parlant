@@ -246,12 +246,11 @@ export async function deleteOldestLogs(deleteTimestamp = 0): Promise<void> {
 			};
 
 			const deleteOldest = () => {
-				const keyTimestamps = keys.map((key, i) => {
+				const keysToDelete = [];
+				for (const i in keys) {
 					const data = values[i];
-					return {key, timestamp: data.timestamp};
-				});
-
-				const keysToDelete = keyTimestamps.filter((item) => item.timestamp < deleteTimestamp).map((item) => item.key);
+					if (data.timestamp < deleteTimestamp) keysToDelete.push(keys[i]);
+				}
 
 				if (keysToDelete.length === 0) {
 					db.close();
