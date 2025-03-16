@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-useless-escape */
 import {Log} from './interfaces';
 
@@ -94,15 +95,12 @@ function openDB() {
 	return new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, 1);
 
-		request.onupgradeneeded = (event) => {
+		request.onupgradeneeded = () => {
 			const db = request.result;
 
 			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				// Create the object store with auto-incrementing key
 				const store = db.createObjectStore(STORE_NAME, {autoIncrement: true});
 
-				// Create an index on the timestamp field for chronological ordering
-				// Assuming your records have a "timestamp" property
 				store.createIndex('timestampIndex', 'timestamp', {unique: false});
 			}
 		};
@@ -170,7 +168,7 @@ export const getMessageLogsWithFilters = async (correlation_id: string, filters:
 	});
 };
 
-export async function getAgentMessageLogsCount(): Promise<Log[][]> {
+export async function getAgentMessageLogsCount(): Promise<Log[]> {
 	const db = await openDB();
 	return new Promise((resolve, reject) => {
 		try {
