@@ -4,13 +4,9 @@ import {Log} from './interfaces';
 const logLevels = ['WARNING', 'INFO', 'DEBUG'];
 const DB_NAME = 'Parlant';
 const STORE_NAME = 'logs';
+const MAX_RECORDS = 3;
+const CHECK_INTERVAL = 10 * 60 * 1000;
 
-/**
- * Calculate the size of a specific IndexedDB table/object store in megabytes
- * @param {string} databaseName - The name of the IndexedDB database
- * @param {string} tableName - The name of the table/object store to measure
- * @returns {Promise<number>} - Size in megabytes
- */
 export function getIndexedDBSize(databaseName = DB_NAME, tableName = STORE_NAME): Promise<number> {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(databaseName);
@@ -113,8 +109,6 @@ async function getLogs(correlation_id: string): Promise<Log[]> {
 	return new Promise((resolve, reject) => {
 		const transaction = db.transaction(STORE_NAME, 'readonly');
 		const store = transaction.objectStore(STORE_NAME);
-		const count = store.count();
-		count.onsuccess = () => console.log('record count', count.result);
 		const request = store.get(correlation_id);
 		request.onsuccess = () => resolve(request.result || []);
 		request.onerror = () => reject(request.error);
@@ -131,8 +125,10 @@ export const handleChatLogs = async (log: Log) => {
 	logEntry.onsuccess = () => {
 		const data = logEntry.result;
 		if (!data) {
+			log.timestamp = Date.now();
 			store.put([log], log.correlation_id);
 		} else {
+			log.timestamp = Date.now();
 			data.push(log);
 			store.put(data, log.correlation_id);
 		}
@@ -166,3 +162,188 @@ export const getMessageLogsWithFilters = async (correlation_id: string, filters:
 		return true;
 	});
 };
+
+export async function getAgentMessageLogsCount(): Promise<Log[][]> {
+	const db = await openDB();
+	return new Promise((resolve, reject) => {
+		try {
+			const transaction = db.transaction(STORE_NAME, 'readonly');
+			const store = transaction.objectStore(STORE_NAME);
+			const data = store.getAll();
+
+			data.onsuccess = () => {
+				const agentMessages = data.result.filter((item) => item.at(-1).correlation_id.includes('::'));
+
+				db.close();
+				resolve(agentMessages);
+			};
+
+			data.onerror = () => {
+				db.close();
+				reject(data.error);
+			};
+		} catch (error) {
+			db.close();
+			reject(error);
+		}
+	});
+}
+
+export async function getAllLogKeys(): Promise<IDBValidKey[]> {
+	const db = await openDB();
+	return new Promise((resolve, reject) => {
+		const transaction = db.transaction(STORE_NAME, 'readonly');
+		const store = transaction.objectStore(STORE_NAME);
+		const keysRequest = store.getAllKeys();
+
+		keysRequest.onsuccess = () => {
+			db.close();
+			resolve(keysRequest.result);
+		};
+
+		keysRequest.onerror = () => {
+			db.close();
+			reject(keysRequest.error);
+		};
+	});
+}
+
+export async function deleteOldestLogs(deleteTimestamp = 0): Promise<void> {
+	if (!deleteTimestamp || deleteTimestamp <= 0) {
+		console.log('No valid deletion timestamp provided, skipping cleanup');
+		return;
+	}
+
+	try {
+		const db = await openDB();
+		const transaction = db.transaction(STORE_NAME, 'readonly');
+		const store = transaction.objectStore(STORE_NAME);
+		const keysRequest = store.getAllKeys();
+		const valuesRequest = store.getAll();
+
+		return new Promise((resolve, reject) => {
+			let keys: IDBValidKey[] = [];
+			let values: any[] = [];
+
+			keysRequest.onsuccess = () => {
+				keys = keysRequest.result;
+				if (values.length > 0) deleteOldest();
+			};
+
+			valuesRequest.onsuccess = () => {
+				values = valuesRequest.result;
+				if (keys.length > 0) deleteOldest();
+			};
+
+			const deleteOldest = () => {
+				// Create array of {key, timestamp} pairs
+				const keyTimestamps = keys.map((key, i) => {
+					const data = values[i];
+					let timestamp = Date.now();
+
+					// Extract timestamp from log entries
+					if (Array.isArray(data)) {
+						data.forEach((entry) => {
+							if (entry && entry.timestamp && entry.timestamp < timestamp) {
+								timestamp = entry.timestamp;
+							}
+						});
+					}
+
+					return {key, timestamp};
+				});
+
+				const keysToDelete = keyTimestamps.filter((item) => item.timestamp < deleteTimestamp).map((item) => item.key);
+
+				if (keysToDelete.length === 0) {
+					console.log('No records found older than the specified timestamp');
+					db.close();
+					resolve();
+					return;
+				}
+
+				console.log(`Found ${keysToDelete.length} records older than ${new Date(deleteTimestamp).toISOString()}`);
+
+				const deleteTransaction = db.transaction(STORE_NAME, 'readwrite');
+				const deleteStore = deleteTransaction.objectStore(STORE_NAME);
+
+				let completed = 0;
+				let errors = 0;
+
+				keysToDelete.forEach((key) => {
+					const deleteRequest = deleteStore.delete(key);
+
+					deleteRequest.onsuccess = () => {
+						completed++;
+						if (completed + errors === keysToDelete.length) {
+							if (errors > 0) {
+								console.warn(`Completed with ${errors} errors`);
+							}
+						}
+					};
+
+					deleteRequest.onerror = (event) => {
+						errors++;
+						console.error(`Failed to delete key ${key}:`, (event.target as IDBRequest).error);
+					};
+				});
+
+				deleteTransaction.oncomplete = () => {
+					db.close();
+					console.log(`Successfully deleted ${completed} records older than ${new Date(deleteTimestamp).toISOString()}`);
+					resolve();
+				};
+
+				deleteTransaction.onerror = (event) => {
+					db.close();
+					reject((event.target as IDBTransaction).error);
+				};
+			};
+
+			transaction.onerror = (event) => {
+				db.close();
+				reject((event.target as IDBTransaction).error);
+			};
+		});
+	} catch (error) {
+		console.error('Error in deleteOldestLogs:', error);
+		throw error;
+	}
+}
+
+export async function checkAndCleanupLogs(): Promise<void> {
+	try {
+		const agentMessages = await getAgentMessageLogsCount();
+
+		if (agentMessages[MAX_RECORDS]) {
+			const sortedAgentMessages = agentMessages.sort((itemA: Log[], itemB: Log[]) => (itemA.at(-1)?.timestamp || 0) - (itemB.at(-1)?.timestamp || 0));
+			const recordsToDeleteDate = sortedAgentMessages[agentMessages.length - 1 - MAX_RECORDS]?.at(-1)?.timestamp || 0;
+			console.log(`Log count exceeds maximum (${MAX_RECORDS}), deleting logs before ${new Date(recordsToDeleteDate)?.toLocaleString()}`);
+			await deleteOldestLogs(recordsToDeleteDate);
+			console.log('Cleanup completed');
+		}
+	} catch (error) {
+		console.error('Error during log cleanup:', error);
+	}
+}
+
+let cleanupInterval: number | null = null;
+
+export function startLogCleanup(): void {
+	checkAndCleanupLogs();
+
+	if (!cleanupInterval) {
+		cleanupInterval = window.setInterval(checkAndCleanupLogs, CHECK_INTERVAL);
+		console.log(`Log cleanup scheduled every ${CHECK_INTERVAL / 1000 / 60} minutes`);
+	}
+}
+
+export function stopLogCleanup(): void {
+	if (cleanupInterval) {
+		window.clearInterval(cleanupInterval);
+		cleanupInterval = null;
+		console.log('Log cleanup stopped');
+	}
+}
+
+startLogCleanup();
