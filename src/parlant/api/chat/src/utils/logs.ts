@@ -246,30 +246,18 @@ export async function deleteOldestLogs(deleteTimestamp = 0): Promise<void> {
 			};
 
 			const deleteOldest = () => {
-				// Create array of {key, timestamp} pairs
 				const keyTimestamps = keys.map((key, i) => {
 					const data = values[i];
-					let timestamp = Date.now();
-
-					if (Array.isArray(data?.values)) {
-						if (data?.timestamp && data.timestamp < timestamp) {
-							timestamp = data.timestamp;
-						}
-					}
-
-					return {key, timestamp};
+					return {key, timestamp: data.timestamp};
 				});
 
-				const keysToDelete = keyTimestamps.filter((item) => item.timestamp <= deleteTimestamp).map((item) => item.key);
+				const keysToDelete = keyTimestamps.filter((item) => item.timestamp < deleteTimestamp).map((item) => item.key);
 
 				if (keysToDelete.length === 0) {
-					console.log('No records found older than the specified timestamp');
 					db.close();
 					resolve();
 					return;
 				}
-
-				console.log(`Found ${keysToDelete.length} records older than ${new Date(deleteTimestamp).toISOString()}`);
 
 				const deleteTransaction = db.transaction(STORE_NAME, 'readwrite');
 				const deleteStore = deleteTransaction.objectStore(STORE_NAME);
@@ -323,7 +311,7 @@ export async function checkAndCleanupLogs(): Promise<void> {
 		const agentMessages = await getAgentMessageLogsCount();
 
 		if (agentMessages[MAX_RECORDS]) {
-			const recordsToDeleteDate = agentMessages[agentMessages.length - 1 - MAX_RECORDS]?.timestamp || 0;
+			const recordsToDeleteDate = agentMessages[agentMessages.length - MAX_RECORDS]?.timestamp || 0;
 			console.log(`Log count exceeds maximum (${MAX_RECORDS}), deleting logs before ${new Date(recordsToDeleteDate)?.toLocaleString()}`);
 			await deleteOldestLogs(recordsToDeleteDate);
 			console.log('Cleanup completed');
