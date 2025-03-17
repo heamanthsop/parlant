@@ -390,6 +390,9 @@ class _PreparationIterationDocument_V_0_2_0(TypedDict):
     generations: _PreparationIterationGenerationsDocument_V_0_2_0
 
 
+_PreparationIterationDocument_V_0_1_0: TypeAlias = _PreparationIterationDocument_V_0_2_0
+
+
 class _PreparationIterationDocument(TypedDict):
     guideline_matches: Sequence[GuidelineMatch]
     tool_calls: Sequence[ToolCall]
@@ -404,7 +407,7 @@ class _InspectionDocument_V_0_1_0(TypedDict, total=False):
     session_id: SessionId
     correlation_id: str
     message_generations: Sequence[_MessageGenerationInspectionDocument_V_0_1_0]
-    preparation_iterations: Sequence[_PreparationIterationDocument_V_0_2_0]
+    preparation_iterations: Sequence[_PreparationIterationDocument_V_0_1_0]
 
 
 class _InspectionDocument_V_0_2_0(TypedDict, total=False):
