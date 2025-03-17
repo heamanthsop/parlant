@@ -267,31 +267,35 @@ class GuidelineMatcher:
 
         matches = []
 
-        for item in inference.content.checks:
-            if (item.applies_score >= 6) and (
-                (item.guideline_previously_applied in [None, "no"]) or item.guideline_should_reapply
+        for match in inference.content.checks:
+            if (match.applies_score >= 6) and (
+                (match.guideline_previously_applied in [None, "no"])
+                or match.guideline_should_reapply
             ):
-                self._logger.debug(f"Completion::Activated:\n{item.model_dump_json(indent=2)}")
+                self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
 
                 matches.append(
                     ConditionApplicabilityEvaluation(
-                        guideline_id=GuidelineId(item.guideline_id),
-                        condition=guidelines_dict[GuidelineId(item.guideline_id)].content.condition,
-                        action=guidelines_dict[GuidelineId(item.guideline_id)].content.action or "",
-                        score=item.applies_score,
-                        condition_application_rationale=item.condition_application_rationale,
-                        guideline_previously_applied=item.guideline_previously_applied or "no",
+                        guideline_id=GuidelineId(match.guideline_id),
+                        condition=guidelines_dict[
+                            GuidelineId(match.guideline_id)
+                        ].content.condition,
+                        action=guidelines_dict[GuidelineId(match.guideline_id)].content.action
+                        or "",
+                        score=match.applies_score,
+                        condition_application_rationale=match.condition_application_rationale,
+                        guideline_previously_applied=match.guideline_previously_applied or "no",
                         guideline_previously_applied_rationale="; ".join(
-                            [r.rationale for r in item.guideline_previously_applied_rationale]
+                            [r.rationale for r in match.guideline_previously_applied_rationale]
                         )
-                        if item.guideline_previously_applied_rationale
+                        if match.guideline_previously_applied_rationale
                         else "",
-                        guideline_should_reapply=item.guideline_should_reapply or False,
-                        guideline_is_continuous=item.guideline_is_continuous or False,
+                        guideline_should_reapply=match.guideline_should_reapply or False,
+                        guideline_is_continuous=match.guideline_is_continuous or False,
                     )
                 )
             else:
-                self._logger.debug(f"Completion::Skipped:\n{item.model_dump_json(indent=2)}")
+                self._logger.debug(f"Completion::Skipped:\n{match.model_dump_json(indent=2)}")
 
         return inference.info, matches
 

@@ -775,7 +775,7 @@ class AlphaEngine(Engine):
 
             for connected_guideline_id in connected_guideline_ids:
                 if any(connected_guideline_id == p.guideline.id for p in matches):
-                    # no need to add this connected one as it's already an assumed match item
+                    # no need to add this connected one as it's already an assumed match
                     continue
 
                 connected_guideline = next(
@@ -799,16 +799,16 @@ class AlphaEngine(Engine):
                     existing_connection = existing_connections[0]
 
                     # We're basically saying, if this connected guideline is already
-                    # connected to a match item with a higher priority than the match item
-                    # at hand, then we want to keep the associated with the match item
+                    # connected to a match with a higher priority than the match
+                    # at hand, then we want to keep the associated with the match
                     # that has the higher priority, because it will go down as the inferred
-                    # priority of our connected guideline's match item...
+                    # priority of our connected guideline's match...
                     #
                     # Now try to read that out loud in one go :)
                     if existing_connection[0].score >= match.score:
                         continue  # Stay with existing one
                     else:
-                        # This match item's score is higher, so it's better that
+                        # This match's score is higher, so it's better that
                         # we associate the connected guideline with this one.
                         # we'll add it soon, but meanwhile let's remove the old one.
                         match_and_inferred_guideline_pairs.remove(

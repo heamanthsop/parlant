@@ -333,9 +333,9 @@ def base_test_that_correct_guidelines_are_matched(
         terms=terms,
         staged_events=staged_events,
     )
-    matched_item_guidelines = [p.guideline for p in guideline_matches]
+    matched_guidelines = [p.guideline for p in guideline_matches]
 
-    assert set(matched_item_guidelines) == set(relevant_guidelines)
+    assert set(matched_guidelines) == set(relevant_guidelines)
 
 
 def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_one_action_occured(
