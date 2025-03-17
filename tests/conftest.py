@@ -68,7 +68,7 @@ from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchShot,
+    GuidelineMatchingShot,
     GuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.fluid_message_generator import (
@@ -279,7 +279,7 @@ async def container(
                 generation_schema,
             )
 
-        container[ShotCollection[GuidelineMatchShot]] = guideline_matcher.shot_collection
+        container[ShotCollection[GuidelineMatchingShot]] = guideline_matcher.shot_collection
         container[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
         container[ShotCollection[FluidMessageGeneratorShot]] = (
             fluid_message_generator.shot_collection

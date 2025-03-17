@@ -450,7 +450,7 @@ class AlphaEngine(Engine):
             guideline_matching_result,
             state.ordinary_guideline_matches,
             state.tool_enabled_guideline_matches,
-        ) = await self._load_guideline_matches(context, state)
+        ) = await self._load_matched_guidelines(context, state)
 
         # Matched guidelines may use glossasry terms, so we need to ground our
         # response by reevaluating the relevant terms given these new guidelines.
@@ -697,7 +697,7 @@ class AlphaEngine(Engine):
 
         return result
 
-    async def _load_guideline_matches(
+    async def _load_matched_guidelines(
         self,
         context: _LoadedContext,
         state: _ResponsePreparationState,

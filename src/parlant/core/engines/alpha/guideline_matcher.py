@@ -71,7 +71,7 @@ class GuidelineMatchesSchema(DefaultBaseModel):
 
 
 @dataclass
-class GuidelineMatchShot(Shot):
+class GuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
     expected_result: GuidelineMatchesSchema
@@ -295,15 +295,15 @@ class GuidelineMatcher:
 
         return inference.info, matches
 
-    async def shots(self) -> Sequence[GuidelineMatchShot]:
+    async def shots(self) -> Sequence[GuidelineMatchingShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[GuidelineMatchShot]) -> str:
+    def _format_shots(self, shots: Sequence[GuidelineMatchingShot]) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GuidelineMatchShot) -> str:
+    def _format_shot(self, shot: GuidelineMatchingShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 "customer": "user",
@@ -356,7 +356,7 @@ class GuidelineMatcher:
         staged_events: Sequence[EmittedEvent],
         terms: Sequence[Term],
         guidelines: dict[GuidelineId, Guideline],
-        shots: Sequence[GuidelineMatchShot],
+        shots: Sequence[GuidelineMatchingShot],
     ) -> PromptBuilder:
         result_structure = [
             {
@@ -827,26 +827,26 @@ example_4_expected = GuidelineMatchesSchema(
 )
 
 
-_baseline_shots: Sequence[GuidelineMatchShot] = [
-    GuidelineMatchShot(
+_baseline_shots: Sequence[GuidelineMatchingShot] = [
+    GuidelineMatchingShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    GuidelineMatchShot(
+    GuidelineMatchingShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    GuidelineMatchShot(
+    GuidelineMatchingShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    GuidelineMatchShot(
+    GuidelineMatchingShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
@@ -854,4 +854,4 @@ _baseline_shots: Sequence[GuidelineMatchShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[GuidelineMatchShot](_baseline_shots)
+shot_collection = ShotCollection[GuidelineMatchingShot](_baseline_shots)
