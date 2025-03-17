@@ -222,7 +222,7 @@ class MessageAssembler(MessageEventComposer):
 
         fragments = await self._get_fragments(staged_events)
 
-        if not fragments:
+        if not fragments and agent.composition_mode != "fluid_assembly":
             self._logger.warning("No fragments found; skipping response")
             return []
 
