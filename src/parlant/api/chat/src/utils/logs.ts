@@ -132,7 +132,7 @@ export const handleChatLogs = async (log: Log) => {
 		const data = logEntry.result;
 		const timestamp = Date.now();
 		if (!data?.values) {
-			store.put({timestamp, values: [log]}, log.correlation_id);
+			if (!log.message?.trim().startsWith('HTTP') || log.message?.includes('/events')) store.put({timestamp, values: [log]}, log.correlation_id);
 		} else {
 			data.values.push(log);
 			store.put({timestamp, values: data.values}, log.correlation_id);
