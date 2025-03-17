@@ -20,6 +20,7 @@ All notable changes to Parlant will be documented here.
 - Add enabled/disabled flag for guidelines to facilitate experimentation without deletion
 - Allow different schematic generators to adjust incoming prompts in a structured manner
 - Add tags to context variables, guidelines, glossary and agents
+- Rename guideline proposer with guideline matcher
 
 ## [1.6.2] - 2025-01-29
 

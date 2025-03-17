@@ -859,10 +859,10 @@ async def test_that_a_message_can_be_inspected(
     iterations = trace["preparation_iterations"]
     assert len(iterations) >= 1
 
-    assert len(iterations[0]["guideline_propositions"]) == 1
-    assert iterations[0]["guideline_propositions"][0]["guideline_id"] == guideline.id
-    assert iterations[0]["guideline_propositions"][0]["condition"] == guideline.content.condition
-    assert iterations[0]["guideline_propositions"][0]["action"] == guideline.content.action
+    assert len(iterations[0]["guideline_matches"]) == 1
+    assert iterations[0]["guideline_matches"][0]["guideline_id"] == guideline.id
+    assert iterations[0]["guideline_matches"][0]["condition"] == guideline.content.condition
+    assert iterations[0]["guideline_matches"][0]["action"] == guideline.content.action
 
     assert len(iterations[0]["tool_calls"]) == 1
     assert "get_cow_uttering" in iterations[0]["tool_calls"][0]["tool_id"]

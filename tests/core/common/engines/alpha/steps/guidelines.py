@@ -15,7 +15,7 @@
 from pytest_bdd import given, parsers
 
 from parlant.core.agents import AgentId
-from parlant.core.engines.alpha.guideline_proposition import GuidelineProposition
+from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guidelines import Guideline, GuidelineStore
 
@@ -410,10 +410,10 @@ def given_the_guideline_called(
 @step(
     given,
     parsers.parse(
-        'that the "{guideline_name}" guideline is proposed with a priority of {score} because {rationale}'  # noqb
+        'that the "{guideline_name}" guideline is matched with a priority of {score} because {rationale}'  # noqb
     ),
 )
-def given_a_guideline_proposition(
+def given_a_guideline_match(
     context: ContextOfTest,
     guideline_name: str,
     score: int,
@@ -421,7 +421,7 @@ def given_a_guideline_proposition(
 ) -> None:
     guideline = context.guidelines[guideline_name]
 
-    context.guideline_propositions[guideline_name] = GuidelineProposition(
+    context.guideline_matches[guideline_name] = GuidelineMatch(
         guideline=guideline,
         score=score,
         rationale=rationale,

@@ -39,7 +39,6 @@ from parlant.core.context_variables import (
 )
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.glossary import (
-    _TermDocument,
     _TermDocument_v0_1_0,
     _TermTagAssociationDocument,
     TermId,
@@ -53,7 +52,7 @@ from parlant.core.guidelines import (
     _GuidelineDocument_v0_1_0,
 )
 from parlant.core.loggers import LogLevel, StdoutLogger
-from parlant.core.nlp.embedding import EmbedderFactory, NoOpEmbedder
+from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import (
     BaseDocument,
@@ -61,10 +60,6 @@ from parlant.core.persistence.document_database import (
     identity_loader,
 )
 from parlant.core.persistence.document_database_helper import _MetadataDocument
-from parlant.core.persistence.vector_database import (
-    BaseDocument as VectorBaseDocument,
-    identity_loader as vector_identity_loader,
-)
 from parlant.core.tags import TagId, Tag
 
 DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
@@ -109,9 +104,9 @@ def register_migration(
     return decorator
 
 
-async def get_component_versions() -> dict[str, str]:
+async def get_component_versions() -> list[tuple[str, str]]:
     """Get current versions of all components"""
-    versions = {}
+    versions = []
 
     def _get_version_from_json_file(
         file_path: Path,
@@ -135,21 +130,21 @@ async def get_component_versions() -> dict[str, str]:
         "agents",
     )
     if agents_version:
-        versions["agents"] = agents_version
+        versions.append(("agents", agents_version))
 
     guidelines_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "guidelines.json",
         "guidelines",
     )
     if guidelines_version:
-        versions["guidelines"] = guidelines_version
+        versions.append(("guidelines", guidelines_version))
 
     context_vars_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "context_variables.json",
         "context_variables",
     )
     if context_vars_version:
-        versions["context_variables"] = context_vars_version
+        versions.append(("context_variables", context_vars_version))
 
     embedder_factory = EmbedderFactory(Container())
     glossary_db = await EXIT_STACK.enter_async_context(
@@ -157,9 +152,9 @@ async def get_component_versions() -> dict[str, str]:
     )
     with suppress(chromadb.errors.InvalidCollectionException):
         if glossary_db.chroma_client.get_collection("glossary_unembedded"):
-            versions["glossary"] = cast(dict[str, Any], await glossary_db.read_metadata())[
-                "version"
-            ]
+            versions.append(
+                ("glossary", cast(dict[str, Any], await glossary_db.read_metadata())["version"])
+            )
 
     return versions
 
@@ -218,7 +213,7 @@ async def create_metadata_collection(db: DocumentDatabase, collection_name: str)
         rich.print(f"[yellow]No documents found in {collection_name} collection.")
 
 
-async def migrate_glossary() -> None:
+async def migrate_glossary_with_metadata() -> None:
     rich.print("[green]Starting glossary migration...")
     try:
         embedder_factory = EmbedderFactory(Container())
@@ -397,7 +392,7 @@ async def migrate_agents_0_1_0_to_0_2_0() -> None:
     )
     await create_metadata_collection(services_db, "tool_services")
 
-    await migrate_glossary()
+    await migrate_glossary_with_metadata()
 
     await upgrade_agents_to_0_2_0()
 
@@ -593,6 +588,8 @@ async def migrate_agents_0_2_0_to_0_3_0() -> None:
 
 @register_migration("glossary", "0.1.0", "0.2.0")
 async def migrate_glossary_0_1_0_to_0_2_0() -> None:
+    rich.print("[green]Starting migration for glossary 0.1.0 -> 0.2.0")
+
     async def _association_document_loader(
         doc: BaseDocument,
     ) -> Optional[_TermTagAssociationDocument]:
@@ -614,40 +611,49 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
         _association_document_loader,
     )
 
-    unembedded_collection = await db.get_or_create_collection(
-        "glossary_unembedded",
-        VectorBaseDocument,
-        NoOpEmbedder,
-        vector_identity_loader,
-    )
+    chroma_unembedded_collection = next(
+        (
+            collection
+            for collection in db.chroma_client.list_collections()
+            if collection.name == "glossary_unembedded"
+        ),
+        None,
+    ) or db.chroma_client.create_collection(name="glossary_unembedded")
 
-    for term in await unembedded_collection.find(filters={}):
-        term = cast(_TermDocument_v0_1_0, term)
-        new_term: _TermDocument = {
-            "id": term["id"],
-            "version": Version.String("0.2.0"),
-            "checksum": md5_checksum(term["content"] + datetime.now(timezone.utc).isoformat()),
-            "content": term["content"],
-            "creation_utc": term["creation_utc"],
-            "name": term["name"],
-            "description": term["description"],
-            "synonyms": term["synonyms"],
-        }
-
-        await unembedded_collection.delete_one(filters={"id": {"$eq": ObjectId(term["id"])}})
-        await unembedded_collection.insert_one(new_term)
-
-        await glossary_tags_collection.insert_one(
-            {
-                "id": ObjectId(generate_id()),
+    if metadatas := chroma_unembedded_collection.get()["metadatas"]:
+        for doc in metadatas:
+            new_doc = {
+                "id": doc["id"],
                 "version": Version.String("0.2.0"),
-                "creation_utc": datetime.now(timezone.utc).isoformat(),
-                "term_id": TermId(term["id"]),
-                "tag_id": TagId(
-                    f"agent_id:{cast(_ContextVariableDocument_v0_1_0, term)['variable_set']}"
+                "checksum": md5_checksum(
+                    cast(str, doc["content"]) + datetime.now(timezone.utc).isoformat()
                 ),
+                "content": doc["content"],
+                "creation_utc": doc["creation_utc"],
+                "name": doc["name"],
+                "description": doc["description"],
+                "synonyms": doc["synonyms"],
             }
-        )
+
+            chroma_unembedded_collection.delete(
+                where=cast(chromadb.Where, {"id": {"$eq": cast(str, doc["id"])}})
+            )
+            chroma_unembedded_collection.add(
+                ids=[cast(str, doc["id"])],
+                documents=[cast(str, doc["content"])],
+                metadatas=[cast(chromadb.Metadata, new_doc)],
+                embeddings=[0],
+            )
+
+            await glossary_tags_collection.insert_one(
+                {
+                    "id": ObjectId(generate_id()),
+                    "version": Version.String("0.2.0"),
+                    "creation_utc": datetime.now(timezone.utc).isoformat(),
+                    "term_id": TermId(cast(str, doc["id"])),
+                    "tag_id": TagId(f"agent_id:{cast(_TermDocument_v0_1_0, doc)['term_set']}"),
+                }
+            )
 
     await db.upsert_metadata("version", Version.String("0.2.0"))
 
@@ -658,9 +664,7 @@ async def detect_required_migrations() -> list[tuple[str, str, str]]:
     component_versions = await get_component_versions()
     required_migrations = []
 
-    for component in component_versions:
-        current_version = component_versions[component]
-
+    for component, current_version in component_versions:
         applicable_migrations = []
         for key in migration_registry:
             migration_component, from_version, to_version = key
@@ -688,14 +692,29 @@ async def migrate() -> None:
 
     backup_data()
 
-    for migration_key in required_migrations:
-        component, from_version, to_version = migration_key
-        migration_func = migration_registry[migration_key]
+    applied_migrations = set()
 
-        rich.print(f"[green]Running migration: {component} {from_version} -> {to_version}")
-        await migration_func()
+    while required_migrations:
+        for migration_key in required_migrations:
+            if migration_key in applied_migrations:
+                continue
 
-    rich.print("[green]All migrations completed successfully")
+            component, from_version, to_version = migration_key
+            migration_func = migration_registry[migration_key]
+
+            rich.print(f"[green]Running migration: {component} {from_version} -> {to_version}")
+            await migration_func()
+            applied_migrations.add(migration_key)
+
+        new_required_migrations = await detect_required_migrations()
+        required_migrations = [m for m in new_required_migrations if m not in applied_migrations]
+
+        if not required_migrations:
+            rich.print("[green]No more migrations required.")
+
+    rich.print(
+        f"[green]All migrations completed successfully. Applied {len(applied_migrations)} migrations in total."
+    )
 
 
 def die(message: str) -> NoReturn:
