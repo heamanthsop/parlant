@@ -213,7 +213,7 @@ async def create_metadata_collection(db: DocumentDatabase, collection_name: str)
         rich.print(f"[yellow]No documents found in {collection_name} collection.")
 
 
-async def migrate_glossary() -> None:
+async def migrate_glossary_with_metadata() -> None:
     rich.print("[green]Starting glossary migration...")
     try:
         embedder_factory = EmbedderFactory(Container())
@@ -392,7 +392,7 @@ async def migrate_agents_0_1_0_to_0_2_0() -> None:
     )
     await create_metadata_collection(services_db, "tool_services")
 
-    await migrate_glossary()
+    await migrate_glossary_with_metadata()
 
     await upgrade_agents_to_0_2_0()
 
