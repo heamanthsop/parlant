@@ -219,7 +219,7 @@ class GlossaryVectorStore(GlossaryStore):
             allow_migration=self._allow_migration,
         ):
             self._association_collection = await self._document_db.get_or_create_collection(
-                name="glossary_tag_associations",
+                name="glossary_tags",
                 schema=_TermTagAssociationDocument,
                 document_loader=self._association_document_loader,
             )
