@@ -5,7 +5,7 @@ import {Log} from './interfaces';
 const logLevels = ['WARNING', 'INFO', 'DEBUG'];
 const DB_NAME = 'Parlant';
 const STORE_NAME = 'logs';
-const MAX_RECORDS = 3;
+const MAX_RECORDS = 2000;
 const CHECK_INTERVAL = 10 * 60 * 1000;
 
 export function getIndexedDBSize(databaseName = DB_NAME, tableName = STORE_NAME): Promise<number> {
