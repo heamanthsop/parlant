@@ -49,9 +49,9 @@ class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
 class GuidelineMatchSchema(DefaultBaseModel):
     guideline_id: str
     condition: str
-    action: Optional[str] = None
     condition_application_rationale: str
     condition_applies: bool
+    action: Optional[str] = None
     guideline_is_continuous: Optional[bool] = None
     capitalize_exact_words_from_action_in_the_explanations_to_avoid_semantic_pitfalls: Optional[
         bool
