@@ -95,7 +95,13 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
             response = await self._client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model_name,
-                response_format={"type": "json_object"},
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "schema": self.schema.model_json_schema(),
+                        "name": self.schema.__name__,
+                    },
+                },
                 **cerebras_api_arguments,
             )
         except RateLimitError:
