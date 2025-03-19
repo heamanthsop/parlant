@@ -270,6 +270,8 @@ def create_guideline(
         tags=tags,
     )
 
+    context.guidelines.append(guideline)
+
     return guideline
 
 
