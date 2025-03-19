@@ -85,6 +85,15 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
         prompt: str | PromptBuilder,
         hints: Mapping[str, Any] = {},
     ) -> SchematicGenerationResult[T]:
+        with self._logger.scope("CerebrasSchematicGenerator"):
+            with self._logger.operation(f"LLM Request ({self.schema.__name__})"):
+                return await self._do_generate(prompt, hints)
+
+    async def _do_generate(
+        self,
+        prompt: str | PromptBuilder,
+        hints: Mapping[str, Any] = {},
+    ) -> SchematicGenerationResult[T]:
         if isinstance(prompt, PromptBuilder):
             prompt = prompt.build()
 
@@ -113,6 +122,9 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
             raise
 
         t_end = time.time()
+
+        if response.usage:
+            self._logger.debug(response.usage.model_dump_json(indent=2))
 
         raw_content = response.choices[0].message.content or "{}"  # type: ignore
 

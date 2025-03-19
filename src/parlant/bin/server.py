@@ -37,7 +37,10 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import fluid_message_generator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
-from parlant.core.engines.alpha.message_assembler import AssembledMessageSchema
+from parlant.core.engines.alpha.message_assembler import (
+    AssembledMessageSchema,
+    MessageCompositionSchema,
+)
 from parlant.core.fragments import FragmentDocumentStore, FragmentStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired
@@ -429,6 +432,9 @@ async def initialize_container(
     )
     c[SchematicGenerator[AssembledMessageSchema]] = await nlp_service.get_schematic_generator(
         AssembledMessageSchema
+    )
+    c[SchematicGenerator[MessageCompositionSchema]] = await nlp_service.get_schematic_generator(
+        MessageCompositionSchema
     )
     c[SchematicGenerator[ToolCallInferenceSchema]] = await nlp_service.get_schematic_generator(
         ToolCallInferenceSchema

@@ -36,7 +36,11 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import fluid_message_generator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
-from parlant.core.engines.alpha.message_assembler import MessageAssembler, AssembledMessageSchema
+from parlant.core.engines.alpha.message_assembler import (
+    MessageAssembler,
+    AssembledMessageSchema,
+    MessageCompositionSchema,
+)
 from parlant.core.evaluations import (
     EvaluationListener,
     PollingEvaluationListener,
@@ -268,6 +272,7 @@ async def container(
             GuidelineMatchesSchema,
             FluidMessageSchema,
             AssembledMessageSchema,
+            MessageCompositionSchema,
             ToolCallInferenceSchema,
             ConditionsEntailmentTestsSchema,
             ActionsContradictionTestsSchema,
@@ -356,6 +361,15 @@ def no_cache(container: Container) -> None:
         cast(
             CachedSchematicGenerator[AssembledMessageSchema],
             container[SchematicGenerator[AssembledMessageSchema]],
+        ).use_cache = False
+
+    if isinstance(
+        container[SchematicGenerator[MessageCompositionSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[MessageCompositionSchema],
+            container[SchematicGenerator[MessageCompositionSchema]],
         ).use_cache = False
 
     if isinstance(
