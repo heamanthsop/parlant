@@ -188,7 +188,7 @@ class Llama3_3_70B(CerebrasSchematicGenerator[T]):
     @property
     @override
     def max_tokens(self) -> int:
-        return 8192
+        return 32 * 1024
 
 
 class CerebrasService(NLPService):
