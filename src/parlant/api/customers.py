@@ -19,10 +19,10 @@ from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, TypeAlias
 
 from parlant.api.common import apigen_config, ExampleJson, example_json_content
-from parlant.core.agents import AgentId, AgentStore
+from parlant.core.agents import AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.customers import CustomerId, CustomerStore
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import Tag, TagId, TagStore
 
 API_GROUP = "customers"
 
@@ -251,8 +251,7 @@ def create_router(
 
         if params.tags:
             for tag_id in params.tags:
-                if tag_id.startswith("agent-id:"):
-                    agent_id = AgentId(tag_id.split(":")[1])
+                if agent_id := Tag.extract_agent_id(tag_id):
                     _ = await agent_store.read_agent(agent_id=agent_id)
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)

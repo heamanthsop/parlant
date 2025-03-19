@@ -23,7 +23,7 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.sessions import Session, SessionStore
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag
 from parlant.core.tools import ToolResult
 
 from tests.test_utilities import create_guideline, nlp_test
@@ -72,7 +72,7 @@ async def proactive_agent_id(
 
     await container[GuidelineStore].upsert_tag(
         guideline_id=guideline.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     return agent_id

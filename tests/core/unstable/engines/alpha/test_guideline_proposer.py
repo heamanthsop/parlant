@@ -40,7 +40,7 @@ from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import EventSource
 from parlant.core.glossary import TermId
 
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag, TagId
 from tests.core.common.utils import ContextOfTest, create_event_message
 
 
@@ -315,7 +315,7 @@ def base_test_that_correct_guidelines_are_matched(
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     conversation_guidelines = {
-        name: create_guideline_by_name(context, name, tags=[TagId(f"agent_id:{agent.id}")])
+        name: create_guideline_by_name(context, name, tags=[Tag.for_agent_id(agent.id)])
         for name in conversation_guideline_names
     }
     relevant_guidelines = [
@@ -602,7 +602,7 @@ def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
         create_context_variable(
             name="season",
             data={"season": "Summer"},
-            tags=[TagId(f"agent_id:{agent.id}")],
+            tags=[Tag.for_agent_id(agent.id)],
         )
     ]
 

@@ -60,7 +60,7 @@ from parlant.core.persistence.document_database import (
     identity_loader,
 )
 from parlant.core.persistence.document_database_helper import _MetadataDocument
-from parlant.core.tags import TagId, Tag
+from parlant.core.tags import Tag
 
 DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
 PARLANT_HOME_DIR = Path(os.environ.get("PARLANT_HOME", DEFAULT_HOME_DIR))
@@ -651,7 +651,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                     "version": Version.String("0.2.0"),
                     "creation_utc": datetime.now(timezone.utc).isoformat(),
                     "term_id": TermId(cast(str, doc["id"])),
-                    "tag_id": TagId(f"agent_id:{cast(_TermDocument_v0_1_0, doc)['term_set']}"),
+                    "tag_id": Tag.for_agent_id(cast(_TermDocument_v0_1_0, doc)["term_set"]),
                 }
             )
 

@@ -22,7 +22,7 @@ from parlant.core.context_variables import (
 )
 from parlant.core.customers import CustomerStore
 from parlant.core.sessions import SessionId, SessionStore
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import Tag, TagStore
 from parlant.core.tools import ToolId
 
 from tests.core.common.engines.alpha.utils import step
@@ -36,7 +36,7 @@ def get_or_create_variable(
     variable_name: str,
 ) -> ContextVariable:
     variables = context.sync_await(
-        context_variable_store.list_variables(tags=[TagId(f"agent_id:{agent_id}")])
+        context_variable_store.list_variables(tags=[Tag.for_agent_id(agent_id)])
     )
     if variable := next(
         (variable for variable in variables if variable.name == variable_name), None
@@ -55,7 +55,7 @@ def get_or_create_variable(
     context.sync_await(
         context_variable_store.add_variable_tag(
             variable_id=variable.id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
     )
     return variable
@@ -86,7 +86,7 @@ def given_a_context_variable(
     context.sync_await(
         context_variable_store.add_variable_tag(
             variable_id=variable.id,
-            tag_id=TagId(f"agent_id:{agent_id}"),
+            tag_id=Tag.for_agent_id(agent_id),
         )
     )
 

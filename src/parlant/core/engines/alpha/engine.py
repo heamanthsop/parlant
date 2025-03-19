@@ -69,7 +69,7 @@ from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
 from parlant.core.entity_cq import EntityQueries, EntityCommands
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolId
 
 
@@ -882,7 +882,7 @@ class AlphaEngine(Engine):
         if query:
             return await self._entity_queries.find_relevant_glossary_terms(
                 query=query,
-                tags=[TagId(f"agent_id:{context.agent.id}")],
+                tags=[Tag.for_agent_id(context.agent.id)],
             )
 
         return []

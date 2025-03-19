@@ -19,7 +19,7 @@ from pytest import fixture
 
 from parlant.core.agents import AgentId
 from parlant.core.context_variables import ContextVariableStore
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import Tag, TagId, TagStore
 from parlant.core.tools import LocalToolService, ToolId
 
 
@@ -81,7 +81,7 @@ async def test_legacy_that_context_variable_can_be_updated(
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     new_name = "updated_test_variable"
@@ -121,7 +121,7 @@ async def test_legacy_that_context_variable_can_be_updated_with_a_valid_freshnes
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     new_name = "updated_test_variable"
@@ -164,7 +164,7 @@ async def test_legacy_that_invalid_freshness_rules_raise_error_when_updating_con
 
     await context_variable_store.add_variable_tag(
         variable_id=context_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     new_name = "updated_test_variable"
@@ -234,7 +234,7 @@ async def test_legacy_that_all_context_variables_can_be_deleted(
 
     await context_variable_store.add_variable_tag(
         variable_id=first_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     second_variable = await context_variable_store.create_variable(
@@ -245,18 +245,16 @@ async def test_legacy_that_all_context_variables_can_be_deleted(
 
     await context_variable_store.add_variable_tag(
         variable_id=second_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
-    vars = await context_variable_store.list_variables(tags=[TagId(f"agent_id:{agent_id}")])
+    vars = await context_variable_store.list_variables(tags=[Tag.for_agent_id(agent_id)])
     assert len(vars) == 2
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables")
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    vars = await context_variable_store.list_variables(
-        tags=[TagId(f"agent_id:{agent_id}")],
-    )
+    vars = await context_variable_store.list_variables(tags=[Tag.for_agent_id(agent_id)])
     assert len(vars) == 0
 
 
@@ -276,7 +274,7 @@ async def test_legacy_that_context_variable_can_be_deleted(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable_to_delete.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     (
@@ -313,12 +311,12 @@ async def test_legacy_that_context_variables_can_be_listed(
 
     await context_variable_store.add_variable_tag(
         variable_id=first_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     await context_variable_store.add_variable_tag(
         variable_id=second_variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
     variables = (
         (await async_client.get(f"/agents/{agent_id}/context-variables")).raise_for_status().json()
@@ -361,7 +359,7 @@ async def test_legacy_that_context_variable_value_can_be_retrieved(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     key = "test_key"
@@ -399,7 +397,7 @@ async def test_legacy_that_context_variable_value_can_be_set(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     key = "yam_choock"
@@ -449,7 +447,7 @@ async def test_legacy_that_context_variable_values_can_be_listed(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     keys_and_data = {
@@ -497,7 +495,7 @@ async def test_legacy_that_context_variable_value_can_be_deleted(
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId(f"agent_id:{agent_id}"),
+        tag_id=Tag.for_agent_id(agent_id),
     )
 
     key = "yam_choock"
@@ -533,7 +531,7 @@ async def test_legacy_that_reading_context_variable_with_wrong_agent_id_returns_
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId("agent_id:wrong_agent_id"),
+        tag_id=Tag.for_agent_id(AgentId("wrong_agent_id")),
     )
 
     response = await async_client.get(f"/agents/{agent_id}/context-variables/{variable.id}")
@@ -581,7 +579,7 @@ async def test_legacy_that_deleting_context_variable_with_wrong_agent_id_returns
 
     await context_variable_store.add_variable_tag(
         variable_id=variable.id,
-        tag_id=TagId("agent_id:wrong_agent_id"),
+        tag_id=Tag.for_agent_id(AgentId("wrong_agent_id")),
     )
 
     response = await async_client.delete(f"/agents/{agent_id}/context-variables/{variable.id}")

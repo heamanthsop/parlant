@@ -31,7 +31,7 @@ from parlant.core.sessions import (
     SessionUpdateParams,
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag, TagId
 from parlant.core.tools import ToolService
 
 
@@ -81,7 +81,7 @@ class EntityQueries:
         agent_id: AgentId,
     ) -> Sequence[Guideline]:
         agent_guidelines = await self._guideline_store.list_guidelines(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         global_guidelines = await self._guideline_store.list_guidelines(tags=[])
 
@@ -98,7 +98,7 @@ class EntityQueries:
         agent_id: AgentId,
     ) -> Sequence[ContextVariable]:
         agent_context_variables = await self._context_variable_store.list_variables(
-            tags=[TagId(f"agent_id:{agent_id}")],
+            tags=[Tag.for_agent_id(agent_id)],
         )
         global_context_variables = await self._context_variable_store.list_variables(tags=[])
         agent = await self._agent_store.read_agent(agent_id)

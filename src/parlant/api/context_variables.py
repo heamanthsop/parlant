@@ -1009,8 +1009,7 @@ def create_router(
 
         if params.tags:
             for tag_id in params.tags:
-                if tag_id.startswith("agent-id:"):
-                    agent_id = AgentId(tag_id.split(":")[1])
+                if agent_id := Tag.extract_agent_id(tag_id):
                     _ = await agent_store.read_agent(agent_id=agent_id)
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
@@ -1088,8 +1087,7 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    if tag_id.startswith("agent-id:"):
-                        agent_id = AgentId(tag_id.split(":")[1])
+                    if agent_id := Tag.extract_agent_id(tag_id):
                         _ = await agent_store.read_agent(agent_id=agent_id)
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)

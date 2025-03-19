@@ -28,7 +28,7 @@ from parlant.api.common import (
     apigen_skip_config,
 )
 from parlant.api.index import InvoiceDTO
-from parlant.core.agents import AgentId, AgentStore
+from parlant.core.agents import AgentStore
 from parlant.core.common import (
     DefaultBaseModel,
 )
@@ -1211,7 +1211,7 @@ def create_router(
     @router.post(
         "",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_guidelines",
+        operation_id="create_guideline",
         response_model=GuidelineDTO,
         responses={
             status.HTTP_201_CREATED: {
@@ -1224,7 +1224,7 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
-    async def create_guidelines(
+    async def create_guideline(
         params: GuidelineCreationParamsDTO,
     ) -> GuidelineDTO:
         """
@@ -1235,8 +1235,7 @@ def create_router(
         tags = []
         if params.tags:
             for tag_id in params.tags:
-                if tag_id.startswith("agent-id:"):
-                    agent_id = AgentId(tag_id.split(":")[1])
+                if agent_id := Tag.extract_agent_id(tag_id):
                     _ = await agent_store.read_agent(agent_id=agent_id)
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
@@ -1506,8 +1505,7 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    if tag_id.startswith("agent-id:"):
-                        agent_id = AgentId(tag_id.split(":")[1])
+                    if agent_id := Tag.extract_agent_id(tag_id):
                         _ = await agent_store.read_agent(agent_id=agent_id)
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)

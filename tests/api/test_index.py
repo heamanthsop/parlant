@@ -21,7 +21,7 @@ from parlant.core.agents import AgentId
 from parlant.core.evaluations import EvaluationStore
 from parlant.core.guidelines import GuidelineStore
 
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag
 from tests.conftest import NoCachedGenerations
 from tests.core.stable.services.indexing.test_evaluator import (
     AMOUNT_OF_TIME_TO_WAIT_FOR_EVALUATION_TO_START_RUNNING,
@@ -248,7 +248,7 @@ async def test_that_an_evaluation_can_be_fetched_with_a_detailed_approved_invoic
 
     _ = await guideline_store.upsert_tag(
         guideline.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     evaluation_id = (
@@ -421,7 +421,7 @@ async def test_that_an_evaluation_that_failed_due_to_guideline_duplication_with_
 
     _ = await guideline_store.upsert_tag(
         guideline.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     duplicate_payload = {
@@ -793,7 +793,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_approve
 
     _ = await guideline_store.upsert_tag(
         existing_guideline.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     update_payload = {
@@ -845,7 +845,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
 
     _ = await guideline_store.upsert_tag(
         guideline.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     guideline_to_override = await guideline_store.create_guideline(
@@ -855,7 +855,7 @@ async def test_that_evaluation_task_with_update_of_existing_guideline_is_unappro
 
     _ = await guideline_store.upsert_tag(
         guideline_to_override.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     update_payload = {
@@ -1039,7 +1039,7 @@ async def test_that_evaluation_task_with_conflicting_updated_and_added_guideline
 
     _ = await guideline_store.upsert_tag(
         existing_guideline.id,
-        TagId(f"agent_id:{agent_id}"),
+        Tag.for_agent_id(agent_id),
     )
 
     updated_guideline_content = {

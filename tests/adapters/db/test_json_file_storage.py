@@ -55,7 +55,7 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
 )
 from parlant.core.loggers import Logger
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag
 from parlant.core.tools import ToolId
 
 from tests.test_utilities import SyncAwaiter
@@ -370,7 +370,7 @@ async def test_context_variable_listing(
 
             await context_variable_store.add_variable_tag(
                 variable_id=var1.id,
-                tag_id=TagId(f"agent_id:{context.agent_id}"),
+                tag_id=Tag.for_agent_id(context.agent_id),
             )
 
             var2 = await context_variable_store.create_variable(
@@ -382,12 +382,12 @@ async def test_context_variable_listing(
 
             await context_variable_store.add_variable_tag(
                 variable_id=var2.id,
-                tag_id=TagId(f"agent_id:{context.agent_id}"),
+                tag_id=Tag.for_agent_id(context.agent_id),
             )
 
             variables = list(
                 await context_variable_store.list_variables(
-                    tags=[TagId(f"agent_id:{context.agent_id}")]
+                    tags=[Tag.for_agent_id(context.agent_id)]
                 )
             )
             assert any(v.id == var1.id for v in variables)
@@ -411,7 +411,7 @@ async def test_context_variable_deletion(
 
             await context_variable_store.add_variable_tag(
                 variable_id=variable.id,
-                tag_id=TagId(f"agent_id:{context.agent_id}"),
+                tag_id=Tag.for_agent_id(context.agent_id),
             )
 
             for k, d in [("k1", "d1"), ("k2", "d2"), ("k3", "d3")]:
@@ -434,7 +434,7 @@ async def test_context_variable_deletion(
             assert not any(
                 variable.id == v.id
                 for v in await context_variable_store.list_variables(
-                    tags=[TagId(f"agent_id:{context.agent_id}")]
+                    tags=[Tag.for_agent_id(context.agent_id)]
                 )
             )
 

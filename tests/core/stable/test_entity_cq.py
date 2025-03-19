@@ -3,7 +3,7 @@ from lagom import Container
 from parlant.core.agents import Agent, AgentStore
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import GuidelineStore
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag, TagId
 
 
 async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
@@ -82,7 +82,7 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
 
     await guideline_store.upsert_tag(
         guideline_id=first_guideline.id,
-        tag_id=TagId(f"agent_id:{agent.id}"),
+        tag_id=Tag.for_agent_id(agent.id),
     )
 
     await guideline_store.upsert_tag(

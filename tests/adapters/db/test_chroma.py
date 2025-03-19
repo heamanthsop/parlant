@@ -33,7 +33,7 @@ from parlant.core.loggers import Logger
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ObjectId
 from parlant.core.persistence.vector_database import BaseDocument
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag, TagId
 from tests.test_utilities import SyncAwaiter
 
 
@@ -378,17 +378,17 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
 
                 await glossary_chroma_store.upsert_tag(
                     term_id=kazoo.id,
-                    tag_id=TagId(f"agent_id:{agent_id}"),
+                    tag_id=Tag.for_agent_id(agent_id),
                 )
 
                 await glossary_chroma_store.upsert_tag(
                     term_id=shazoo.id,
-                    tag_id=TagId(f"agent_id:{agent_id}"),
+                    tag_id=Tag.for_agent_id(agent_id),
                 )
 
                 await glossary_chroma_store.upsert_tag(
                     term_id=bazoo.id,
-                    tag_id=TagId(f"agent_id:{agent_id}"),
+                    tag_id=Tag.for_agent_id(agent_id),
                 )
 
                 terms = await glossary_chroma_store.find_relevant_terms(
@@ -398,7 +398,7 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     + "Shazoo"
                     + ("kalla " * 5000)
                     + "Bazoo",
-                    tags=[TagId(f"agent_id:{agent_id}")],
+                    tags=[Tag.for_agent_id(agent_id)],
                     max_terms=3,
                 )
 
@@ -649,7 +649,7 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
 
             await store.upsert_tag(
                 term_id=term.id,
-                tag_id=TagId(f"agent_id:{agent_id}"),
+                tag_id=Tag.for_agent_id(agent_id),
             )
 
     async with create_database(context) as chroma_db:
