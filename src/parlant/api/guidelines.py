@@ -83,6 +83,7 @@ GuidelineIdPath: TypeAlias = Annotated[
 GuidelineEnabledField: TypeAlias = Annotated[
     bool,
     Field(
+        default=True,
         description="Whether the guideline is enabled",
         examples=[True, False],
     ),
