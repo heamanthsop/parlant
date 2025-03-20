@@ -61,7 +61,7 @@ class GuidelineMatchSchema(DefaultBaseModel):
     ] = None
     guideline_previously_applied_rationale: Optional[list[SegmentPreviouslyAppliedRationale]] = None
     guideline_previously_applied: Optional[str] = None
-    is_missing_part_cosmetic_or_functional: Optional[Literal["cosmetic", "functional"]] = None
+    is_missing_part_cosmetic_or_functional: Optional[Literal["cosmetic", "functional", ""]] = None
     guideline_should_reapply: Optional[bool] = None
     applies_score: int
 
