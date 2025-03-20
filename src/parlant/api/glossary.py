@@ -708,7 +708,7 @@ def create_router(
             if params.tags.add:
                 for tag_id in params.tags.add:
                     if agent_id := Tag.extract_agent_id(tag_id):
-                        _ = await agent_store.read_agent(agent_id=agent_id)
+                        _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)
 
