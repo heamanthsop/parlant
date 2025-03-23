@@ -109,6 +109,7 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
                     "json_schema": {
                         "schema": self.schema.model_json_schema(),
                         "name": self.schema.__name__,
+                        "strict": True,
                     },
                 },
                 **cerebras_api_arguments,
