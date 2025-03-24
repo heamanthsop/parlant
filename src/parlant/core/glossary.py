@@ -389,7 +389,10 @@ class GlossaryVectorStore(GlossaryStore):
                     if not term_ids:
                         return []
 
-                    filters = {"$or": [{"id": {"$eq": id}} for id in term_ids]}
+                    if len(term_ids) == 1:
+                        filters = {"id": {"$eq": term_ids.pop()}}
+                    else:
+                        filters = {"$or": [{"id": {"$eq": id}} for id in term_ids]}
 
             return [
                 await self._deserialize(d) for d in await self._collection.find(filters=filters)

@@ -799,3 +799,30 @@ async def test_that_in_filter_works_with_list_of_strings(
             assert terms[0].id == first_term.id
             assert terms[1].id == second_term.id
             assert terms[2].id == third_term.id
+
+
+async def test_that_in_filter_works_with_single_tag(
+    context: _TestContext,
+) -> None:
+    async with create_database(context) as chroma_db:
+        async with GlossaryVectorStore(
+            vector_db=chroma_db,
+            document_db=TransientDocumentDatabase(),
+            embedder_factory=EmbedderFactory(context.container),
+            embedder_type=NoOpEmbedder,
+            allow_migration=True,
+        ) as store:
+            first_term = await store.create_term(
+                name="Bazoo",
+                description="a type of cow",
+            )
+            await store.upsert_tag(
+                term_id=first_term.id,
+                tag_id=TagId("unique_tag"),
+            )
+
+            # Test with a single tag that matches one term
+            terms = await store.list_terms(tags=[TagId("unique_tag")])
+            assert len(terms) == 1
+            assert terms[0].id == first_term.id
+            assert terms[0].name == "Bazoo"
