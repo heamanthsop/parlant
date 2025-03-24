@@ -89,6 +89,8 @@ class OpenAPIClient(ToolService):
             result = ParameterSpecification(query_parameters={}, body_parameters={}, required=[])
 
             for parameter in operation.parameters:
+                assert parameter.schema
+
                 result.query_parameters[parameter.name] = {
                     "type": cast(ToolParameterType, parameter.schema.type.value),
                 }
