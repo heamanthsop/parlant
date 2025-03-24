@@ -14,13 +14,6 @@
 
 from __future__ import annotations
 import time
-from litellm import (
-    APIConnectionError,
-    APIResponseValidationError,
-    Timeout,
-    InternalServerError,
-    RateLimitError,
-)
 from typing import Any, Mapping
 from typing_extensions import override
 import json
@@ -36,7 +29,6 @@ from parlant.adapters.nlp.common import normalize_json_output
 from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.loggers import Logger
-from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 from parlant.core.nlp.service import NLPService
 from parlant.core.nlp.embedding import Embedder
@@ -107,19 +99,6 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
     def tokenizer(self) -> LiteLLMEstimatingTokenizer:
         return self._tokenizer
 
-    @policy(
-        [
-            retry(
-                exceptions=(
-                    APIConnectionError,
-                    Timeout,
-                    RateLimitError,
-                    APIResponseValidationError,
-                ),
-            ),
-            retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
-        ]
-    )
     @override
     async def generate(
         self,
@@ -142,19 +121,16 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
         }
 
         t_start = time.time()
-        try:
-            response = self._client.completion(
-                api_key=os.environ["LITELLM_PROVIDER_API_KEY"],
-                messages=[{"role": "user", "content": prompt}],
-                model=self.model_name,
-                max_tokens=5000,
-                response_format={"type": "json_object"},
-                # api_base=os.environ["OPENAI_BASE_URL"],
-                **litellm_api_arguments,
-            )
-        except RateLimitError:
-            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
-            raise
+
+        response = self._client.completion(
+            api_key=os.environ["LITELLM_PROVIDER_API_KEY"],
+            messages=[{"role": "user", "content": prompt}],
+            model=self.model_name,
+            max_tokens=5000,
+            response_format={"type": "json_object"},
+            # api_base=os.environ["OPENAI_BASE_URL"],
+            **litellm_api_arguments,
+        )
 
         t_end = time.time()
 
