@@ -23,8 +23,8 @@ from lagom import Container
 from pytest import fixture, mark
 from datetime import datetime, timezone
 
-from parlant.core.engines.alpha.fluid_message_generator import FluidMessageSchema
-from parlant.core.fragments import FragmentStore
+from parlant.core.engines.alpha.message_generator import MessageSchema
+from parlant.core.utterances import UtteranceStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.tags import Tag
 from parlant.core.tools import ToolResult
@@ -80,7 +80,7 @@ async def strict_agent_id(
     agent_store = container[AgentStore]
     agent = await agent_store.create_agent(name="strict_test_agent")
     await agent_store.update_agent(
-        agent.id, params=AgentUpdateParams(composition_mode="strict_assembly")
+        agent.id, params=AgentUpdateParams(composition_mode="strict_utterance")
     )
     return agent.id
 
@@ -928,9 +928,9 @@ async def test_that_a_message_is_generated_using_the_active_nlp_service(
     message_generation_inspections = inspection_data["message_generations"]
     assert len(message_generation_inspections) >= 1
 
-    assert message_generation_inspections[0]["generation"]["schema_name"] == "FluidMessageSchema"
+    assert message_generation_inspections[0]["generation"]["schema_name"] == "MessageSchema"
 
-    schematic_generator = await nlp_service.get_schematic_generator(FluidMessageSchema)
+    schematic_generator = await nlp_service.get_schematic_generator(MessageSchema)
     assert message_generation_inspections[0]["generation"]["model"] == schematic_generator.id
 
     assert message_generation_inspections[0]["generation"]["usage"]["input_tokens"] > 0
@@ -1050,12 +1050,12 @@ async def test_that_an_agent_message_can_be_generated_from_utterance_requests(
     assert "thinking" in events[0]["data"]["message"].lower()
 
 
-async def test_that_an_event_with_fragments_can_be_generated(
+async def test_that_an_event_with_utterances_can_be_generated(
     async_client: httpx.AsyncClient,
     container: Container,
     strict_agent_id: AgentId,
 ) -> None:
-    fragment_store = container[FragmentStore]
+    utterance_store = container[UtteranceStore]
 
     customer = await create_customer(
         container=container,
@@ -1068,7 +1068,7 @@ async def test_that_an_event_with_fragments_can_be_generated(
         customer_id=customer.id,
     )
 
-    fragment = await fragment_store.create_fragment(
+    utterance = await utterance_store.create_utterance(
         value="Greetings from Booga booga hotel!", fields=[]
     )
 
@@ -1097,6 +1097,6 @@ async def test_that_an_event_with_fragments_can_be_generated(
     assert len(events) == 1
 
     event = events[0]
-    assert event["data"].get("fragments")
+    assert event["data"].get("utterances")
 
-    assert any(fragment.id == id for id, _ in event["data"]["fragments"])
+    assert any(utterance.id == id for id, _ in event["data"]["utterances"])

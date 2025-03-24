@@ -52,7 +52,7 @@ from parlant.core.persistence.document_database import (
     DocumentCollection,
 )
 from parlant.core.glossary import TermId
-from parlant.core.fragments import Fragment, FragmentId
+from parlant.core.utterances import Utterance, UtteranceId
 from parlant.core.persistence.document_database_helper import (
     DocumentMigrationHelper,
     DocumentStoreMigrationHelper,
@@ -111,7 +111,7 @@ class MessageEventData(TypedDict):
     participant: Participant
     flagged: NotRequired[bool]
     tags: NotRequired[Sequence[str]]
-    fragments: NotRequired[Sequence[tuple[FragmentId, str]]]
+    utterances: NotRequired[Sequence[tuple[UtteranceId, str]]]
 
 
 class ControlOptions(TypedDict, total=False):
@@ -122,7 +122,8 @@ class ToolResult(TypedDict):
     data: JSONSerializable
     metadata: Mapping[str, JSONSerializable]
     control: ControlOptions
-    fragments: Sequence[Fragment]
+    utterances: Sequence[Utterance]
+    utterance_fields: Mapping[str, JSONSerializable]
 
 
 class ToolCall(TypedDict):

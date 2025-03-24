@@ -30,71 +30,71 @@ from parlant.core.persistence.document_database import (
     DocumentCollection,
 )
 
-FragmentId = NewType("FragmentId", str)
+UtteranceId = NewType("UtteranceId", str)
 
 
 @dataclass(frozen=True)
-class FragmentField:
+class UtteranceField:
     name: str
     description: str
     examples: list[str]
 
 
 @dataclass(frozen=True)
-class Fragment:
-    TRANSIENT_ID = FragmentId("<transient>")
-    INVALID_ID = FragmentId("<invalid>")
+class Utterance:
+    TRANSIENT_ID = UtteranceId("<transient>")
+    INVALID_ID = UtteranceId("<invalid>")
 
-    id: FragmentId
+    id: UtteranceId
     creation_utc: datetime
     value: str
-    fields: Sequence[FragmentField]
+    fields: Sequence[UtteranceField]
     tags: Sequence[TagId]
 
 
-class FragmentUpdateParams(TypedDict, total=True):
+class UtteranceUpdateParams(TypedDict, total=True):
     value: str
-    fields: Sequence[FragmentField]
+    fields: Sequence[UtteranceField]
 
 
-class FragmentStore(ABC):
+class UtteranceStore(ABC):
     @abstractmethod
-    async def create_fragment(
+    async def create_utterance(
         self,
         value: str,
-        fields: Sequence[FragmentField],
+        fields: Sequence[UtteranceField],
         creation_utc: Optional[datetime] = None,
         tags: Optional[Sequence[TagId]] = None,
-    ) -> Fragment: ...
+    ) -> Utterance: ...
 
     @abstractmethod
-    async def read_fragment(
+    async def read_utterance(
         self,
-        fragment_id: FragmentId,
-    ) -> Fragment: ...
+        utterance_id: UtteranceId,
+    ) -> Utterance: ...
 
     @abstractmethod
-    async def update_fragment(
+    async def update_utterance(
         self,
-        fragment_id: FragmentId,
-        params: FragmentUpdateParams,
-    ) -> Fragment: ...
+        utterance_id: UtteranceId,
+        params: UtteranceUpdateParams,
+    ) -> Utterance: ...
 
     @abstractmethod
-    async def delete_fragment(
+    async def delete_utterance(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
     ) -> None: ...
 
     @abstractmethod
-    async def list_fragments(
+    async def list_utterances(
         self,
-    ) -> Sequence[Fragment]: ...
+    ) -> Sequence[Utterance]: ...
 
     @abstractmethod
     async def upsert_tag(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
     ) -> bool: ...
@@ -102,56 +102,56 @@ class FragmentStore(ABC):
     @abstractmethod
     async def remove_tag(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
         tag_id: TagId,
     ) -> None: ...
 
 
-class _FragmentFieldDocument(TypedDict):
+class _UtteranceFieldDocument(TypedDict):
     name: str
     description: str
     examples: list[str]
 
 
-class _FragmentDocument(TypedDict, total=False):
+class _UtteranceDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
     value: str
-    fields: Sequence[_FragmentFieldDocument]
+    fields: Sequence[_UtteranceFieldDocument]
 
 
-class _FragmentTagAssociationDocument(TypedDict, total=False):
+class _UtteranceTagAssociationDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
-    fragment_id: FragmentId
+    utterance_id: UtteranceId
     tag_id: TagId
 
 
-class FragmentDocumentStore(FragmentStore):
+class UtteranceDocumentStore(UtteranceStore):
     VERSION = Version.from_string("0.1.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
-        self._fragments_collection: DocumentCollection[_FragmentDocument]
-        self._fragment_tag_association_collection: DocumentCollection[
-            _FragmentTagAssociationDocument
+        self._utterances_collection: DocumentCollection[_UtteranceDocument]
+        self._utterance_tag_association_collection: DocumentCollection[
+            _UtteranceTagAssociationDocument
         ]
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, doc: BaseDocument) -> Optional[_FragmentDocument]:
+    async def _document_loader(self, doc: BaseDocument) -> Optional[_UtteranceDocument]:
         if doc["version"] == "0.1.0":
-            return cast(_FragmentDocument, doc)
+            return cast(_UtteranceDocument, doc)
 
         return None
 
     async def _association_document_loader(
         self, doc: BaseDocument
-    ) -> Optional[_FragmentTagAssociationDocument]:
+    ) -> Optional[_UtteranceTagAssociationDocument]:
         if doc["version"] == "0.1.0":
-            return cast(_FragmentTagAssociationDocument, doc)
+            return cast(_UtteranceTagAssociationDocument, doc)
         return None
 
     async def __aenter__(self) -> Self:
@@ -160,16 +160,16 @@ class FragmentDocumentStore(FragmentStore):
             database=self._database,
             allow_migration=self._allow_migration,
         ):
-            self._fragments_collection = await self._database.get_or_create_collection(
-                name="fragments",
-                schema=_FragmentDocument,
+            self._utterances_collection = await self._database.get_or_create_collection(
+                name="utterances",
+                schema=_UtteranceDocument,
                 document_loader=self._document_loader,
             )
 
-            self._fragment_tag_association_collection = (
+            self._utterance_tag_association_collection = (
                 await self._database.get_or_create_collection(
-                    name="fragment_tag_associations",
-                    schema=_FragmentTagAssociationDocument,
+                    name="utterance_tag_associations",
+                    schema=_UtteranceTagAssociationDocument,
                     document_loader=self._association_document_loader,
                 )
             )
@@ -184,104 +184,104 @@ class FragmentDocumentStore(FragmentStore):
     ) -> bool:
         return False
 
-    def _serialize_fragment(self, fragment: Fragment) -> _FragmentDocument:
-        return _FragmentDocument(
-            id=ObjectId(fragment.id),
+    def _serialize_utterance(self, utterance: Utterance) -> _UtteranceDocument:
+        return _UtteranceDocument(
+            id=ObjectId(utterance.id),
             version=self.VERSION.to_string(),
-            creation_utc=fragment.creation_utc.isoformat(),
-            value=fragment.value,
+            creation_utc=utterance.creation_utc.isoformat(),
+            value=utterance.value,
             fields=[
                 {"name": s.name, "description": s.description, "examples": s.examples}
-                for s in fragment.fields
+                for s in utterance.fields
             ],
         )
 
-    async def _deserialize_fragment(self, fragment_document: _FragmentDocument) -> Fragment:
+    async def _deserialize_utterance(self, utterance_document: _UtteranceDocument) -> Utterance:
         tags = [
             doc["tag_id"]
-            for doc in await self._fragment_tag_association_collection.find(
-                {"fragment_id": {"$eq": fragment_document["id"]}}
+            for doc in await self._utterance_tag_association_collection.find(
+                {"utterance_id": {"$eq": utterance_document["id"]}}
             )
         ]
 
-        return Fragment(
-            id=FragmentId(fragment_document["id"]),
-            creation_utc=datetime.fromisoformat(fragment_document["creation_utc"]),
-            value=fragment_document["value"],
+        return Utterance(
+            id=UtteranceId(utterance_document["id"]),
+            creation_utc=datetime.fromisoformat(utterance_document["creation_utc"]),
+            value=utterance_document["value"],
             fields=[
-                FragmentField(name=d["name"], description=d["description"], examples=d["examples"])
-                for d in fragment_document["fields"]
+                UtteranceField(name=d["name"], description=d["description"], examples=d["examples"])
+                for d in utterance_document["fields"]
             ],
             tags=tags,
         )
 
     @override
-    async def create_fragment(
+    async def create_utterance(
         self,
         value: str,
-        fields: Sequence[FragmentField],
+        fields: Sequence[UtteranceField],
         creation_utc: Optional[datetime] = None,
         tags: Optional[Sequence[TagId]] = None,
-    ) -> Fragment:
+    ) -> Utterance:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            fragment = Fragment(
-                id=FragmentId(generate_id()),
+            utterance = Utterance(
+                id=UtteranceId(generate_id()),
                 value=value,
                 fields=fields,
                 creation_utc=creation_utc,
                 tags=tags or [],
             )
 
-            await self._fragments_collection.insert_one(
-                document=self._serialize_fragment(fragment=fragment)
+            await self._utterances_collection.insert_one(
+                document=self._serialize_utterance(utterance=utterance)
             )
 
             for tag_id in tags or []:
-                await self._fragment_tag_association_collection.insert_one(
+                await self._utterance_tag_association_collection.insert_one(
                     document={
                         "id": ObjectId(generate_id()),
                         "version": self.VERSION.to_string(),
                         "creation_utc": creation_utc.isoformat(),
-                        "fragment_id": fragment.id,
+                        "utterance_id": utterance.id,
                         "tag_id": tag_id,
                     }
                 )
 
-        return fragment
+        return utterance
 
     @override
-    async def read_fragment(
+    async def read_utterance(
         self,
-        fragment_id: FragmentId,
-    ) -> Fragment:
+        utterance_id: UtteranceId,
+    ) -> Utterance:
         async with self._lock.reader_lock:
-            fragment_document = await self._fragments_collection.find_one(
-                filters={"id": {"$eq": fragment_id}}
+            utterance_document = await self._utterances_collection.find_one(
+                filters={"id": {"$eq": utterance_id}}
             )
 
-        if not fragment_document:
-            raise ItemNotFoundError(item_id=UniqueId(fragment_id))
+        if not utterance_document:
+            raise ItemNotFoundError(item_id=UniqueId(utterance_id))
 
-        return await self._deserialize_fragment(fragment_document)
+        return await self._deserialize_utterance(utterance_document)
 
     @override
-    async def update_fragment(
+    async def update_utterance(
         self,
-        fragment_id: FragmentId,
-        params: FragmentUpdateParams,
-    ) -> Fragment:
+        utterance_id: UtteranceId,
+        params: UtteranceUpdateParams,
+    ) -> Utterance:
         async with self._lock.writer_lock:
-            fragment_document = await self._fragments_collection.find_one(
-                filters={"id": {"$eq": fragment_id}}
+            utterance_document = await self._utterances_collection.find_one(
+                filters={"id": {"$eq": utterance_id}}
             )
 
-            if not fragment_document:
-                raise ItemNotFoundError(item_id=UniqueId(fragment_id))
+            if not utterance_document:
+                raise ItemNotFoundError(item_id=UniqueId(utterance_id))
 
-            result = await self._fragments_collection.update_one(
-                filters={"id": {"$eq": fragment_id}},
+            result = await self._utterances_collection.update_one(
+                filters={"id": {"$eq": utterance_id}},
                 params={
                     "value": params["value"],
                     "fields": [
@@ -293,74 +293,74 @@ class FragmentDocumentStore(FragmentStore):
 
         assert result.updated_document
 
-        return await self._deserialize_fragment(fragment_document=result.updated_document)
+        return await self._deserialize_utterance(utterance_document=result.updated_document)
 
-    async def list_fragments(
+    async def list_utterances(
         self,
-    ) -> Sequence[Fragment]:
+    ) -> Sequence[Utterance]:
         async with self._lock.reader_lock:
             return [
-                await self._deserialize_fragment(e)
-                for e in await self._fragments_collection.find({})
+                await self._deserialize_utterance(e)
+                for e in await self._utterances_collection.find({})
             ]
 
     @override
-    async def delete_fragment(
+    async def delete_utterance(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
     ) -> None:
         async with self._lock.writer_lock:
-            result = await self._fragments_collection.delete_one({"id": {"$eq": fragment_id}})
+            result = await self._utterances_collection.delete_one({"id": {"$eq": utterance_id}})
 
         if result.deleted_count == 0:
-            raise ItemNotFoundError(item_id=UniqueId(fragment_id))
+            raise ItemNotFoundError(item_id=UniqueId(utterance_id))
 
     @override
     async def upsert_tag(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
         tag_id: TagId,
         creation_utc: Optional[datetime] = None,
     ) -> bool:
         async with self._lock.writer_lock:
-            fragment = await self.read_fragment(fragment_id)
+            utterance = await self.read_utterance(utterance_id)
 
-            if tag_id in fragment.tags:
+            if tag_id in utterance.tags:
                 return False
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            association_document: _FragmentTagAssociationDocument = {
+            association_document: _UtteranceTagAssociationDocument = {
                 "id": ObjectId(generate_id()),
                 "version": self.VERSION.to_string(),
                 "creation_utc": creation_utc.isoformat(),
-                "fragment_id": fragment_id,
+                "utterance_id": utterance_id,
                 "tag_id": tag_id,
             }
 
-            _ = await self._fragment_tag_association_collection.insert_one(
+            _ = await self._utterance_tag_association_collection.insert_one(
                 document=association_document
             )
 
-            fragment_document = await self._fragments_collection.find_one(
-                {"id": {"$eq": fragment_id}}
+            utterance_document = await self._utterances_collection.find_one(
+                {"id": {"$eq": utterance_id}}
             )
 
-        if not fragment_document:
-            raise ItemNotFoundError(item_id=UniqueId(fragment_id))
+        if not utterance_document:
+            raise ItemNotFoundError(item_id=UniqueId(utterance_id))
 
         return True
 
     @override
     async def remove_tag(
         self,
-        fragment_id: FragmentId,
+        utterance_id: UtteranceId,
         tag_id: TagId,
     ) -> None:
         async with self._lock.writer_lock:
-            delete_result = await self._fragment_tag_association_collection.delete_one(
+            delete_result = await self._utterance_tag_association_collection.delete_one(
                 {
-                    "fragment_id": {"$eq": fragment_id},
+                    "utterance_id": {"$eq": utterance_id},
                     "tag_id": {"$eq": tag_id},
                 }
             )
@@ -368,9 +368,9 @@ class FragmentDocumentStore(FragmentStore):
             if delete_result.deleted_count == 0:
                 raise ItemNotFoundError(item_id=UniqueId(tag_id))
 
-            fragment_document = await self._fragments_collection.find_one(
-                {"id": {"$eq": fragment_id}}
+            utterance_document = await self._utterances_collection.find_one(
+                {"id": {"$eq": utterance_id}}
             )
 
-        if not fragment_document:
-            raise ItemNotFoundError(item_id=UniqueId(fragment_id))
+        if not utterance_document:
+            raise ItemNotFoundError(item_id=UniqueId(utterance_id))

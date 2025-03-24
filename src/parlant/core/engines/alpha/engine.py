@@ -31,9 +31,9 @@ from parlant.core.context_variables import (
     ContextVariableStore,
 )
 from parlant.core.customers import Customer
-from parlant.core.engines.alpha.fluid_message_generator import FluidMessageGenerator
+from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
-from parlant.core.engines.alpha.message_assembler import MessageAssembler
+from parlant.core.engines.alpha.utterance_generator import UtteranceGenerator
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
@@ -154,8 +154,8 @@ class AlphaEngine(Engine):
         entity_commands: EntityCommands,
         guideline_matcher: GuidelineMatcher,
         tool_event_generator: ToolEventGenerator,
-        fluid_message_generator: FluidMessageGenerator,
-        message_assembler: MessageAssembler,
+        fluid_message_generator: MessageGenerator,
+        utterance_generator: UtteranceGenerator,
         lifecycle_hooks: LifecycleHooks,
     ) -> None:
         self._logger = logger
@@ -167,7 +167,7 @@ class AlphaEngine(Engine):
         self._guideline_matcher = guideline_matcher
         self._tool_event_generator = tool_event_generator
         self._fluid_message_generator = fluid_message_generator
-        self._message_assembler = message_assembler
+        self._utterance_generator = utterance_generator
 
         self._lifecycle_hooks = lifecycle_hooks
 
@@ -666,8 +666,8 @@ class AlphaEngine(Engine):
         match agent.composition_mode:
             case "fluid":
                 return self._fluid_message_generator
-            case "strict_assembly" | "composited_assembly" | "fluid_assembly":
-                return self._message_assembler
+            case "strict_utterance" | "composited_utterance" | "fluid_utterance":
+                return self._utterance_generator
 
         raise Exception("Unsupported agent composition mode")
 

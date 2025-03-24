@@ -33,14 +33,14 @@ from parlant.api import services
 from parlant.api import tags
 from parlant.api import customers
 from parlant.api import logs
-from parlant.api import fragments
+from parlant.api import utterances
 from parlant.core.context_variables import ContextVariableStore
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import AgentStore
 from parlant.core.common import ItemNotFoundError, generate_id
 from parlant.core.customers import CustomerStore
 from parlant.core.evaluations import EvaluationStore, EvaluationListener
-from parlant.core.fragments import FragmentStore
+from parlant.core.utterances import UtteranceStore
 from parlant.core.guideline_connections import GuidelineConnectionStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
@@ -98,7 +98,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
     guideline_connection_store = container[GuidelineConnectionStore]
     guideline_tool_association_store = container[GuidelineToolAssociationStore]
     context_variable_store = container[ContextVariableStore]
-    fragment_store = container[FragmentStore]
+    utterance_store = container[UtteranceStore]
     service_registry = container[ServiceRegistry]
     nlp_service = container[NLPService]
     application = container[Application]
@@ -245,9 +245,9 @@ async def create_api_app(container: Container) -> ASGIApplication:
     )
 
     api_app.include_router(
-        prefix="/fragments",
-        router=fragments.create_router(
-            fragment_store=fragment_store,
+        prefix="/utterances",
+        router=utterances.create_router(
+            utterance_store=utterance_store,
             tag_store=tag_store,
         ),
     )

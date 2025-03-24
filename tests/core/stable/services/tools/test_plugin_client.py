@@ -38,7 +38,7 @@ from parlant.core.emissions import EventEmitter, EventEmitterFactory
 from parlant.core.services.tools.plugins import PluginClient
 from parlant.core.sessions import SessionId
 from parlant.core.tools import ToolExecutionError
-from parlant.core.fragments import Fragment, FragmentId, FragmentField
+from parlant.core.utterances import Utterance, UtteranceId, UtteranceField
 
 from tests.test_utilities import run_service_server
 
@@ -732,17 +732,17 @@ async def test_that_a_plugin_raises_tool_error_for_type_mismatch(
 
 
 @pytest.mark.asyncio
-async def test_that_a_plugin_tool_can_return_fragments(
+async def test_that_a_plugin_tool_can_return_utterances(
     tool_context: ToolContext,
     container: Container,
 ) -> None:
-    fragments = [
-        Fragment(
-            id=FragmentId("<test-fragment-1>"),
+    utterances = [
+        Utterance(
+            id=UtteranceId("<test-utterance-1>"),
             creation_utc=datetime.now(),
-            value="This is a test fragment with {field_name}",
+            value="This is a test utterance with {field_name}",
             fields=[
-                FragmentField(
+                UtteranceField(
                     name="field_name",
                     description="A sample field",
                     examples=["sample value"],
@@ -750,25 +750,25 @@ async def test_that_a_plugin_tool_can_return_fragments(
             ],
             tags=[],
         ),
-        Fragment(
-            id=FragmentId("<test-fragment-2>"),
+        Utterance(
+            id=UtteranceId("<test-utterance-2>"),
             creation_utc=datetime.now(),
-            value="Another fragment for testing",
+            value="Another utterance for testing",
             fields=[],
             tags=[],
         ),
     ]
 
     @tool
-    async def fragment_tool(context: ToolContext) -> ToolResult:
-        return ToolResult({"message": "Executed successfully"}, fragments=fragments)
+    async def utterance_tool(context: ToolContext) -> ToolResult:
+        return ToolResult({"message": "Executed successfully"}, utterances=utterances)
 
-    async with run_service_server([fragment_tool]) as server:
+    async with run_service_server([utterance_tool]) as server:
         async with create_client(server, container[EventBufferFactory]) as client:
-            result = await client.call_tool(fragment_tool.tool.name, tool_context, arguments={})
+            result = await client.call_tool(utterance_tool.tool.name, tool_context, arguments={})
 
-            assert result.fragments
-            assert len(result.fragments) == 2
+            assert result.utterances
+            assert len(result.utterances) == 2
 
-            assert fragments[0] in result.fragments
-            assert fragments[1] in result.fragments
+            assert utterances[0] in result.utterances
+            assert utterances[1] in result.utterances

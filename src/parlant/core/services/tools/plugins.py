@@ -587,7 +587,7 @@ class PluginServer:
                                     data=result.data,
                                     metadata=result.metadata,
                                     control=result.control,
-                                    fragments=result.fragments,
+                                    utterances=result.utterances,
                                 )
                             ).model_dump_json()
 

@@ -36,7 +36,7 @@ from pydantic import Field
 from typing_extensions import override, TypedDict
 
 from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSerializable, UniqueId
-from parlant.core.fragments import Fragment
+from parlant.core.utterances import Utterance
 
 ToolParameterType = Literal[
     "array",
@@ -106,19 +106,22 @@ class ToolResult:
     data: Any
     metadata: Mapping[str, Any]
     control: ControlOptions
-    fragments: Sequence[Fragment]
+    utterances: Sequence[Utterance]
+    utterance_fields: Mapping[str, Any]
 
     def __init__(
         self,
         data: JSONSerializable,
         metadata: Optional[Mapping[str, JSONSerializable]] = None,
         control: Optional[ControlOptions] = None,
-        fragments: Optional[Sequence[Fragment]] = None,
+        utterances: Optional[Sequence[Utterance]] = None,
+        utterance_fields: Optional[Mapping[str, JSONSerializable]] = None,
     ) -> None:
         object.__setattr__(self, "data", data)
         object.__setattr__(self, "metadata", metadata or {})
         object.__setattr__(self, "control", control or ControlOptions())
-        object.__setattr__(self, "fragments", fragments or [])
+        object.__setattr__(self, "utterances", utterances or [])
+        object.__setattr__(self, "utterance_fields", utterance_fields or {})
 
 
 class ToolParameterOptions(DefaultBaseModel):

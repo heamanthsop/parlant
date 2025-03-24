@@ -46,7 +46,7 @@ from parlant.core.sessions import (
     SessionUpdateParams,
     ToolEventData,
 )
-from parlant.core.fragments import FragmentId
+from parlant.core.utterances import UtteranceId
 
 API_GROUP = "sessions"
 
@@ -689,10 +689,10 @@ MessageEventDataTagsField: TypeAlias = Annotated[
     ),
 ]
 
-MessageEventDataFragmentsField: TypeAlias = Annotated[
-    Optional[Sequence[FragmentId]],
+MessageEventDataUtterancesField: TypeAlias = Annotated[
+    Optional[Sequence[UtteranceId]],
     Field(
-        description="List of associated fragment references, if any",
+        description="List of associated utterance references, if any",
         examples=[["frag_123xyz", "frag_789abc"]],
     ),
 ]
@@ -702,7 +702,7 @@ message_event_data_example = {
     "participant": participant_example,
     "flagged": False,
     "tags": ["greeting", "help-request"],
-    "fragments": ["frag_123xyz", "frag_789abc"],
+    "utterances": ["frag_123xyz", "frag_789abc"],
 }
 
 
@@ -718,7 +718,7 @@ class MessageEventDataDTO(
     participant: ParticipantDTO
     flagged: MessageEventDataFlaggedField = None
     tags: MessageEventDataTagsField = None
-    fragments: MessageEventDataFragmentsField = None
+    utterances: MessageEventDataUtterancesField = None
 
 
 message_generation_inspection_example = {
@@ -740,7 +740,7 @@ message_generation_inspection_example = {
             "participant": participant_example,
             "flagged": False,
             "tags": ["order-status"],
-            "fragments": ["frag_987abc"],
+            "utterances": ["frag_987abc"],
         },
     ],
 }

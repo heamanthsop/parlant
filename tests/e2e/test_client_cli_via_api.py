@@ -1701,7 +1701,7 @@ async def test_that_a_tag_can_be_updated(context: ContextOfTest) -> None:
         assert updated_tag["name"] == new_name
 
 
-async def test_that_fragments_can_be_initialized(context: ContextOfTest) -> None:
+async def test_that_utterances_can_be_initialized(context: ContextOfTest) -> None:
     with run_server(context):
         while not is_server_responsive(SERVER_PORT):
             await asyncio.sleep(0.05)
@@ -1712,7 +1712,7 @@ async def test_that_fragments_can_be_initialized(context: ContextOfTest) -> None
 
         assert (
             await run_cli_and_get_exit_status(
-                "fragment",
+                "utterance",
                 "init",
                 tmp_file_path,
             )
@@ -1722,21 +1722,24 @@ async def test_that_fragments_can_be_initialized(context: ContextOfTest) -> None
         with open(tmp_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        assert len(data.get("fragments", [])) > 0
-        assert all("value" in f for f in data["fragments"])
+        assert len(data.get("utterances", [])) > 0
+        assert all("value" in f for f in data["utterances"])
 
         os.remove(tmp_file_path)
 
 
-async def test_that_fragments_can_be_loaded(context: ContextOfTest) -> None:
+async def test_that_utterances_can_be_loaded(context: ContextOfTest) -> None:
     with run_server(context):
         while not is_server_responsive(SERVER_PORT):
             await asyncio.sleep(0.05)
 
-        test_fragments = {
-            "fragments": [
+        await context.api.create_tag("testTag1")
+        await context.api.create_tag("testTag2")
+
+        test_utterances = {
+            "utterances": [
                 {
-                    "value": "Hello, {username}!",
+                    "value": "Hello, {{username}}!",
                     "fields": [
                         {
                             "name": "username",
@@ -1747,7 +1750,7 @@ async def test_that_fragments_can_be_loaded(context: ContextOfTest) -> None:
                     "tags": ["testTag1", "testTag2"],
                 },
                 {
-                    "value": "Your balance is {balance}.",
+                    "value": "Your balance is {{balance}}.",
                     "fields": [
                         {
                             "name": "balance",
@@ -1765,23 +1768,23 @@ async def test_that_fragments_can_be_loaded(context: ContextOfTest) -> None:
 
         tmp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         tmp_file_path = tmp_file.name
-        json.dump(test_fragments, tmp_file, indent=2)
+        json.dump(test_utterances, tmp_file, indent=2)
         tmp_file.close()
 
         assert (
             await run_cli_and_get_exit_status(
-                "fragment",
+                "utterance",
                 "load",
                 tmp_file_path,
             )
             == os.EX_OK
         )
 
-        fragments_in_system = await context.api.list_fragments()
-        assert len(fragments_in_system) == 3
+        utterances_in_system = await context.api.list_utterances()
+        assert len(utterances_in_system) == 3
 
-        first = fragments_in_system[0]
-        assert first["value"] == "Hello, {username}!"
+        first = utterances_in_system[0]
+        assert first["value"] == "Hello, {{username}}!"
         assert "tags" in first
         assert "fields" in first
 

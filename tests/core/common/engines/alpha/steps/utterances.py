@@ -14,34 +14,34 @@
 
 import re
 from pytest_bdd import given, parsers
-from parlant.core.fragments import FragmentStore, FragmentId, FragmentField
+from parlant.core.utterances import UtteranceStore, UtteranceId, UtteranceField
 
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
 
 
-@step(given, parsers.parse('a fragment, "{text}"'))
-def given_a_fragment(
+@step(given, parsers.parse('an utterance, "{text}"'))
+def given_an_utterance(
     context: ContextOfTest,
     text: str,
-) -> FragmentId:
-    fragment_store = context.container[FragmentStore]
+) -> UtteranceId:
+    utterance_store = context.container[UtteranceStore]
 
-    fragment_field_pattern = r"\{(.*?)\}"
-    field_names = re.findall(fragment_field_pattern, text)
+    utterance_field_pattern = r"\{(.*?)\}"
+    field_names = re.findall(utterance_field_pattern, text)
 
-    fragment = context.sync_await(
-        fragment_store.create_fragment(
+    utterance = context.sync_await(
+        utterance_store.create_utterance(
             value=text,
             fields=[
-                FragmentField(
-                    name=fragment_field_name,
+                UtteranceField(
+                    name=utterance_field_name,
                     description="",
                     examples=[],
                 )
-                for fragment_field_name in field_names
+                for utterance_field_name in field_names
             ],
         )
     )
 
-    return fragment.id
+    return utterance.id

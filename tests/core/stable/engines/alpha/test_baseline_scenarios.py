@@ -23,7 +23,7 @@ load_steps(
     "engines",
     "events",
     "guidelines",
-    "fragments",
+    "utterances",
     "sessions",
     "terms",
     "tools",
@@ -35,8 +35,8 @@ scenarios(
     *(
         f"core/stable/engines/alpha/features/baseline/{feature}.feature"
         for feature in (
-            "composited_assembly",
-            "fluid_assembly",
+            "strict_utterances",
+            "fluid_utterances",
             "conversation",
             "errors",
             "guideline_connections",
@@ -46,7 +46,7 @@ scenarios(
             "glossary",
             "tools",
             "context_variables",
-            "utterances",
+            "triggered_utterances",
         )
     )
 )

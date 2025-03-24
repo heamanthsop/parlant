@@ -13,8 +13,7 @@ All notable changes to Parlant will be documented here.
 - Allow only specifying guideline condition or action when updating guideline from CLI
 - Add WebSocket logger feature for streaming logs in real time
 - Add a log viewer to the sandbox UI
-- Add API and CLI for Fragments
-- Changed message inspection to return message event data for displaying more information, such as fragments in the inspection
+- Add API and CLI for Utterances
 - Add support for the --migrate CLI flag to enable seamless store version upgrades during server startup
 - Add clear rate limit error logs for NLP adapters
 - Add enabled/disabled flag for guidelines to facilitate experimentation without deletion

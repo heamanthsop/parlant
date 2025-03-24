@@ -35,13 +35,16 @@ from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
-from parlant.core.engines.alpha import fluid_message_generator
+from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
-from parlant.core.engines.alpha.message_assembler import (
-    AssembledMessageSchema,
-    MessageCompositionSchema,
+from parlant.core.engines.alpha.utterance_generator import (
+    UtteranceFieldExtractionSchema,
+    UtteranceFieldExtractor,
+    UtteranceGenerationSchema,
+    UtteranceCompositionSchema,
+    UtteranceGenerator,
 )
-from parlant.core.fragments import FragmentDocumentStore, FragmentStore
+from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired
 from parlant.core.shots import ShotCollection
@@ -95,10 +98,10 @@ from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatchingShot,
     GuidelineMatchesSchema,
 )
-from parlant.core.engines.alpha.fluid_message_generator import (
-    FluidMessageGenerator,
-    FluidMessageGeneratorShot,
-    FluidMessageSchema,
+from parlant.core.engines.alpha.message_generator import (
+    MessageGenerator,
+    MessageGeneratorShot,
+    MessageSchema,
 )
 from parlant.core.engines.alpha.tool_event_generator import ToolEventGenerator
 from parlant.core.engines.types import Engine
@@ -280,14 +283,16 @@ async def setup_container() -> AsyncIterator[Container]:
 
     c[ShotCollection[GuidelineMatchingShot]] = guideline_matcher.shot_collection
     c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
-    c[ShotCollection[FluidMessageGeneratorShot]] = fluid_message_generator.shot_collection
+    c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
     c[LifecycleHooks] = LifecycleHooks()
     c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
-    c[FluidMessageGenerator] = Singleton(FluidMessageGenerator)
+    c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
+    c[UtteranceGenerator] = Singleton(UtteranceGenerator)
+    c[MessageGenerator] = Singleton(MessageGenerator)
 
     c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
     c[CoherenceChecker] = Singleton(CoherenceChecker)
@@ -353,8 +358,8 @@ async def initialize_container(
     services_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "services.json")
     )
-    fragment_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "fragments.json")
+    utterance_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "utterances.json")
     )
     glossary_tags_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "glossary_tags.json")
@@ -369,7 +374,9 @@ async def initialize_container(
         c[CustomerStore] = await EXIT_STACK.enter_async_context(
             CustomerDocumentStore(customers_db, migrate)
         )
-        c[FragmentStore] = await EXIT_STACK.enter_async_context(FragmentDocumentStore(fragment_db))
+        c[UtteranceStore] = await EXIT_STACK.enter_async_context(
+            UtteranceDocumentStore(utterance_db)
+        )
         c[GuidelineStore] = await EXIT_STACK.enter_async_context(
             GuidelineDocumentStore(guidelines_db, migrate)
         )
@@ -434,15 +441,16 @@ async def initialize_container(
     c[SchematicGenerator[GuidelineMatchesSchema]] = await nlp_service.get_schematic_generator(
         GuidelineMatchesSchema
     )
-    c[SchematicGenerator[FluidMessageSchema]] = await nlp_service.get_schematic_generator(
-        FluidMessageSchema
+    c[SchematicGenerator[MessageSchema]] = await nlp_service.get_schematic_generator(MessageSchema)
+    c[SchematicGenerator[UtteranceGenerationSchema]] = await nlp_service.get_schematic_generator(
+        UtteranceGenerationSchema
     )
-    c[SchematicGenerator[AssembledMessageSchema]] = await nlp_service.get_schematic_generator(
-        AssembledMessageSchema
+    c[SchematicGenerator[UtteranceCompositionSchema]] = await nlp_service.get_schematic_generator(
+        UtteranceCompositionSchema
     )
-    c[SchematicGenerator[MessageCompositionSchema]] = await nlp_service.get_schematic_generator(
-        MessageCompositionSchema
-    )
+    c[
+        SchematicGenerator[UtteranceFieldExtractionSchema]
+    ] = await nlp_service.get_schematic_generator(UtteranceFieldExtractionSchema)
     c[SchematicGenerator[ToolCallInferenceSchema]] = await nlp_service.get_schematic_generator(
         ToolCallInferenceSchema
     )

@@ -18,7 +18,7 @@ from enum import Enum
 import json
 from typing import Optional
 
-from parlant.core.fragments import Fragment
+from parlant.core.utterances import Utterance
 from parlant.core.tools import ToolResult
 
 
@@ -87,9 +87,9 @@ def add(first_number: int, second_number: int) -> ToolResult:
 def multiply(first_number: int, second_number: int) -> ToolResult:
     return ToolResult(
         first_number * second_number,
-        fragments=[
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
+        utterances=[
+            Utterance(
+                id=Utterance.TRANSIENT_ID,
                 creation_utc=datetime.now(),
                 value="asd",
                 fields=[],
@@ -233,76 +233,7 @@ def get_bookings(customer_id: str) -> ToolResult:
 
 
 def get_qualification_info() -> ToolResult:
-    qualification_info = """Our minimum education requirements are:
-- Bachelor's degree in Computer Science, Engineering or related field
-- Master's degree preferred but not required
-- Relevant professional certifications are a plus
-
-We're looking for candidates with:
-- 5+ years of software development experience
-- 3+ years working with cloud platforms (AWS/Azure/GCP)
-- Experience leading technical teams of 3-5 people
-
-Key technical skills required:
-- Python, Java or C++ programming
-- Distributed systems design
-- CI/CD and DevOps practices
-- Strong communication abilities"""
-
     return ToolResult(
-        data={"answer": qualification_info},
-        fragments=[
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="Bachelor's degree required, Master's preferred",
-                fields=[],
-                tags=[],
-            ),
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="5+ years development",
-                fields=[],
-                tags=[],
-            ),
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="Python/Java/C++, distributed systems, DevOps",
-                fields=[],
-                tags=[],
-            ),
-        ],
-    )
-
-
-def get_minimum_qualification_info() -> ToolResult:
-    qualification_info = """Our minimum education requirement is at least 5 years of software development experience"""
-
-    return ToolResult(
-        data={"answer": qualification_info},
-        fragments=[
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="3+ years working with cloud platforms",
-                fields=[],
-                tags=[],
-            ),
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="5+ years development",
-                fields=[],
-                tags=[],
-            ),
-            Fragment(
-                id=Fragment.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="Master degree",
-                fields=[],
-                tags=[],
-            ),
-        ],
+        data={},
+        utterance_fields={"qualification_info": "5+ years of experience"},
     )

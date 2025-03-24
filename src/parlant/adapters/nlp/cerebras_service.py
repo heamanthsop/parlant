@@ -124,8 +124,8 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
 
         t_end = time.time()
 
-        if response.usage:
-            self._logger.debug(response.usage.model_dump_json(indent=2))
+        if response.usage:  # type: ignore
+            self._logger.debug(response.usage.model_dump_json(indent=2))  # type: ignore
 
         raw_content = response.choices[0].message.content or "{}"  # type: ignore
 

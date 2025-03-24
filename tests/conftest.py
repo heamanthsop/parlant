@@ -34,12 +34,14 @@ from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
-from parlant.core.engines.alpha import fluid_message_generator
+from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import LifecycleHooks
-from parlant.core.engines.alpha.message_assembler import (
-    MessageAssembler,
-    AssembledMessageSchema,
-    MessageCompositionSchema,
+from parlant.core.engines.alpha.utterance_generator import (
+    UtteranceFieldExtractionSchema,
+    UtteranceFieldExtractor,
+    UtteranceGenerator,
+    UtteranceGenerationSchema,
+    UtteranceCompositionSchema,
 )
 from parlant.core.evaluations import (
     EvaluationListener,
@@ -47,7 +49,7 @@ from parlant.core.evaluations import (
     EvaluationDocumentStore,
     EvaluationStore,
 )
-from parlant.core.fragments import FragmentDocumentStore, FragmentStore
+from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.nlp.generation import T, SchematicGenerator
 from parlant.core.guideline_connections import (
@@ -75,10 +77,10 @@ from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatchingShot,
     GuidelineMatchesSchema,
 )
-from parlant.core.engines.alpha.fluid_message_generator import (
-    FluidMessageGenerator,
-    FluidMessageGeneratorShot,
-    FluidMessageSchema,
+from parlant.core.engines.alpha.message_generator import (
+    MessageGenerator,
+    MessageGeneratorShot,
+    MessageSchema,
 )
 from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCallerInferenceShot
 from parlant.core.engines.alpha.tool_event_generator import ToolEventGenerator
@@ -227,8 +229,8 @@ async def container(
         container[CustomerStore] = await stack.enter_async_context(
             CustomerDocumentStore(TransientDocumentDatabase())
         )
-        container[FragmentStore] = await stack.enter_async_context(
-            FragmentDocumentStore(TransientDocumentDatabase())
+        container[UtteranceStore] = await stack.enter_async_context(
+            UtteranceDocumentStore(TransientDocumentDatabase())
         )
         container[GuidelineToolAssociationStore] = await stack.enter_async_context(
             GuidelineToolAssociationDocumentStore(TransientDocumentDatabase())
@@ -270,9 +272,10 @@ async def container(
         container[EntityCommands] = Singleton(EntityCommands)
         for generation_schema in (
             GuidelineMatchesSchema,
-            FluidMessageSchema,
-            AssembledMessageSchema,
-            MessageCompositionSchema,
+            MessageSchema,
+            UtteranceGenerationSchema,
+            UtteranceCompositionSchema,
+            UtteranceFieldExtractionSchema,
             ToolCallInferenceSchema,
             ConditionsEntailmentTestsSchema,
             ActionsContradictionTestsSchema,
@@ -286,11 +289,8 @@ async def container(
 
         container[ShotCollection[GuidelineMatchingShot]] = guideline_matcher.shot_collection
         container[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
-        container[ShotCollection[FluidMessageGeneratorShot]] = (
-            fluid_message_generator.shot_collection
-        )
+        container[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
-        container[GuidelineMatcher] = Singleton(GuidelineMatcher)
         container[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
         container[CoherenceChecker] = Singleton(CoherenceChecker)
 
@@ -301,8 +301,10 @@ async def container(
             ),
         )
 
-        container[FluidMessageGenerator] = Singleton(FluidMessageGenerator)
-        container[MessageAssembler] = Singleton(MessageAssembler)
+        container[GuidelineMatcher] = Singleton(GuidelineMatcher)
+        container[UtteranceGenerator] = Singleton(UtteranceGenerator)
+        container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
+        container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)
 
         container[LifecycleHooks] = LifecycleHooks()
@@ -346,30 +348,39 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[FluidMessageSchema]],
+        container[SchematicGenerator[MessageSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[FluidMessageSchema],
-            container[SchematicGenerator[FluidMessageSchema]],
+            CachedSchematicGenerator[MessageSchema],
+            container[SchematicGenerator[MessageSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[AssembledMessageSchema]],
+        container[SchematicGenerator[UtteranceGenerationSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[AssembledMessageSchema],
-            container[SchematicGenerator[AssembledMessageSchema]],
+            CachedSchematicGenerator[UtteranceGenerationSchema],
+            container[SchematicGenerator[UtteranceGenerationSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[MessageCompositionSchema]],
+        container[SchematicGenerator[UtteranceCompositionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[MessageCompositionSchema],
-            container[SchematicGenerator[MessageCompositionSchema]],
+            CachedSchematicGenerator[UtteranceCompositionSchema],
+            container[SchematicGenerator[UtteranceCompositionSchema]],
+        ).use_cache = False
+
+    if isinstance(
+        container[SchematicGenerator[UtteranceFieldExtractionSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[UtteranceFieldExtractionSchema],
+            container[SchematicGenerator[UtteranceFieldExtractionSchema]],
         ).use_cache = False
 
     if isinstance(

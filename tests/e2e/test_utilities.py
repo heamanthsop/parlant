@@ -544,10 +544,10 @@ class API:
             evaluation_response.raise_for_status()
             return evaluation_response.json()
 
-    async def list_fragments(self) -> Any:
+    async def list_utterances(self) -> Any:
         async with self.make_client() as client:
-            fragments_reponse = await client.get(
-                "/fragments",
+            utterances_reponse = await client.get(
+                "/utterances",
             )
-            fragments_reponse.raise_for_status()
-            return fragments_reponse.json()
+            utterances_reponse.raise_for_status()
+            return utterances_reponse.json()

@@ -20,7 +20,7 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import JSONSerializable
 from parlant.core.customers import CustomerStore
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.message_assembler import DEFAULT_NO_MATCH_MESSAGE
+from parlant.core.engines.alpha.utterance_generator import DEFAULT_NO_MATCH_UTTERANCE
 from parlant.core.nlp.moderation import ModerationTag
 from parlant.core.sessions import (
     MessageEventData,
@@ -293,31 +293,31 @@ def then_the_message_mentions(
 
 @step(
     then,
-    parsers.parse('the message uses the fragment "{fragment_text}"'),
+    parsers.parse('the message uses the utterance "{utterance_text}"'),
 )
-def then_the_message_uses_the_fragment(
+def then_the_message_uses_the_utterance(
     emitted_events: list[EmittedEvent],
-    fragment_text: str,
+    utterance_text: str,
 ) -> None:
     message_event = next(e for e in emitted_events if e.kind == "message")
     message_data = cast(MessageEventData, message_event.data)
-    assert message_data["fragments"]
+    assert message_data["utterances"]
 
-    assert any(fragment_text in fragment for _, fragment in message_data["fragments"])
+    assert any(utterance_text in utterance for _, utterance in message_data["utterances"])
 
 
 @step(
     then,
-    parsers.parse('the message doesn\'t use the fragment "{fragment_text}"'),
+    parsers.parse('the message doesn\'t use the utterance "{utterance_text}"'),
 )
-def then_the_message_does_not_use_the_fragment(
+def then_the_message_does_not_use_the_utterance(
     emitted_events: list[EmittedEvent],
-    fragment_text: str,
+    utterance_text: str,
 ) -> None:
     message_event = next(e for e in emitted_events if e.kind == "message")
     message_data = cast(MessageEventData, message_event.data)
 
-    assert all(fragment_text not in fragment for _, fragment in message_data["fragments"])
+    assert all(utterance_text not in utterance for _, utterance in message_data["utterances"])
 
 
 @step(then, "no events are emitted")
@@ -342,8 +342,8 @@ def then_a_no_match_message_is_emitted(
     message = cast(MessageEventData, message_event.data)["message"]
 
     assert (
-        message == DEFAULT_NO_MATCH_MESSAGE
-    ), f"message: '{message}', expected to be{DEFAULT_NO_MATCH_MESSAGE}'"
+        message == DEFAULT_NO_MATCH_UTTERANCE
+    ), f"message: '{message}', expected to be{DEFAULT_NO_MATCH_UTTERANCE}'"
 
 
 def _has_status_event(
@@ -527,23 +527,3 @@ def then_the_tool_calls_event_contains_call(
     ]
 
     assert len(matching_tool_calls) > 0, f"No tool call found for {tool_name}"
-
-
-@step(then, parsers.parse('the call to "{tool_name}" returns fragments'))
-def then_the_tool_call_contains_fragments(
-    emitted_events: list[EmittedEvent],
-    tool_name: str,
-) -> None:
-    tool_calls = _get_tool_calls(emitted_events)
-
-    matching_tool_calls = [
-        tc
-        for tc in tool_calls
-        if tc["tool_id"].endswith(f":{tool_name}") or tc["tool_id"] == f"local:{tool_name}"
-    ]
-
-    tool_call = matching_tool_calls[0]
-    assert (
-        "fragments" in tool_call["result"]
-    ), f"No fragments found in result: {tool_call['result']}"
-    assert len(tool_call["result"]["fragments"]) > 0, "Empty fragments list in result"

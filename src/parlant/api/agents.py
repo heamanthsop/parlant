@@ -116,15 +116,15 @@ class CompositionModeDTO(Enum):
 
     Available options:
     - fluid
-    - strict_assembly
-    - composited_assembly
-    - fluid_assembly
+    - strict_utterance
+    - composited_utterance
+    - fluid_utterance
     """
 
     FLUID = "fluid"
-    STRICT_ASSEMBLY = "strict_assembly"
-    COMPOSITED_ASSEMBLY = "composited_assembly"
-    FLUID_ASSEMBLY = "fluid_assembly"
+    STRICT_UTTERANCE = "strict_utterance"
+    COMPOSITED_UTTERANCE = "composited_utterance"
+    FLUID_UTTERANCE = "fluid_utterance"
 
 
 class AgentDTO(

@@ -792,7 +792,8 @@ Guidelines:
                     "data": result.data,
                     "metadata": result.metadata,
                     "control": result.control,
-                    "fragments": result.fragments,
+                    "utterances": result.utterances,
+                    "utterance_fields": result.utterance_fields,
                 },
             )
         except Exception as e:
@@ -810,7 +811,8 @@ Guidelines:
                     "data": "Tool call error",
                     "metadata": {"error_details": str(e)},
                     "control": {},
-                    "fragments": [],
+                    "utterances": [],
+                    "utterance_fields": {},
                 },
             )
 

@@ -63,9 +63,8 @@ from parlant.client.types import (
     CustomerTagUpdateParams,
     Tag,
     ConsumptionOffsetsUpdateParams,
-    Fragment,
-    FragmentField,
-    FragmentTagUpdateParams,
+    Utterance,
+    UtteranceField,
 )
 from websocket import WebSocketConnectionClosedException, create_connection
 
@@ -797,49 +796,48 @@ class Actions:
         client.tags.delete(tag_id=tag_id)
 
     @staticmethod
-    def list_fragments(ctx: click.Context) -> list[Fragment]:
+    def list_utterances(ctx: click.Context) -> list[Utterance]:
         client = cast(ParlantClient, ctx.obj.client)
-        client.fragments.list()
-        return client.fragments.list()
+        return client.utterances.list()
 
     @staticmethod
-    def view_fragment(ctx: click.Context, fragment_id: str) -> Fragment:
+    def view_utterance(ctx: click.Context, utterance_id: str) -> Utterance:
         client = cast(ParlantClient, ctx.obj.client)
-        return client.fragments.retrieve(fragment_id=fragment_id)
+        return client.utterances.retrieve(utterance_id=utterance_id)
 
     @staticmethod
-    def load_fragments(ctx: click.Context, path: Path) -> list[Fragment]:
+    def load_utterances(ctx: click.Context, path: Path) -> list[Utterance]:
         with open(path, "r") as file:
             data = json.load(file)
 
         client = cast(ParlantClient, ctx.obj.client)
 
-        for fragment in client.fragments.list():
-            client.fragments.delete(fragment_id=fragment.id)
+        for utterance in client.utterances.list():
+            client.utterances.delete(utterance_id=utterance.id)
 
-        fragments = []
-        for fragment_data in data.get("fragments", []):
-            value = fragment_data["value"]
+        utterances = []
+        tag_ids = {tag.name: tag.id for tag in client.tags.list()}
+
+        for utterance_data in data.get("utterances", []):
+            value = utterance_data["value"]
             assert value
 
             fields = [
-                FragmentField(**fragment_field)
-                for fragment_field in fragment_data.get("fields", [])
+                UtteranceField(**utterance_field)
+                for utterance_field in utterance_data.get("fields", [])
             ]
 
-            fragment = client.fragments.create(
+            tag_names = utterance_data.get("tags", [])
+
+            utterance = client.utterances.create(
                 value=value,
                 fields=fields,
+                tags=[tag_ids[tag_name] for tag_name in tag_names if tag_name in tag_ids] or None,
             )
 
-            if tag_ids := fragment_data.get("tags", []):
-                client.fragments.update(
-                    fragment_id=fragment.id, tags=FragmentTagUpdateParams(add=tag_ids)
-                )
+            utterances.append(utterance)
 
-            fragments.append(fragment)
-
-        return fragments
+        return utterances
 
     @staticmethod
     def stream_logs(
@@ -950,7 +948,7 @@ class Interface:
                 "Description": a.description or "",
                 "Max Engine Iterations": a.max_engine_iterations,
                 "Composition Mode": a.composition_mode.replace("_", "-"),
-                "Tags": ", ".join(a.tags),
+                "Tags": ", ".join(a.tags or []),
             }
             for a in agents
         ]
@@ -1464,7 +1462,7 @@ class Interface:
 
             guidelines_to_render = sorted(
                 [g for g in guidelines if g.enabled or not hide_disabled],
-                key=lambda g: g.enabled,
+                key=lambda g: g.enabled or False,
                 reverse=True,
             )
 
@@ -2094,8 +2092,8 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def _render_fragments(fragments: list[Fragment]) -> None:
-        fragment_items = [
+    def _render_utterances(utterances: list[Utterance]) -> None:
+        utterance_items = [
             {
                 "ID": f.id,
                 "Value": f.value,
@@ -2107,40 +2105,40 @@ class Interface:
                 "Tags": ", ".join(f.tags),
                 "Creation Date": reformat_datetime(f.creation_utc),
             }
-            for f in fragments
+            for f in utterances
         ]
 
-        Interface._print_table(fragment_items)
+        Interface._print_table(utterance_items)
 
     @staticmethod
-    def load_fragments(ctx: click.Context, path: Path) -> None:
+    def load_utterances(ctx: click.Context, path: Path) -> None:
         try:
-            fragments = Actions.load_fragments(ctx, path)
+            utterances = Actions.load_utterances(ctx, path)
 
-            Interface._write_success(f"Loaded {len(fragments)} fragments from {path}")
-            Interface._render_fragments(fragments)
+            Interface._write_success(f"Loaded {len(utterances)} utterances from {path}")
+            Interface._render_utterances(utterances)
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def list_fragments(ctx: click.Context) -> None:
+    def list_utterances(ctx: click.Context) -> None:
         try:
-            fragments = Actions.list_fragments(ctx)
-            if not fragments:
-                rich.print("No fragments found")
+            utterances = Actions.list_utterances(ctx)
+            if not utterances:
+                rich.print("No utterances found")
                 return
 
-            Interface._render_fragments(fragments)
+            Interface._render_utterances(utterances)
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def view_fragment(ctx: click.Context, fragment_id: str) -> None:
+    def view_utterance(ctx: click.Context, utterance_id: str) -> None:
         try:
-            fragment = Actions.view_fragment(ctx, fragment_id=fragment_id)
-            Interface._render_fragments([fragment])
+            utterance = Actions.view_utterance(ctx, utterance_id=utterance_id)
+            Interface._render_utterances([utterance])
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2220,7 +2218,7 @@ async def async_main() -> None:
     )
     @click.option(
         "--composition-mode",
-        type=click.Choice(["fluid", "strict-assembly", "composited-assembly", "fluid-assembly"]),
+        type=click.Choice(["fluid", "strict-utterance", "composited-utterance", "fluid-utterance"]),
         help="Composition mode",
         required=False,
     )
@@ -2294,7 +2292,7 @@ async def async_main() -> None:
     @click.option(
         "--composition-mode",
         "-c",
-        type=click.Choice(["fluid", "strict-assembly", "composited-assembly", "fluid-assembly"]),
+        type=click.Choice(["fluid", "strict-utterance", "composited-utterance", "fluid-utterance"]),
         help="Composition mode",
         required=False,
     )
@@ -3209,35 +3207,21 @@ async def async_main() -> None:
     def tag_delete(ctx: click.Context, id: str) -> None:
         Interface.delete_tag(ctx, id)
 
-    @cli.group(help="Manage fragments")
-    def fragment() -> None:
+    @cli.group(help="Manage utterances")
+    def utterance() -> None:
         pass
 
-    @fragment.command("init", help="Initialize a sample fragments JSON file.")
+    @utterance.command("init", help="Initialize a sample utterances JSON file.")
     @click.argument("file", type=click.Path(dir_okay=False, writable=True))
-    def fragment_init(file: str) -> None:
+    def utterance_init(file: str) -> None:
         sample_data = {
-            "fragments": [
+            "utterances": [
                 {
-                    "value": "Hello, {username}!",
-                    "fields": [
-                        {
-                            "name": "username",
-                            "description": "The user's name",
-                            "examples": ["Alice", "Bob"],
-                        }
-                    ],
-                    "tags": ["tgId123", "tgId32"],
+                    "value": "Hello, {{username}}!",
+                    "tags": [],
                 },
                 {
-                    "value": "Your balance is {balance}",
-                    "fields": [
-                        {
-                            "name": "balance",
-                            "description": "Account balance",
-                            "examples": ["1000", "9999"],
-                        }
-                    ],
+                    "value": "Your balance is {{balance}}",
                 },
             ]
         }
@@ -3249,24 +3233,24 @@ async def async_main() -> None:
         with path.open("w", encoding="utf-8") as f:
             json.dump(sample_data, f, indent=2)
 
-        Interface._write_success(f"Created sample fragment data at {path}")
+        Interface._write_success(f"Created sample utterance data at {path}")
 
-    @fragment.command("load", help="Load fragments from a JSON file.")
+    @utterance.command("load", help="Load utterances from a JSON file.")
     @click.argument("file", type=click.Path(exists=True, dir_okay=False))
     @click.pass_context
-    def fragment_load(ctx: click.Context, file: str) -> None:
-        Interface.load_fragments(ctx, Path(file))
+    def utterance_load(ctx: click.Context, file: str) -> None:
+        Interface.load_utterances(ctx, Path(file))
 
-    @fragment.command("list", help="List fragments")
+    @utterance.command("list", help="List utterances")
     @click.pass_context
-    def fragment_list(ctx: click.Context) -> None:
-        Interface.list_fragments(ctx)
+    def utterance_list(ctx: click.Context) -> None:
+        Interface.list_utterances(ctx)
 
-    @fragment.command("view", help="View a fragment")
-    @click.option("--id", type=str, metavar="ID", help="Fragment ID", required=True)
+    @utterance.command("view", help="View an utterance")
+    @click.option("--id", type=str, metavar="ID", help="Utterance ID", required=True)
     @click.pass_context
-    def fragment_view(ctx: click.Context, id: str) -> None:
-        Interface.view_fragment(ctx, id)
+    def utterance_view(ctx: click.Context, id: str) -> None:
+        Interface.view_utterance(ctx, id)
 
     @cli.command(
         "log",

@@ -21,8 +21,12 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.customers import CustomerStore
 from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.fluid_message_generator import FluidMessageGenerator
-from parlant.core.engines.alpha.message_assembler import MessageAssembler
+from parlant.core.engines.alpha.message_generator import MessageGenerator
+from parlant.core.engines.alpha.utterance_generator import (
+    GenerativeFieldExtraction,
+    UtteranceFieldExtractor,
+    UtteranceGenerator,
+)
 from parlant.core.engines.alpha.message_event_composer import MessageEventComposer
 from parlant.core.engines.alpha.tool_caller import ToolInsights
 from parlant.core.engines.types import Context, UtteranceReason, UtteranceRequest
@@ -44,8 +48,17 @@ def given_the_alpha_engine(
 def given_a_faulty_message_production_mechanism(
     context: ContextOfTest,
 ) -> None:
-    generator = context.container[FluidMessageGenerator]
+    generator = context.container[MessageGenerator]
     generator.generate_events = AsyncMock(side_effect=Exception())  # type: ignore
+
+
+@step(given, "permission to extract fields generatively from context")
+def given_permission_to_extract_fields_generatively_from_context(
+    context: ContextOfTest,
+) -> None:
+    context.container[UtteranceFieldExtractor].methods.append(
+        context.container[GenerativeFieldExtraction],
+    )
 
 
 @step(
@@ -149,9 +162,9 @@ def when_messages_are_emitted(
 
     match agent.composition_mode:
         case "fluid":
-            message_event_composer = context.container[FluidMessageGenerator]
-        case "strict_assembly" | "composited_assembly" | "fluid_assembly":
-            message_event_composer = context.container[MessageAssembler]
+            message_event_composer = context.container[MessageGenerator]
+        case "strict_utterance" | "composited_utterance" | "fluid_utterance":
+            message_event_composer = context.container[UtteranceGenerator]
 
     result = context.sync_await(
         message_event_composer.generate_events(
