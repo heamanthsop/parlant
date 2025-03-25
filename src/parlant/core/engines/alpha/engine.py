@@ -52,6 +52,7 @@ from parlant.core.sessions import (
 )
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
+    GuidelineMatchingContext,
     GuidelineMatchingResult,
 )
 from parlant.core.engines.alpha.guideline_match import (
@@ -609,13 +610,15 @@ class AlphaEngine(Engine):
 
         # Step 2: Filter the best matches out of those.
         matching_result = await self._guideline_matcher.match_guidelines(
-            agent=context.agent,
-            customer=context.customer,
+            context=GuidelineMatchingContext(
+                agent=context.agent,
+                customer=context.customer,
+                context_variables=state.context_variables,
+                interaction_history=context.interaction.history,
+                terms=list(state.glossary_terms),
+                staged_events=state.tool_events,
+            ),
             guidelines=all_stored_guidelines,
-            context_variables=state.context_variables,
-            interaction_history=context.interaction.history,
-            terms=list(state.glossary_terms),
-            staged_events=state.tool_events,
         )
 
         # Step 3: Load connected guidelines that may not have

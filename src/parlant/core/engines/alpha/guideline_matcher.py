@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from itertools import chain
 import json
 import math
 import time
-from typing import Literal, Optional, Sequence, cast
+from typing import Literal, Optional, Sequence
+from typing_extensions import override
 
 from parlant.core import async_utils
 from parlant.core.agents import Agent
@@ -46,7 +48,7 @@ class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
     rationale: str
 
 
-class GuidelineMatchSchema(DefaultBaseModel):
+class GenericGuidelineMatchSchema(DefaultBaseModel):
     guideline_id: str
     condition: str
     condition_application_rationale: str
@@ -66,28 +68,25 @@ class GuidelineMatchSchema(DefaultBaseModel):
     applies_score: int
 
 
-class GuidelineMatchesSchema(DefaultBaseModel):
-    checks: Sequence[GuidelineMatchSchema]
+class GenericGuidelineMatchesSchema(DefaultBaseModel):
+    checks: Sequence[GenericGuidelineMatchSchema]
 
 
 @dataclass
-class GuidelineMatchingShot(Shot):
+class GenericGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: GuidelineMatchesSchema
+    expected_result: GenericGuidelineMatchesSchema
 
 
 @dataclass(frozen=True)
-class ConditionApplicabilityEvaluation:
-    guideline_id: GuidelineId
-    condition: str
-    action: str
-    score: int
-    condition_application_rationale: str
-    guideline_previously_applied_rationale: str
-    guideline_previously_applied: str
-    guideline_is_continuous: bool
-    guideline_should_reapply: bool
+class GuidelineMatchingContext:
+    agent: Agent
+    customer: Customer
+    context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
+    interaction_history: Sequence[Event]
+    terms: Sequence[Term]
+    staged_events: Sequence[EmittedEvent]
 
 
 @dataclass(frozen=True)
@@ -102,159 +101,47 @@ class GuidelineMatchingResult:
         return list(chain.from_iterable(self.batches))
 
 
-class GuidelineMatcher:
+class GuidelineMatchingBatchResult(DefaultBaseModel):
+    matches: Sequence[GuidelineMatch]
+    generation_info: GenerationInfo
+
+
+class GuidelineMatchingBatch(ABC):
+    @abstractmethod
+    async def process(self) -> GuidelineMatchingBatchResult:
+        pass
+
+
+class GuidelineMatchingStrategy(ABC):
+    @abstractmethod
+    async def create_batches(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
+    ) -> Sequence[GuidelineMatchingBatch]:
+        pass
+
+
+class GenericGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[GenericGuidelineMatchesSchema],
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
+        self._guidelines = {g.id: g for g in guidelines}
+        self._context = context
 
-    async def match_guidelines(
-        self,
-        agent: Agent,
-        customer: Customer,
-        guidelines: Sequence[Guideline],
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        staged_events: Sequence[EmittedEvent],
-    ) -> GuidelineMatchingResult:
-        with self._logger.scope("GuidelineMatcher"):
-            return await self._do_match_guidelines(
-                agent,
-                customer,
-                guidelines,
-                context_variables,
-                interaction_history,
-                terms,
-                staged_events,
-            )
-
-    async def _do_match_guidelines(
-        self,
-        agent: Agent,
-        customer: Customer,
-        guidelines: Sequence[Guideline],
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        staged_events: Sequence[EmittedEvent],
-    ) -> GuidelineMatchingResult:
-        if not guidelines:
-            return GuidelineMatchingResult(
-                total_duration=0.0, batch_count=0, batch_generations=[], batches=[]
-            )
-
-        guidelines_dict = {g.id: g for g in guidelines}
-        t_start = time.time()
-        batches = self._create_guideline_batches(
-            guidelines_dict,
-            batch_size=self._get_optimal_batch_size(guidelines_dict),
-        )
+    @override
+    async def process(self) -> GuidelineMatchingBatchResult:
+        prompt = self._build_prompt(shots=await self.shots())
 
         with self._logger.operation(
-            f"Evaluation: {len(guidelines)} guidelines in {len(batches)} batches"
+            f"GenericGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
         ):
-            batch_tasks = [
-                self._process_guideline_batch(
-                    agent,
-                    customer,
-                    context_variables,
-                    interaction_history,
-                    staged_events,
-                    terms,
-                    batch,
-                )
-                for batch in batches
-            ]
-
-            batch_generations, condition_evaluations_batches = zip(
-                *(await async_utils.safe_gather(*batch_tasks))
-            )
-
-        match_batches: list[list[GuidelineMatch]] = []
-
-        for batch in cast(
-            tuple[list[ConditionApplicabilityEvaluation]], condition_evaluations_batches
-        ):
-            guideline_matches = []
-            for evaluation in batch:
-                guideline_matches.append(
-                    GuidelineMatch(
-                        guideline=guidelines_dict[GuidelineId(evaluation.guideline_id)],
-                        score=evaluation.score,
-                        guideline_previously_applied=PreviouslyAppliedType(
-                            evaluation.guideline_previously_applied
-                        ),
-                        guideline_is_continuous=evaluation.guideline_is_continuous,
-                        rationale=f'''Condition Application: "{evaluation.condition_application_rationale}"; Guideline Previously Applied: "{evaluation.guideline_previously_applied_rationale}"''',
-                        should_reapply=evaluation.guideline_should_reapply or False,
-                    )
-                )
-            match_batches.append(guideline_matches)
-
-        t_end = time.time()
-
-        return GuidelineMatchingResult(
-            total_duration=t_end - t_start,
-            batch_count=len(batches),
-            batch_generations=list(cast(tuple[GenerationInfo], batch_generations)),
-            batches=match_batches,
-        )
-
-    def _get_optimal_batch_size(self, guidelines: dict[GuidelineId, Guideline]) -> int:
-        guideline_n = len(guidelines)
-
-        if guideline_n <= 10:
-            return 1
-        elif guideline_n <= 20:
-            return 2
-        elif guideline_n <= 30:
-            return 3
-        else:
-            return 5
-
-    def _create_guideline_batches(
-        self,
-        guidelines_dict: dict[GuidelineId, Guideline],
-        batch_size: int,
-    ) -> Sequence[dict[GuidelineId, Guideline]]:
-        batches = []
-        guidelines = list(guidelines_dict.items())
-        batch_count = math.ceil(len(guidelines_dict) / batch_size)
-
-        for batch_number in range(batch_count):
-            start_offset = batch_number * batch_size
-            end_offset = start_offset + batch_size
-            batch = dict(guidelines[start_offset:end_offset])
-            batches.append(batch)
-
-        return batches
-
-    async def _process_guideline_batch(
-        self,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        staged_events: Sequence[EmittedEvent],
-        terms: Sequence[Term],
-        guidelines_dict: dict[GuidelineId, Guideline],
-    ) -> tuple[GenerationInfo, list[ConditionApplicabilityEvaluation]]:
-        prompt = self._build_prompt(
-            agent,
-            customer,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            staged_events=staged_events,
-            terms=terms,
-            guidelines=guidelines_dict,
-            shots=await self.shots(),
-        )
-
-        with self._logger.operation(f"Batch: {len(guidelines_dict)} guidelines"):
             inference = await self._schematic_generator.generate(
                 prompt=prompt,
                 hints={"temperature": 0.15},
@@ -275,39 +162,38 @@ class GuidelineMatcher:
                 self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
 
                 matches.append(
-                    ConditionApplicabilityEvaluation(
-                        guideline_id=GuidelineId(match.guideline_id),
-                        condition=guidelines_dict[
-                            GuidelineId(match.guideline_id)
-                        ].content.condition,
-                        action=guidelines_dict[GuidelineId(match.guideline_id)].content.action
-                        or "",
+                    GuidelineMatch(
+                        guideline=self._guidelines[GuidelineId(match.guideline_id)],
                         score=match.applies_score,
-                        condition_application_rationale=match.condition_application_rationale,
-                        guideline_previously_applied=match.guideline_previously_applied or "no",
-                        guideline_previously_applied_rationale="; ".join(
+                        rationale=f'''Condition Application: "{match.condition_application_rationale}"; Guideline Previously Applied: "{"; ".join(
                             [r.rationale for r in match.guideline_previously_applied_rationale]
                         )
                         if match.guideline_previously_applied_rationale
-                        else "",
-                        guideline_should_reapply=match.guideline_should_reapply or False,
+                        else ""}"''',
+                        guideline_previously_applied=PreviouslyAppliedType(
+                            match.guideline_previously_applied or "no"
+                        ),
                         guideline_is_continuous=match.guideline_is_continuous or False,
+                        should_reapply=match.guideline_should_reapply or False,
                     )
                 )
             else:
                 self._logger.debug(f"Completion::Skipped:\n{match.model_dump_json(indent=2)}")
 
-        return inference.info, matches
+        return GuidelineMatchingBatchResult(
+            matches=matches,
+            generation_info=inference.info,
+        )
 
-    async def shots(self) -> Sequence[GuidelineMatchingShot]:
+    async def shots(self) -> Sequence[GenericGuidelineMatchingShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[GuidelineMatchingShot]) -> str:
+    def _format_shots(self, shots: Sequence[GenericGuidelineMatchingShot]) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GuidelineMatchingShot) -> str:
+    def _format_shot(self, shot: GenericGuidelineMatchingShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 "customer": "user",
@@ -353,14 +239,7 @@ class GuidelineMatcher:
 
     def _build_prompt(
         self,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        staged_events: Sequence[EmittedEvent],
-        terms: Sequence[Term],
-        guidelines: dict[GuidelineId, Guideline],
-        shots: Sequence[GuidelineMatchingShot],
+        shots: Sequence[GenericGuidelineMatchingShot],
     ) -> PromptBuilder:
         result_structure = [
             {
@@ -383,11 +262,11 @@ class GuidelineMatcher:
                 "guideline_should_reapply": "<BOOL: Optional, only necessary if guideline_previously_applied is not 'no'>",
                 "applies_score": "<Relevance score of the guideline between 1 and 10. A higher score indicates that the guideline should be active>",
             }
-            for g in guidelines.values()
+            for g in self._guidelines.values()
         ]
         guidelines_text = "\n".join(
             f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
-            for i, g in guidelines.items()
+            for i, g in self._guidelines.items()
         )
 
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
@@ -460,11 +339,11 @@ Examples of Condition Evaluations:
                 "shots": shots,
             },
         )
-        builder.add_agent_identity(agent)
-        builder.add_context_variables(context_variables)
-        builder.add_glossary(terms)
-        builder.add_interaction_history(interaction_history)
-        builder.add_staged_events(staged_events)
+        builder.add_agent_identity(self._context.agent)
+        builder.add_context_variables(self._context.context_variables)
+        builder.add_glossary(self._context.terms)
+        builder.add_interaction_history(self._context.interaction_history)
+        builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
             template="""
@@ -494,11 +373,125 @@ Expected Output
             props={
                 "result_structure_text": json.dumps(result_structure),
                 "result_structure": result_structure,
-                "guidelines_len": len(guidelines),
+                "guidelines_len": len(self._guidelines),
             },
         )
 
         return builder
+
+
+class GenericGuidelineMatching(GuidelineMatchingStrategy):
+    def __init__(
+        self,
+        logger: Logger,
+        schematic_generator: SchematicGenerator[GenericGuidelineMatchesSchema],
+    ) -> None:
+        self._generic_guideline_matching_batch = partial(
+            GenericGuidelineMatchingBatch,
+            logger=logger,
+            schematic_generator=schematic_generator,
+        )
+
+    @override
+    async def create_batches(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
+    ) -> Sequence[GuidelineMatchingBatch]:
+        batches = []
+
+        guidelines_dict = {g.id: g for g in guidelines}
+        batch_size = self._get_optimal_batch_size(guidelines_dict)
+        guidelines_list = list(guidelines_dict.items())
+        batch_count = math.ceil(len(guidelines_dict) / batch_size)
+
+        for batch_number in range(batch_count):
+            start_offset = batch_number * batch_size
+            end_offset = start_offset + batch_size
+            batch = dict(guidelines_list[start_offset:end_offset])
+            batches.append(
+                self._generic_guideline_matching_batch(
+                    guidelines=list(batch.values()),
+                    context=context,
+                )
+            )
+
+        return batches
+
+    def _get_optimal_batch_size(self, guidelines: dict[GuidelineId, Guideline]) -> int:
+        guideline_n = len(guidelines)
+
+        if guideline_n <= 10:
+            return 1
+        elif guideline_n <= 20:
+            return 2
+        elif guideline_n <= 30:
+            return 3
+        else:
+            return 5
+
+
+class GuidelineMatcher:
+    def __init__(
+        self,
+        logger: Logger,
+        schematic_generator: SchematicGenerator[GenericGuidelineMatchesSchema],
+    ) -> None:
+        self._logger = logger
+        self._schematic_generator = schematic_generator
+        self.strategy_picker = self._default_strategy_picker
+
+    async def match_guidelines(
+        self,
+        context: GuidelineMatchingContext,
+        guidelines: Sequence[Guideline],
+    ) -> GuidelineMatchingResult:
+        if not guidelines:
+            return GuidelineMatchingResult(
+                total_duration=0.0, batch_count=0, batch_generations=[], batches=[]
+            )
+
+        t_start = time.time()
+
+        with self._logger.scope("GuidelineMatcher"):
+            with self._logger.operation("Creating batches"):
+                guideline_strategies: dict[
+                    str, tuple[GuidelineMatchingStrategy, list[Guideline]]
+                ] = {}
+                for guideline in guidelines:
+                    strategy = await self.strategy_picker(guideline)
+                    if strategy.__class__.__name__ not in guideline_strategies:
+                        guideline_strategies[strategy.__class__.__name__] = (strategy, [])
+                    guideline_strategies[strategy.__class__.__name__][1].append(guideline)
+
+                batches = await async_utils.safe_gather(
+                    *[
+                        strategy.create_batches(guidelines, context)
+                        for _, (strategy, guidelines) in guideline_strategies.items()
+                    ]
+                )
+
+            with self._logger.operation("Processing batches"):
+                batch_tasks = [batch.process() for batch in batches[0]]
+                batch_results = await async_utils.safe_gather(*batch_tasks)
+
+        t_end = time.time()
+
+        return GuidelineMatchingResult(
+            total_duration=t_end - t_start,
+            batch_count=len(batches[0]),
+            batch_generations=[result.generation_info for result in batch_results],
+            batches=[result.matches for result in batch_results],
+        )
+
+    async def _default_strategy_picker(
+        self,
+        guideline: Guideline,
+    ) -> GuidelineMatchingStrategy:
+        return GenericGuidelineMatching(
+            logger=self._logger,
+            schematic_generator=self._schematic_generator,
+        )
 
 
 def _make_event(e_id: str, source: EventSource, message: str) -> Event:
@@ -555,16 +548,16 @@ example_1_guidelines = [
     ),
 ]
 
-example_1_expected = GuidelineMatchesSchema(
+example_1_expected = GenericGuidelineMatchesSchema(
     checks=[
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer initiates a purchase",
             condition_application_rationale="The purchase-related guideline was initiated earlier, but is currently irrelevant since the customer completed the purchase and the conversation has moved to a new topic.",
             condition_applies=False,
             applies_score=3,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asks about data security",
             condition_applies=True,
@@ -583,7 +576,7 @@ example_1_expected = GuidelineMatchesSchema(
             guideline_should_reapply=True,
             applies_score=9,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asked to subscribe to our pro plan",
             condition_applies=True,
@@ -640,9 +633,9 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = GuidelineMatchesSchema(
+example_2_expected = GenericGuidelineMatchesSchema(
     checks=[
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer indicates that they are looking for a job.",
             condition_application_rationale="The current discussion is about the type of job the customer is looking for",
@@ -661,7 +654,7 @@ example_2_expected = GuidelineMatchesSchema(
             guideline_should_reapply=False,
             applies_score=3,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asks about job openings.",
             condition_applies=True,
@@ -685,7 +678,7 @@ example_2_expected = GuidelineMatchesSchema(
             guideline_should_reapply=True,
             applies_score=7,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="discussing job opportunities.",
             condition_applies=True,
@@ -733,9 +726,9 @@ example_3_guidelines = [
     ),
 ]
 
-example_3_expected = GuidelineMatchesSchema(
+example_3_expected = GenericGuidelineMatchesSchema(
     checks=[
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asks about the value of a stock.",
             condition_application_rationale="The customer asked what does the S&P500 trade at",
@@ -754,14 +747,14 @@ example_3_expected = GuidelineMatchesSchema(
             guideline_should_reapply=True,
             applies_score=9,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the weather at a certain location is discussed.",
             condition_application_rationale="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
             condition_applies=False,
             applies_score=3,
         ),
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asked about the weather.",
             condition_application_rationale="The customer asked about the weather earlier, though the conversation has somewhat moved on to a new topic",
@@ -801,9 +794,9 @@ example_4_guidelines = [
     ),
 ]
 
-example_4_expected = GuidelineMatchesSchema(
+example_4_expected = GenericGuidelineMatchesSchema(
     checks=[
-        GuidelineMatchSchema(
+        GenericGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer wants to book an appointment",
             condition_application_rationale="The customer has specifically asked to book an appointment",
@@ -831,26 +824,26 @@ example_4_expected = GuidelineMatchesSchema(
 )
 
 
-_baseline_shots: Sequence[GuidelineMatchingShot] = [
-    GuidelineMatchingShot(
+_baseline_shots: Sequence[GenericGuidelineMatchingShot] = [
+    GenericGuidelineMatchingShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    GuidelineMatchingShot(
+    GenericGuidelineMatchingShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    GuidelineMatchingShot(
+    GenericGuidelineMatchingShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    GuidelineMatchingShot(
+    GenericGuidelineMatchingShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
@@ -858,4 +851,4 @@ _baseline_shots: Sequence[GuidelineMatchingShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[GuidelineMatchingShot](_baseline_shots)
+shot_collection = ShotCollection[GenericGuidelineMatchingShot](_baseline_shots)
