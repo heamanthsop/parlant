@@ -166,7 +166,6 @@ const MessageDetails = ({
 							applyFn={(types, level, content) => setFilters({types, level, content})}
 						/>
 					)}
-					{/* {event && logs && <IndexedDBData eventId={event.id} logsDeleted={() => closeLogs()} />} */}
 					{!event && <EmptyState title='Feeling curious?' subTitle='Select a message for additional actions and information about its process.' />}
 					{event && logs && !logs?.length && (
 						<EmptyState
