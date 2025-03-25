@@ -26,10 +26,9 @@ Feature: Fluid Utterance
         And the message doesn't contain the text "Your account balance is"
 
     Scenario: Responding based on data the user is providing (fluid utterance)
-        Given permission to extract fields generatively from context
-        And a customer message, "I say that a banana is green, and an apple is purple. What did I say was the color of a banana?"
+        Given a customer message, "I say that a banana is green, and an apple is purple. What did I say was the color of a banana?"
         And an utterance, "Sorry, I do not know"
-        And an utterance, "The answer is {{answer}}"
+        And an utterance, "The answer is {{generative.answer}}"
         When messages are emitted
         Then the message doesn't contain the text "I do not know"
         And the message mentions the color green

@@ -15,9 +15,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
+import re
 import jinja2
 import jinja2.meta
 import json
@@ -25,6 +27,7 @@ import traceback
 from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
+from parlant.core.async_utils import safe_gather
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent, CompositionMode
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -174,10 +177,36 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> tuple[bool, JSONSerializable]:
-        if "." in field_name:
-            # We don't support generating fields that are within objects
+        if field_name != "generative":
             return False, None
 
+        generative_fields = set(re.findall(r"\{\{(generative\.[a-zA-Z0-9_]+)\}\}", utterance))
+
+        if not generative_fields:
+            return False, None
+
+        tasks = {
+            field[len("generative.") :]: asyncio.create_task(
+                self._generate_field(utterance, field, context)
+            )
+            for field in generative_fields
+        }
+
+        await safe_gather(*tasks.values())
+
+        fields = {field: task.result() for field, task in tasks.items()}
+
+        if None in fields.values():
+            return False, None
+
+        return True, fields
+
+    async def _generate_field(
+        self,
+        utterance: str,
+        field_name: str,
+        context: UtteranceContext,
+    ) -> Optional[str]:
         builder = PromptBuilder()
 
         builder.add_section(
@@ -206,15 +235,19 @@ Output a JSON object with a single property 'value' containing the extracted fie
 
         result = await self._generator.generate(builder)
 
-        if value := result.content.value:
-            return True, value
-
-        return False, None
+        return result.content.value
 
 
 class UtteranceFieldExtractor(ABC):
-    def __init__(self) -> None:
-        self.methods: list[UtteranceFieldExtractionMethod] = [ToolBasedFieldExtraction()]
+    def __init__(
+        self,
+        tool_based: ToolBasedFieldExtraction,
+        generative: GenerativeFieldExtraction,
+    ) -> None:
+        self.methods: list[UtteranceFieldExtractionMethod] = [
+            tool_based,
+            generative,
+        ]
 
     async def extract(
         self,

@@ -21,10 +21,9 @@ Feature: Strict Utterance
         And the message contains the text "I cannot help with this inquiry."
 
     Scenario: Responding based on data the user is providing (strict utterance)
-        Given permission to extract fields generatively from context
-        And a customer message, "I say that a banana is green, and an apple is purple. What did I say was the color of a banana?"
+        Given a customer message, "I say that a banana is green, and an apple is purple. What did I say was the color of a banana?"
         And an utterance, "Sorry, I do not know"
-        And an utterance, "the answer is {{answer}}"
+        And an utterance, "the answer is {{generative.answer}}"
         When messages are emitted
         Then the message doesn't contain the text "Sorry"
         And the message contains the text "the answer is green"

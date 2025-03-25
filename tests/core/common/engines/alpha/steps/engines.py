@@ -23,8 +23,6 @@ from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.utterance_generator import (
-    GenerativeFieldExtraction,
-    UtteranceFieldExtractor,
     UtteranceGenerator,
 )
 from parlant.core.engines.alpha.message_event_composer import MessageEventComposer
@@ -50,15 +48,6 @@ def given_a_faulty_message_production_mechanism(
 ) -> None:
     generator = context.container[MessageGenerator]
     generator.generate_events = AsyncMock(side_effect=Exception())  # type: ignore
-
-
-@step(given, "permission to extract fields generatively from context")
-def given_permission_to_extract_fields_generatively_from_context(
-    context: ContextOfTest,
-) -> None:
-    context.container[UtteranceFieldExtractor].methods.append(
-        context.container[GenerativeFieldExtraction],
-    )
 
 
 @step(
