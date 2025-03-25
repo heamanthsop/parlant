@@ -181,7 +181,7 @@ const SessionView = (): ReactElement => {
 	}, [lastOffset]);
 	useEffect(() => setViewingMessage(showLogsForMessage), [showLogsForMessage]);
 	useEffect(formatMessagesFromEvents, [lastEvents]);
-	useEffect(scrollToLastMessage, [messages, pendingMessage, isFirstScroll]);
+	useEffect(scrollToLastMessage, [messages?.length, pendingMessage, isFirstScroll]);
 	useEffect(resetSession, [session?.id]);
 	useEffect(() => {
 		if (agents && agent?.id) setIsMissingAgent(!agents?.find((a) => a.id === agent?.id));
