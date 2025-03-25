@@ -954,7 +954,7 @@ def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_a_few_
     )
 
 
-def test_guideline_matching_strategies(
+def test_that_guideline_matching_strategies_can_be_overridden(
     context: ContextOfTest,
     agent: Agent,
     customer: Customer,
