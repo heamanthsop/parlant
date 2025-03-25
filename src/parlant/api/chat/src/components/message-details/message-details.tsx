@@ -16,7 +16,6 @@ import {ImperativePanelHandle} from 'react-resizable-panels';
 import Tooltip from '../ui/custom/tooltip';
 import {copy} from '@/lib/utils';
 import MessageLogs from './message-logs';
-import IndexedDBData from './indexeddb-data';
 
 interface DefInterface {
 	level?: Level;
