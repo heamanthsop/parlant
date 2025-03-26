@@ -527,3 +527,19 @@ def then_the_tool_calls_event_contains_call(
     ]
 
     assert len(matching_tool_calls) > 0, f"No tool call found for {tool_name}"
+
+@step(then, parsers.parse("the number of missing parameters is smaller than {number_of_missing:d}"))
+def then_the_number_of_missing_is_smaller_than(
+    context: ContextOfTest,
+    emitted_events: list[EmittedEvent],
+    number_of_missing: int,
+) -> None:
+    message_event = next(e for e in emitted_events if e.kind == "message")
+    message = cast(MessageEventData, message_event.data)["message"]
+
+    assert context.sync_await(
+        nlp_test(
+            context=f"Here's a message from an AI agent to a customer, in the context of a conversation: {message}",
+            condition=f"The message mentions less than {number_of_missing} missing parameters",
+        )
+    ), f"message: '{message}', expected to request less than {number_of_missing} missing parameters"

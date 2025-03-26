@@ -36,7 +36,7 @@ from parlant.core.engines.alpha.utterance_selector import UtteranceSelector
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
-from parlant.core.engines.alpha.tool_caller import ToolInsights
+from parlant.core.engines.alpha.tool_caller import ToolInsights, MissingToolData
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.glossary import Term
 from parlant.core.sessions import (
@@ -230,6 +230,13 @@ class AlphaEngine(Engine):
 
             if not await self._hooks.call_on_generating_messages(context):
                 return
+            
+            # Filter missing tool parameters
+            context.state.tool_insights = ToolInsights(
+                missing_data=await self._filter_missing_tool_parameters(
+                    context.state.tool_insights.missing_data
+                )
+            )
 
             # Money time: communicate with the customer given
             # all of the information we have prepared.
@@ -887,6 +894,20 @@ class AlphaEngine(Engine):
             variable=variable,
             key=key,
         )
+
+    async def _filter_missing_tool_parameters(
+        self, missing_parameters: Sequence[MissingToolData]
+    ) -> Sequence[MissingToolData]:
+        # Precedence 0 is the default, so minimal precedence values start from 1
+        positive_precedence = [
+            m.precedence
+            for m in missing_parameters
+            if m.precedence is not None and m.precedence > 0
+        ]
+        if positive_precedence is None:
+            return missing_parameters
+
+        return [m for m in missing_parameters if m.precedence == min(positive_precedence)]
 
 
 # This is module-level and public for isolated testability purposes.

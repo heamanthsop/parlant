@@ -34,7 +34,13 @@ from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Event, ToolResult
 from parlant.core.shots import Shot, ShotCollection
-from parlant.core.tools import Tool, ToolContext, ToolParameterDescriptor, ToolParameterOptions
+from parlant.core.tools import (
+    Tool,
+    ToolContext,
+    ToolParameterDescriptor,
+    ToolParameterOptions,
+    ToolParameterPrecedence,
+)
 from parlant.core.tools import ToolId, ToolService
 
 ToolCallId = NewType("ToolCallId", str)
@@ -113,6 +119,7 @@ class MissingToolData:
     significance: Optional[str] = field(default=None)
     description: Optional[str] = field(default=None)
     examples: Optional[Sequence[str]] = field(default=None)
+    precedence: Optional[ToolParameterPrecedence] = field(default=ToolParameterPrecedence(0))
 
 
 @dataclass(frozen=True)
@@ -302,7 +309,7 @@ class ToolCaller:
                             )
                             continue
 
-                        _, tool_options = tool.parameters[evaluation.parameter_name]
+                        tool_descriptor, tool_options = tool.parameters[evaluation.parameter_name]
 
                         if (
                             evaluation.is_missing
@@ -313,6 +320,8 @@ class ToolCaller:
                                 MissingToolData(
                                     parameter=evaluation.parameter_name,
                                     significance=tool_options.significance,
+                                    description=tool_descriptor.get("description"),
+                                    precedence=tool_options.precedence,
                                 )
                             )
 
