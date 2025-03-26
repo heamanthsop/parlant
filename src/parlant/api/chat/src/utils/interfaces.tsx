@@ -12,6 +12,7 @@ export interface Log {
 	level: 'INFO' | 'DEBUG' | 'WARNING';
 	correlation_id: string;
 	message: string;
+	timestamp: number;
 }
 
 export type ServerStatus = 'pending' | 'error' | 'accepted' | 'acknowledged' | 'processing' | 'typing' | 'ready';
