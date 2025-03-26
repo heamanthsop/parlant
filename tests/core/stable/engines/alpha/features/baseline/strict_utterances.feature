@@ -48,3 +48,13 @@ Feature: Strict Utterance
         When messages are emitted
         Then a single message event is emitted
         And the message contains the text "My name is Bozo, and you are Georgie Boy."
+
+    Scenario: Uttering context variables (strict utterance)
+        Given a customer named "Georgie Boy"
+        And a context variable "subscription_plan" set to "business" for "Georgie Boy"
+        And an empty session with "Georgie Boy"
+        And a customer message, "What plan am I on exactly?"
+        And an utterance, "You're on the {{std.variables.subscription_plan|capitalize}} plan."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "You're on the Business plan."

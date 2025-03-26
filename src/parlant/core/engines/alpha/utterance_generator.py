@@ -132,6 +132,9 @@ class StandardFieldExtraction(UtteranceFieldExtractionMethod):
         return True, {
             "customer": {"name": context.customer.name},
             "agent": {"name": context.agent.name},
+            "variables": {
+                variable.name: value.data for variable, value in context.context_variables
+            },
             "missing_params": self._extract_missing_params(context.tool_insights),
         }
 
