@@ -33,7 +33,7 @@ Feature: Conversation
 
     Scenario: The agent correctly applies greeting guidelines based on auxillary data
         Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
-        And a customer with the name "Beef Wellington"
+        And a customer named "Beef Wellington"
         And an empty session with "Beef Wellingotn"
         And the term "Bug" defined as The name of our tech retail store, specializing in gadgets, computers, and tech services.
         And the term "Bug-Free" defined as Our free warranty and service package that comes with every purchase and covers repairs, replacements, and tech support beyond the standard manufacturer warranty.
@@ -53,7 +53,7 @@ Feature: Conversation
         Given an agent
         And an empty session
         And a guideline "unlock_card_guideline" to ask for the last 6 digits and help them unlock when the customer needs help unlocking their card
-        And the tool "try_unlock_card" 
+        And the tool "try_unlock_card"
         And an association between "unlock_card_guideline" and "try_unlock_card"
         And a customer message, "my card is locked"
         And an agent message, "I'm sorry to hear that your card is locked. Could you please provide the last 6 digits of your card so I can assist you in unlocking it?"
@@ -76,7 +76,7 @@ Feature: Conversation
         And the message contains that the user or customer should schedule an appointment at chase bank's website
 
     Scenario: The agent doesnt postpone replying when its inappropriate
-        Given an agent whose job is to represent a bank, and to help customers with performing transactions 
+        Given an agent whose job is to represent a bank, and to help customers with performing transactions
         And a guideline to transfer money to the recipient and confirm the transaction providing its ID when user wants to transfer money and has successfully confirmed their PIN code
         And a customer message, "I want to transfer 20$ to Vishal and my pin code is 400013."
         And an agent message, "It seems the PIN code you provided is incorrect, so the transfer could not be completed. Could you please double-check your PIN code? Also, to confirm, you want to transfer $20 to Vishal. Let me know if this is correct."

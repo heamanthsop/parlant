@@ -249,7 +249,7 @@ Feature: Tools
         And the tool calls event contains a call to "get_account_balance" with Larry David's current balance
 
     Scenario: Tool caller does not over-optimistically assume an argument's value
-        Given a customer with the name "Vax"
+        Given a customer named "Vax"
         And an empty session with "Vax"
         And a context variable "Current Date" set to "January 17th, 2025" for "Vax"
         And a guideline "pay_cc_bill_guideline" to help a customer make the payment when they want to pay their credit card bill
@@ -260,7 +260,7 @@ Feature: Tools
         Then no tool calls event is emitted
 
     Scenario: Tool caller correctly infers an argument's value (1)
-        Given a customer with the name "Vax"
+        Given a customer named "Vax"
         And an empty session with "Vax"
         And a context variable "Current Date" set to "January 17th, 2025" for "Vax"
         And a guideline "pay_cc_bill_guideline" to help a customer make the payment when they want to pay their credit card bill
@@ -273,7 +273,7 @@ Feature: Tools
         And the tool calls event contains a call to "pay_cc_bill" with date 17-01-2025
 
     Scenario: Tool caller correctly infers an argument's value (2)
-        Given a customer with the name "Vax"
+        Given a customer named "Vax"
         And an empty session with "Vax"
         And a context variable "Current Date" set to "January 17th, 2025" for "Vax"
         And a guideline "pay_cc_bill_guideline" to help a customer make the payment when they want to pay their credit card bill

@@ -37,3 +37,14 @@ Feature: Strict Utterance
         When processing is triggered
         Then a single message event is emitted
         And the message contains the text "The requirement is 5+ years of experience."
+
+    Scenario: Uttering agent and customer names (strict utterance)
+        Given an agent named "Bozo" whose job is to sell pizza
+        And that the agent uses the strict_utterance message composition mode
+        And a customer named "Georgie Boy"
+        And an empty session with "Georgie Boy"
+        And a customer message, "What is your name?"
+        And an utterance, "My name is {{std.agent.name}}, and you are {{std.customer.name}}."
+        When messages are emitted
+        Then a single message event is emitted
+        And the message contains the text "My name is Bozo, and you are Georgie Boy."

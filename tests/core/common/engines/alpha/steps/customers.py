@@ -22,7 +22,7 @@ from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
 
 
-@step(given, parsers.parse('a customer with the name "{name}"'))
+@step(given, parsers.parse('a customer named "{name}"'))
 def given_a_customer(
     context: ContextOfTest,
     name: str,

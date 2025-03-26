@@ -115,6 +115,33 @@ class UtteranceFieldExtractionMethod(ABC):
     ) -> tuple[bool, JSONSerializable]: ...
 
 
+class StandardFieldExtraction(UtteranceFieldExtractionMethod):
+    def __init__(self, logger: Logger) -> None:
+        self._logger = logger
+
+    @override
+    async def extract(
+        self,
+        utterance: str,
+        field_name: str,
+        context: UtteranceContext,
+    ) -> tuple[bool, JSONSerializable]:
+        if field_name != "std":
+            return False, None
+
+        return True, {
+            "customer": {"name": context.customer.name},
+            "agent": {"name": context.agent.name},
+            "missing_params": self._extract_missing_params(context.tool_insights),
+        }
+
+    def _extract_missing_params(
+        self,
+        tool_insights: ToolInsights,
+    ) -> list[str]:
+        return [missing_data.parameter for missing_data in tool_insights.missing_data]
+
+
 class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
     @override
     async def extract(
@@ -123,31 +150,10 @@ class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> tuple[bool, JSONSerializable]:
-        if field_name == "std.missing_params":
-            return self._extract_missing_params(context.tool_insights)
-
-        return self._extract_from_tool_result(field_name, context.staged_events)
-
-    def _extract_missing_params(
-        self,
-        tool_insights: ToolInsights,
-    ) -> tuple[bool, JSONSerializable]:
-        param_names = [missing_data.parameter for missing_data in tool_insights.missing_data]
-
-        if not param_names:
+        if not context.staged_events:
             return False, None
 
-        return True, param_names
-
-    def _extract_from_tool_result(
-        self,
-        field_name: str,
-        staged_events: Sequence[EmittedEvent],
-    ) -> tuple[bool, JSONSerializable]:
-        if not staged_events:
-            return False, None
-
-        for tool_event in [e for e in staged_events if e.kind == "tool"]:
+        for tool_event in [e for e in context.staged_events if e.kind == "tool"]:
             data = cast(ToolEventData, tool_event.data)
 
             for tool_call in data["tool_calls"]:
@@ -241,10 +247,12 @@ Output a JSON object with a single property 'value' containing the extracted fie
 class UtteranceFieldExtractor(ABC):
     def __init__(
         self,
+        standard: StandardFieldExtraction,
         tool_based: ToolBasedFieldExtraction,
         generative: GenerativeFieldExtraction,
     ) -> None:
         self.methods: list[UtteranceFieldExtractionMethod] = [
+            standard,
             tool_based,
             generative,
         ]
