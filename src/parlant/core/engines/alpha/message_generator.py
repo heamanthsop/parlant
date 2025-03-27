@@ -547,14 +547,16 @@ Produce a valid JSON object in the following format: ###
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:
-        return "\n".join(
-            f"""
-    {d.parameter}
-    {d.description}
-    {d.significance}
-    {d.examples}
-    """
-            for d in missing_data
+        return json.dumps(
+            [
+                {
+                    "datum_name": d.parameter,
+                    **({"description": d.description} if d.description else {}),
+                    **({"significance": d.significance} if d.significance else {}),
+                    **({"examples": d.examples} if d.examples else {}),
+                }
+                for d in missing_data
+            ]
         )
 
     def _get_output_format(
