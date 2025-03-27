@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-useless-escape */
+import { hasOtherOpenedTabs } from '@/lib/boroadcast-channel';
 import {Log} from './interfaces';
 
 const logLevels = ['WARNING', 'INFO', 'DEBUG'];
@@ -122,6 +123,7 @@ async function getLogs(correlation_id: string): Promise<Log[]> {
 }
 
 export const handleChatLogs = async (log: Log) => {
+	if (hasOtherOpenedTabs()) return;
 	const db = await openDB();
 	const transaction = db.transaction(STORE_NAME, 'readwrite');
 	const store = transaction.objectStore(STORE_NAME);
