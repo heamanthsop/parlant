@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+from dataclasses import dataclass, field
 import hashlib
 import json
 import logging
@@ -28,10 +29,12 @@ from typing import (
     Iterator,
     Mapping,
     Optional,
+    Sequence,
     TypeVar,
     TypedDict,
     cast,
 )
+from typing_extensions import override
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import JSONResponse
@@ -52,6 +55,8 @@ from parlant.core.context_variables import (
     ContextVariableValue,
 )
 from parlant.core.customers import Customer, CustomerId, CustomerStore
+from parlant.core.engines.alpha.hooks import EngineHook, EngineHooks
+from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.glossary import GlossaryStore, Term
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
@@ -99,6 +104,21 @@ class SyncAwaiter:
 
     def __call__(self, awaitable: Generator[Any, None, T] | Awaitable[T]) -> T:
         return self.event_loop.run_until_complete(awaitable)  # type: ignore
+
+
+@dataclass(frozen=False)
+class JournalingEngineHooks(EngineHooks):
+    latest_context_per_correlation_id: dict[str, LoadedContext] = field(default_factory=dict)
+
+    @override
+    async def call_hooks(
+        self,
+        hooks: Sequence[EngineHook],
+        context: LoadedContext,
+        exc: Optional[Exception] = None,
+    ) -> bool:
+        self.latest_context_per_correlation_id[context.correlation_id] = context
+        return await super().call_hooks(hooks, context, exc)
 
 
 class _TestLogger(Logger):

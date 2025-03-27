@@ -36,7 +36,7 @@ from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
-from parlant.core.engines.alpha.hooks import LifecycleHooks
+from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.utterance_generator import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
@@ -285,7 +285,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
     c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
-    c[LifecycleHooks] = LifecycleHooks()
+    c[EngineHooks] = EngineHooks()
     c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
@@ -657,7 +657,7 @@ def main() -> None:
     @click.option(
         "--litellm",
         is_flag=True,
-        help="""Run with LiteLLM. The following environment variables must be set: LITELLM_PROVIDER_MODEL_NAME, LITELLM_PROVIDER_API_KEY. 
+        help="""Run with LiteLLM. The following environment variables must be set: LITELLM_PROVIDER_MODEL_NAME, LITELLM_PROVIDER_API_KEY.
                 Check this link https://docs.litellm.ai/docs/providers for additional environment variables required for your provider,
                 set them and install the extra package parlant[litellm].""",
         default=False,

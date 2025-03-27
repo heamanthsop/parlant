@@ -35,7 +35,7 @@ from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
-from parlant.core.engines.alpha.hooks import LifecycleHooks
+from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.utterance_generator import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
@@ -111,6 +111,7 @@ from parlant.core.tools import LocalToolService
 
 from .test_utilities import (
     CachedSchematicGenerator,
+    JournalingEngineHooks,
     SchematicGenerationResultDocument,
     SyncAwaiter,
     create_schematic_generation_result_collection,
@@ -307,7 +308,9 @@ async def container(
         container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)
 
-        container[LifecycleHooks] = LifecycleHooks()
+        hooks = JournalingEngineHooks()
+        container[JournalingEngineHooks] = hooks
+        container[EngineHooks] = hooks
 
         container[Engine] = Singleton(AlphaEngine)
 

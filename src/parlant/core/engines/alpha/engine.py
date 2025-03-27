@@ -15,7 +15,6 @@
 from __future__ import annotations
 import asyncio
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from itertools import chain
 from pprint import pformat
@@ -30,9 +29,9 @@ from parlant.core.context_variables import (
     ContextVariableValue,
     ContextVariableStore,
 )
-from parlant.core.customers import Customer
+from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
-from parlant.core.engines.alpha.hooks import LifecycleHooks
+from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.utterance_generator import UtteranceGenerator
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
@@ -42,7 +41,6 @@ from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.glossary import Term
 from parlant.core.sessions import (
     ContextVariable as StoredContextVariable,
-    Event,
     GuidelineMatch as StoredGuidelineMatch,
     GuidelineMatchingInspection,
     MessageGenerationInspection,
@@ -73,76 +71,6 @@ from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolId
 
 
-@dataclass(frozen=True)
-class _InteractionState:
-    """Helper class to access a session's interaction state"""
-
-    @staticmethod
-    def empty() -> _InteractionState:
-        """Returns an empty interaction state"""
-        return _InteractionState([], -1)
-
-    history: Sequence[Event]
-    """An sequenced event-by-event representation of the interaction"""
-
-    last_known_event_offset: int
-    """An accessor which is often useful when emitting status events"""
-
-
-@dataclass(frozen=True)
-class _LoadedContext:
-    """Helper class to access loaded values that are relevant for responding in a particular context"""
-
-    info: Context
-    """The raw context which is here represented in its loaded form"""
-
-    agent: Agent
-    """The agent which is currently requested to respond"""
-
-    customer: Customer
-    """The customer to which the agent is responding"""
-
-    session: Session
-    """The session being processed"""
-
-    event_emitter: EventEmitter
-    """Emits new events into the loaded session"""
-
-    interaction: _InteractionState
-    """A snapshot of the interaction history in the loaded session"""
-
-
-@dataclass(frozen=False)
-class _ResponsePreparationState:
-    """Helper class to access and update the state needed for responding properly"""
-
-    context_variables: list[tuple[ContextVariable, ContextVariableValue]]
-    glossary_terms: set[Term]
-    ordinary_guideline_matches: list[GuidelineMatch]
-    tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]]
-    tool_events: list[EmittedEvent]
-    tool_insights: ToolInsights
-    iterations_completed: int
-    prepared_to_respond: bool
-    message_events: list[EmittedEvent]
-
-    @property
-    def ordinary_guidelines(self) -> list[Guideline]:
-        return [gp.guideline for gp in self.ordinary_guideline_matches]
-
-    @property
-    def tool_enabled_guidelines(self) -> list[Guideline]:
-        return [gp.guideline for gp in self.tool_enabled_guideline_matches.keys()]
-
-    @property
-    def guidelines(self) -> list[Guideline]:
-        return self.ordinary_guidelines + self.tool_enabled_guidelines
-
-    @property
-    def all_events(self) -> list[EmittedEvent]:
-        return self.tool_events + self.message_events
-
-
 class AlphaEngine(Engine):
     """The main AI processing engine (as of Feb 25, the latest and greatest processing engine)"""
 
@@ -156,7 +84,7 @@ class AlphaEngine(Engine):
         tool_event_generator: ToolEventGenerator,
         fluid_message_generator: MessageGenerator,
         utterance_generator: UtteranceGenerator,
-        lifecycle_hooks: LifecycleHooks,
+        hooks: EngineHooks,
     ) -> None:
         self._logger = logger
         self._correlator = correlator
@@ -169,7 +97,7 @@ class AlphaEngine(Engine):
         self._fluid_message_generator = fluid_message_generator
         self._utterance_generator = utterance_generator
 
-        self._lifecycle_hooks = lifecycle_hooks
+        self._hooks = hooks
 
     @override
     async def process(
@@ -193,7 +121,7 @@ class AlphaEngine(Engine):
 
             self._logger.error(f"Processing error: {formatted_exception}")
 
-            if await self._lifecycle_hooks.call_on_error(context, event_emitter, exc):
+            if await self._hooks.call_on_error(loaded_context, exc):
                 await self._emit_error_event(loaded_context, formatted_exception)
 
             return False
@@ -233,7 +161,7 @@ class AlphaEngine(Engine):
                 f"Error during uttering in session {context.session_id}: {formatted_exception}"
             )
 
-            if await self._lifecycle_hooks.call_on_error(context, event_emitter, exc):
+            if await self._hooks.call_on_error(loaded_context, exc):
                 await self._emit_error_event(loaded_context, formatted_exception)
 
             return False
@@ -244,85 +172,67 @@ class AlphaEngine(Engine):
             )
             raise
 
-    async def _load_interaction_state(self, context: Context) -> _InteractionState:
+    async def _load_interaction_state(self, context: Context) -> Interaction:
         history = await self._entity_queries.find_events(context.session_id)
         last_known_event_offset = history[-1].offset if history else -1
 
-        return _InteractionState(
+        return Interaction(
             history=history,
             last_known_event_offset=last_known_event_offset,
         )
 
     async def _do_process(
         self,
-        context: _LoadedContext,
+        context: LoadedContext,
         event_emitter: EventEmitter,
     ) -> None:
-        if not await self._lifecycle_hooks.call_on_acknowledging(context.info, event_emitter):
+        if not await self._hooks.call_on_acknowledging(context):
             return  # Hook requested to bail out
 
         # Mark that this latest session state has been seen by the agent.
         await self._emit_acknowledgement_event(context)
 
-        if not await self._lifecycle_hooks.call_on_acknowledged(context.info, event_emitter):
+        if not await self._hooks.call_on_acknowledged(context):
             return  # Hook requested to bail out
 
         try:
-            if not await self._lifecycle_hooks.call_on_preparing(context.info, event_emitter):
+            if not await self._hooks.call_on_preparing(context):
                 return  # Hook requested to bail out
 
-            preparation_state = await self._initialize_preparation_state(context)
+            await self._initialize_response_state(context)
             preparation_iteration_inspections = []
 
             # Mark that the agent is in the process of preparing for a response.
             await self._emit_processing_event(context)
 
-            while not preparation_state.prepared_to_respond:
+            while not context.state.prepared_to_respond:
                 # Need more data before we're ready to respond
 
-                if not await self._lifecycle_hooks.call_on_preparation_iteration_start(
-                    context.info, event_emitter, preparation_state.tool_events
-                ):
+                if not await self._hooks.call_on_preparation_iteration_start(context):
                     break  # Hook requested to finish preparing
 
                 # Get more data (guidelines, tools, etc.,)
                 # This happens in iterations in order to support a feedback loop
                 # where particular tool-call results may trigger new or different
                 # guidelines that we need to follow.
-                iteration_inspection = await self._run_preparation_iteration(
-                    context,
-                    preparation_state,
-                )
+                iteration_inspection = await self._run_preparation_iteration(context)
 
                 # Save results for later inspection.
                 preparation_iteration_inspections.append(iteration_inspection)
 
                 # Some tools may update session mode (e.g. from automatic to manual).
                 # This is particularly important to support human handoff.
-                await self._update_session_mode(context, preparation_state)
+                await self._update_session_mode(context)
 
-                if not await self._lifecycle_hooks.call_on_preparation_iteration_end(
-                    context.info,
-                    event_emitter,
-                    preparation_state.tool_events,
-                    preparation_state.guidelines,
-                ):
+                if not await self._hooks.call_on_preparation_iteration_end(context):
                     break
 
-            if not await self._lifecycle_hooks.call_on_generating_messages(
-                context.info,
-                event_emitter,
-                preparation_state.tool_events,
-                preparation_state.guidelines,
-            ):
+            if not await self._hooks.call_on_generating_messages(context):
                 return
 
             # Money time: communicate with the customer given
             # all of the information we have prepared.
-            message_generation_inspections = await self._generate_messages(
-                context,
-                preparation_state,
-            )
+            message_generation_inspections = await self._generate_messages(context)
 
             # Save results for later inspection.
             await self._entity_commands.create_inspection(
@@ -332,12 +242,7 @@ class AlphaEngine(Engine):
                 message_generations=message_generation_inspections,
             )
 
-            await self._lifecycle_hooks.call_on_generated_messages(
-                context.info,
-                event_emitter,
-                preparation_state.all_events,
-                preparation_state.guidelines,
-            )
+            await self._hooks.call_on_generated_messages(context)
 
         except asyncio.CancelledError:
             # Task was cancelled. This usually happens for 1 of 2 reasons:
@@ -353,14 +258,14 @@ class AlphaEngine(Engine):
 
     async def _do_utter(
         self,
-        context: _LoadedContext,
+        context: LoadedContext,
         requests: Sequence[UtteranceRequest],
     ) -> None:
         try:
-            preparation_state = await self._initialize_preparation_state(context)
+            await self._initialize_response_state(context)
 
             # Only use the specified utterance requests as guidelines here.
-            preparation_state.ordinary_guideline_matches.extend(
+            context.state.ordinary_guideline_matches.extend(
                 # Utterance requests are reduced to guidelines, to take advantage
                 # of the engine's ability to consistently adhere to guidelines.
                 await self._utterance_requests_to_guideline_matches(requests)
@@ -368,9 +273,7 @@ class AlphaEngine(Engine):
 
             # Money time: communicate with the customer given the
             # specified utterance requests.
-            message_generation_inspections = await self._generate_messages(
-                context, preparation_state
-            )
+            message_generation_inspections = await self._generate_messages(context)
 
             # Save results for later inspection.
             await self._entity_commands.create_inspection(
@@ -392,7 +295,7 @@ class AlphaEngine(Engine):
         context: Context,
         event_emitter: EventEmitter,
         load_interaction: bool = True,
-    ) -> _LoadedContext:
+    ) -> LoadedContext:
         # Load the full entities from storage.
 
         agent = await self._entity_queries.read_agent(context.agent_id)
@@ -402,59 +305,53 @@ class AlphaEngine(Engine):
         if load_interaction:
             interaction = await self._load_interaction_state(context)
         else:
-            interaction = _InteractionState([], -1)
+            interaction = Interaction([], -1)
 
-        return _LoadedContext(
+        return LoadedContext(
             info=context,
+            correlation_id=self._correlator.correlation_id,
             agent=agent,
             customer=customer,
             session=session,
             event_emitter=event_emitter,
             interaction=interaction,
+            state=ResponseState(
+                context_variables=[],
+                glossary_terms=set(),
+                ordinary_guideline_matches=[],
+                tool_enabled_guideline_matches={},
+                tool_events=[],
+                tool_insights=ToolInsights(),
+                iterations_completed=0,
+                prepared_to_respond=False,
+                message_events=[],
+            ),
         )
 
-    async def _initialize_preparation_state(
+    async def _initialize_response_state(
         self,
-        context: _LoadedContext,
-    ) -> _ResponsePreparationState:
-        state = _ResponsePreparationState(
-            context_variables=[],
-            glossary_terms=set(),
-            ordinary_guideline_matches=[],
-            tool_enabled_guideline_matches={},
-            tool_events=[],
-            tool_insights=ToolInsights(),
-            iterations_completed=0,
-            prepared_to_respond=False,
-            message_events=[],
-        )
-
+        context: LoadedContext,
+    ) -> None:
         # Load the relevant context variable values.
-        state.context_variables = await self._load_context_variables(context)
+        context.state.context_variables = await self._load_context_variables(context)
 
         # Load relevant glossary terms, initially based
         # mostly on the current interaction history.
-        state.glossary_terms.update(await self._load_glossary_terms(context, state))
+        context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
-        return state
-
-    async def _run_preparation_iteration(
-        self,
-        context: _LoadedContext,
-        state: _ResponsePreparationState,
-    ) -> PreparationIteration:
+    async def _run_preparation_iteration(self, context: LoadedContext) -> PreparationIteration:
         # Match relevant guidelines, retrieving them in a
         # structured format such that we can distinguish
         # between ordinary and tool-enabled ones.
         (
             guideline_matching_result,
-            state.ordinary_guideline_matches,
-            state.tool_enabled_guideline_matches,
-        ) = await self._load_matched_guidelines(context, state)
+            context.state.ordinary_guideline_matches,
+            context.state.tool_enabled_guideline_matches,
+        ) = await self._load_matched_guidelines(context, context.state)
 
         # Matched guidelines may use glossasry terms, so we need to ground our
         # response by reevaluating the relevant terms given these new guidelines.
-        state.glossary_terms.update(await self._load_glossary_terms(context, state))
+        context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
         # Infer any needed tool calls and execute them,
         # adding the resulting tool events to the session.
@@ -462,33 +359,33 @@ class AlphaEngine(Engine):
             tool_event_generation_result,
             new_tool_events,
             tool_insights,
-        ) = await self._call_tools(context, state)
+        ) = await self._call_tools(context, context.state)
 
-        state.tool_events += new_tool_events
-        state.tool_insights = tool_insights
+        context.state.tool_events += new_tool_events
+        context.state.tool_insights = tool_insights
 
         # Tool calls may have returned with data that uses glossary terms,
         # so we need to ground our response again by reevaluating terms.
-        state.glossary_terms.update(await self._load_glossary_terms(context, state))
+        context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
         # Mark that another iteration has been completed
         # (this is important to avoid running more than K max iterations)
-        state.iterations_completed += 1
+        context.state.iterations_completed += 1
 
         # If there's no new information to consider (which would have come from
         # the tools), then we can consider ourselves prepared to respond.
         if not new_tool_events:
-            state.prepared_to_respond = True
+            context.state.prepared_to_respond = True
         # Alternatively, we we've reached the max number of iterations,
         # we should just go ahead and respond anyway, despite possibly
         # needing more data for a fully accurate response.
         #
         # This is a trade-off that can be controlled by adjusting the max.
-        elif state.iterations_completed == context.agent.max_engine_iterations:
+        elif context.state.iterations_completed == context.agent.max_engine_iterations:
             self._logger.warning(
                 f"Reached max tool call iterations ({context.agent.max_engine_iterations})"
             )
-            state.prepared_to_respond = True
+            context.state.prepared_to_respond = True
 
         # Return structured inspection information, useful for later troubleshooting.
         return PreparationIteration(
@@ -501,8 +398,8 @@ class AlphaEngine(Engine):
                     rationale=match.rationale,
                 )
                 for match in chain(
-                    state.ordinary_guideline_matches,
-                    state.tool_enabled_guideline_matches.keys(),
+                    context.state.ordinary_guideline_matches,
+                    context.state.tool_enabled_guideline_matches.keys(),
                 )
             ],
             tool_calls=[
@@ -517,7 +414,7 @@ class AlphaEngine(Engine):
                     description=term.description,
                     synonyms=list(term.synonyms),
                 )
-                for term in state.glossary_terms
+                for term in context.state.glossary_terms
             ],
             context_variables=[
                 StoredContextVariable(
@@ -527,7 +424,7 @@ class AlphaEngine(Engine):
                     key=context.session.customer_id,
                     value=value.data,
                 )
-                for variable, value in state.context_variables
+                for variable, value in context.state.context_variables
             ],
             generations=PreparationIterationGenerations(
                 guideline_matching=GuidelineMatchingInspection(
@@ -540,15 +437,11 @@ class AlphaEngine(Engine):
             ),
         )
 
-    async def _update_session_mode(
-        self,
-        context: _LoadedContext,
-        state: _ResponsePreparationState,
-    ) -> None:
+    async def _update_session_mode(self, context: LoadedContext) -> None:
         # Do we even have control-requests coming from any called tools?
         if tool_call_control_outputs := [
             tool_call["result"]["control"]
-            for tool_event in state.tool_events
+            for tool_event in context.state.tool_events
             for tool_call in cast(ToolEventData, tool_event.data)["tool_calls"]
         ]:
             # Yes we do. Update session mode as needed.
@@ -573,8 +466,7 @@ class AlphaEngine(Engine):
 
     async def _generate_messages(
         self,
-        context: _LoadedContext,
-        state: _ResponsePreparationState,
+        context: LoadedContext,
     ) -> Sequence[MessageGenerationInspection]:
         message_generation_inspections = []
 
@@ -584,15 +476,15 @@ class AlphaEngine(Engine):
             event_emitter=context.event_emitter,
             agent=context.agent,
             customer=context.customer,
-            context_variables=state.context_variables,
+            context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
-            terms=list(state.glossary_terms),
-            ordinary_guideline_matches=state.ordinary_guideline_matches,
-            tool_enabled_guideline_matches=state.tool_enabled_guideline_matches,
-            tool_insights=state.tool_insights,
-            staged_events=state.tool_events,
+            terms=list(context.state.glossary_terms),
+            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
+            tool_insights=context.state.tool_insights,
+            staged_events=context.state.tool_events,
         ):
-            state.message_events += [e for e in event_generation_result.events if e]
+            context.state.message_events += [e for e in event_generation_result.events if e]
 
             message_generation_inspections.append(
                 MessageGenerationInspection(
@@ -608,7 +500,7 @@ class AlphaEngine(Engine):
 
         return message_generation_inspections
 
-    async def _emit_error_event(self, context: _LoadedContext, exception_details: str) -> None:
+    async def _emit_error_event(self, context: LoadedContext, exception_details: str) -> None:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
@@ -618,7 +510,7 @@ class AlphaEngine(Engine):
             },
         )
 
-    async def _emit_acknowledgement_event(self, context: _LoadedContext) -> None:
+    async def _emit_acknowledgement_event(self, context: LoadedContext) -> None:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
@@ -628,7 +520,7 @@ class AlphaEngine(Engine):
             },
         )
 
-    async def _emit_processing_event(self, context: _LoadedContext) -> None:
+    async def _emit_processing_event(self, context: LoadedContext) -> None:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
@@ -638,7 +530,7 @@ class AlphaEngine(Engine):
             },
         )
 
-    async def _emit_cancellation_event(self, context: _LoadedContext) -> None:
+    async def _emit_cancellation_event(self, context: LoadedContext) -> None:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
@@ -648,7 +540,7 @@ class AlphaEngine(Engine):
             },
         )
 
-    async def _emit_ready_event(self, context: _LoadedContext) -> None:
+    async def _emit_ready_event(self, context: LoadedContext) -> None:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
@@ -673,7 +565,7 @@ class AlphaEngine(Engine):
 
     async def _load_context_variables(
         self,
-        context: _LoadedContext,
+        context: LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
         variables_supported_by_agent = await self._entity_queries.find_context_variables_for_agent(
             agent_id=context.agent.id,
@@ -699,8 +591,8 @@ class AlphaEngine(Engine):
 
     async def _load_matched_guidelines(
         self,
-        context: _LoadedContext,
-        state: _ResponsePreparationState,
+        context: LoadedContext,
+        state: ResponseState,
     ) -> tuple[
         GuidelineMatchingResult,
         list[GuidelineMatch],
@@ -853,11 +745,7 @@ class AlphaEngine(Engine):
 
         return dict(tools_for_guidelines)
 
-    async def _load_glossary_terms(
-        self,
-        context: _LoadedContext,
-        state: _ResponsePreparationState,
-    ) -> Sequence[Term]:
+    async def _load_glossary_terms(self, context: LoadedContext) -> Sequence[Term]:
         # Glossary terms are retrieved using semantic similarity.
         # The querying process is done with a text query, for which
         # the K most relevant terms are retrieved.
@@ -865,19 +753,22 @@ class AlphaEngine(Engine):
         # We thus build an optimized query here based on our context and state.
         query = ""
 
-        if state.context_variables:
-            query += f"\n{context_variables_to_json(state.context_variables)}"
+        if context.state.context_variables:
+            query += f"\n{context_variables_to_json(context.state.context_variables)}"
 
         if context.interaction.history:
             query += str([e.data for e in context.interaction.history])
 
-        if state.guidelines:
+        if context.state.guidelines:
             query += str(
-                [f"When {g.content.condition}, then {g.content.action}" for g in state.guidelines]
+                [
+                    f"When {g.content.condition}, then {g.content.action}"
+                    for g in context.state.guidelines
+                ]
             )
 
-        if state.tool_events:
-            query += str([e.data for e in state.tool_events])
+        if context.state.tool_events:
+            query += str([e.data for e in context.state.tool_events])
 
         if query:
             return await self._entity_queries.find_relevant_glossary_terms(
@@ -888,7 +779,7 @@ class AlphaEngine(Engine):
         return []
 
     async def _call_tools(
-        self, context: _LoadedContext, state: _ResponsePreparationState
+        self, context: LoadedContext, state: ResponseState
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights]:
         result = await self._tool_event_generator.generate_events(
             event_emitter=context.event_emitter,
@@ -944,7 +835,7 @@ class AlphaEngine(Engine):
 
     async def _load_context_variable_value(
         self,
-        context: _LoadedContext,
+        context: LoadedContext,
         variable: ContextVariable,
         key: str,
     ) -> Optional[ContextVariableValue]:
