@@ -15,7 +15,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from functools import cached_property, partial
+from functools import cached_property
 from itertools import chain
 import json
 import math
@@ -108,8 +108,7 @@ class GuidelineMatchingBatchResult(DefaultBaseModel):
 
 class GuidelineMatchingBatch(ABC):
     @abstractmethod
-    async def process(self) -> GuidelineMatchingBatchResult:
-        pass
+    async def process(self) -> GuidelineMatchingBatchResult: ...
 
 
 class GuidelineMatchingStrategy(ABC):
@@ -118,8 +117,7 @@ class GuidelineMatchingStrategy(ABC):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> Sequence[GuidelineMatchingBatch]:
-        pass
+    ) -> Sequence[GuidelineMatchingBatch]: ...
 
 
 class GenericGuidelineMatchingBatch(GuidelineMatchingBatch):
@@ -386,11 +384,8 @@ class GenericGuidelineMatching(GuidelineMatchingStrategy):
         logger: Logger,
         schematic_generator: SchematicGenerator[GenericGuidelineMatchesSchema],
     ) -> None:
-        self._generic_guideline_matching_batch = partial(
-            GenericGuidelineMatchingBatch,
-            logger=logger,
-            schematic_generator=schematic_generator,
-        )
+        self._logger = logger
+        self._schematic_generator = schematic_generator
 
     @override
     async def create_batches(
@@ -410,7 +405,7 @@ class GenericGuidelineMatching(GuidelineMatchingStrategy):
             end_offset = start_offset + batch_size
             batch = dict(guidelines_list[start_offset:end_offset])
             batches.append(
-                self._generic_guideline_matching_batch(
+                self._create_batch(
                     guidelines=list(batch.values()),
                     context=context,
                 )
@@ -430,25 +425,62 @@ class GenericGuidelineMatching(GuidelineMatchingStrategy):
         else:
             return 5
 
+    def _create_batch(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
+    ) -> GenericGuidelineMatchingBatch:
+        return GenericGuidelineMatchingBatch(
+            logger=self._logger,
+            schematic_generator=self._schematic_generator,
+            guidelines=guidelines,
+            context=context,
+        )
+
+
+class GuidelineMatchingStrategyResolver(ABC):
+    @abstractmethod
+    async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy: ...
+
+
+class DefaultGuidelineMatchingStrategyResolver(GuidelineMatchingStrategyResolver):
+    def __init__(self, generic_strategy: GenericGuidelineMatching) -> None:
+        self._generic_strategy = generic_strategy
+        self.overrides: dict[GuidelineId, GuidelineMatchingStrategy] = {}
+
+    @override
+    async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
+        if override_strategy := self.overrides.get(guideline.id):
+            return override_strategy
+        else:
+            return self._generic_strategy
+
 
 class GuidelineMatcher:
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GenericGuidelineMatchesSchema],
+        strategy_resolver: GuidelineMatchingStrategyResolver,
     ) -> None:
         self._logger = logger
-        self._schematic_generator = schematic_generator
-        self.strategy_picker = self._default_strategy_picker
+        self.strategy_resolver = strategy_resolver
 
     async def match_guidelines(
         self,
-        context: GuidelineMatchingContext,
+        agent: Agent,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        staged_events: Sequence[EmittedEvent],
         guidelines: Sequence[Guideline],
     ) -> GuidelineMatchingResult:
         if not guidelines:
             return GuidelineMatchingResult(
-                total_duration=0.0, batch_count=0, batch_generations=[], batches=[]
+                total_duration=0.0,
+                batch_count=0,
+                batch_generations=[],
+                batches=[],
             )
 
         t_start = time.time()
@@ -459,14 +491,24 @@ class GuidelineMatcher:
                     str, tuple[GuidelineMatchingStrategy, list[Guideline]]
                 ] = {}
                 for guideline in guidelines:
-                    strategy = await self.strategy_picker(guideline)
+                    strategy = await self.strategy_resolver.resolve(guideline)
                     if strategy.__class__.__name__ not in guideline_strategies:
                         guideline_strategies[strategy.__class__.__name__] = (strategy, [])
                     guideline_strategies[strategy.__class__.__name__][1].append(guideline)
 
                 batches = await async_utils.safe_gather(
                     *[
-                        strategy.create_batches(guidelines, context)
+                        strategy.create_batches(
+                            guidelines,
+                            context=GuidelineMatchingContext(
+                                agent,
+                                customer,
+                                context_variables,
+                                interaction_history,
+                                terms,
+                                staged_events,
+                            ),
+                        )
                         for _, (strategy, guidelines) in guideline_strategies.items()
                     ]
                 )
@@ -482,15 +524,6 @@ class GuidelineMatcher:
             batch_count=len(batches[0]),
             batch_generations=[result.generation_info for result in batch_results],
             batches=[result.matches for result in batch_results],
-        )
-
-    async def _default_strategy_picker(
-        self,
-        guideline: Guideline,
-    ) -> GuidelineMatchingStrategy:
-        return GenericGuidelineMatching(
-            logger=self._logger,
-            schematic_generator=self._schematic_generator,
         )
 
 

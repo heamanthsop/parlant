@@ -98,6 +98,7 @@ from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
     GenericGuidelineMatchingShot,
     GenericGuidelineMatchesSchema,
+    DefaultGuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.message_generator import (
     MessageGenerator,
@@ -466,6 +467,19 @@ async def initialize_container(
     ] = await nlp_service.get_schematic_generator(GuidelineConnectionPropositionsSchema)
 
     c[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
+
+    generic_strategy = GenericGuidelineMatching(
+        logger=c[Logger],
+        schematic_generator=c[SchematicGenerator[GenericGuidelineMatchesSchema]],
+    )
+    c[DefaultGuidelineMatchingStrategyResolver] = DefaultGuidelineMatchingStrategyResolver(
+        generic_strategy=generic_strategy
+    )
+
+    c[GuidelineMatcher] = GuidelineMatcher(
+        logger=c[Logger],
+        strategy_resolver=c[DefaultGuidelineMatchingStrategyResolver],
+    )
 
 
 async def recover_server_tasks(

@@ -29,15 +29,13 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
-    GenericGuidelineMatchesSchema,
-    GuidelineMatchingContext,
+    GuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.guideline_match import (
     GuidelineMatch,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
-from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import EventSource
 from parlant.core.glossary import TermId
 
@@ -206,7 +204,7 @@ def match_guidelines(
 ) -> Sequence[GuidelineMatch]:
     guideline_matcher = GuidelineMatcher(
         context.container[Logger],
-        context.container[SchematicGenerator[GenericGuidelineMatchesSchema]],
+        context.container[GuidelineMatchingStrategyResolver],
     )
 
     interaction_history = [
@@ -220,14 +218,12 @@ def match_guidelines(
 
     guideline_matching_result = context.sync_await(
         guideline_matcher.match_guidelines(
-            context=GuidelineMatchingContext(
-                agent=agent,
-                customer=customer,
-                context_variables=context_variables,
-                interaction_history=interaction_history,
-                terms=terms,
-                staged_events=staged_events,
-            ),
+            agent=agent,
+            customer=customer,
+            context_variables=context_variables,
+            interaction_history=interaction_history,
+            terms=terms,
+            staged_events=staged_events,
             guidelines=list(context.guidelines.values()),
         )
     )

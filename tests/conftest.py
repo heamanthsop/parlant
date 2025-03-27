@@ -76,6 +76,9 @@ from parlant.core.engines.alpha.guideline_matcher import (
     GuidelineMatcher,
     GenericGuidelineMatchingShot,
     GenericGuidelineMatchesSchema,
+    GenericGuidelineMatching,
+    DefaultGuidelineMatchingStrategyResolver,
+    GuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.message_generator import (
     MessageGenerator,
@@ -301,7 +304,13 @@ async def container(
                 name="local", kind="local", url=""
             ),
         )
-
+        container[DefaultGuidelineMatchingStrategyResolver] = Singleton(
+            DefaultGuidelineMatchingStrategyResolver
+        )
+        container[GuidelineMatchingStrategyResolver] = lambda container: container[
+            DefaultGuidelineMatchingStrategyResolver
+        ]
+        container[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
         container[UtteranceSelector] = Singleton(UtteranceSelector)
         container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
