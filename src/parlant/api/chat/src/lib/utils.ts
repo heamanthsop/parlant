@@ -1,6 +1,7 @@
 import {clsx, type ClassValue} from 'clsx';
 import {toast} from 'sonner';
 import {twMerge} from 'tailwind-merge';
+import './broadcast-channel';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));

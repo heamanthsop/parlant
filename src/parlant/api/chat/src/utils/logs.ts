@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-useless-escape */
+import { hasOtherOpenedTabs } from '@/lib/broadcast-channel';
 import {Log} from './interfaces';
 
 const logLevels = ['WARNING', 'INFO', 'DEBUG'];
@@ -122,6 +123,7 @@ async function getLogs(correlation_id: string): Promise<Log[]> {
 }
 
 export const handleChatLogs = async (log: Log) => {
+	if (hasOtherOpenedTabs()) return;
 	const db = await openDB();
 	const transaction = db.transaction(STORE_NAME, 'readwrite');
 	const store = transaction.objectStore(STORE_NAME);
@@ -148,7 +150,7 @@ export const getMessageLogs = async (correlation_id: string): Promise<Log[]> => 
 export const getMessageLogsWithFilters = async (correlation_id: string, filters: {level: string; types?: string[]; content?: string[]}): Promise<Log[]> => {
 	const logs = await getMessageLogs(correlation_id);
 	const escapedWords = filters?.content?.map((word) => word.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1'));
-	const pattern = escapedWords && escapedWords.map((word) => `\[?${word}\]?`).join('[sS]*');
+	const pattern = escapedWords?.map((word) => `\\[?${word}\\]?`).join('.*?');
 	const levelIndex = filters.level ? logLevels.indexOf(filters.level) : null;
 	const validLevels = filters.level ? new Set(logLevels.filter((_, i) => i <= (levelIndex as number))) : null;
 	const filterTypes = filters.types?.length ? new Set(filters.types) : null;
@@ -156,8 +158,11 @@ export const getMessageLogsWithFilters = async (correlation_id: string, filters:
 	return logs.filter((log) => {
 		if (validLevels && !validLevels.has(log.level)) return false;
 		if (pattern) {
-			const regex = new RegExp(pattern, 'i');
-			if (!regex.test(`[${log.level}]${log.message}`)) return false;
+			const allWordsMatch = escapedWords?.every((word) => {
+				const regex = new RegExp(`\\[?${word}\\]?`, 'i'); // Allow optional brackets
+				return regex.test(`[${log.level}]${log.message}`);
+			  });
+			return allWordsMatch;
 		}
 		if (filterTypes) {
 			const match = log.message.match(/^\[([^\]]+)\]/);
