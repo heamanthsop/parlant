@@ -25,5 +25,3 @@ export const hasOtherOpenedTabs = () => {
     const tabsData = JSON.parse(sessionStorage.getItem('active_tabs') || '[]');
     return tabsData.length;
 };
-
-// setInterval(() => { console.log(hasOtherOpenedTabs()); }, 5000);
