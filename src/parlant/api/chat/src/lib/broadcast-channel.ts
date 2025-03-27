@@ -15,6 +15,7 @@ channel.onmessage = (event) => {
     if (event.data.type === 'opened' && event.data.id !== tabId) {
         sessionStorage.setItem('active_tabs', JSON.stringify([...activeTabs, event.data.id]));
     } else if (event.data.type === 'closed') {
+        console.log('closedddd');
         const tabsData = activeTabs.filter((id: string) => id !== event.data.tabId);
         sessionStorage.setItem('active_tabs', JSON.stringify(tabsData));
     }

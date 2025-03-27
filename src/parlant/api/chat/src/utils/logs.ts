@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-useless-escape */
-import { hasOtherOpenedTabs } from '@/lib/boroadcast-channel';
+import { hasOtherOpenedTabs } from '@/lib/broadcast-channel';
 import {Log} from './interfaces';
 
 const logLevels = ['WARNING', 'INFO', 'DEBUG'];
