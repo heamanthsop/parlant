@@ -367,6 +367,32 @@ async def test_that_a_plugin_tool_with_enum_parameter_can_be_called(
             assert result.data == "category_a"
 
 
+async def test_that_a_plugin_tool_with_optional_enum_parameter_can_be_called(
+    tool_context: ToolContext,
+    container: Container,
+) -> None:
+    class ProductCategory(enum.Enum):
+        CATEGORY_A = "category_a"
+        CATEGORY_B = "category_b"
+
+    @tool
+    async def my_enum_tool(context: ToolContext, category: Optional[ProductCategory]) -> ToolResult:
+        return ToolResult({})
+
+    async with run_service_server([my_enum_tool]) as server:
+        async with create_client(server, container[EventBufferFactory]) as client:
+            tools = await client.list_tools()
+
+            assert tools
+            result = await client.call_tool(
+                my_enum_tool.tool.name,
+                tool_context,
+                arguments={"category": None},
+            )
+
+            assert result.data == {}
+
+
 async def test_that_a_plugin_tool_with_enum_list_parameter_can_be_called(
     tool_context: ToolContext,
     container: Container,

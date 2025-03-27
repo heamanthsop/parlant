@@ -374,7 +374,7 @@ def validate_tool_arguments(
 
         for value in values:
             if allowed_values := param_def.get("enum", []):
-                if value not in allowed_values:
+                if value is not None and value not in allowed_values:
                     message = (
                         f"Parameter '{param_name}' must be one of {allowed_values}, "
                         f"but got '{value}'."
