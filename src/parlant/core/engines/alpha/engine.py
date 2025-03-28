@@ -32,7 +32,7 @@ from parlant.core.context_variables import (
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
-from parlant.core.engines.alpha.utterance_generator import UtteranceGenerator
+from parlant.core.engines.alpha.utterance_selector import UtteranceSelector
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
@@ -83,7 +83,7 @@ class AlphaEngine(Engine):
         guideline_matcher: GuidelineMatcher,
         tool_event_generator: ToolEventGenerator,
         fluid_message_generator: MessageGenerator,
-        utterance_generator: UtteranceGenerator,
+        utterance_selector: UtteranceSelector,
         hooks: EngineHooks,
     ) -> None:
         self._logger = logger
@@ -95,7 +95,7 @@ class AlphaEngine(Engine):
         self._guideline_matcher = guideline_matcher
         self._tool_event_generator = tool_event_generator
         self._fluid_message_generator = fluid_message_generator
-        self._utterance_generator = utterance_generator
+        self._utterance_selector = utterance_selector
 
         self._hooks = hooks
 
@@ -559,7 +559,7 @@ class AlphaEngine(Engine):
             case "fluid":
                 return self._fluid_message_generator
             case "strict_utterance" | "composited_utterance" | "fluid_utterance":
-                return self._utterance_generator
+                return self._utterance_selector
 
         raise Exception("Unsupported agent composition mode")
 

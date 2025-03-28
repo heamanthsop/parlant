@@ -64,7 +64,7 @@ class UtteranceChoice(DefaultBaseModel):
     chosen_utterance_id: Optional[str] = None
 
 
-class UtteranceGenerationSchema(DefaultBaseModel):
+class UtteranceSelectionSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
     guidelines: list[str]
     insights: Optional[list[str]] = None
@@ -76,16 +76,16 @@ class UtteranceCompositionSchema(DefaultBaseModel):
 
 
 @dataclass
-class UtteranceGeneratorShot(Shot):
+class UtteranceSelectorShot(Shot):
     composition_modes: list[CompositionMode]
-    expected_result: UtteranceGenerationSchema
+    expected_result: UtteranceSelectionSchema
 
 
 @dataclass(frozen=True)
-class _UtteranceGenerationResult:
+class _UtteranceSelectionResult:
     @staticmethod
-    def no_match() -> _UtteranceGenerationResult:
-        return _UtteranceGenerationResult(
+    def no_match() -> _UtteranceSelectionResult:
+        return _UtteranceSelectionResult(
             message=DEFAULT_NO_MATCH_UTTERANCE,
             utterances=[],
         )
@@ -235,9 +235,12 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
 
 You must extract the field '{field_name}' (in braces) — AND ONLY THIS FIELD — out of the following template: ###
 {utterance}
-###
+## format#
 
 Output a JSON object with a single property 'value' containing the extracted field.
+The value must always be a formatted string that fits right into the utterance when substituted.
+When applicable, if the field is substituted by a list or dict, consider rendering
+it in Markdown format.
 """,
             props={"utterance": utterance, "field_name": field_name},
         )
@@ -284,12 +287,12 @@ class FluidUtteranceFallback(Exception):
         pass
 
 
-class UtteranceGenerator(MessageEventComposer):
+class UtteranceSelector(MessageEventComposer):
     def __init__(
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
-        utterance_generator: SchematicGenerator[UtteranceGenerationSchema],
+        utterance_selection_generator: SchematicGenerator[UtteranceSelectionSchema],
         utterance_composition_generator: SchematicGenerator[UtteranceCompositionSchema],
         utterance_store: UtteranceStore,
         field_extractor: UtteranceFieldExtractor,
@@ -297,13 +300,13 @@ class UtteranceGenerator(MessageEventComposer):
     ) -> None:
         self._logger = logger
         self._correlator = correlator
-        self._utterance_generator = utterance_generator
+        self._utterance_selection_generator = utterance_selection_generator
         self._utterance_composition_generator = utterance_composition_generator
         self._utterance_store = utterance_store
         self._field_extractor = field_extractor
         self._message_generator = message_generator
 
-    async def shots(self, composition_mode: CompositionMode) -> Sequence[UtteranceGeneratorShot]:
+    async def shots(self, composition_mode: CompositionMode) -> Sequence[UtteranceSelectorShot]:
         shots = await shot_collection.list()
         supported_shots = [s for s in shots if composition_mode in s.composition_modes]
         return supported_shots
@@ -324,8 +327,8 @@ class UtteranceGenerator(MessageEventComposer):
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
             try:
-                with self._logger.scope("UtteranceGenerator"):
-                    with self._logger.operation("Utterance generation"):
+                with self._logger.scope("UtteranceSelector"):
+                    with self._logger.operation("Utterance selection"):
                         return await self._do_generate_events(
                             event_emitter,
                             agent,
@@ -574,7 +577,7 @@ Never disregard a guideline, even if you believe its 'when' condition or rationa
 
     def _format_shots(
         self,
-        shots: Sequence[UtteranceGeneratorShot],
+        shots: Sequence[UtteranceSelectorShot],
     ) -> str:
         return "\n".join(
             f"""
@@ -587,7 +590,7 @@ Example {i} - {shot.description}: ###
 
     def _format_shot(
         self,
-        shot: UtteranceGeneratorShot,
+        shot: UtteranceSelectorShot,
     ) -> str:
         return f"""
 - **Expected Result**:
@@ -607,7 +610,7 @@ Example {i} - {shot.description}: ###
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         utterances: Sequence[Utterance],
-        shots: Sequence[UtteranceGeneratorShot],
+        shots: Sequence[UtteranceSelectorShot],
     ) -> PromptBuilder:
         can_suggest_utterances = agent.composition_mode == "fluid_utterance"
 
@@ -616,7 +619,7 @@ Example {i} - {shot.description}: ###
         )
 
         builder.add_section(
-            name="utterance-generator-general-instructions",
+            name="utterance-selector-general-instructions",
             template="""
 GENERAL INSTRUCTIONS
 -----------------
@@ -631,7 +634,7 @@ Later in this prompt, you'll be provided with behavioral guidelines and other co
 
         builder.add_agent_identity(agent)
         builder.add_section(
-            name="utterance-generator-task-description",
+            name="utterance-selector-task-description",
             template="""
 TASK DESCRIPTION:
 -----------------
@@ -649,7 +652,7 @@ Always abide by the following general principles (note these are not the "guidel
             [event.kind != "message" for event in interaction_history]
         ):
             builder.add_section(
-                name="utterance-generator-initial-message-instructions",
+                name="utterance-selector-initial-message-instructions",
                 template="""
 The interaction with the user has just began, and no messages were sent by either party.
 If told so by a guideline or some other contextual condition, send the first message. Otherwise, do not produce a reply (utterance is null).
@@ -667,7 +670,7 @@ Otherwise, follow the rest of this prompt to choose the content of your response
 
         else:
             builder.add_section(
-                name="utterance-generator-ongoing-interaction-instructions",
+                name="utterance-selector-ongoing-interaction-instructions",
                 template="""
 Since the interaction with the user is already ongoing, always produce a reply to the user's last message.
 The only exception where you may not produce a reply (i.e., setting utterance_choice = null) is if the user explicitly asked you not to respond to their message.
@@ -686,7 +689,7 @@ For new suggested utterances, use the special ID "<auto>".
             utterance_instruction = "You can ONLY USE UTTERANCES FROM THE UTTERANCE BANK when choosing an utterance to respond with."
 
         builder.add_section(
-            name="utterance-generator-revision-mechanism",
+            name="utterance-selector-revision-mechanism",
             template="""
 REVISION MECHANISM
 -----------------
@@ -726,7 +729,7 @@ In cases of conflict, prioritize the business's values and ensure your decisions
             props={"utterance_instruction": utterance_instruction},
         )
         builder.add_section(
-            name="utterance-generator-examples",
+            name="utterance-selector-examples",
             template="""
 EXAMPLES
 -----------------
@@ -743,7 +746,7 @@ EXAMPLES
             utterances
         )
         builder.add_section(
-            name="utterance-generator-utterance-bank",
+            name="utterance-selector-utterance-bank",
             template=utterance_bank_template,
             props={
                 "utterances": utterances,
@@ -769,7 +772,7 @@ EXAMPLES
 
         if tool_insights.missing_data:
             builder.add_section(
-                name="utterance-generator-missing-data-for-tools",
+                name="utterance-selector-missing-data-for-tools",
                 template="""
 MISSING REQUIRED DATA FOR TOOL CALLS:
 -------------------------------------
@@ -796,7 +799,7 @@ If it makes sense in the current state of the interaction, you may choose to inf
             )
 
         builder.add_section(
-            name="utterance-generator-output-format",
+            name="utterance-selector-output-format",
             template="""
 Produce a valid JSON object in the following format: ###
 
@@ -859,8 +862,8 @@ Produce a valid JSON object in the following format: ###
         utterances: Sequence[Utterance],
         composition_mode: CompositionMode,
         temperature: float,
-    ) -> tuple[GenerationInfo, Optional[_UtteranceGenerationResult]]:
-        message_event_response = await self._utterance_generator.generate(
+    ) -> tuple[GenerationInfo, Optional[_UtteranceSelectionResult]]:
+        message_event_response = await self._utterance_selection_generator.generate(
             prompt=prompt,
             hints={"temperature": temperature},
         )
@@ -875,10 +878,10 @@ Produce a valid JSON object in the following format: ###
         ):
             if composition_mode in ["strict_utterance", "composited_utterance"]:
                 self._logger.warning(
-                    "Failed to find relevant utterances. Please review utterance generation prompt and completion."
+                    "Failed to find relevant utterances. Please review utterance selection prompt and completion."
                 )
 
-                return message_event_response.info, _UtteranceGenerationResult.no_match()
+                return message_event_response.info, _UtteranceSelectionResult.no_match()
             else:
                 raise FluidUtteranceFallback()
 
@@ -894,10 +897,10 @@ Produce a valid JSON object in the following format: ###
 
         if not utterance:
             self._logger.error(
-                "Invalid utterance ID choice. Please review utterance generation prompt and completion."
+                "Invalid utterance ID choice. Please review utterance selection prompt and completion."
             )
 
-            return message_event_response.info, _UtteranceGenerationResult.no_match()
+            return message_event_response.info, _UtteranceSelectionResult.no_match()
 
         rendered_utterance = await self._render_utterance(context, utterance)
 
@@ -905,12 +908,12 @@ Produce a valid JSON object in the following format: ###
             case "fluid_utterance" | "composited_utterance":
                 recomposed_utterance = await self._recompose(context, rendered_utterance)
 
-                return message_event_response.info, _UtteranceGenerationResult(
+                return message_event_response.info, _UtteranceSelectionResult(
                     message=recomposed_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
             case "strict_utterance":
-                return message_event_response.info, _UtteranceGenerationResult(
+                return message_event_response.info, _UtteranceSelectionResult(
                     message=rendered_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
@@ -949,7 +952,7 @@ Produce a valid JSON object in the following format: ###
         )
 
         builder.add_section(
-            name="utterance-generator-composition",
+            name="utterance-selector-composition",
             template="""\
 Please revise this message's style as you see fit—make sure NOT to hallucinate information or add or remove key words (nouns, verbs).
 {raw_message}
@@ -974,7 +977,7 @@ def shot_utterance_id(number: int) -> str:
     return f"<example-only-utterance--{number}--do-not-use-in-your-completion>"
 
 
-example_1_expected = UtteranceGenerationSchema(
+example_1_expected = UtteranceSelectionSchema(
     last_message_of_user="Hi, I'd like to know the schedule for the next trains to Boston, please.",
     guidelines=["When the user asks for train schedules, provide them accurately and concisely."],
     insights=[
@@ -997,14 +1000,14 @@ Here's the relevant train schedule:
     ),
 )
 
-example_1_shot = UtteranceGeneratorShot(
+example_1_shot = UtteranceSelectorShot(
     composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
     description="When needed to respond with a list, prefer an utterance that contains a looping template",
     expected_result=example_1_expected,
 )
 
 
-example_2_expected = UtteranceGenerationSchema(
+example_2_expected = UtteranceSelectionSchema(
     last_message_of_user="Hi, I'd like an onion cheeseburger please.",
     guidelines=[
         "When the user chooses and orders a burger, then provide it",
@@ -1019,14 +1022,14 @@ example_2_expected = UtteranceGenerationSchema(
     ),
 )
 
-example_2_shot = UtteranceGeneratorShot(
+example_2_shot = UtteranceSelectorShot(
     composition_modes=["fluid_utterance"],
     description="A reply where one instruction was prioritized over another",
     expected_result=example_2_expected,
 )
 
 
-example_3_expected = UtteranceGenerationSchema(
+example_3_expected = UtteranceSelectionSchema(
     last_message_of_user="Hi there, can I get something to drink? What do you have on tap?",
     guidelines=["When the user asks for a drink, check the menu and offer what's on it"],
     insights=["There's no menu information in my context"],
@@ -1038,14 +1041,14 @@ example_3_expected = UtteranceGenerationSchema(
     ),
 )
 
-example_3_shot = UtteranceGeneratorShot(
+example_3_shot = UtteranceSelectorShot(
     composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
     description="Non-adherence to guideline due to missing data",
     expected_result=example_3_expected,
 )
 
 
-example_4_expected = UtteranceGenerationSchema(
+example_4_expected = UtteranceSelectionSchema(
     last_message_of_user="This is not what I was asking for!",
     guidelines=[],
     insights=["I should not keep repeating myself as it makes me sound robotic"],
@@ -1056,14 +1059,14 @@ example_4_expected = UtteranceGenerationSchema(
     ),
 )
 
-example_4_shot = UtteranceGeneratorShot(
+example_4_shot = UtteranceSelectorShot(
     composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
     description="Avoiding repetitive responses—in this case, given that the previous response by the agent was 'I am sorry, could you please clarify your request?'",
     expected_result=example_4_expected,
 )
 
 
-example_5_expected = UtteranceGenerationSchema(
+example_5_expected = UtteranceSelectionSchema(
     last_message_of_user=("Hey, how can I contact customer support?"),
     guidelines=[],
     insights=[
@@ -1076,14 +1079,14 @@ example_5_expected = UtteranceGenerationSchema(
     ),
 )
 
-example_5_shot = UtteranceGeneratorShot(
+example_5_shot = UtteranceSelectorShot(
     composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
     description="An insight is derived and followed on not offering to help with something you don't know about",
     expected_result=example_5_expected,
 )
 
 
-_baseline_shots: Sequence[UtteranceGeneratorShot] = [
+_baseline_shots: Sequence[UtteranceSelectorShot] = [
     example_1_shot,
     example_2_shot,
     example_3_shot,
@@ -1091,4 +1094,4 @@ _baseline_shots: Sequence[UtteranceGeneratorShot] = [
     example_5_shot,
 ]
 
-shot_collection = ShotCollection[UtteranceGeneratorShot](_baseline_shots)
+shot_collection = ShotCollection[UtteranceSelectorShot](_baseline_shots)

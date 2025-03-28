@@ -20,7 +20,7 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import JSONSerializable
 from parlant.core.customers import CustomerStore
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.utterance_generator import DEFAULT_NO_MATCH_UTTERANCE
+from parlant.core.engines.alpha.utterance_selector import DEFAULT_NO_MATCH_UTTERANCE
 from parlant.core.nlp.moderation import ModerationTag
 from parlant.core.sessions import (
     MessageEventData,

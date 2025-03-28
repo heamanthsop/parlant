@@ -37,12 +37,12 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
-from parlant.core.engines.alpha.utterance_generator import (
+from parlant.core.engines.alpha.utterance_selector import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
-    UtteranceGenerationSchema,
+    UtteranceSelectionSchema,
     UtteranceCompositionSchema,
-    UtteranceGenerator,
+    UtteranceSelector,
 )
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.service import NLPService
@@ -291,7 +291,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
-    c[UtteranceGenerator] = Singleton(UtteranceGenerator)
+    c[UtteranceSelector] = Singleton(UtteranceSelector)
     c[MessageGenerator] = Singleton(MessageGenerator)
 
     c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
@@ -442,8 +442,8 @@ async def initialize_container(
         GuidelineMatchesSchema
     )
     c[SchematicGenerator[MessageSchema]] = await nlp_service.get_schematic_generator(MessageSchema)
-    c[SchematicGenerator[UtteranceGenerationSchema]] = await nlp_service.get_schematic_generator(
-        UtteranceGenerationSchema
+    c[SchematicGenerator[UtteranceSelectionSchema]] = await nlp_service.get_schematic_generator(
+        UtteranceSelectionSchema
     )
     c[SchematicGenerator[UtteranceCompositionSchema]] = await nlp_service.get_schematic_generator(
         UtteranceCompositionSchema

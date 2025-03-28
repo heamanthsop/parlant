@@ -36,11 +36,11 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
-from parlant.core.engines.alpha.utterance_generator import (
+from parlant.core.engines.alpha.utterance_selector import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
-    UtteranceGenerator,
-    UtteranceGenerationSchema,
+    UtteranceSelector,
+    UtteranceSelectionSchema,
     UtteranceCompositionSchema,
 )
 from parlant.core.evaluations import (
@@ -274,7 +274,7 @@ async def container(
         for generation_schema in (
             GuidelineMatchesSchema,
             MessageSchema,
-            UtteranceGenerationSchema,
+            UtteranceSelectionSchema,
             UtteranceCompositionSchema,
             UtteranceFieldExtractionSchema,
             ToolCallInferenceSchema,
@@ -303,7 +303,7 @@ async def container(
         )
 
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
-        container[UtteranceGenerator] = Singleton(UtteranceGenerator)
+        container[UtteranceSelector] = Singleton(UtteranceSelector)
         container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
         container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)
@@ -360,12 +360,12 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceGenerationSchema]],
+        container[SchematicGenerator[UtteranceSelectionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceGenerationSchema],
-            container[SchematicGenerator[UtteranceGenerationSchema]],
+            CachedSchematicGenerator[UtteranceSelectionSchema],
+            container[SchematicGenerator[UtteranceSelectionSchema]],
         ).use_cache = False
 
     if isinstance(
