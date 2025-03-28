@@ -237,10 +237,18 @@ You must extract the field '{field_name}' (in braces) â€” AND ONLY THIS FIELD â€
 {utterance}
 ## format#
 
-Output a JSON object with a single property 'value' containing the extracted field.
-The value must always be a formatted string that fits right into the utterance when substituted.
+Output a JSON object with a single property 'value' containing the extracted field ONLY.
+The value itself is not a JSON object. Rather, it's formatted text.
 When applicable, if the field is substituted by a list or dict, consider rendering
 it in Markdown format.
+
+A few examples:
+1) Utterance is "Hello {{{{generative.name}}}}, how may I help you today?"
+-- Here the value could be rendered as "NAME"
+1) Utterance is "Hello {{{{generative.names}}}}, how may I help you today?"
+-- Here, the value could be rendered as "NAME1 and NAME2".
+2) Utterance is "Next flights are {{{{generative.flight_list}}}}
+-- Here, the value could be rendered as a markdown table, or a numbered list, based on the flight information that would be available to you in the context (at least in this example).
 """,
             props={"utterance": utterance, "field_name": field_name},
         )
