@@ -1577,7 +1577,7 @@ async def test_that_a_customer_tag_can_be_added(context: ContextOfTest) -> None:
                 "--id",
                 customer_id,
                 "--tag",
-                tag_id,
+                "TestTag",
             )
             == os.EX_OK
         )

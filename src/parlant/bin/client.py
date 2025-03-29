@@ -102,6 +102,20 @@ def set_exit_status(status: int) -> None:
 
 class Actions:
     @staticmethod
+    def _fetch_tag_id(
+        ctx: click.Context,
+        tag: str,
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tags = client.tags.list()
+        for t in tags:
+            if t.name == tag or t.id == tag:
+                return t.id
+
+        raise Exception(f"Tag ({tag}) not found")
+
+    @staticmethod
     def create_agent(
         ctx: click.Context,
         name: str,
@@ -117,7 +131,7 @@ class Actions:
             description=description,
             max_engine_iterations=max_engine_iterations,
             composition_mode=composition_mode,
-            tags=tags,
+            tags=list(set([Actions._fetch_tag_id(ctx, t) for t in tags])),
         )
 
     @staticmethod
@@ -162,14 +176,28 @@ class Actions:
         )
 
     @staticmethod
-    def add_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def add_tag(
+        ctx: click.Context,
+        agent_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(add=[tag_id]))
+        client.agents.update(
+            agent_id=agent_id,
+            tags=AgentTagUpdateParams(add=[Actions._fetch_tag_id(ctx, tag)]),
+        )
 
     @staticmethod
-    def remove_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def remove_tag(
+        ctx: click.Context,
+        agent_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.agents.update(agent_id=agent_id, tags=AgentTagUpdateParams(remove=[tag_id]))
+        client.agents.update(
+            agent_id=agent_id,
+            tags=AgentTagUpdateParams(remove=[Actions._fetch_tag_id(ctx, tag)]),
+        )
 
     @staticmethod
     def create_session(
@@ -262,7 +290,7 @@ class Actions:
             name=name,
             description=description,
             synonyms=synonyms,
-            tags=tags,
+            tags=list(set([Actions._fetch_tag_id(ctx, t) for t in tags])),
         )
 
     @staticmethod
@@ -293,20 +321,35 @@ class Actions:
     @staticmethod
     def list_terms(
         ctx: click.Context,
-        tag_id: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> list[Term]:
         client = cast(ParlantClient, ctx.obj.client)
-        return client.glossary.list_terms(tag_id=tag_id)
+        if tag:
+            return client.glossary.list_terms(tag_id=Actions._fetch_tag_id(ctx, tag))
+        else:
+            return client.glossary.list_terms()
 
     @staticmethod
-    def add_term_tag(ctx: click.Context, term_id: str, tag_id: str) -> None:
+    def add_term_tag(
+        ctx: click.Context,
+        term_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.glossary.update_term(term_id, tags=TermTagsUpdateParams(add=[tag_id]))
+        client.glossary.update_term(
+            term_id, tags=TermTagsUpdateParams(add=[Actions._fetch_tag_id(ctx, tag)])
+        )
 
     @staticmethod
-    def remove_term_tag(ctx: click.Context, term_id: str, tag_id: str) -> None:
+    def remove_term_tag(
+        ctx: click.Context,
+        term_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.glossary.update_term(term_id, tags=TermTagsUpdateParams(remove=[tag_id]))
+        client.glossary.update_term(
+            term_id, tags=TermTagsUpdateParams(remove=[Actions._fetch_tag_id(ctx, tag)])
+        )
 
     @staticmethod
     def create_guideline(
@@ -320,7 +363,7 @@ class Actions:
         return client.guidelines.create(
             condition=condition,
             action=action,
-            tags=tags,
+            tags=list(set([Actions._fetch_tag_id(ctx, t) for t in tags])),
         )
 
     @staticmethod
@@ -353,11 +396,11 @@ class Actions:
     @staticmethod
     def list_guidelines(
         ctx: click.Context,
-        tag_id: Optional[str],
+        tag: Optional[str],
     ) -> list[Guideline]:
         client = cast(ParlantClient, ctx.obj.client)
-        if tag_id:
-            return client.guidelines.list(tag_id=tag_id)
+        if tag:
+            return client.guidelines.list(tag_id=Actions._fetch_tag_id(ctx, tag))
         else:
             return client.guidelines.list()
 
@@ -494,28 +537,32 @@ class Actions:
     def add_guideline_tag(
         ctx: click.Context,
         guideline_id: str,
-        tag_id: str,
+        tag: str,
     ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.guidelines.update(guideline_id, tags=GuidelineTagsUpdateParams(add=[tag_id]))
+        client.guidelines.update(
+            guideline_id, tags=GuidelineTagsUpdateParams(add=[Actions._fetch_tag_id(ctx, tag)])
+        )
 
     @staticmethod
     def remove_guideline_tag(
         ctx: click.Context,
         guideline_id: str,
-        tag_id: str,
+        tag: str,
     ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.guidelines.update(guideline_id, tags=GuidelineTagsUpdateParams(remove=[tag_id]))
+        client.guidelines.update(
+            guideline_id, tags=GuidelineTagsUpdateParams(remove=[Actions._fetch_tag_id(ctx, tag)])
+        )
 
     @staticmethod
     def list_variables(
         ctx: click.Context,
-        tag_id: Optional[str],
+        tag: Optional[str],
     ) -> list[ContextVariable]:
         client = cast(ParlantClient, ctx.obj.client)
-        if tag_id:
-            return client.context_variables.list(tag_id=tag_id)
+        if tag:
+            return client.context_variables.list(tag_id=Actions._fetch_tag_id(ctx, tag))
         else:
             return client.context_variables.list()
 
@@ -538,7 +585,7 @@ class Actions:
             if service_name and tool_name
             else None,
             freshness_rules=freshness_rules,
-            tags=tags,
+            tags=list(set([Actions._fetch_tag_id(ctx, t) for t in tags])),
         )
 
     @staticmethod
@@ -622,17 +669,26 @@ class Actions:
         client.context_variables.delete_value(variable_id, key)
 
     @staticmethod
-    def add_variable_tag(ctx: click.Context, variable_id: str, tag_id: str) -> None:
+    def add_variable_tag(
+        ctx: click.Context,
+        variable_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.context_variables.update(
-            variable_id, tags=ContextVariableTagsUpdateParams(add=[tag_id])
+            variable_id, tags=ContextVariableTagsUpdateParams(add=[Actions._fetch_tag_id(ctx, tag)])
         )
 
     @staticmethod
-    def remove_variable_tag(ctx: click.Context, variable_id: str, tag_id: str) -> None:
+    def remove_variable_tag(
+        ctx: click.Context,
+        variable_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.context_variables.update(
-            variable_id, tags=ContextVariableTagsUpdateParams(remove=[tag_id])
+            variable_id,
+            tags=ContextVariableTagsUpdateParams(remove=[Actions._fetch_tag_id(ctx, tag)]),
         )
 
     @staticmethod
@@ -706,7 +762,7 @@ class Actions:
         return client.customers.create(
             name=name,
             extra={},
-            tags=tags,
+            tags=list(set([Actions._fetch_tag_id(ctx, t) for t in tags])),
         )
 
     @staticmethod
@@ -759,15 +815,27 @@ class Actions:
         )
 
     @staticmethod
-    def add_customer_tag(ctx: click.Context, customer_id: str, tag_id: str) -> None:
-        client = cast(ParlantClient, ctx.obj.client)
-        client.customers.update(customer_id=customer_id, tags=CustomerTagUpdateParams(add=[tag_id]))
-
-    @staticmethod
-    def remove_customer_tag(ctx: click.Context, customer_id: str, tag_id: str) -> None:
+    def add_customer_tag(
+        ctx: click.Context,
+        customer_id: str,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.customers.update(
-            customer_id=customer_id, tags=CustomerTagUpdateParams(remove=[tag_id])
+            customer_id=customer_id,
+            tags=CustomerTagUpdateParams(add=[Actions._fetch_tag_id(ctx, tag)]),
+        )
+
+    @staticmethod
+    def remove_customer_tag(
+        ctx: click.Context,
+        customer_id: str,
+        tag: str,
+    ) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.customers.update(
+            customer_id=customer_id,
+            tags=CustomerTagUpdateParams(remove=[Actions._fetch_tag_id(ctx, tag)]),
         )
 
     @staticmethod
@@ -776,24 +844,37 @@ class Actions:
         return client.tags.list()
 
     @staticmethod
-    def create_tag(ctx: click.Context, name: str) -> Tag:
+    def create_tag(
+        ctx: click.Context,
+        name: str,
+    ) -> Tag:
         client = cast(ParlantClient, ctx.obj.client)
         return client.tags.create(name=name)
 
     @staticmethod
-    def view_tag(ctx: click.Context, tag_id: str) -> Tag:
+    def view_tag(
+        ctx: click.Context,
+        tag: str,
+    ) -> Tag:
         client = cast(ParlantClient, ctx.obj.client)
-        return client.tags.retrieve(tag_id=tag_id)
+        return client.tags.retrieve(tag_id=Actions._fetch_tag_id(ctx, tag))
 
     @staticmethod
-    def update_tag(ctx: click.Context, tag_id: str, name: str) -> Tag:
+    def update_tag(
+        ctx: click.Context,
+        tag: str,
+        name: str,
+    ) -> Tag:
         client = cast(ParlantClient, ctx.obj.client)
-        return client.tags.update(tag_id=tag_id, name=name)
+        return client.tags.update(tag_id=Actions._fetch_tag_id(ctx, tag), name=name)
 
     @staticmethod
-    def delete_tag(ctx: click.Context, tag_id: str) -> None:
+    def delete_tag(
+        ctx: click.Context,
+        tag: str,
+    ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
-        client.tags.delete(tag_id=tag_id)
+        client.tags.delete(tag_id=Actions._fetch_tag_id(ctx, tag))
 
     @staticmethod
     def list_utterances(ctx: click.Context) -> list[Utterance]:
@@ -1045,19 +1126,19 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def add_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def add_tag(ctx: click.Context, agent_id: str, tag: str) -> None:
         try:
-            Actions.add_tag(ctx, agent_id, tag_id)
-            Interface._write_success(f"Tagged agent (id: {agent_id}, tag_id: {tag_id})")
+            Actions.add_tag(ctx, agent_id, tag)
+            Interface._write_success(f"Tagged agent (id: {agent_id}, tag: {tag})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def remove_tag(ctx: click.Context, agent_id: str, tag_id: str) -> None:
+    def remove_tag(ctx: click.Context, agent_id: str, tag: str) -> None:
         try:
-            Actions.remove_tag(ctx, agent_id, tag_id)
-            Interface._write_success(f"Untagged agent (id: {agent_id}, tag_id: {tag_id})")
+            Actions.remove_tag(ctx, agent_id, tag)
+            Interface._write_success(f"Untagged agent (id: {agent_id}, tag: {tag})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -1241,7 +1322,7 @@ class Interface:
             name,
             description,
             synonyms,
-            tags,
+            tags=tags,
         )
 
         Interface._write_success(f"Added term (id: {term.id})")
@@ -1283,9 +1364,9 @@ class Interface:
     @staticmethod
     def list_terms(
         ctx: click.Context,
-        tag_id: Optional[str],
+        tag: Optional[str],
     ) -> None:
-        terms = Actions.list_terms(ctx, tag_id)
+        terms = Actions.list_terms(ctx, tag)
 
         if not terms:
             rich.print(Text("No data available", style="bold yellow"))
@@ -1294,16 +1375,24 @@ class Interface:
         Interface._render_glossary(terms)
 
     @staticmethod
-    def add_term_tag(ctx: click.Context, term_id: str, tag_id: str) -> None:
-        Actions.add_term_tag(ctx, term_id, tag_id)
+    def add_term_tag(
+        ctx: click.Context,
+        term_id: str,
+        tag: str,
+    ) -> None:
+        Actions.add_term_tag(ctx, term_id, tag)
 
-        Interface._write_success(f"Added tag (id: {tag_id}) to term (id: {term_id})")
+        Interface._write_success(f"Added tag ( {tag}) to term (id: {term_id})")
 
     @staticmethod
-    def remove_term_tag(ctx: click.Context, term_id: str, tag_id: str) -> None:
-        Actions.remove_term_tag(ctx, term_id, tag_id)
+    def remove_term_tag(
+        ctx: click.Context,
+        term_id: str,
+        tag: str,
+    ) -> None:
+        Actions.remove_term_tag(ctx, term_id, tag)
 
-        Interface._write_success(f"Removed tag (id: {tag_id}) from term (id: {term_id})")
+        Interface._write_success(f"Removed tag ( {tag}) from term (id: {term_id})")
 
     @staticmethod
     def _render_guidelines(guidelines: list[Guideline]) -> None:
@@ -1380,7 +1469,7 @@ class Interface:
                 ctx,
                 condition,
                 action,
-                tags,
+                tags=tags,
             )
 
             Interface._write_success(f"Added guideline (id: {guideline.id})")
@@ -1454,11 +1543,11 @@ class Interface:
     @staticmethod
     def list_guidelines(
         ctx: click.Context,
-        tag_id: Optional[str],
+        tag: Optional[str],
         hide_disabled: bool,
     ) -> None:
         try:
-            guidelines = Actions.list_guidelines(ctx, tag_id)
+            guidelines = Actions.list_guidelines(ctx, tag)
 
             guidelines_to_render = sorted(
                 [g for g in guidelines if g.enabled or not hide_disabled],
@@ -1601,11 +1690,11 @@ class Interface:
     def add_guideline_tag(
         ctx: click.Context,
         guideline_id: str,
-        tag_id: str,
+        tag: str,
     ) -> None:
         try:
-            Actions.add_guideline_tag(ctx, guideline_id, tag_id)
-            Interface._write_success(f"Added tag (id: {tag_id}) to guideline (id: {guideline_id})")
+            Actions.add_guideline_tag(ctx, guideline_id, tag)
+            Interface._write_success(f"Added tag ( {tag}) to guideline (id: {guideline_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -1614,13 +1703,11 @@ class Interface:
     def remove_guideline_tag(
         ctx: click.Context,
         guideline_id: str,
-        tag_id: str,
+        tag: str,
     ) -> None:
         try:
-            Actions.remove_guideline_tag(ctx, guideline_id, tag_id)
-            Interface._write_success(
-                f"Removed tag (id: {tag_id}) from guideline (id: {guideline_id})"
-            )
+            Actions.remove_guideline_tag(ctx, guideline_id, tag)
+            Interface._write_success(f"Removed tag ( {tag}) from guideline (id: {guideline_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -1645,9 +1732,9 @@ class Interface:
     @staticmethod
     def list_variables(
         ctx: click.Context,
-        tag_id: Optional[str],
+        tag: Optional[str],
     ) -> None:
-        variables = Actions.list_variables(ctx, tag_id)
+        variables = Actions.list_variables(ctx, tag)
 
         if not variables:
             rich.print("No variables found")
@@ -1672,7 +1759,7 @@ class Interface:
             service_name,
             tool_name,
             freshness_rules,
-            tags,
+            tags=tags,
         )
 
         Interface._write_success(f"Added variable (id: {variable.id})")
@@ -1798,21 +1885,19 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def add_variable_tag(ctx: click.Context, variable_id: str, tag_id: str) -> None:
+    def add_variable_tag(ctx: click.Context, variable_id: str, tag: str) -> None:
         try:
-            Actions.add_variable_tag(ctx, variable_id, tag_id)
-            Interface._write_success(f"Added tag (id: {tag_id}) to variable (id: {variable_id})")
+            Actions.add_variable_tag(ctx, variable_id, tag)
+            Interface._write_success(f"Added tag ({tag}) to variable (id: {variable_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def remove_variable_tag(ctx: click.Context, variable_id: str, tag_id: str) -> None:
+    def remove_variable_tag(ctx: click.Context, variable_id: str, tag: str) -> None:
         try:
-            Actions.remove_variable_tag(ctx, variable_id, tag_id)
-            Interface._write_success(
-                f"Removed tag (id: {tag_id}) from variable (id: {variable_id})"
-            )
+            Actions.remove_variable_tag(ctx, variable_id, tag)
+            Interface._write_success(f"Removed tag ({tag}) from variable (id: {variable_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2011,19 +2096,27 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def add_customer_tag(ctx: click.Context, customer_id: str, tag_id: str) -> None:
+    def add_customer_tag(
+        ctx: click.Context,
+        customer_id: str,
+        tag: str,
+    ) -> None:
         try:
-            Actions.add_customer_tag(ctx, customer_id, tag_id)
-            Interface._write_success(f"Tagged customer (id: {customer_id}, tag_id: {tag_id})")
+            Actions.add_customer_tag(ctx, customer_id, tag)
+            Interface._write_success(f"Tagged customer (id: {customer_id}, tag: {tag})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def remove_customer_tag(ctx: click.Context, customer_id: str, tag_id: str) -> None:
+    def remove_customer_tag(
+        ctx: click.Context,
+        customer_id: str,
+        tag: str,
+    ) -> None:
         try:
-            Actions.remove_customer_tag(ctx, customer_id, tag_id)
-            Interface._write_success(f"Untagged customer (id: {customer_id}, tag_id: {tag_id})")
+            Actions.remove_customer_tag(ctx, customer_id, tag)
+            Interface._write_success(f"Untagged customer (id: {customer_id}, tag: {tag})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2057,36 +2150,36 @@ class Interface:
     def create_tag(ctx: click.Context, name: str) -> None:
         try:
             tag = Actions.create_tag(ctx, name=name)
-            Interface._write_success(f"Added tag (id: {tag.id})")
+            Interface._write_success(f"Added tag ( {tag.id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def view_tag(ctx: click.Context, tag_id: str) -> None:
+    def view_tag(ctx: click.Context, tag: str) -> None:
         try:
-            tag = Actions.view_tag(ctx, tag_id=tag_id)
-            Interface._render_tags([tag])
+            tag_dto = Actions.view_tag(ctx, tag)
+            Interface._render_tags([tag_dto])
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def update_tag(ctx: click.Context, tag_id: str, name: str) -> None:
+    def update_tag(ctx: click.Context, tag: str, name: str) -> None:
         try:
-            tag = Actions.update_tag(ctx, tag_id=tag_id, name=name)
-            Interface._write_success(f"Updated tag (id: {tag_id})")
+            tag_dto = Actions.update_tag(ctx, tag=tag, name=name)
+            Interface._write_success(f"Updated tag ({tag_dto.id})")
 
-            Interface._render_tags([tag])
+            Interface._render_tags([tag_dto])
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def delete_tag(ctx: click.Context, tag_id: str) -> None:
+    def delete_tag(ctx: click.Context, tag: str) -> None:
         try:
-            Actions.delete_tag(ctx, tag_id=tag_id)
-            Interface._write_success(f"Removed tag (id: {tag_id})")
+            Actions.delete_tag(ctx, tag)
+            Interface._write_success(f"Removed tag ({tag})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2225,8 +2318,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID. May be specified multiple times.",
+        metavar="TAG NAME OR ID",
+        help="Tag name or ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2315,14 +2408,14 @@ async def async_main() -> None:
 
     @agent.command("tag", help="Tag an agent")
     @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG NAME OR ID", help="Tag name or ID", required=True)
     @click.pass_context
     def agent_tag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.add_tag(ctx, id, tag)
 
     @agent.command("untag", help="Untag an agent")
     @click.option("--id", type=str, metavar="ID", help="Agent ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG NAME OR ID", help="Tag name or ID", required=True)
     @click.pass_context
     def agent_remove_tag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.remove_tag(ctx, id, tag)
@@ -2430,8 +2523,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID. May be specified multiple times.",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2502,8 +2595,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID",
         required=False,
     )
     @click.pass_context
@@ -2515,7 +2608,7 @@ async def async_main() -> None:
 
     @glossary.command("tag", help="Tag a term")
     @click.option("--id", type=str, metavar="ID", help="Term ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def glossary_tag(
         ctx: click.Context,
@@ -2525,12 +2618,12 @@ async def async_main() -> None:
         Interface.add_term_tag(
             ctx=ctx,
             term_id=id,
-            tag_id=tag,
+            tag=tag,
         )
 
     @glossary.command("untag", help="Untag from a term")
     @click.option("--id", type=str, metavar="ID", help="Term ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def glossary_untag(
         ctx: click.Context,
@@ -2540,7 +2633,7 @@ async def async_main() -> None:
         Interface.remove_term_tag(
             ctx=ctx,
             term_id=id,
-            tag_id=tag,
+            tag=tag,
         )
 
     @cli.group(help="Manage an agent's guidelines")
@@ -2563,8 +2656,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID. May be specified multiple times.",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2636,8 +2729,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID",
         required=False,
     )
     @click.option(
@@ -2775,7 +2868,7 @@ async def async_main() -> None:
 
     @guideline.command("tag", help="Tag a guideline")
     @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def guideline_tag(
         ctx: click.Context,
@@ -2785,12 +2878,12 @@ async def async_main() -> None:
         Interface.add_guideline_tag(
             ctx=ctx,
             guideline_id=id,
-            tag_id=tag,
+            tag=tag,
         )
 
     @guideline.command("untag", help="Untag from a guideline")
     @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def guideline_untag(
         ctx: click.Context,
@@ -2800,7 +2893,7 @@ async def async_main() -> None:
         Interface.remove_guideline_tag(
             ctx=ctx,
             guideline_id=id,
-            tag_id=tag,
+            tag=tag,
         )
 
     @cli.group(help="Manage an agent's context variables")
@@ -2811,8 +2904,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID",
         required=False,
     )
     @click.pass_context
@@ -2822,7 +2915,7 @@ async def async_main() -> None:
     ) -> None:
         Interface.list_variables(
             ctx=ctx,
-            tag_id=tag,
+            tag=tag,
         )
 
     @variable.command("create", help="Create a context variable")
@@ -2840,8 +2933,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID. May be specified multiple times.",
+        metavar="TAG_NAME_OR_ID",
+        help="Tag name or ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -2989,14 +3082,14 @@ async def async_main() -> None:
 
     @variable.command("tag", help="Tag a variable")
     @click.option("--id", type=str, metavar="ID", help="Variable ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def variable_tag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.add_variable_tag(ctx, id, tag)
 
     @variable.command("untag", help="Untag a variable")
     @click.option("--id", type=str, metavar="ID", help="Variable ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def variable_untag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.remove_variable_tag(ctx, id, tag)
@@ -3091,8 +3184,8 @@ async def async_main() -> None:
     @click.option(
         "--tag",
         type=str,
-        metavar="TAG_ID",
-        help="Tag ID. May be specified multiple times.",
+        metavar="TAG NAME OR ID",
+        help="Tag name or ID. May be specified multiple times.",
         required=False,
         multiple=True,
     )
@@ -3161,14 +3254,14 @@ async def async_main() -> None:
 
     @customer.command("tag", help="Tag a customer")
     @click.option("--id", type=str, metavar="ID", help="Customer ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def customer_tag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.add_customer_tag(ctx, id, tag)
 
     @customer.command("untag", help="Untag a customer")
     @click.option("--id", type=str, metavar="ID", help="Customer ID", required=True)
-    @click.option("--tag", type=str, metavar="TAG_ID", help="Tag ID", required=True)
+    @click.option("--tag", type=str, metavar="TAG_NAME_OR_ID", help="Tag name or ID", required=True)
     @click.pass_context
     def customer_untag(ctx: click.Context, id: str, tag: str) -> None:
         Interface.remove_customer_tag(ctx, id, tag)
