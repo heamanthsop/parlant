@@ -259,6 +259,8 @@ async def _recompute_and_marshal_tool(tool: Tool, plugin_data: Mapping[str, Any]
             description=options.description,
             significance=options.significance,
             examples=options.examples,
+            display_name=options.display_name,
+            precedence=options.precedence,
             adapter=None,
             choice_provider=None,
         )
@@ -693,13 +695,7 @@ class PluginClient(ToolService):
         return {
             name: (
                 descriptor,
-                ToolParameterOptions(
-                    hidden=options["hidden"],
-                    source=options["source"],
-                    description=options["description"],
-                    significance=options["significance"],
-                    examples=options["examples"],
-                ),
+                ToolParameterOptions(**options),
             )
             for name, (descriptor, options) in parameters.items()
         }

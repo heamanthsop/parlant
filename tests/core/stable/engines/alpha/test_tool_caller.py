@@ -407,3 +407,75 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
     assert isinstance(tool_call.arguments["categories"], str)
     assert "laptops" in tool_call.arguments["categories"]
     assert "peripherals" in tool_call.arguments["categories"]
+
+
+async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_missing_by_precedence(
+    container: Container,
+    tool_caller: ToolCaller,
+    agent: Agent,
+) -> None:
+    service_registry = container[ServiceRegistry]
+
+    @tool
+    def register_sweepstake(
+        context: ToolContext,
+        full_name: Annotated[str, ToolParameterOptions()],
+        city: Annotated[str, ToolParameterOptions(precedence=1)],
+        street: Annotated[str, ToolParameterOptions(precedence=1)],
+        house_number: Annotated[str, ToolParameterOptions(precedence=1)],
+        number_of_entries: Annotated[int, ToolParameterOptions(hidden=True, precedence=2)],
+        donation_amount: Annotated[Optional[int], ToolParameterOptions(required=False)] = None,
+    ) -> ToolResult:
+        return ToolResult({"success": True})
+
+    conversation_context = [
+        ("customer", "Hi, can you register me for the sweepstake?"),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    ordinary_guideline_matches = [
+        create_guideline_match(
+            condition="customer asks about a sweepstake",
+            action="response in concise and breif answer",
+            score=9,
+            rationale="customer is interested in the sweepstake",
+            tags=[Tag.for_agent_id(agent.id)],
+        )
+    ]
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer asks to register for a sweepstake",
+            action="register the customer for the sweepstake using all provided information",
+            score=9,
+            rationale="customer wants to register for the sweepstake and provides all the required information",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ToolId(service_name="my_scharlatan_service", tool_name="register_sweepstake")]
+    }
+
+    async with run_service_server([register_sweepstake]) as server:
+        await service_registry.update_tool_service(
+            name="my_scharlatan_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            staged_events=[],
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+
+    assert len(tool_calls) == 0
+    # Check missing parameters by name
+    missing_parameters = set(
+        map(lambda x: x.parameter, inference_tool_calls_result.insights.missing_data)
+    )
+    assert missing_parameters == {"full_name", "city", "street", "house_number"}
