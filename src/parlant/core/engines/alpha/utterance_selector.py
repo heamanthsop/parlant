@@ -243,12 +243,21 @@ When applicable, if the field is substituted by a list or dict, consider renderi
 it in Markdown format.
 
 A few examples:
+---------------
 1) Utterance is "Hello {{{{generative.name}}}}, how may I help you today?"
--- Here the value could be rendered as "NAME"
-1) Utterance is "Hello {{{{generative.names}}}}, how may I help you today?"
--- Here, the value could be rendered as "NAME1 and NAME2".
-2) Utterance is "Next flights are {{{{generative.flight_list}}}}
--- Here, the value could be rendered as a markdown table, or a numbered list, based on the flight information that would be available to you in the context (at least in this example).
+Example return value: ###
+{{ "value": "NAME" }}
+###
+
+2) Utterance is "Hello {{{{generative.names}}}}, how may I help you today?"
+Example return value: ###
+{{ "value": "NAME1 and NAME2" }}
+###
+
+3) Utterance is "Next flights are {{{{generative.flight_list}}}}
+Example return value: ###
+{{ "value": "- FLIGHT_1\\n- FLIGHT_2\\n" }}
+###
 """,
             props={"utterance": utterance, "field_name": field_name},
         )
