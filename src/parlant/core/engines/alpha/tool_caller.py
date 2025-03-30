@@ -39,9 +39,10 @@ from parlant.core.tools import (
     ToolContext,
     ToolParameterDescriptor,
     ToolParameterOptions,
-    ToolParameterPrecedence,
+    ToolId,
+    ToolService,
+    DEFAULT_PARAMETER_PRECEDENCE,
 )
-from parlant.core.tools import ToolId, ToolService
 
 ToolCallId = NewType("ToolCallId", str)
 ToolResultId = NewType("ToolResultId", str)
@@ -119,7 +120,7 @@ class MissingToolData:
     significance: Optional[str] = field(default=None)
     description: Optional[str] = field(default=None)
     examples: Optional[Sequence[str]] = field(default=None)
-    precedence: Optional[ToolParameterPrecedence] = field(default=ToolParameterPrecedence(0))
+    precedence: Optional[int] = field(default=DEFAULT_PARAMETER_PRECEDENCE)
 
 
 @dataclass(frozen=True)

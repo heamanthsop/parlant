@@ -31,7 +31,6 @@ from typing import (
     TypeAlias,
     Union,
     get_args,
-    NewType,
 )
 from pydantic import Field
 from typing_extensions import override, TypedDict
@@ -49,7 +48,7 @@ ToolParameterType = Literal[
 
 EnumValueType = Union[str, int]
 
-ToolParameterPrecedence = NewType("ToolParameterPrecedence", int)
+DEFAULT_PARAMETER_PRECEDENCE: int = 4294967295
 
 
 class ToolParameterDescriptor(TypedDict, total=False):
@@ -153,7 +152,7 @@ class ToolParameterOptions(DefaultBaseModel):
     )
     """A custom function to provide valid choicoes for the parameter's argument."""
 
-    precedence: Optional[ToolParameterPrecedence] = Field(default=ToolParameterPrecedence(0))
+    precedence: Optional[int] = Field(default=DEFAULT_PARAMETER_PRECEDENCE)
     """The precedence of this parameter comparing to other parameters. Lower values are higher precedence.
     This value will be used in order to present the user with fewer and clearer questions about multiple missing parameters."""
 

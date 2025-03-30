@@ -318,18 +318,18 @@ Feature: Tools
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
-        And the message mentions that parameters are missing
-        And the number of missing parameters is smaller than 6
+        And the number of missing parameters is exactly 1
+        And the message mentions last name 
 
     Scenario: Message generator understands that multiple parameters are missing and communicates that to the user accurately
         Given an empty session
         And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
-        And the tool "register_for_sweepstake_2"
-        And an association between "registering_for_a_sweepstake" and "register_for_sweepstake_2"
-        And a customer message, "Hi, Please register me for a sweepstake with 666 satan-type entries. Ask me right away regarding every missing detail."
+        And the tool "register_for_confusing_sweepstake"
+        And an association between "registering_for_a_sweepstake" and "register_for_confusing_sweepstake"
+        And a customer message, "Hi, I live in middle earth, Please register me for a sweepstake with 666 satan-type entries. Ask me right away regarding every missing detail."
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
         And the message mentions that parameters are missing
-        And the number of missing parameters is smaller than 3
+        And the number of missing parameters is exactly 2
         And the message mentions father and mother

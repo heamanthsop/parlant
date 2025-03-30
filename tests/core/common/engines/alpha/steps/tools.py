@@ -15,7 +15,7 @@
 from typing import Any, cast
 from pytest_bdd import given, parsers
 
-from parlant.core.tools import ToolParameterOptions, ToolParameterPrecedence
+from parlant.core.tools import ToolParameterOptions
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -344,13 +344,13 @@ def given_a_tool(
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(1)),
+                    ToolParameterOptions(precedence=1),
                 ),
                 "last_name": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(1)),
+                    ToolParameterOptions(precedence=1),
                 ),
                 "father_name": (
                     {
@@ -361,31 +361,31 @@ def given_a_tool(
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(2)),
+                    ToolParameterOptions(precedence=2),
                 ),
                 "entry_type": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(3)),
+                    ToolParameterOptions(precedence=3),
                 ),
                 "n_entries": (
                     {
                         "type": "int",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(3)),
+                    ToolParameterOptions(precedence=3),
                 ),
                 "donation_target": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(3)),
+                    ToolParameterOptions(precedence=3),
                 ),
                 "donation_percent": (
                     {
                         "type": "int",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(3)),
+                    ToolParameterOptions(precedence=3),
                 ),
             },
             "required": [
@@ -399,58 +399,58 @@ def given_a_tool(
                 "donation_percent",
             ],
         },
-        "register_for_sweepstake_2": {
-            "name": "register_for_sweepstake_2",
-            "description": "Register for a sweepstake less required but ",
+        "register_for_confusing_sweepstake": {
+            "name": "register_for_confusing_sweepstake",
+            "description": "Register for a sweepstake with more confusing paramater options",
             "module_path": "tests.tool_utilities",
             "parameters": {
                 "first_name": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(11)),
+                    ToolParameterOptions(precedence=11),
                 ),
                 "last_name": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(11)),
+                    ToolParameterOptions(precedence=11),
                 ),
                 "father_name": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(9)),
+                    ToolParameterOptions(precedence=-1),
                 ),
                 "mother_name": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(9)),
+                    ToolParameterOptions(precedence=-1),
                 ),
                 "entry_type": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(30)),
+                    ToolParameterOptions(precedence=30),
                 ),
                 "n_entries": (
                     {
                         "type": "int",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(30)),
+                    ToolParameterOptions(precedence=30),
                 ),
                 "donation_target": (
                     {
                         "type": "string",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(30)),
+                    ToolParameterOptions(precedence=-3),
                 ),
                 "donation_percent": (
                     {
                         "type": "int",
                     },
-                    ToolParameterOptions(precedence=ToolParameterPrecedence(30)),
+                    ToolParameterOptions(precedence=-3),
                 ),
             },
             "required": [
