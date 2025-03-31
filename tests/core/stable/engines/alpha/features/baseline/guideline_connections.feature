@@ -6,7 +6,7 @@ Feature: Guideline Connections
         And a customer message, "Hi"
         And a guideline "howdy" to greet the customer with "Howdy" when the customer says hello
         And a guideline "good_sir" to add "good sir" when saying "Howdy"
-        And a guideline connection whereby "howdy" entails "good_sir"
+        And a guideline relationship whereby "howdy" entails "good_sir"
         When processing is triggered
         Then a single message event is emitted
         And the message contains a greeting with "Howdy" and "good sir"

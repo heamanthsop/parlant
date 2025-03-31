@@ -651,7 +651,7 @@ class AlphaEngine(Engine):
 
         # Step 3: Load connected guidelines that may not have
         # been inferrable just by looking at the interaction.
-        inferred_matches = await self._match_connected_guidelines(
+        inferred_matches = await self._match_related_guidelines(
             all_stored_guidelines=all_stored_guidelines,
             matches=matching_result.matches,
         )
@@ -673,7 +673,7 @@ class AlphaEngine(Engine):
 
         return matching_result, ordinary_guidelines, tool_enabled_guidelines
 
-    async def _match_connected_guidelines(
+    async def _match_related_guidelines(
         self,
         all_stored_guidelines: Sequence[Guideline],
         matches: Sequence[GuidelineMatch],

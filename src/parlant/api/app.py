@@ -41,7 +41,7 @@ from parlant.core.common import ItemNotFoundError, generate_id
 from parlant.core.customers import CustomerStore
 from parlant.core.evaluations import EvaluationStore, EvaluationListener
 from parlant.core.utterances import UtteranceStore
-from parlant.core.guideline_connections import GuidelineConnectionStore
+from parlant.core.guideline_relationships import GuidelineRelationshipStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.nlp.service import NLPService
@@ -95,7 +95,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
     evaluation_service = container[BehavioralChangeEvaluator]
     glossary_store = container[GlossaryStore]
     guideline_store = container[GuidelineStore]
-    guideline_connection_store = container[GuidelineConnectionStore]
+    guideline_relationship_store = container[GuidelineRelationshipStore]
     guideline_tool_association_store = container[GuidelineToolAssociationStore]
     context_variable_store = container[ContextVariableStore]
     utterance_store = container[UtteranceStore]
@@ -160,7 +160,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         guidelines.create_legacy_router(
             application=application,
             guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
+            guideline_relationship_store=guideline_relationship_store,
             service_registry=service_registry,
             guideline_tool_association_store=guideline_tool_association_store,
         ),
@@ -266,7 +266,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         prefix="/guidelines",
         router=guidelines.create_router(
             guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
+            guideline_relationship_store=guideline_relationship_store,
             service_registry=service_registry,
             guideline_tool_association_store=guideline_tool_association_store,
             agent_store=agent_store,

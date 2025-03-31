@@ -33,23 +33,28 @@ from parlant.adapters.db.json_file import JSONFileDocumentDatabase
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.common import generate_id, md5_checksum, Version
 from parlant.core.context_variables import (
-    _ContextVariableDocument_v0_1_0,
-    _ContextVariableTagAssociationDocument,
+    ContextVariableDocument_v0_1_0,
+    ContextVariableTagAssociationDocument,
     ContextVariableId,
 )
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.glossary import (
-    _TermDocument_v0_1_0,
-    _TermTagAssociationDocument,
+    TermDocument_v0_1_0,
+    TermTagAssociationDocument,
     TermId,
 )
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipDocument_v0_1_0,
+    GuidelineRelationshipDocument,
+    GuidelineRelationshipKind,
+)
 from parlant.core.guidelines import (
-    _GuidelineDocument_v0_2_0,
-    _GuidelineTagAssociationDocument,
-    _GuidelineDocument,
+    GuidelineDocument_v0_2_0,
+    GuidelineTagAssociationDocument,
+    GuidelineDocument,
     GuidelineId,
     guideline_document_converter_0_1_0_to_0_2_0,
-    _GuidelineDocument_v0_1_0,
+    GuidelineDocument_v0_1_0,
 )
 from parlant.core.loggers import LogLevel, StdoutLogger
 from parlant.core.nlp.embedding import EmbedderFactory
@@ -59,7 +64,7 @@ from parlant.core.persistence.document_database import (
     DocumentDatabase,
     identity_loader,
 )
-from parlant.core.persistence.document_database_helper import _MetadataDocument
+from parlant.core.persistence.document_database_helper import MetadataDocument
 from parlant.core.tags import Tag
 
 DEFAULT_HOME_DIR = "runtime-data" if Path("runtime-data").exists() else "parlant-data"
@@ -146,6 +151,13 @@ async def get_component_versions() -> list[tuple[str, str]]:
     if context_vars_version:
         versions.append(("context_variables", context_vars_version))
 
+    guideline_connections_version = _get_version_from_json_file(
+        PARLANT_HOME_DIR / "guideline_connections.json",
+        "guideline_connections",
+    )
+    if guideline_connections_version:
+        versions.append(("guideline_connections", guideline_connections_version))
+
     embedder_factory = EmbedderFactory(Container())
     glossary_db = await EXIT_STACK.enter_async_context(
         ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory)
@@ -197,7 +209,7 @@ async def create_metadata_collection(db: DocumentDatabase, collection_name: str)
 
     metadata_collection = await db.get_or_create_collection(
         "metadata",
-        _MetadataDocument,
+        MetadataDocument,
         identity_loader,
     )
 
@@ -388,8 +400,8 @@ async def migrate_agents_0_1_0_to_0_2_0() -> None:
 async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
     async def _association_document_loader(
         doc: BaseDocument,
-    ) -> Optional[_GuidelineTagAssociationDocument]:
-        return cast(_GuidelineTagAssociationDocument, doc)
+    ) -> Optional[GuidelineTagAssociationDocument]:
+        return cast(GuidelineTagAssociationDocument, doc)
 
     rich.print("[green]Starting migration for guidelines 0.1.0 -> 0.3.0")
     guidelines_db = await EXIT_STACK.enter_async_context(
@@ -404,20 +416,20 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
 
     guideline_tags_collection = await guidelines_db.get_or_create_collection(
         "guideline_tag_associations",
-        _GuidelineTagAssociationDocument,
+        GuidelineTagAssociationDocument,
         _association_document_loader,
     )
 
     for guideline in await guideline_collection.find(filters={}):
-        guideline_to_use = cast(_GuidelineDocument_v0_2_0, guideline)
+        guideline_to_use = cast(GuidelineDocument_v0_2_0, guideline)
         if guideline["version"] == "0.1.0":
             converted_guideline = await guideline_document_converter_0_1_0_to_0_2_0(guideline)
             if not converted_guideline:
                 rich.print(f"[red]Failed to migrate guideline {guideline['id']}")
                 continue
-            guideline_to_use = cast(_GuidelineDocument_v0_2_0, converted_guideline)
+            guideline_to_use = cast(GuidelineDocument_v0_2_0, converted_guideline)
 
-        new_guideline = _GuidelineDocument(
+        new_guideline = GuidelineDocument(
             id=guideline_to_use["id"],
             version=Version.String("0.3.0"),
             creation_utc=guideline_to_use["creation_utc"],
@@ -439,7 +451,7 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "guideline_id": GuidelineId(guideline["id"]),
                 "tag_id": Tag.for_agent_id(
-                    cast(_GuidelineDocument_v0_1_0, guideline)["guideline_set"]
+                    cast(GuidelineDocument_v0_1_0, guideline)["guideline_set"]
                 ),
             }
         )
@@ -453,8 +465,8 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
 async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
     async def _association_document_loader(
         doc: BaseDocument,
-    ) -> Optional[_ContextVariableTagAssociationDocument]:
-        return cast(_ContextVariableTagAssociationDocument, doc)
+    ) -> Optional[ContextVariableTagAssociationDocument]:
+        return cast(ContextVariableTagAssociationDocument, doc)
 
     context_variables_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "context_variables.json")
@@ -467,7 +479,7 @@ async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
     )
     context_variable_tags_collection = await context_variables_db.get_or_create_collection(
         "variable_tag_associations",
-        _ContextVariableTagAssociationDocument,
+        ContextVariableTagAssociationDocument,
         _association_document_loader,
     )
 
@@ -479,7 +491,7 @@ async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
                 "creation_utc": datetime.now(timezone.utc).isoformat(),
                 "variable_id": ContextVariableId(context_variable["id"]),
                 "tag_id": Tag.for_agent_id(
-                    cast(_ContextVariableDocument_v0_1_0, context_variable)["variable_set"]
+                    cast(ContextVariableDocument_v0_1_0, context_variable)["variable_set"]
                 ),
             }
         )
@@ -542,8 +554,8 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
     async def _association_document_loader(
         doc: BaseDocument,
-    ) -> Optional[_TermTagAssociationDocument]:
-        return cast(_TermTagAssociationDocument, doc)
+    ) -> Optional[TermTagAssociationDocument]:
+        return cast(TermTagAssociationDocument, doc)
 
     embedder_factory = EmbedderFactory(Container())
 
@@ -557,7 +569,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
     glossary_tags_collection = await glossary_tags_db.get_or_create_collection(
         "glossary_tags",
-        _TermTagAssociationDocument,
+        TermTagAssociationDocument,
         _association_document_loader,
     )
 
@@ -601,7 +613,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                     "version": Version.String("0.2.0"),
                     "creation_utc": datetime.now(timezone.utc).isoformat(),
                     "term_id": TermId(cast(str, doc["id"])),
-                    "tag_id": Tag.for_agent_id(cast(_TermDocument_v0_1_0, doc)["term_set"]),
+                    "tag_id": Tag.for_agent_id(cast(TermDocument_v0_1_0, doc)["term_set"]),
                 }
             )
 
@@ -633,6 +645,72 @@ async def upgrade_document_database_metadata(
             }
         )
 
+
+@register_migration("guideline_connections", "0.1.0", "0.2.0")
+async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
+    rich.print("[green]Starting migration for guideline relationships 0.1.0 -> 0.2.0")
+
+    guideline_relationships_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "guideline_relationships.json")
+    )
+
+    guideline_relationships_collection = await guideline_relationships_db.get_or_create_collection(
+        "guideline_relationships",
+        BaseDocument,
+        identity_loader,
+    )
+
+    relationships_metadata_collection = await guideline_relationships_db.get_or_create_collection(
+        "metadata",
+        MetadataDocument,
+        identity_loader,
+    )
+
+    async with JSONFileDocumentDatabase(
+        LOGGER, PARLANT_HOME_DIR / "guideline_connections.json"
+    ) as guideline_connections_db:
+        guideline_connections_collection = await guideline_connections_db.get_or_create_collection(
+            "guideline_connections",
+            BaseDocument,
+            identity_loader,
+        )
+
+        for doc in await guideline_connections_collection.find(filters={}):
+            doc = cast(GuidelineRelationshipDocument_v0_1_0, doc)
+            await guideline_relationships_collection.insert_one(
+                cast(
+                    GuidelineRelationshipDocument,
+                    {
+                        "id": doc["id"],
+                        "version": Version.String("0.2.0"),
+                        "creation_utc": doc["creation_utc"],
+                        "source": doc["source"],
+                        "target": doc["target"],
+                        "kind": GuidelineRelationshipKind.ENTAILMENT.name,
+                    },
+                )
+            )
+
+        connections_metadata_collection = await guideline_connections_db.get_or_create_collection(
+            "metadata",
+            MetadataDocument,
+            identity_loader,
+        )
+
+        if metadata_doc := await connections_metadata_collection.find_one(filters={}):
+            await relationships_metadata_collection.insert_one(
+                cast(
+                    MetadataDocument,
+                    {
+                        "id": metadata_doc["id"],
+                        "version": Version.String("0.2.0"),
+                    },
+                )
+            )
+
+    (PARLANT_HOME_DIR / "guideline_connections.json").unlink()
+
+    rich.print("[green]Successfully migrated guideline connections to guideline relationships")
 
 async def detect_required_migrations() -> list[tuple[str, str, str]]:
     component_versions = await get_component_versions()

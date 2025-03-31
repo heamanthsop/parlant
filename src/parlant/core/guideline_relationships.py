@@ -15,8 +15,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
-from typing import NewType, Optional, Sequence, cast
+from enum import Enum, auto
+from typing import NewType, Optional, Sequence
 from typing_extensions import override, TypedDict, Self
 
 import networkx  # type: ignore
@@ -39,11 +39,11 @@ GuidelineRelationshipId = NewType("GuidelineRelationshipId", str)
 
 
 class GuidelineRelationshipKind(Enum):
-    ENTAILMENT = "entailment"
-    PRECEDENCE = "precedence"
-    REQUIREMENT = "requirement"
-    PRIORITY = "priority"
-    PERSISTENCE = "persistence"
+    ENTAILMENT = auto()
+    PRECEDENCE = auto()
+    REQUIREMENT = auto()
+    PRIORITY = auto()
+    PERSISTENCE = auto()
 
 
 @dataclass(frozen=True)
@@ -73,18 +73,14 @@ class GuidelineRelationshipStore(ABC):
     @abstractmethod
     async def list_relationships(
         self,
-    ) -> Sequence[GuidelineRelationship]: ...
-
-    @abstractmethod
-    async def list_entailments(
-        self,
+        kind: GuidelineRelationshipKind,
         indirect: bool,
         source: Optional[GuidelineId] = None,
         target: Optional[GuidelineId] = None,
     ) -> Sequence[GuidelineRelationship]: ...
 
 
-class GuidelineConnectionDocument_v0_1_0(TypedDict, total=False):
+class GuidelineRelationshipDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -98,7 +94,7 @@ class GuidelineRelationshipDocument(TypedDict, total=False):
     creation_utc: str
     source: GuidelineId
     target: GuidelineId
-    kind: GuidelineRelationshipKind
+    kind: str
 
 
 class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
@@ -107,7 +103,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
         self._collection: DocumentCollection[GuidelineRelationshipDocument]
-        self._graph: networkx.DiGraph | None = None
+        self._graphs: dict[GuidelineRelationshipKind, networkx.DiGraph] = {}
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
@@ -154,7 +150,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             creation_utc=guideline_relationship.creation_utc.isoformat(),
             source=guideline_relationship.source,
             target=guideline_relationship.target,
-            kind=guideline_relationship.kind,
+            kind=guideline_relationship.kind.name,
         )
 
     def _deserialize(
@@ -166,53 +162,39 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             creation_utc=datetime.fromisoformat(guideline_relationship_document["creation_utc"]),
             source=guideline_relationship_document["source"],
             target=guideline_relationship_document["target"],
-            kind=guideline_relationship_document["kind"],
+            kind=GuidelineRelationshipKind[guideline_relationship_document["kind"]],
         )
 
-    async def _get_connections_graph(self) -> networkx.DiGraph:
-        if not self._graph:
+    async def _get_relationships_graph(self, kind: GuidelineRelationshipKind) -> networkx.DiGraph:
+        if kind not in self._graphs:
             g = networkx.DiGraph()
 
-            connections = [self._deserialize(d) for d in await self._collection.find(filters={})]
+            relationships = [
+                self._deserialize(d)
+                for d in await self._collection.find(filters={"kind": {"$eq": kind.name}})
+            ]
 
             nodes = set()
             edges = list()
 
-            for c in connections:
-                nodes.add(c.source)
-                nodes.add(c.target)
+            for r in relationships:
+                nodes.add(r.source)
+                nodes.add(r.target)
                 edges.append(
                     (
-                        c.source,
-                        c.target,
+                        r.source,
+                        r.target,
                         {
-                            "id": c.id,
+                            "id": r.id,
                         },
                     )
                 )
 
             g.update(edges=edges, nodes=nodes)
 
-            self._graph = g
+            self._graphs[kind] = g
 
-        return self._graph
-
-    async def _create_entailment(
-        self,
-        source: GuidelineId,
-        target: GuidelineId,
-        guideline_relationship_id: GuidelineRelationshipId,
-    ) -> None:
-        graph = await self._get_connections_graph()
-
-        graph.add_node(source)
-        graph.add_node(target)
-
-        graph.add_edge(
-            source,
-            target,
-            id=guideline_relationship_id,
-        )
+        return self._graphs[kind]
 
     @override
     async def create_relationship(
@@ -234,26 +216,29 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             )
 
             result = await self._collection.update_one(
-                filters={"source": {"$eq": source}, "target": {"$eq": target}},
+                filters={
+                    "source": {"$eq": source},
+                    "target": {"$eq": target},
+                    "kind": {"$eq": kind.name},
+                },
                 params=self._serialize(guideline_relationship),
                 upsert=True,
             )
 
             assert result.updated_document
 
-            if kind == GuidelineRelationshipKind.ENTAILMENT:
-                await self._create_entailment(source, target, guideline_relationship.id)
+            graph = await self._get_relationships_graph(kind)
+
+            graph.add_node(source)
+            graph.add_node(target)
+
+            graph.add_edge(
+                source,
+                target,
+                id=guideline_relationship.id,
+            )
 
         return guideline_relationship
-
-    async def _delete_entailment(
-        self,
-        source: GuidelineId,
-        target: GuidelineId,
-    ) -> None:
-        graph = await self._get_connections_graph()
-
-        graph.remove_edge(source, target)
 
     @override
     async def delete_relationship(
@@ -268,21 +253,23 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
 
             relationship = self._deserialize(relationship_document)
 
-            if relationship.kind == GuidelineRelationshipKind.ENTAILMENT:
-                await self._delete_entailment(relationship.source, relationship.target)
+            graph = await self._get_relationships_graph(relationship.kind)
+
+            graph.remove_edge(relationship.source, relationship.target)
 
             await self._collection.delete_one(filters={"id": {"$eq": id}})
 
     @override
-    async def list_entailments(
+    async def list_relationships(
         self,
+        kind: GuidelineRelationshipKind,
         indirect: bool,
         source: Optional[GuidelineId] = None,
         target: Optional[GuidelineId] = None,
     ) -> Sequence[GuidelineRelationship]:
         assert (source or target) and not (source and target)
 
-        async def get_node_connections(
+        async def get_node_relationships(
             source: GuidelineId,
             reversed_graph: bool = False,
         ) -> Sequence[GuidelineRelationship]:
@@ -293,50 +280,44 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
 
             if indirect:
                 descendant_edges = networkx.bfs_edges(_graph, source)
-                connections = []
+                relationships = []
 
                 for edge_source, edge_target in descendant_edges:
                     edge_data = _graph.get_edge_data(edge_source, edge_target)
 
-                    connection_document = await self._collection.find_one(
+                    relationship_document = await self._collection.find_one(
                         filters={"id": {"$eq": edge_data["id"]}},
                     )
 
-                    if not connection_document:
+                    if not relationship_document:
                         raise ItemNotFoundError(item_id=UniqueId(edge_data["id"]))
 
-                    connections.append(self._deserialize(connection_document))
+                    relationships.append(self._deserialize(relationship_document))
 
-                return connections
+                return relationships
 
             else:
                 successors = _graph.succ[source]
-                connections = []
+                relationships = []
 
                 for source, data in successors.items():
-                    connection_document = await self._collection.find_one(
+                    relationship_document = await self._collection.find_one(
                         filters={"id": {"$eq": data["id"]}},
                     )
 
-                    if not connection_document:
+                    if not relationship_document:
                         raise ItemNotFoundError(item_id=UniqueId(data["id"]))
 
-                    connections.append(self._deserialize(connection_document))
+                    relationships.append(self._deserialize(relationship_document))
 
-                return connections
+                return relationships
 
         async with self._lock.reader_lock:
-            graph = await self._get_connections_graph()
+            graph = await self._get_relationships_graph(kind)
 
             if source:
-                connections = await get_node_connections(source)
+                relationships = await get_node_relationships(source)
             elif target:
-                connections = await get_node_connections(target, reversed_graph=True)
+                relationships = await get_node_relationships(target, reversed_graph=True)
 
-        return connections
-
-    @override
-    async def list_relationships(
-        self,
-    ) -> Sequence[GuidelineRelationship]:
-        return [self._deserialize(d) for d in await self._collection.find(filters={})]
+        return relationships

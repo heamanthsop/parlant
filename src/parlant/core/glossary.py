@@ -129,7 +129,7 @@ class GlossaryStore:
     ) -> None: ...
 
 
-class _TermDocument_v0_1_0(TypedDict, total=False):
+class TermDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     content: str
@@ -152,7 +152,7 @@ class _TermDocument(TypedDict, total=False):
     synonyms: Optional[str]
 
 
-class _TermTagAssociationDocument(TypedDict, total=False):
+class TermTagAssociationDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -175,7 +175,7 @@ class GlossaryVectorStore(GlossaryStore):
         self._document_db = document_db
 
         self._collection: VectorCollection[_TermDocument]
-        self._association_collection: DocumentCollection[_TermTagAssociationDocument]
+        self._association_collection: DocumentCollection[TermTagAssociationDocument]
 
         self._allow_migration = allow_migration
         self._embedder = embedder_factory.create_embedder(embedder_type)
@@ -198,8 +198,8 @@ class GlossaryVectorStore(GlossaryStore):
 
     async def _association_document_loader(
         self, document: BaseDocument
-    ) -> Optional[_TermTagAssociationDocument]:
-        return cast(_TermTagAssociationDocument, document)
+    ) -> Optional[TermTagAssociationDocument]:
+        return cast(TermTagAssociationDocument, document)
 
     async def __aenter__(self) -> Self:
         async with VectorDocumentStoreMigrationHelper(
@@ -220,7 +220,7 @@ class GlossaryVectorStore(GlossaryStore):
         ):
             self._association_collection = await self._document_db.get_or_create_collection(
                 name="glossary_tags",
-                schema=_TermTagAssociationDocument,
+                schema=TermTagAssociationDocument,
                 document_loader=self._association_document_loader,
             )
 
@@ -500,7 +500,7 @@ class GlossaryVectorStore(GlossaryStore):
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            association_document: _TermTagAssociationDocument = {
+            association_document: TermTagAssociationDocument = {
                 "id": ObjectId(generate_id()),
                 "version": self.VERSION.to_string(),
                 "creation_utc": creation_utc.isoformat(),

@@ -151,9 +151,9 @@ def _invoice_data_to_dto(kind: PayloadKind, invoice_data: InvoiceData) -> Invoic
                             action=c.target.action,
                         ),
                     )
-                    for c in invoice_data.connection_propositions
+                    for c in invoice_data.entailment_propositions
                 ]
-                if invoice_data.connection_propositions
+                if invoice_data.entailment_propositions
                 else None,
             )
         )

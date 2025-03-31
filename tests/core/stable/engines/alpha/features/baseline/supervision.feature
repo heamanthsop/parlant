@@ -127,8 +127,8 @@ Feature: Supervision
         And a guideline "check_soups" to check which soups are in stock when asked anything about soup
         And a guideline "frustrated_user" to end your response with the word sorry when the user expresses frustration
         And a guideline "open_with_hello" to begin your response with the word hello when discussing vegetable soups
-        And a guideline connection whereby "best_soup" entails "open_with_hello"
-        And a guideline connection whereby "best_soup" entails "check_soups"
+        And a guideline relationship whereby "best_soup" entails "open_with_hello"
+        And a guideline relationship whereby "best_soup" entails "check_soups"
         And the tool "get_available_soups"
         And an association between "check_soups" and "get_available_soups"
         And the term "Turpolance" defined as a mix of carrots and sweet potatoes

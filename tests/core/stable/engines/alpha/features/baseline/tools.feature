@@ -162,7 +162,7 @@ Feature: Tools
         And a guideline "check_stock" to check if the product is available in stock, and only suggest it if it is when suggesting products
         And the tool "get_available_toppings"
         And an association between "check_stock" and "get_available_toppings"
-        And a guideline connection whereby "suggest_toppings" entails "check_stock"
+        And a guideline relationship whereby "suggest_toppings" entails "check_stock"
         And a customer message, "What pizza topping should I take?"
         When processing is triggered
         Then a single tool calls event is emitted

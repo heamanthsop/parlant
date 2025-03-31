@@ -10,7 +10,7 @@ from parlant.core.persistence.document_database import (
 )
 
 
-class _MetadataDocument(TypedDict, total=False):
+class MetadataDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
 
@@ -56,7 +56,7 @@ class DocumentStoreMigrationHelper:
     ) -> bool:
         metadata_collection = await database.get_or_create_collection(
             "metadata",
-            _MetadataDocument,
+            MetadataDocument,
             identity_loader,
         )
 
@@ -78,7 +78,7 @@ class DocumentStoreMigrationHelper:
     ) -> None:
         metadata_collection = await database.get_or_create_collection(
             "metadata",
-            _MetadataDocument,
+            MetadataDocument,
             identity_loader,
         )
 

@@ -154,7 +154,7 @@ class ContextVariableStore(ABC):
     ) -> ContextVariable: ...
 
 
-class _ContextVariableDocument_v0_1_0(TypedDict, total=False):
+class ContextVariableDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     variable_set: str
@@ -192,7 +192,7 @@ class _ContextVariableValueDocument(TypedDict, total=False):
     data: JSONSerializable
 
 
-class _ContextVariableTagAssociationDocument(TypedDict, total=False):
+class ContextVariableTagAssociationDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -207,7 +207,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
         self._database = database
         self._variable_collection: DocumentCollection[_ContextVariableDocument]
         self._variable_tag_association_collection: DocumentCollection[
-            _ContextVariableTagAssociationDocument
+            ContextVariableTagAssociationDocument
         ]
         self._value_collection: DocumentCollection[_ContextVariableValueDocument]
         self._allow_migration = allow_migration
@@ -252,10 +252,10 @@ class ContextVariableDocumentStore(ContextVariableStore):
 
     async def _variable_tag_association_document_loader(
         self, doc: BaseDocument
-    ) -> Optional[_ContextVariableTagAssociationDocument]:
+    ) -> Optional[ContextVariableTagAssociationDocument]:
         if doc["version"] == "0.1.0":
-            doc = cast(_ContextVariableTagAssociationDocument, doc)
-            return _ContextVariableTagAssociationDocument(
+            doc = cast(ContextVariableTagAssociationDocument, doc)
+            return ContextVariableTagAssociationDocument(
                 id=doc["id"],
                 version=Version.String("0.2.0"),
                 creation_utc=doc["creation_utc"],
@@ -263,7 +263,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
                 tag_id=doc["tag_id"],
             )
 
-        return cast(_ContextVariableTagAssociationDocument, doc)
+        return cast(ContextVariableTagAssociationDocument, doc)
 
     async def __aenter__(self) -> Self:
         async with DocumentStoreMigrationHelper(
@@ -280,7 +280,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
             self._variable_tag_association_collection = (
                 await self._database.get_or_create_collection(
                     name="variable_tag_associations",
-                    schema=_ContextVariableTagAssociationDocument,
+                    schema=ContextVariableTagAssociationDocument,
                     document_loader=self._variable_tag_association_document_loader,
                 )
             )
@@ -625,7 +625,7 @@ class ContextVariableDocumentStore(ContextVariableStore):
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            association_document: _ContextVariableTagAssociationDocument = {
+            association_document: ContextVariableTagAssociationDocument = {
                 "id": ObjectId(generate_id()),
                 "version": self.VERSION.to_string(),
                 "creation_utc": creation_utc.isoformat(),

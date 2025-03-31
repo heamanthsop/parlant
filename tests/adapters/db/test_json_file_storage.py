@@ -585,7 +585,7 @@ async def test_evaluation_update(
 
             invoice_data: InvoiceData = InvoiceGuidelineData(
                 coherence_checks=[],
-                connection_propositions=None,
+                entailment_propositions=None,
             )
 
             invoice = Invoice(

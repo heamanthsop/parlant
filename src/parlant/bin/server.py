@@ -65,9 +65,9 @@ from parlant.core.evaluations import (
     EvaluationStore,
 )
 from parlant.core.entity_cq import EntityQueries, EntityCommands
-from parlant.core.guideline_connections import (
-    GuidelineConnectionDocumentStore,
-    GuidelineConnectionStore,
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipDocumentStore,
+    GuidelineRelationshipStore,
 )
 from parlant.core.guidelines import (
     GuidelineDocumentStore,
@@ -385,8 +385,8 @@ async def initialize_container(
         c[GuidelineToolAssociationStore] = await EXIT_STACK.enter_async_context(
             GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
         )
-        c[GuidelineConnectionStore] = await EXIT_STACK.enter_async_context(
-            GuidelineConnectionDocumentStore(guideline_connections_db, migrate)
+        c[GuidelineRelationshipStore] = await EXIT_STACK.enter_async_context(
+            GuidelineRelationshipDocumentStore(guideline_connections_db, migrate)
         )
         c[SessionStore] = await EXIT_STACK.enter_async_context(
             SessionDocumentStore(sessions_db, migrate)
