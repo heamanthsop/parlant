@@ -2,8 +2,6 @@
 
 In Parlant, the **Engine** is the part that's responsible for agent responses from end to end.
 
-More specifically, since Parlant was designed from scratch with the thought of possibly having multiple engines for different use cases with different trade-offs, so far we've found that our initial engine is quite flexible. It is called the *Alpha Engine*, but since it is currently the only one, we will just refer to it as *The Engine*.
-
 The engine is comprised of several components, each one dedicated to a particular mission. As we will see, each of these missions assists in creating a well-guided response, but at the same time is also quite complex in its own right.
 
 While this document won't go into the specific components in detail, it will explain them briefly—just enough so that we can see how they interrelate and function together to produce a consistent responses.
