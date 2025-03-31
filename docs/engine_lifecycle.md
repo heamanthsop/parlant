@@ -13,7 +13,7 @@ While this document won't go into the specific components in detail, it will exp
 There are currently 4 components to the engine, and more are being worked on as we speak, to support even more control and flexibility in the engine.
 
 1. **Glossary Store**
-2. **Guideline Proposer**
+2. **Guideline Matcher**
 3. **Tool Caller**
 4. **Message Generator**
 
@@ -25,7 +25,7 @@ Each of these components acts as a part of the whole process of agent response. 
 graph TD
     API(Parlant REST API) -->|React to Session Trigger| Engine
     Engine -->|Load Terms| GlossaryStore
-    Engine -->|Match Guidelines| GuidelineProposer
+    Engine -->|Match Guidelines| GuidelineMatcher
     Engine -->|Infer & Call Tools| ToolCaller
     Engine -->|Tailor Guided Message| MessageGenerator
 ```
@@ -45,18 +45,18 @@ graph LR
     VectorDatabase -.->|"list[Term]"| GlossaryStore
 ```
 
-### Guideline Proposer
+### Guideline Matcher
 Before we explain what this component does, we first need to understand where it comes from.
 
 As you probably already know, behavior in Parlant is controlled primarily using guidelines, where each guideline as a *condition* and an *action*. The condition is the part that specifies *when the action should be followed.*
 
 Parlant takes advantage of this condition/action model to help the *Message Generator* stay focused, by only providing it with guidelines that are actually relevant for its current task. For example, if we have a guideline with the condition `the customer has just greeted you`, we do not need to account for the action of this guideline if we're well into the conversation at this point—it can just be disregarded. This helps improve accuracy, reduce the complexity of the guidance and supervision mechanism, and also lower the cost and latency of the LLM's completion.
 
-The Guideline Proposer is what matches the appropriate guidelines that need to be activated in the generation of the agent's next response.
+The Guideline Matcher is what matches the appropriate guidelines that need to be activated in the generation of the agent's next response.
 
 ```mermaid
 graph LR
-    GP(GuidelineProposer) -->|Agent Guidelines| BG[Batch Guideline Proposition Requests] --> RB[Run Batches in Parallel] --> Match[Evaluate Guidelines] --> MR[Merge Results] -->|Guideline Propositions| GP
+    GP(GuidelineMatcher) -->|Agent Guidelines| BG[Batch Guideline Matching Requests] --> RB[Run Batches in Parallel] --> Match[Evaluate Guidelines] --> MR[Merge Results] -->|Guideline Matches| GP
 
 ```
 
@@ -96,7 +96,7 @@ sequenceDiagram
     participant API as Parlant's REST API
     participant Engine
     participant GlossaryStore
-    participant GuidelineProposer
+    participant GuidelineMatcher
     participant ToolCaller
     participant MessageGenerator
     participant SessionStore
@@ -115,11 +115,11 @@ sequenceDiagram
         GlossaryStore --> Engine: Terms
         deactivate GlossaryStore
 
-        Engine -> GuidelineProposer: Load & match contextually relevant guidelines
-        activate GuidelineProposer
-        GuidelineProposer -> GuidelineProposer: Match guidelines in parallel batches
-        GuidelineProposer --> Engine: (Ordinary guidelines, Tool-enabled guidelines)
-        deactivate GuidelineProposer
+        Engine -> GuidelineMatcher: Load & match contextually relevant guidelines
+        activate GuidelineMatcher
+        GuidelineMatcher -> GuidelineMatcher: Match guidelines in parallel batches
+        GuidelineMatcher --> Engine: (Ordinary guidelines, Tool-enabled guidelines)
+        deactivate GuidelineMatcher
 
         Engine -> ToolCaller: Run tools
         activate ToolCaller
