@@ -353,7 +353,7 @@ class GuidelineToolAssociationUpdateParamsDTO(
     remove: Optional[Sequence[ToolIdDTO]] = None
 
 
-guideline_update_params_example: ExampleJson = {
+legacy_guideline_update_params_example: ExampleJson = {
     "connections": {
         "add": [{"source": "guide_123xyz", "target": "guide_789xyz"}],
         "remove": ["guide_456xyz"],
@@ -367,7 +367,7 @@ guideline_update_params_example: ExampleJson = {
 
 
 class LegacyGuidelineUpdateParamsDTO(
-    DefaultBaseModel, json_schema_extra={"example": guideline_update_params_example}
+    DefaultBaseModel, json_schema_extra={"example": legacy_guideline_update_params_example}
 ):
     """Parameters for updating Guideline objects."""
 
@@ -1217,7 +1217,7 @@ guideline_relationship_update_params_example: ExampleJson = {
             "kind": "entailment",
         }
     ],
-    "remove": ["guid_789yz"],
+    "remove": ["guideline_relationship_id_789yz"],
 }
 
 
@@ -1234,6 +1234,38 @@ class GuidelineRelationshipUpdateParamsDTO(
 
     add: Optional[Sequence[GuidelineRelationshipAdditionDTO]] = None
     remove: Optional[Sequence[GuidelineRelationshipIdField]] = None
+
+
+guideline_update_params_example: ExampleJson = {
+    "condition": "when the customer asks about pricing",
+    "action": "provide current pricing information",
+    "enabled": True,
+    "tags": ["tag1", "tag2"],
+    "relationships": {
+        "add": [
+            {
+                "source": "guid_123xz",
+                "target": "guid_456yz",
+                "kind": "entailment",
+            }
+        ],
+        "remove": ["guideline_relationship_id_789yz"],
+    },
+    "tool_associations": {
+        "add": [
+            {
+                "service_name": "new_service",
+                "tool_name": "new_tool",
+            }
+        ],
+        "remove": [
+            {
+                "service_name": "old_service",
+                "tool_name": "old_tool",
+            },
+        ],
+    },
+}
 
 
 class GuidelineUpdateParamsDTO(
@@ -1522,7 +1554,7 @@ def create_router(
         Only provided attributes will be updated; others remain unchanged.
 
         Relationship rules:
-        - A guideline cannot connect to itself
+        - A guideline cannot relate to itself
         - Only direct relationships can be removed
         - The relationship must specify this guideline as source or target
 
