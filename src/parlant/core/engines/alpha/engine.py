@@ -60,6 +60,7 @@ from parlant.core.engines.alpha.guideline_match import (
 from parlant.core.engines.alpha.tool_event_generator import (
     ToolEventGenerationResult,
     ToolEventGenerator,
+    ToolPreexecutionState,
 )
 from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.engines.types import Context, Engine, UtteranceReason, UtteranceRequest
@@ -340,9 +341,10 @@ class AlphaEngine(Engine):
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
     async def _run_preparation_iteration(self, context: LoadedContext) -> PreparationIteration:
-        # For future optimization compatibility, provide
-        # an opportunity for speculative tool execution.
-        await self._begin_tool_speculation(context)
+        # For extensibility concerns, it's useful to capture the exact state
+        # we were in before matching guidelines, and communicate that
+        # to the tool event generator. It may utilize it.
+        tool_preexecution_state = await self._capture_tool_preexecution_state(context)
 
         # Match relevant guidelines, retrieving them in a
         # structured format such that we can distinguish
@@ -363,7 +365,7 @@ class AlphaEngine(Engine):
             tool_event_generation_result,
             new_tool_events,
             tool_insights,
-        ) = await self._call_tools(context)
+        ) = await self._call_tools(context, tool_preexecution_state)
 
         context.state.tool_events += new_tool_events
         context.state.tool_insights = tool_insights
@@ -593,8 +595,10 @@ class AlphaEngine(Engine):
 
         return result
 
-    async def _begin_tool_speculation(self, context: LoadedContext) -> None:
-        await self._tool_event_generator.begin_speculation(
+    async def _capture_tool_preexecution_state(
+        self, context: LoadedContext
+    ) -> ToolPreexecutionState:
+        return await self._tool_event_generator.create_preexecution_state(
             context.event_emitter,
             context.session.id,
             context.agent,
@@ -798,8 +802,10 @@ class AlphaEngine(Engine):
     async def _call_tools(
         self,
         context: LoadedContext,
+        preexecution_state: ToolPreexecutionState,
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights]:
         result = await self._tool_event_generator.generate_events(
+            preexecution_state,
             event_emitter=context.event_emitter,
             session_id=context.session.id,
             agent=context.agent,
