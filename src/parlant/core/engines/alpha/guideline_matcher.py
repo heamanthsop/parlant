@@ -41,6 +41,7 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
+from parlant.core.tags import TagId
 
 
 class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
@@ -444,16 +445,32 @@ class GuidelineMatchingStrategyResolver(ABC):
 
 
 class DefaultGuidelineMatchingStrategyResolver(GuidelineMatchingStrategyResolver):
-    def __init__(self, generic_strategy: GenericGuidelineMatching) -> None:
+    def __init__(
+        self,
+        generic_strategy: GenericGuidelineMatching,
+        logger: Logger,
+    ) -> None:
         self._generic_strategy = generic_strategy
-        self.overrides: dict[GuidelineId, GuidelineMatchingStrategy] = {}
+        self._logger = logger
+
+        self.guideline_overrides: dict[GuidelineId, GuidelineMatchingStrategy] = {}
+        self.tag_overrides: dict[TagId, GuidelineMatchingStrategy] = {}
 
     @override
     async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
-        if override_strategy := self.overrides.get(guideline.id):
+        if override_strategy := self.guideline_overrides.get(guideline.id):
             return override_strategy
-        else:
-            return self._generic_strategy
+
+        tag_strategies = [s for tag_id, s in self.tag_overrides.items() if tag_id in guideline.tags]
+
+        if first_tag_strategy := next(iter(tag_strategies), None):
+            if len(tag_strategies) > 1:
+                self._logger.warning(
+                    f"More than one tag-based strategy override found for guideline (id='{guideline.id}'). Choosing first strategy ({first_tag_strategy.__class__.__name__})"
+                )
+            return first_tag_strategy
+
+        return self._generic_strategy
 
 
 class GuidelineMatcher:

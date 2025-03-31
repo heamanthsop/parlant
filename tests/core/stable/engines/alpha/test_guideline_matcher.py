@@ -1079,9 +1079,9 @@ def test_that_strategy_for_specific_guideline_can_be_overridden_in_default_strat
 
     guideline = create_guideline(context, "a customer asks for a drink", "check stock")
 
-    context.container[DefaultGuidelineMatchingStrategyResolver].overrides[guideline.id] = (
-        CustomGuidelineMatchingStrategy()
-    )
+    context.container[DefaultGuidelineMatchingStrategyResolver].guideline_overrides[
+        guideline.id
+    ] = CustomGuidelineMatchingStrategy()
 
     create_guideline(context, "ask for drink", "check stock")
     create_guideline(context, "customer needs help", "assist customer")
