@@ -341,9 +341,8 @@ class AlphaEngine(Engine):
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
     async def _run_preparation_iteration(self, context: LoadedContext) -> PreparationIteration:
-        # For extensibility concerns, it's useful to capture the exact state
-        # we were in before matching guidelines, and communicate that
-        # to the tool event generator. It may utilize it.
+        # For optimization concerns, it's useful to capture the exact state
+        # we were in before matching guidelines.
         tool_preexecution_state = await self._capture_tool_preexecution_state(context)
 
         # Match relevant guidelines, retrieving them in a
@@ -361,14 +360,18 @@ class AlphaEngine(Engine):
 
         # Infer any needed tool calls and execute them,
         # adding the resulting tool events to the session.
-        (
-            tool_event_generation_result,
-            new_tool_events,
-            tool_insights,
-        ) = await self._call_tools(context, tool_preexecution_state)
+        if tool_calling_result := await self._call_tools(context, tool_preexecution_state):
+            (
+                tool_event_generation_result,
+                new_tool_events,
+                tool_insights,
+            ) = tool_calling_result
 
-        context.state.tool_events += new_tool_events
-        context.state.tool_insights = tool_insights
+            context.state.tool_events += new_tool_events
+            context.state.tool_insights = tool_insights
+        else:
+            tool_event_generation_result = None
+            new_tool_events = []
 
         # Tool calls may have returned with data that uses glossary terms,
         # so we need to ground our response again by reevaluating terms.
@@ -803,7 +806,20 @@ class AlphaEngine(Engine):
         self,
         context: LoadedContext,
         preexecution_state: ToolPreexecutionState,
-    ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights]:
+    ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
+        preexecution_guidelines = set(
+            match.guideline
+            for match in [
+                *preexecution_state.ordinary_guideline_matches,
+                *preexecution_state.tool_enabled_guideline_matches,
+            ]
+        )
+
+        if not preexecution_guidelines.symmetric_difference(context.state.guidelines):
+            # The only case where we need to run tools is if a new reason to run a tool
+            # has been detected. If guidelines haven't changed, there's no new reason.
+            return None
+
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
             event_emitter=context.event_emitter,
