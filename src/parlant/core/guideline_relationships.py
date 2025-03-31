@@ -15,8 +15,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum, auto
-from typing import NewType, Optional, Sequence
+from typing import Literal, NewType, Optional, Sequence, TypeAlias
 from typing_extensions import override, TypedDict, Self
 
 import networkx  # type: ignore
@@ -37,13 +36,13 @@ from parlant.core.persistence.document_database_helper import (
 
 GuidelineRelationshipId = NewType("GuidelineRelationshipId", str)
 
-
-class GuidelineRelationshipKind(Enum):
-    ENTAILMENT = auto()
-    PRECEDENCE = auto()
-    REQUIREMENT = auto()
-    PRIORITY = auto()
-    PERSISTENCE = auto()
+GuidelineRelationshipKind: TypeAlias = Literal[
+    "entailment",
+    "precedence",
+    "requirement",
+    "priority",
+    "persistence",
+]
 
 
 @dataclass(frozen=True)
@@ -94,7 +93,7 @@ class GuidelineRelationshipDocument(TypedDict, total=False):
     creation_utc: str
     source: GuidelineId
     target: GuidelineId
-    kind: str
+    kind: GuidelineRelationshipKind
 
 
 class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
@@ -150,7 +149,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             creation_utc=guideline_relationship.creation_utc.isoformat(),
             source=guideline_relationship.source,
             target=guideline_relationship.target,
-            kind=guideline_relationship.kind.name,
+            kind=guideline_relationship.kind,
         )
 
     def _deserialize(
@@ -162,7 +161,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             creation_utc=datetime.fromisoformat(guideline_relationship_document["creation_utc"]),
             source=guideline_relationship_document["source"],
             target=guideline_relationship_document["target"],
-            kind=GuidelineRelationshipKind[guideline_relationship_document["kind"]],
+            kind=guideline_relationship_document["kind"],
         )
 
     async def _get_relationships_graph(self, kind: GuidelineRelationshipKind) -> networkx.DiGraph:
@@ -171,7 +170,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
 
             relationships = [
                 self._deserialize(d)
-                for d in await self._collection.find(filters={"kind": {"$eq": kind.name}})
+                for d in await self._collection.find(filters={"kind": {"$eq": kind}})
             ]
 
             nodes = set()
@@ -219,7 +218,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
                 filters={
                     "source": {"$eq": source},
                     "target": {"$eq": target},
-                    "kind": {"$eq": kind.name},
+                    "kind": {"$eq": kind},
                 },
                 params=self._serialize(guideline_relationship),
                 upsert=True,

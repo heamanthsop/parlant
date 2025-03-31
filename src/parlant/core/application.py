@@ -28,7 +28,6 @@ from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerId
 from parlant.core.evaluations import EntailmentRelationshipProposition, Invoice
 from parlant.core.guideline_relationships import (
-    GuidelineRelationshipKind,
     GuidelineRelationshipStore,
 )
 from parlant.core.guidelines import GuidelineId, GuidelineStore
@@ -189,7 +188,7 @@ class Application:
             await self._guideline_relationship_store.create_relationship(
                 source=source_guideline_id,
                 target=target_guideline_id,
-                kind=GuidelineRelationshipKind.ENTAILMENT,
+                kind="entailment",
             )
 
         content_guidelines: dict[str, GuidelineId] = {
@@ -216,7 +215,7 @@ class Application:
 
                 relationships_to_delete = list(
                     await self._guideline_relationship_store.list_relationships(
-                        kind=GuidelineRelationshipKind.ENTAILMENT,
+                        kind="entailment",
                         indirect=False,
                         source=guideline_id,
                     )
@@ -224,7 +223,7 @@ class Application:
 
                 relationships_to_delete.extend(
                     await self._guideline_relationship_store.list_relationships(
-                        kind=GuidelineRelationshipKind.ENTAILMENT,
+                        kind="entailment",
                         indirect=False,
                         target=guideline_id,
                     )
@@ -250,7 +249,7 @@ class Application:
                         await self._guideline_relationship_store.create_relationship(
                             source=content_guidelines[source_key],
                             target=content_guidelines[target_key],
-                            kind=GuidelineRelationshipKind.ENTAILMENT,
+                            kind="entailment",
                         )
                     else:
                         await _create_with_existing_guideline(

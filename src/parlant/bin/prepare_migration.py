@@ -46,7 +46,6 @@ from parlant.core.glossary import (
 from parlant.core.guideline_relationships import (
     GuidelineRelationshipDocument_v0_1_0,
     GuidelineRelationshipDocument,
-    GuidelineRelationshipKind,
 )
 from parlant.core.guidelines import (
     GuidelineDocument_v0_2_0,
@@ -686,7 +685,7 @@ async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
                         "creation_utc": doc["creation_utc"],
                         "source": doc["source"],
                         "target": doc["target"],
-                        "kind": GuidelineRelationshipKind.ENTAILMENT.name,
+                        "kind": "entailment",
                     },
                 )
             )

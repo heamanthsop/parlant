@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import chain
-from typing import Annotated, Optional, Sequence, TypeAlias
+from typing import Annotated, Optional, Sequence, TypeAlias, get_args
 from fastapi import APIRouter, HTTPException, Path, status, Query
 from pydantic import Field
 
@@ -531,7 +531,7 @@ async def _get_guideline_relationships(
                     kind=kind,
                     include_indirect=include_indirect,
                 )
-                for kind in GuidelineRelationshipKind
+                for kind in get_args(GuidelineRelationshipKind)
             ]
         )
     )
@@ -644,7 +644,7 @@ def create_legacy_router(
                             guideline_store=guideline_store,
                             guideline_relationship_store=guideline_relationship_store,
                             guideline_id=guideline.id,
-                            kind=GuidelineRelationshipKind.ENTAILMENT,
+                            kind="entailment",
                             include_indirect=True,
                         )
                     ],
@@ -699,7 +699,7 @@ def create_legacy_router(
             guideline_store=guideline_store,
             guideline_relationship_store=guideline_relationship_store,
             guideline_id=guideline_id,
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind="entailment",
             include_indirect=True,
         )
 
@@ -874,14 +874,14 @@ def create_legacy_router(
                 await guideline_relationship_store.create_relationship(
                     source=req.source,
                     target=req.target,
-                    kind=GuidelineRelationshipKind.ENTAILMENT,
+                    kind="entailment",
                 )
 
         relationships = await _get_guideline_relationships_by_kind(
             guideline_store=guideline_store,
             guideline_relationship_store=guideline_relationship_store,
             guideline_id=guideline_id,
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind="entailment",
             include_indirect=False,
         )
 
@@ -960,7 +960,7 @@ def create_legacy_router(
                     guideline_store=guideline_store,
                     guideline_relationship_store=guideline_relationship_store,
                     guideline_id=guideline_id,
-                    kind=GuidelineRelationshipKind.ENTAILMENT,
+                    kind="entailment",
                     include_indirect=True,
                 )
             ],
@@ -1027,10 +1027,10 @@ def create_legacy_router(
             deleted = True
         for r in chain(
             await guideline_relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.ENTAILMENT, indirect=False, source=guideline_id
+                kind="entailment", indirect=False, source=guideline_id
             ),
             await guideline_relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.ENTAILMENT, indirect=False, target=guideline_id
+                kind="entailment", indirect=False, target=guideline_id
             ),
         ):
             if deleted:
@@ -1300,6 +1300,22 @@ class GuidelineWithRelationshipsAndToolAssociationsDTO(
     tool_associations: Sequence[GuidelineToolAssociationDTO]
 
 
+def _dto_to_kind(dt: GuidelineRelationshipKindDTO) -> GuidelineRelationshipKind:
+    match dt:
+        case GuidelineRelationshipKindDTO.ENTAILMENT:
+            return "entailment"
+        case GuidelineRelationshipKindDTO.PRECEDENCE:
+            return "precedence"
+        case GuidelineRelationshipKindDTO.REQUIREMENT:
+            return "requirement"
+        case GuidelineRelationshipKindDTO.PRIORITY:
+            return "priority"
+        case GuidelineRelationshipKindDTO.PERSISTENCE:
+            return "persistence"
+        case _:
+            raise ValueError(f"Invalid guideline relationship kind: {dt}")
+
+
 def create_router(
     guideline_store: GuidelineStore,
     guideline_relationship_store: GuidelineRelationshipStore,
@@ -1463,7 +1479,7 @@ def create_router(
                         tags=relationship.target.tags,
                     ),
                     indirect=indirect,
-                    kind=GuidelineRelationshipKindDTO[relationship.kind.name],
+                    kind=GuidelineRelationshipKindDTO(relationship.kind),
                 )
                 for relationship, indirect in relationships
             ],
@@ -1545,7 +1561,7 @@ def create_router(
                 await guideline_relationship_store.create_relationship(
                     source=req.source,
                     target=req.target,
-                    kind=GuidelineRelationshipKind[req.kind.name],
+                    kind=_dto_to_kind(req.kind),
                 )
 
         if params.relationships and params.relationships.remove:
@@ -1638,7 +1654,7 @@ def create_router(
                         tags=relationship.target.tags,
                     ),
                     indirect=indirect,
-                    kind=GuidelineRelationshipKindDTO[relationship.kind.name],
+                    kind=GuidelineRelationshipKindDTO(relationship.kind),
                 )
                 for relationship, indirect in await _get_guideline_relationships(
                     guideline_store=guideline_store,

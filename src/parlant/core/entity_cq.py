@@ -17,7 +17,6 @@ from parlant.core.guidelines import (
 )
 from parlant.core.guideline_relationships import (
     GuidelineRelationship,
-    GuidelineRelationshipKind,
     GuidelineRelationshipStore,
 )
 from parlant.core.guideline_tool_associations import (
@@ -137,7 +136,7 @@ class EntityQueries:
         indirect: bool = False,
     ) -> Sequence[GuidelineRelationship]:
         return await self._guideline_relationship_store.list_relationships(
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind="entailment",
             indirect=indirect,
             source=source,
             target=target,
