@@ -611,11 +611,11 @@ class AlphaEngine(Engine):
         matching_result = await self._guideline_matcher.match_guidelines(
             agent=context.agent,
             customer=context.customer,
-            guidelines=all_stored_guidelines,
             context_variables=state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(state.glossary_terms),
             staged_events=state.tool_events,
+            guidelines=all_stored_guidelines,
         )
 
         # Step 3: Load connected guidelines that may not have
