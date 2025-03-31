@@ -54,6 +54,21 @@ class ToolEventGenerator:
 
         self.tool_caller = ToolCaller(logger, service_registry, schematic_generator)
 
+    async def begin_speculation(
+        self,
+        event_emitter: EventEmitter,
+        session_id: SessionId,
+        agent: Agent,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        ordinary_guideline_matches: Sequence[GuidelineMatch],
+        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        staged_events: Sequence[EmittedEvent],
+    ) -> None:
+        return
+
     async def generate_events(
         self,
         event_emitter: EventEmitter,
