@@ -99,6 +99,7 @@ from parlant.core.engines.alpha.guideline_matcher import (
     GenericGuidelineMatchingShot,
     GenericGuidelineMatchesSchema,
     DefaultGuidelineMatchingStrategyResolver,
+    GuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.message_generator import (
     MessageGenerator,
@@ -290,7 +291,6 @@ async def setup_container() -> AsyncIterator[Container]:
     c[EngineHooks] = EngineHooks()
     c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
-    c[GuidelineMatcher] = Singleton(GuidelineMatcher)
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
     c[UtteranceSelector] = Singleton(UtteranceSelector)
@@ -468,18 +468,13 @@ async def initialize_container(
 
     c[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
 
-    generic_strategy = GenericGuidelineMatching(
-        logger=c[Logger],
-        schematic_generator=c[SchematicGenerator[GenericGuidelineMatchesSchema]],
+    c[DefaultGuidelineMatchingStrategyResolver] = Singleton(
+        DefaultGuidelineMatchingStrategyResolver
     )
-    c[DefaultGuidelineMatchingStrategyResolver] = DefaultGuidelineMatchingStrategyResolver(
-        generic_strategy=generic_strategy
-    )
-
-    c[GuidelineMatcher] = GuidelineMatcher(
-        logger=c[Logger],
-        strategy_resolver=c[DefaultGuidelineMatchingStrategyResolver],
-    )
+    c[GuidelineMatchingStrategyResolver] = lambda container: container[
+        DefaultGuidelineMatchingStrategyResolver
+    ]
+    c[GuidelineMatcher] = Singleton(GuidelineMatcher)
 
 
 async def recover_server_tasks(
