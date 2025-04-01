@@ -351,8 +351,8 @@ async def initialize_container(
     guideline_tool_associations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_tool_associations.json")
     )
-    guideline_connections_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_connections.json")
+    guideline_relationships_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_relationships.json")
     )
     evaluations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluations.json")
@@ -386,7 +386,7 @@ async def initialize_container(
             GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
         )
         c[GuidelineRelationshipStore] = await EXIT_STACK.enter_async_context(
-            GuidelineRelationshipDocumentStore(guideline_connections_db, migrate)
+            GuidelineRelationshipDocumentStore(guideline_relationships_db, migrate)
         )
         c[SessionStore] = await EXIT_STACK.enter_async_context(
             SessionDocumentStore(sessions_db, migrate)

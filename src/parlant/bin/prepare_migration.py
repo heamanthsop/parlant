@@ -711,6 +711,7 @@ async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
 
     rich.print("[green]Successfully migrated guideline connections to guideline relationships")
 
+
 async def detect_required_migrations() -> list[tuple[str, str, str]]:
     component_versions = await get_component_versions()
     required_migrations = []
