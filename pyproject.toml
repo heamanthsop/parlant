@@ -37,7 +37,7 @@ openai = "^1.45.0"
 openapi3-parser = "^1.1.17"
 opentelemetry-exporter-otlp-proto-grpc = "1.27.0"
 #parlant-client = "^0.10.3" # Use this when releasing to main
-parlant-client = { git = "https://github.com/emcie-co/parlant-client-python.git", tag = "guideline-relationships" }
+parlant-client = { git = "https://github.com/emcie-co/parlant-client-python.git", tag = "develop.1743621203" }
 python = "^3.10"
 python-dateutil = "^2.8.2"
 python-dotenv = "^1.0.1"
@@ -71,7 +71,6 @@ jinja2 = "^3.1.6"
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.26.0"
 mypy = "^1.11.1"
-parlant-client = { git = "https://github.com/emcie-co/parlant-client-python.git", tag = "guideline-relationships" }
 pep8-naming = "^0.13.3"
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.5"
