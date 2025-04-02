@@ -31,8 +31,8 @@ from parlant.api.common import (
     InvoiceDataDTO,
     PayloadDTO,
     PayloadKindDTO,
-    apigen_config,
     ExampleJson,
+    apigen_skip_config,
 )
 from parlant.core.async_utils import Timeout
 from parlant.core.common import DefaultBaseModel
@@ -406,7 +406,7 @@ WaitForCompletionQuery: TypeAlias = Annotated[
 ]
 
 
-def create_router(
+def legacy_create_router(
     evaluation_service: BehavioralChangeEvaluator,
     evaluation_store: EvaluationStore,
     evaluation_listener: EvaluationListener,
@@ -428,7 +428,8 @@ def create_router(
                 "description": "Validation error in evaluation parameters"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="create"),
+        **apigen_skip_config(),
+        deprecated=True,
     )
     async def create_evaluation(
         params: EvaluationCreationParamsDTO,
@@ -478,7 +479,8 @@ def create_router(
                 "description": "Timeout waiting for evaluation completion"
             },
         },
-        **apigen_config(group_name=API_GROUP, method_name="retrieve"),
+        **apigen_skip_config(),
+        deprecated=True,
     )
     async def read_evaluation(
         evaluation_id: EvaluationIdPath,

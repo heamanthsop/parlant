@@ -204,7 +204,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
 
     api_app.include_router(
         prefix="/index",
-        router=index.create_router(
+        router=index.legacy_create_router(
             evaluation_service=evaluation_service,
             evaluation_store=evaluation_store,
             evaluation_listener=evaluation_listener,
