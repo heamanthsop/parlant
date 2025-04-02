@@ -233,14 +233,15 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
             "utterance-generative-field-extraction-field-name",
             """\
 
-You must extract the field '{field_name}' (in braces) — AND ONLY THIS FIELD — out of the following template: ###
+You must extract the VALUE for the field '{field_name}' from the context above — AND ONLY THIS FIELD — as it's defined in the following template: ###
 {utterance}
 ## format#
 
-Output a JSON object with a single property 'value' containing the extracted field ONLY.
-The value itself is not a JSON object. Rather, it's formatted text.
-When applicable, if the field is substituted by a list or dict, consider rendering
-it in Markdown format.
+Output a JSON object with a single property 'value' containing the extracted field ONLY such that it neatly substitutes into the utterance template.
+
+The value itself is never a JSON object. Rather, it's formatted text that fits right inside the utterance template as a substituted value.
+
+When applicable, if the field is substituted by a list or dict, consider rendering it in Markdown format.
 
 A few examples:
 ---------------
@@ -263,6 +264,10 @@ Example return value: ###
         )
 
         result = await self._generator.generate(builder)
+
+        self._logger.debug(
+            f"Utterance GenerativeFieldExtraction Completion:\n{result.content.model_dump_json(indent=2)}"
+        )
 
         return result.content.value
 
@@ -345,7 +350,7 @@ class UtteranceSelector(MessageEventComposer):
         with self._logger.scope("MessageEventComposer"):
             try:
                 with self._logger.scope("UtteranceSelector"):
-                    with self._logger.operation("Utterance selection"):
+                    with self._logger.operation("Utterance selection and rendering"):
                         return await self._do_generate_events(
                             event_emitter,
                             agent,
