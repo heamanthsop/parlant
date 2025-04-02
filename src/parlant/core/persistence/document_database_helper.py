@@ -1,7 +1,12 @@
 from typing import Awaitable, Callable, Generic, Mapping, Optional, cast
 from typing_extensions import TypedDict, Self
 from parlant.core.common import Version, generate_id
-from parlant.core.persistence.common import MigrationRequired, ObjectId, VersionedStore
+from parlant.core.persistence.common import (
+    MigrationRequired,
+    ObjectId,
+    ServerOutdated,
+    VersionedStore,
+)
 from parlant.core.persistence.document_database import (
     BaseDocument,
     DocumentDatabase,
@@ -10,7 +15,7 @@ from parlant.core.persistence.document_database import (
 )
 
 
-class _MetadataDocument(TypedDict, total=False):
+class MetadataDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
 
@@ -56,11 +61,16 @@ class DocumentStoreMigrationHelper:
     ) -> bool:
         metadata_collection = await database.get_or_create_collection(
             "metadata",
-            _MetadataDocument,
+            MetadataDocument,
             identity_loader,
         )
 
         if metadata := await metadata_collection.find_one({}):
+            if Version.from_string(cast(str, metadata["version"])) > Version.from_string(
+                runtime_store_version
+            ):
+                raise ServerOutdated
+
             return metadata["version"] != runtime_store_version
         else:
             await metadata_collection.insert_one(
@@ -78,7 +88,7 @@ class DocumentStoreMigrationHelper:
     ) -> None:
         metadata_collection = await database.get_or_create_collection(
             "metadata",
-            _MetadataDocument,
+            MetadataDocument,
             identity_loader,
         )
 

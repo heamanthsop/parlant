@@ -46,7 +46,7 @@ from parlant.core.engines.alpha.utterance_selector import (
 )
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.service import NLPService
-from parlant.core.persistence.common import MigrationRequired
+from parlant.core.persistence.common import MigrationRequired, ServerOutdated
 from parlant.core.shots import ShotCollection
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.api.app import create_api_app, ASGIApplication
@@ -65,9 +65,9 @@ from parlant.core.evaluations import (
     EvaluationStore,
 )
 from parlant.core.entity_cq import EntityQueries, EntityCommands
-from parlant.core.guideline_connections import (
-    GuidelineConnectionDocumentStore,
-    GuidelineConnectionStore,
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipDocumentStore,
+    GuidelineRelationshipStore,
 )
 from parlant.core.guidelines import (
     GuidelineDocumentStore,
@@ -351,8 +351,8 @@ async def initialize_container(
     guideline_tool_associations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_tool_associations.json")
     )
-    guideline_connections_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_connections.json")
+    guideline_relationships_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_relationships.json")
     )
     evaluations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluations.json")
@@ -385,8 +385,8 @@ async def initialize_container(
         c[GuidelineToolAssociationStore] = await EXIT_STACK.enter_async_context(
             GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
         )
-        c[GuidelineConnectionStore] = await EXIT_STACK.enter_async_context(
-            GuidelineConnectionDocumentStore(guideline_connections_db, migrate)
+        c[GuidelineRelationshipStore] = await EXIT_STACK.enter_async_context(
+            GuidelineRelationshipDocumentStore(guideline_relationships_db, migrate)
         )
         c[SessionStore] = await EXIT_STACK.enter_async_context(
             SessionDocumentStore(sessions_db, migrate)
@@ -438,7 +438,12 @@ async def initialize_container(
     except MigrationRequired as e:
         c[Logger].critical(str(e))
         die("Please re-run with `--migrate` to migrate your data to the new version.")
-        sys.exit(1)
+
+    except ServerOutdated as e:
+        c[Logger].critical(str(e))
+        die(
+            "Your server is old and does not support your new data. Please upgrade to the latest version."
+        )
 
     c[
         SchematicGenerator[GenericGuidelineMatchesSchema]

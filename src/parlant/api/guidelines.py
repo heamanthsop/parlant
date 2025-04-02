@@ -14,8 +14,9 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 from itertools import chain
-from typing import Annotated, Optional, Sequence, TypeAlias
+from typing import Annotated, Optional, Sequence, TypeAlias, get_args
 from fastapi import APIRouter, HTTPException, Path, status, Query
 from pydantic import Field
 
@@ -34,18 +35,21 @@ from parlant.core.common import (
 )
 from parlant.api.common import (
     ExampleJson,
+    GuidelineConditionField,
+    GuidelineActionField,
 )
 from parlant.core.evaluations import (
     CoherenceCheck,
-    ConnectionProposition,
+    EntailmentRelationshipProposition,
     GuidelinePayload,
     Invoice,
     InvoiceGuidelineData,
     PayloadKind,
 )
-from parlant.core.guideline_connections import (
-    GuidelineConnectionId,
-    GuidelineConnectionStore,
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipId,
+    GuidelineRelationshipKind,
+    GuidelineRelationshipStore,
 )
 from parlant.core.guidelines import (
     Guideline,
@@ -62,11 +66,6 @@ from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.tags import TagId, TagStore, Tag
 from parlant.core.tools import ToolId
-
-from parlant.api.common import (
-    GuidelineConditionField,
-    GuidelineActionField,
-)
 
 API_GROUP = "guidelines"
 
@@ -109,14 +108,7 @@ class LegacyGuidelineDTO(
     enabled: GuidelineEnabledField
 
 
-GuidelineConnectionIdField: TypeAlias = Annotated[
-    GuidelineConnectionId,
-    Field(
-        description="Unique identifier for the `GuildelineConnection`",
-    ),
-]
-
-GuidelineConnectionIndirectField: TypeAlias = Annotated[
+LegacyGuidelineConnectionIndirectField: TypeAlias = Annotated[
     bool,
     Field(
         description="`True` if there is a path from `source` to `target` but no direct connection",
@@ -124,6 +116,12 @@ GuidelineConnectionIndirectField: TypeAlias = Annotated[
     ),
 ]
 
+LegacyGuidelineConnectionIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline connection",
+    ),
+]
 
 legacy_guideline_connection_dto_example: ExampleJson = {
     "id": "conn_456xyz",
@@ -149,13 +147,12 @@ class LegacyGuidelineConnectionDTO(
 ):
     """
     Represents a connection between two guidelines.
-
     """
 
-    id: GuidelineConnectionIdField
+    id: LegacyGuidelineConnectionIdField
     source: LegacyGuidelineDTO
     target: LegacyGuidelineDTO
-    indirect: GuidelineConnectionIndirectField
+    indirect: LegacyGuidelineConnectionIndirectField
 
 
 GuidelineToolAssociationIdField: TypeAlias = Annotated[
@@ -308,7 +305,7 @@ guideline_connection_addition_example: ExampleJson = {
 }
 
 
-class GuidelineConnectionAdditionDTO(
+class LegacyGuidelineConnectionAdditionDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_connection_addition_example},
 ):
@@ -318,24 +315,24 @@ class GuidelineConnectionAdditionDTO(
     target: GuidelineConnectionAdditionTargetField
 
 
-guideline_connection_update_params_example: ExampleJson = {
+legacy_guideline_connection_update_params_example: ExampleJson = {
     "add": [{"source": "guide_123xyz", "target": "guide_789xyz"}],
     "remove": ["guide_456xyz"],
 }
 
 
-class GuidelineConnectionUpdateParamsDTO(
+class LegacyGuidelineConnectionUpdateParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_connection_update_params_example},
+    json_schema_extra={"example": legacy_guideline_connection_update_params_example},
 ):
     """
-    Parameters for updaing a guideline connection.
+    Parameters for updating a guideline connection.
 
     `add` is expected to be a collection of addition objects.
     `remove` should contain the `id`s of the guidelines to remove.
     """
 
-    add: Optional[Sequence[GuidelineConnectionAdditionDTO]] = None
+    add: Optional[Sequence[LegacyGuidelineConnectionAdditionDTO]] = None
     remove: Optional[Sequence[GuidelineIdPath]] = None
 
 
@@ -355,7 +352,7 @@ class GuidelineToolAssociationUpdateParamsDTO(
     remove: Optional[Sequence[ToolIdDTO]] = None
 
 
-guideline_update_params_example: ExampleJson = {
+legacy_guideline_update_params_example: ExampleJson = {
     "connections": {
         "add": [{"source": "guide_123xyz", "target": "guide_789xyz"}],
         "remove": ["guide_456xyz"],
@@ -369,22 +366,23 @@ guideline_update_params_example: ExampleJson = {
 
 
 class LegacyGuidelineUpdateParamsDTO(
-    DefaultBaseModel, json_schema_extra={"example": guideline_update_params_example}
+    DefaultBaseModel, json_schema_extra={"example": legacy_guideline_update_params_example}
 ):
     """Parameters for updating Guideline objects."""
 
-    connections: Optional[GuidelineConnectionUpdateParamsDTO] = None
+    connections: Optional[LegacyGuidelineConnectionUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
     enabled: Optional[bool] = None
 
 
 @dataclass
-class _GuidelineConnection:
-    """Represents one connection between two Guidelines."""
+class _GuidelineRelationship:
+    """Represents one relationship between two Guidelines."""
 
-    id: GuidelineConnectionId
+    id: GuidelineRelationshipId
     source: Guideline
     target: Guideline
+    kind: GuidelineRelationshipKind
 
 
 def _invoice_dto_to_invoice(dto: InvoiceDTO) -> Invoice:
@@ -461,7 +459,7 @@ def _invoice_data_dto_to_invoice_data(dto: InvoiceDataDTO) -> InvoiceGuidelineDa
 
         if dto.guideline.connection_propositions:
             connection_propositions = [
-                ConnectionProposition(
+                EntailmentRelationshipProposition(
                     check_kind=prop.check_kind.value,
                     source=GuidelineContent(
                         condition=prop.source.condition, action=prop.source.action
@@ -476,7 +474,7 @@ def _invoice_data_dto_to_invoice_data(dto: InvoiceDataDTO) -> InvoiceGuidelineDa
             connection_propositions = None
 
         return InvoiceGuidelineData(
-            coherence_checks=coherence_checks, connection_propositions=connection_propositions
+            coherence_checks=coherence_checks, entailment_propositions=connection_propositions
         )
     except Exception:
         raise HTTPException(
@@ -485,35 +483,63 @@ def _invoice_data_dto_to_invoice_data(dto: InvoiceDataDTO) -> InvoiceGuidelineDa
         )
 
 
-async def _get_guideline_connections(
+async def _get_guideline_relationships_by_kind(
     guideline_store: GuidelineStore,
-    guideline_connection_store: GuidelineConnectionStore,
+    guideline_relationship_store: GuidelineRelationshipStore,
     guideline_id: GuidelineId,
+    kind: GuidelineRelationshipKind,
     include_indirect: bool = True,
-) -> Sequence[tuple[_GuidelineConnection, bool]]:
-    connections = [
-        _GuidelineConnection(
-            id=c.id,
-            source=await guideline_store.read_guideline(guideline_id=c.source),
-            target=await guideline_store.read_guideline(guideline_id=c.target),
+) -> Sequence[tuple[_GuidelineRelationship, bool]]:
+    relationships = [
+        _GuidelineRelationship(
+            id=r.id,
+            source=await guideline_store.read_guideline(guideline_id=r.source),
+            target=await guideline_store.read_guideline(guideline_id=r.target),
+            kind=kind,
         )
-        for c in chain(
-            await guideline_connection_store.list_connections(
-                indirect=include_indirect, source=guideline_id
+        for r in chain(
+            await guideline_relationship_store.list_relationships(
+                kind=kind,
+                indirect=include_indirect,
+                source=guideline_id,
             ),
-            await guideline_connection_store.list_connections(
-                indirect=include_indirect, target=guideline_id
+            await guideline_relationship_store.list_relationships(
+                kind=kind,
+                indirect=include_indirect,
+                target=guideline_id,
             ),
         )
     ]
 
-    return [(c, guideline_id not in [c.source.id, c.target.id]) for c in connections]
+    return [(r, guideline_id not in [r.source.id, r.target.id]) for r in relationships]
+
+
+async def _get_guideline_relationships(
+    guideline_store: GuidelineStore,
+    guideline_relationship_store: GuidelineRelationshipStore,
+    guideline_id: GuidelineId,
+    include_indirect: bool = True,
+) -> Sequence[tuple[_GuidelineRelationship, bool]]:
+    return list(
+        chain.from_iterable(
+            [
+                await _get_guideline_relationships_by_kind(
+                    guideline_store=guideline_store,
+                    guideline_relationship_store=guideline_relationship_store,
+                    guideline_id=guideline_id,
+                    kind=kind,
+                    include_indirect=include_indirect,
+                )
+                for kind in get_args(GuidelineRelationshipKind)
+            ]
+        )
+    )
 
 
 def create_legacy_router(
     application: Application,
     guideline_store: GuidelineStore,
-    guideline_connection_store: GuidelineConnectionStore,
+    guideline_relationship_store: GuidelineRelationshipStore,
     service_registry: ServiceRegistry,
     guideline_tool_association_store: GuidelineToolAssociationStore,
 ) -> APIRouter:
@@ -598,25 +624,26 @@ def create_legacy_router(
                     ),
                     connections=[
                         LegacyGuidelineConnectionDTO(
-                            id=connection.id,
+                            id=relationship.id,
                             source=LegacyGuidelineDTO(
-                                id=connection.source.id,
-                                condition=connection.source.content.condition,
-                                action=connection.source.content.action,
-                                enabled=connection.source.enabled,
+                                id=relationship.source.id,
+                                condition=relationship.source.content.condition,
+                                action=relationship.source.content.action,
+                                enabled=relationship.source.enabled,
                             ),
                             target=LegacyGuidelineDTO(
-                                id=connection.target.id,
-                                condition=connection.target.content.condition,
-                                action=connection.target.content.action,
-                                enabled=connection.target.enabled,
+                                id=relationship.target.id,
+                                condition=relationship.target.content.condition,
+                                action=relationship.target.content.action,
+                                enabled=relationship.target.enabled,
                             ),
                             indirect=indirect,
                         )
-                        for connection, indirect in await _get_guideline_connections(
+                        for relationship, indirect in await _get_guideline_relationships_by_kind(
                             guideline_store=guideline_store,
-                            guideline_connection_store=guideline_connection_store,
+                            guideline_relationship_store=guideline_relationship_store,
                             guideline_id=guideline.id,
+                            kind="entailment",
                             include_indirect=True,
                         )
                     ],
@@ -667,10 +694,11 @@ def create_legacy_router(
                 detail="Guideline is not associated with the specified agent",
             )
 
-        connections = await _get_guideline_connections(
+        relationships = await _get_guideline_relationships_by_kind(
             guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
+            guideline_relationship_store=guideline_relationship_store,
             guideline_id=guideline_id,
+            kind="entailment",
             include_indirect=True,
         )
 
@@ -683,22 +711,22 @@ def create_legacy_router(
             ),
             connections=[
                 LegacyGuidelineConnectionDTO(
-                    id=connection.id,
+                    id=relationship.id,
                     source=LegacyGuidelineDTO(
-                        id=connection.source.id,
-                        condition=connection.source.content.condition,
-                        action=connection.source.content.action,
-                        enabled=connection.source.enabled,
+                        id=relationship.source.id,
+                        condition=relationship.source.content.condition,
+                        action=relationship.source.content.action,
+                        enabled=relationship.source.enabled,
                     ),
                     target=LegacyGuidelineDTO(
-                        id=connection.target.id,
-                        condition=connection.target.content.condition,
-                        action=connection.target.content.action,
-                        enabled=connection.target.enabled,
+                        id=relationship.target.id,
+                        condition=relationship.target.content.condition,
+                        action=relationship.target.content.action,
+                        enabled=relationship.target.enabled,
                     ),
                     indirect=indirect,
                 )
-                for connection, indirect in connections
+                for relationship, indirect in relationships
             ],
             tool_associations=[
                 GuidelineToolAssociationDTO(
@@ -842,24 +870,26 @@ def create_legacy_router(
                         detail="The connection must specify the guideline at hand as either source or target",
                     )
 
-                await guideline_connection_store.create_connection(
+                await guideline_relationship_store.create_relationship(
                     source=req.source,
                     target=req.target,
+                    kind="entailment",
                 )
 
-        connections = await _get_guideline_connections(
+        relationships = await _get_guideline_relationships_by_kind(
             guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
+            guideline_relationship_store=guideline_relationship_store,
             guideline_id=guideline_id,
+            kind="entailment",
             include_indirect=False,
         )
 
         if params.connections and params.connections.remove:
             for id in params.connections.remove:
-                if found_connection := next(
-                    (c for c, _ in connections if id in [c.source.id, c.target.id]), None
+                if found_relationship := next(
+                    (r for r, _ in relationships if id in [r.source.id, r.target.id]), None
                 ):
-                    await guideline_connection_store.delete_connection(found_connection.id)
+                    await guideline_relationship_store.delete_relationship(found_relationship.id)
                 else:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -910,25 +940,26 @@ def create_legacy_router(
             ),
             connections=[
                 LegacyGuidelineConnectionDTO(
-                    id=connection.id,
+                    id=relationship.id,
                     source=LegacyGuidelineDTO(
-                        id=connection.source.id,
-                        condition=connection.source.content.condition,
-                        action=connection.source.content.action,
-                        enabled=connection.source.enabled,
+                        id=relationship.source.id,
+                        condition=relationship.source.content.condition,
+                        action=relationship.source.content.action,
+                        enabled=relationship.source.enabled,
                     ),
                     target=LegacyGuidelineDTO(
-                        id=connection.target.id,
-                        condition=connection.target.content.condition,
-                        action=connection.target.content.action,
-                        enabled=connection.target.enabled,
+                        id=relationship.target.id,
+                        condition=relationship.target.content.condition,
+                        action=relationship.target.content.action,
+                        enabled=relationship.target.enabled,
                     ),
                     indirect=indirect,
                 )
-                for connection, indirect in await _get_guideline_connections(
+                for relationship, indirect in await _get_guideline_relationships_by_kind(
                     guideline_store=guideline_store,
-                    guideline_connection_store=guideline_connection_store,
+                    guideline_relationship_store=guideline_relationship_store,
                     guideline_id=guideline_id,
+                    kind="entailment",
                     include_indirect=True,
                 )
             ],
@@ -993,22 +1024,26 @@ def create_legacy_router(
         if not updated_guideline.tags:
             await guideline_store.delete_guideline(guideline_id=guideline_id)
             deleted = True
-        for c in chain(
-            await guideline_connection_store.list_connections(indirect=False, source=guideline_id),
-            await guideline_connection_store.list_connections(indirect=False, target=guideline_id),
+        for r in chain(
+            await guideline_relationship_store.list_relationships(
+                kind="entailment", indirect=False, source=guideline_id
+            ),
+            await guideline_relationship_store.list_relationships(
+                kind="entailment", indirect=False, target=guideline_id
+            ),
         ):
             if deleted:
-                await guideline_connection_store.delete_connection(c.id)
+                await guideline_relationship_store.delete_relationship(r.id)
             else:
                 connected_guideline = (
-                    await guideline_store.read_guideline(c.target)
-                    if c.source == guideline_id
-                    else await guideline_store.read_guideline(c.source)
+                    await guideline_store.read_guideline(r.target)
+                    if r.source == guideline_id
+                    else await guideline_store.read_guideline(r.source)
                 )
                 if connected_guideline.tags and not any(
                     t in connected_guideline.tags for t in updated_guideline.tags
                 ):
-                    await guideline_connection_store.delete_connection(c.id)
+                    await guideline_relationship_store.delete_relationship(r.id)
 
         for associastion in await guideline_tool_association_store.list_associations():
             if associastion.guideline_id == guideline_id:
@@ -1032,26 +1067,6 @@ GuidelineTagsField: TypeAlias = Annotated[
         examples=[["tag1", "tag2"], []],
     ),
 ]
-
-guideline_creation_params_example: ExampleJson = {
-    "condition": "when the customer asks about pricing",
-    "action": "provide current pricing information and mention any ongoing promotions",
-    "enabled": False,
-}
-
-
-class GuidelineCreationParamsDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_creation_params_example},
-):
-    """Parameters for creating a new guideline."""
-
-    condition: GuidelineConditionField
-    action: GuidelineActionField
-    enabled: Optional[GuidelineEnabledField] = None
-    tags: Optional[GuidelineTagsField] = None
-
-
 GuidelineTagsUpdateAddField: TypeAlias = Annotated[
     list[TagId],
     Field(
@@ -1101,6 +1116,14 @@ guideline_dto_example = {
 }
 
 
+GuidelineRelationshipIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline relationship",
+    ),
+]
+
+
 class GuidelineDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_dto_example},
@@ -1114,6 +1137,153 @@ class GuidelineDTO(
     tags: GuidelineTagsField
 
 
+GuidelineRelationshipIndirectField: TypeAlias = Annotated[
+    bool,
+    Field(
+        description="`True` if there is a path from `source` to `target` but no direct relationship",
+        examples=[True, False],
+    ),
+]
+
+
+class GuidelineRelationshipKindDTO(Enum):
+    """The kind of guideline relationship."""
+
+    ENTAILMENT = "entailment"
+    PRECEDENCE = "precedence"
+    REQUIREMENT = "requirement"
+    PRIORITY = "priority"
+    PERSISTENCE = "persistence"
+
+
+guideline_relationship_example: ExampleJson = {
+    "id": "123",
+    "source": "456",
+    "target": "789",
+    "indirect": False,
+    "kind": "entailment",
+}
+
+
+class GuidelineRelationshipDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_relationship_example},
+):
+    """Represents a guideline relationship addition."""
+
+    id: GuidelineRelationshipIdField
+    source: GuidelineDTO
+    target: GuidelineDTO
+    indirect: GuidelineRelationshipIndirectField
+    kind: GuidelineRelationshipKindDTO
+
+
+guideline_creation_params_example: ExampleJson = {
+    "condition": "when the customer asks about pricing",
+    "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": False,
+}
+
+
+class GuidelineCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_creation_params_example},
+):
+    """Parameters for creating a new guideline."""
+
+    condition: GuidelineConditionField
+    action: GuidelineActionField
+    enabled: Optional[GuidelineEnabledField] = None
+    tags: Optional[GuidelineTagsField] = None
+
+
+GuidelineRelationshipAdditionSourceField: TypeAlias = Annotated[
+    GuidelineId,
+    Field(description="`id` of guideline that is source of this relationship."),
+]
+
+GuidelineRelationshipAdditionTargetField: TypeAlias = Annotated[
+    GuidelineId,
+    Field(description="`id` of guideline that is target of this relationship."),
+]
+
+guideline_relationship_addition_example: ExampleJson = {
+    "source": "guid_123xz",
+    "target": "guid_456yz",
+    "kind": "entailment",
+}
+
+
+class GuidelineRelationshipAdditionDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_relationship_addition_example},
+):
+    """Represents a guideline relationship addition."""
+
+    source: GuidelineRelationshipAdditionSourceField
+    target: GuidelineRelationshipAdditionTargetField
+    kind: GuidelineRelationshipKindDTO
+
+
+guideline_relationship_update_params_example: ExampleJson = {
+    "add": [
+        {
+            "source": "guid_123xz",
+            "target": "guid_456yz",
+            "kind": "entailment",
+        }
+    ],
+    "remove": ["guideline_relationship_id_789yz"],
+}
+
+
+class GuidelineRelationshipUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_relationship_update_params_example},
+):
+    """
+    Parameters for updating a guideline relationship.
+
+    `add` is expected to be a collection of addition objects.
+    `remove` should contain the `id`s of the relationships to remove.
+    """
+
+    add: Optional[Sequence[GuidelineRelationshipAdditionDTO]] = None
+    remove: Optional[Sequence[GuidelineRelationshipIdField]] = None
+
+
+guideline_update_params_example: ExampleJson = {
+    "condition": "when the customer asks about pricing",
+    "action": "provide current pricing information",
+    "enabled": True,
+    "tags": ["tag1", "tag2"],
+    "relationships": {
+        "add": [
+            {
+                "source": "guid_123xz",
+                "target": "guid_456yz",
+                "kind": "entailment",
+            }
+        ],
+        "remove": ["guideline_relationship_id_789yz"],
+    },
+    "tool_associations": {
+        "add": [
+            {
+                "service_name": "new_service",
+                "tool_name": "new_tool",
+            }
+        ],
+        "remove": [
+            {
+                "service_name": "old_service",
+                "tool_name": "old_tool",
+            },
+        ],
+    },
+}
+
+
 class GuidelineUpdateParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_update_params_example},
@@ -1122,33 +1292,13 @@ class GuidelineUpdateParamsDTO(
 
     condition: Optional[GuidelineConditionField] = None
     action: Optional[GuidelineActionField] = None
-    connections: Optional[GuidelineConnectionUpdateParamsDTO] = None
+    relationships: Optional[GuidelineRelationshipUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
     enabled: Optional[GuidelineEnabledField] = None
     tags: Optional[GuidelineTagsUpdateParamsDTO] = None
 
 
-guideline_connection_example: ExampleJson = {
-    "id": "123",
-    "source": "456",
-    "target": "789",
-    "indirect": False,
-}
-
-
-class GuidelineConnectionDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_connection_example},
-):
-    """Represents a connection between two guidelines."""
-
-    id: GuidelineConnectionIdField
-    source: GuidelineDTO
-    target: GuidelineDTO
-    indirect: GuidelineConnectionIndirectField
-
-
-guideline_with_connections_example: ExampleJson = {
+guideline_with_relationships_example: ExampleJson = {
     "guideline": {
         "id": "guid_123xz",
         "condition": "when the customer asks about pricing",
@@ -1156,9 +1306,9 @@ guideline_with_connections_example: ExampleJson = {
         "enabled": True,
         "tags": ["tag1", "tag2"],
     },
-    "connections": [
+    "relationships": [
         {
-            "id": "conn_456yz",
+            "id": "123",
             "source": {
                 "id": "guid_123xz",
                 "condition": "when the customer asks about pricing",
@@ -1174,6 +1324,7 @@ guideline_with_connections_example: ExampleJson = {
                 "tags": ["tag1", "tag2"],
             },
             "indirect": False,
+            "kind": "entailment",
         }
     ],
     "tool_associations": [
@@ -1186,20 +1337,36 @@ guideline_with_connections_example: ExampleJson = {
 }
 
 
-class GuidelineWithConnectionsAndToolAssociationsDTO(
+class GuidelineWithRelationshipsAndToolAssociationsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_with_connections_example},
+    json_schema_extra={"example": guideline_with_relationships_example},
 ):
-    """A Guideline with its connections and tool associations."""
+    """A Guideline with its relationships and tool associations."""
 
     guideline: GuidelineDTO
-    connections: Sequence[GuidelineConnectionDTO]
+    relationships: Sequence[GuidelineRelationshipDTO]
     tool_associations: Sequence[GuidelineToolAssociationDTO]
+
+
+def _dto_to_kind(dto: GuidelineRelationshipKindDTO) -> GuidelineRelationshipKind:
+    match dto:
+        case GuidelineRelationshipKindDTO.ENTAILMENT:
+            return "entailment"
+        case GuidelineRelationshipKindDTO.PRECEDENCE:
+            return "precedence"
+        case GuidelineRelationshipKindDTO.REQUIREMENT:
+            return "requirement"
+        case GuidelineRelationshipKindDTO.PRIORITY:
+            return "priority"
+        case GuidelineRelationshipKindDTO.PERSISTENCE:
+            return "persistence"
+        case _:
+            raise ValueError(f"Invalid guideline relationship kind: {dto}")
 
 
 def create_router(
     guideline_store: GuidelineStore,
-    guideline_connection_store: GuidelineConnectionStore,
+    guideline_relationship_store: GuidelineRelationshipStore,
     service_registry: ServiceRegistry,
     guideline_tool_association_store: GuidelineToolAssociationStore,
     agent_store: AgentStore,
@@ -1277,7 +1444,7 @@ def create_router(
 
         Returns an empty list if no guidelines exist.
         Guidelines are returned in no guaranteed order.
-        Does not include connections or tool associations.
+        Does not include relationships or tool associations.
         """
         if tag_id:
             guidelines = await guideline_store.list_guidelines(
@@ -1300,11 +1467,11 @@ def create_router(
     @router.get(
         "/{guideline_id}",
         operation_id="read_guideline",
-        response_model=GuidelineWithConnectionsAndToolAssociationsDTO,
+        response_model=GuidelineWithRelationshipsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline details successfully retrieved. Returns the complete guideline with its connections and tool associations.",
-                "content": common.example_json_content(guideline_with_connections_example),
+                "description": "Guideline details successfully retrieved. Returns the complete guideline with its relationships and tool associations.",
+                "content": common.example_json_content(guideline_with_relationships_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Guideline not found"},
         },
@@ -1312,11 +1479,11 @@ def create_router(
     )
     async def read_guideline(
         guideline_id: GuidelineIdPath,
-    ) -> GuidelineWithConnectionsAndToolAssociationsDTO:
+    ) -> GuidelineWithRelationshipsAndToolAssociationsDTO:
         """
-        Retrieves a specific guideline with all its connections and tool associations.
+        Retrieves a specific guideline with all its relationships and tool associations.
 
-        Returns both direct and indirect connections between guidelines.
+        Returns both direct and indirect relationships between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
         try:
@@ -1327,14 +1494,14 @@ def create_router(
                 detail="Guideline not found",
             )
 
-        connections = await _get_guideline_connections(
+        relationships = await _get_guideline_relationships(
             guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
+            guideline_relationship_store=guideline_relationship_store,
             guideline_id=guideline_id,
             include_indirect=True,
         )
 
-        return GuidelineWithConnectionsAndToolAssociationsDTO(
+        return GuidelineWithRelationshipsAndToolAssociationsDTO(
             guideline=GuidelineDTO(
                 id=guideline.id,
                 condition=guideline.content.condition,
@@ -1342,26 +1509,27 @@ def create_router(
                 enabled=guideline.enabled,
                 tags=guideline.tags,
             ),
-            connections=[
-                GuidelineConnectionDTO(
-                    id=connection.id,
+            relationships=[
+                GuidelineRelationshipDTO(
+                    id=relationship.id,
                     source=GuidelineDTO(
-                        id=connection.source.id,
-                        condition=connection.source.content.condition,
-                        action=connection.source.content.action,
-                        enabled=connection.source.enabled,
-                        tags=connection.source.tags,
+                        id=relationship.source.id,
+                        condition=relationship.source.content.condition,
+                        action=relationship.source.content.action,
+                        enabled=relationship.source.enabled,
+                        tags=relationship.source.tags,
                     ),
                     target=GuidelineDTO(
-                        id=connection.target.id,
-                        condition=connection.target.content.condition,
-                        action=connection.target.content.action,
-                        enabled=connection.target.enabled,
-                        tags=connection.target.tags,
+                        id=relationship.target.id,
+                        condition=relationship.target.content.condition,
+                        action=relationship.target.content.action,
+                        enabled=relationship.target.enabled,
+                        tags=relationship.target.tags,
                     ),
                     indirect=indirect,
+                    kind=GuidelineRelationshipKindDTO(relationship.kind),
                 )
-                for connection, indirect in connections
+                for relationship, indirect in relationships
             ],
             tool_associations=[
                 GuidelineToolAssociationDTO(
@@ -1380,15 +1548,15 @@ def create_router(
     @router.patch(
         "/{guideline_id}",
         operation_id="update_guideline",
-        response_model=GuidelineWithConnectionsAndToolAssociationsDTO,
+        response_model=GuidelineWithRelationshipsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline successfully updated. Returns the updated guideline with its connections and tool associations.",
-                "content": common.example_json_content(guideline_with_connections_example),
+                "description": "Guideline successfully updated. Returns the updated guideline with its relationships and tool associations.",
+                "content": common.example_json_content(guideline_with_relationships_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Guideline or referenced tool not found"},
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
-                "description": "Invalid connection rules or validation error in update parameters"
+                "description": "Invalid relationship rules or validation error in update parameters"
             },
         },
         **apigen_config(group_name=API_GROUP, method_name="update"),
@@ -1396,15 +1564,15 @@ def create_router(
     async def update_guideline(
         guideline_id: GuidelineIdPath,
         params: GuidelineUpdateParamsDTO,
-    ) -> GuidelineWithConnectionsAndToolAssociationsDTO:
-        """Updates a guideline's connections and tool associations.
+    ) -> GuidelineWithRelationshipsAndToolAssociationsDTO:
+        """Updates a guideline's relationships and tool associations.
 
         Only provided attributes will be updated; others remain unchanged.
 
-        Connection rules:
-        - A guideline cannot connect to itself
-        - Only direct connections can be removed
-        - The connection must specify this guideline as source or target
+        Relationship rules:
+        - A guideline cannot relate to itself
+        - Only direct relationships can be removed
+        - The relationship must specify this guideline as source or target
 
         Tool Association rules:
         - Tool services and tools must exist before creating associations
@@ -1425,42 +1593,28 @@ def create_router(
                 params=GuidelineUpdateParams(**update_params),
             )
 
-        if params.connections and params.connections.add:
-            for req in params.connections.add:
+        if params.relationships and params.relationships.add:
+            for req in params.relationships.add:
                 if req.source == req.target:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="A guideline cannot be connected to itself",
+                        detail="A guideline cannot be related to itself",
                     )
                 elif req.source != guideline_id and req.target != guideline_id:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail="The connection must specify the guideline at hand as either source or target",
+                        detail="The relationship must specify the guideline at hand as either source or target",
                     )
 
-                await guideline_connection_store.create_connection(
+                await guideline_relationship_store.create_relationship(
                     source=req.source,
                     target=req.target,
+                    kind=_dto_to_kind(req.kind),
                 )
 
-        connections = await _get_guideline_connections(
-            guideline_store=guideline_store,
-            guideline_connection_store=guideline_connection_store,
-            guideline_id=guideline_id,
-            include_indirect=False,
-        )
-
-        if params.connections and params.connections.remove:
-            for id in params.connections.remove:
-                if found_connection := next(
-                    (c for c, _ in connections if id in [c.source.id, c.target.id]), None
-                ):
-                    await guideline_connection_store.delete_connection(found_connection.id)
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Only direct connections may be removed",
-                    )
+        if params.relationships and params.relationships.remove:
+            for id in params.relationships.remove:
+                await guideline_relationship_store.delete_relationship(id)
 
         if params.tool_associations and params.tool_associations.add:
             for tool_id_dto in params.tool_associations.add:
@@ -1522,7 +1676,7 @@ def create_router(
 
         updated_guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
 
-        return GuidelineWithConnectionsAndToolAssociationsDTO(
+        return GuidelineWithRelationshipsAndToolAssociationsDTO(
             guideline=GuidelineDTO(
                 id=updated_guideline.id,
                 condition=updated_guideline.content.condition,
@@ -1530,28 +1684,29 @@ def create_router(
                 enabled=updated_guideline.enabled,
                 tags=updated_guideline.tags,
             ),
-            connections=[
-                GuidelineConnectionDTO(
-                    id=connection.id,
+            relationships=[
+                GuidelineRelationshipDTO(
+                    id=relationship.id,
                     source=GuidelineDTO(
-                        id=connection.source.id,
-                        condition=connection.source.content.condition,
-                        action=connection.source.content.action,
-                        enabled=connection.source.enabled,
-                        tags=connection.source.tags,
+                        id=relationship.source.id,
+                        condition=relationship.source.content.condition,
+                        action=relationship.source.content.action,
+                        enabled=relationship.source.enabled,
+                        tags=relationship.source.tags,
                     ),
                     target=GuidelineDTO(
-                        id=connection.target.id,
-                        condition=connection.target.content.condition,
-                        action=connection.target.content.action,
-                        enabled=connection.target.enabled,
-                        tags=connection.target.tags,
+                        id=relationship.target.id,
+                        condition=relationship.target.content.condition,
+                        action=relationship.target.content.action,
+                        enabled=relationship.target.enabled,
+                        tags=relationship.target.tags,
                     ),
                     indirect=indirect,
+                    kind=GuidelineRelationshipKindDTO(relationship.kind),
                 )
-                for connection, indirect in await _get_guideline_connections(
+                for relationship, indirect in await _get_guideline_relationships(
                     guideline_store=guideline_store,
-                    guideline_connection_store=guideline_connection_store,
+                    guideline_relationship_store=guideline_relationship_store,
                     guideline_id=guideline_id,
                     include_indirect=True,
                 )
@@ -1589,19 +1744,17 @@ def create_router(
 
         await guideline_store.delete_guideline(guideline_id=guideline_id)
 
-        for c in chain(
-            await guideline_connection_store.list_connections(indirect=False, source=guideline_id),
-            await guideline_connection_store.list_connections(indirect=False, target=guideline_id),
+        for r, _ in await _get_guideline_relationships(
+            guideline_store=guideline_store,
+            guideline_relationship_store=guideline_relationship_store,
+            guideline_id=guideline_id,
+            include_indirect=False,
         ):
-            connected_guideline = (
-                await guideline_store.read_guideline(c.target)
-                if c.source == guideline_id
-                else await guideline_store.read_guideline(c.source)
-            )
-            if connected_guideline.tags and not any(
-                t in connected_guideline.tags for t in guideline.tags
+            related_guideline = r.target if r.source.id == guideline_id else r.source
+            if related_guideline.tags and not any(
+                t in related_guideline.tags for t in guideline.tags
             ):
-                await guideline_connection_store.delete_connection(c.id)
+                await guideline_relationship_store.delete_relationship(r.id)
 
         for associastion in await guideline_tool_association_store.list_associations():
             if associastion.guideline_id == guideline_id:

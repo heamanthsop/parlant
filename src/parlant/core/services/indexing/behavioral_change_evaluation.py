@@ -21,7 +21,7 @@ from parlant.core.background_tasks import BackgroundTaskService
 from parlant.core.common import md5_checksum
 from parlant.core.evaluations import (
     CoherenceCheck,
-    ConnectionProposition,
+    EntailmentRelationshipProposition,
     Evaluation,
     EvaluationStatus,
     EvaluationId,
@@ -81,7 +81,7 @@ class GuidelineEvaluator:
         ] = None
 
         connection_propositions_task: Optional[
-            asyncio.Task[Optional[Iterable[Sequence[ConnectionProposition]]]]
+            asyncio.Task[Optional[Iterable[Sequence[EntailmentRelationshipProposition]]]]
         ] = None
 
         coherence_checks_task = asyncio.create_task(
@@ -111,7 +111,9 @@ class GuidelineEvaluator:
         if coherence_checks_task:
             coherence_checks = coherence_checks_task.result()
 
-        connection_propositions: Optional[Iterable[Sequence[ConnectionProposition]]] = None
+        connection_propositions: Optional[Iterable[Sequence[EntailmentRelationshipProposition]]] = (
+            None
+        )
         if connection_propositions_task:
             connection_propositions = connection_propositions_task.result()
 
@@ -119,7 +121,7 @@ class GuidelineEvaluator:
             return [
                 InvoiceGuidelineData(
                     coherence_checks=payload_coherence_checks,
-                    connection_propositions=None,
+                    entailment_propositions=None,
                 )
                 for payload_coherence_checks in coherence_checks
             ]
@@ -128,7 +130,7 @@ class GuidelineEvaluator:
             return [
                 InvoiceGuidelineData(
                     coherence_checks=[],
-                    connection_propositions=payload_connection_propositions,
+                    entailment_propositions=payload_connection_propositions,
                 )
                 for payload_connection_propositions in connection_propositions
             ]
@@ -137,7 +139,7 @@ class GuidelineEvaluator:
             return [
                 InvoiceGuidelineData(
                     coherence_checks=[],
-                    connection_propositions=None,
+                    entailment_propositions=None,
                 )
                 for _ in payloads
             ]
@@ -240,7 +242,7 @@ class GuidelineEvaluator:
         payloads: Sequence[Payload],
         existing_guidelines: Sequence[Guideline],
         progress_report: ProgressReport,
-    ) -> Optional[Iterable[Sequence[ConnectionProposition]]]:
+    ) -> Optional[Iterable[Sequence[EntailmentRelationshipProposition]]]:
         proposed_guidelines = [p.content for p in payloads if p.connection_proposition]
 
         guidelines_to_skip = [(p.content, False) for p in payloads if not p.connection_proposition]
@@ -269,9 +271,9 @@ class GuidelineEvaluator:
         if not connection_propositions:
             return None
 
-        connection_results_by_guideline_payload: OrderedDict[str, list[ConnectionProposition]] = (
-            OrderedDict({f"{p.content.condition}{p.content.action}": [] for p in payloads})
-        )
+        connection_results_by_guideline_payload: OrderedDict[
+            str, list[EntailmentRelationshipProposition]
+        ] = OrderedDict({f"{p.content.condition}{p.content.action}": [] for p in payloads})
         guideline_payload_is_skipped_pairs = {
             f"{p.content.condition}{p.content.action}": p.connection_proposition for p in payloads
         }
@@ -284,7 +286,7 @@ class GuidelineEvaluator:
                 connection_results_by_guideline_payload[
                     f"{c.source.condition}{c.source.action}"
                 ].append(
-                    ConnectionProposition(
+                    EntailmentRelationshipProposition(
                         check_kind="connection_with_another_evaluated_guideline"
                         if f"{c.target.condition}{c.target.action}"
                         in connection_results_by_guideline_payload
@@ -301,7 +303,7 @@ class GuidelineEvaluator:
                 connection_results_by_guideline_payload[
                     f"{c.target.condition}{c.target.action}"
                 ].append(
-                    ConnectionProposition(
+                    EntailmentRelationshipProposition(
                         check_kind="connection_with_another_evaluated_guideline"
                         if f"{c.source.condition}{c.source.action}"
                         in connection_results_by_guideline_payload

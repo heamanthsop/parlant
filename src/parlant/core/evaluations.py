@@ -64,7 +64,7 @@ class PayloadKind(Enum):
 CoherenceCheckKind = Literal[
     "contradiction_with_existing_guideline", "contradiction_with_another_evaluated_guideline"
 ]
-ConnectionPropositionKind = Literal[
+EntailmentRelationshipPropositionKind = Literal[
     "connection_with_existing_guideline", "connection_with_another_evaluated_guideline"
 ]
 
@@ -99,8 +99,8 @@ class CoherenceCheck:
 
 
 @dataclass(frozen=True)
-class ConnectionProposition:
-    check_kind: ConnectionPropositionKind
+class EntailmentRelationshipProposition:
+    check_kind: EntailmentRelationshipPropositionKind
     source: GuidelineContent
     target: GuidelineContent
 
@@ -108,7 +108,7 @@ class ConnectionProposition:
 @dataclass(frozen=True)
 class InvoiceGuidelineData:
     coherence_checks: Sequence[CoherenceCheck]
-    connection_propositions: Optional[Sequence[ConnectionProposition]]
+    entailment_propositions: Optional[Sequence[EntailmentRelationshipProposition]]
     _type: Literal["guideline"] = "guideline"  # Union discrimator for Pydantic
 
 
@@ -198,7 +198,7 @@ class _CoherenceCheckDocument(TypedDict):
 
 
 class _ConnectionPropositionDocument(TypedDict):
-    check_kind: ConnectionPropositionKind
+    check_kind: EntailmentRelationshipPropositionKind
     source: _GuidelineContentDocument
     target: _GuidelineContentDocument
 
@@ -286,7 +286,7 @@ class EvaluationDocumentStore(EvaluationStore):
             )
 
         def serialize_connection_proposition(
-            cp: ConnectionProposition,
+            cp: EntailmentRelationshipProposition,
         ) -> _ConnectionPropositionDocument:
             return _ConnectionPropositionDocument(
                 check_kind=cp.check_kind,
@@ -306,8 +306,8 @@ class EvaluationDocumentStore(EvaluationStore):
             return _InvoiceGuidelineDataDocument(
                 coherence_checks=[serialize_coherence_check(cc) for cc in data.coherence_checks],
                 connection_propositions=(
-                    [serialize_connection_proposition(cp) for cp in data.connection_propositions]
-                    if data.connection_propositions
+                    [serialize_connection_proposition(cp) for cp in data.entailment_propositions]
+                    if data.entailment_propositions
                     else None
                 ),
             )
@@ -373,8 +373,8 @@ class EvaluationDocumentStore(EvaluationStore):
 
         def deserialize_connection_proposition_document(
             cp_doc: _ConnectionPropositionDocument,
-        ) -> ConnectionProposition:
-            return ConnectionProposition(
+        ) -> EntailmentRelationshipProposition:
+            return EntailmentRelationshipProposition(
                 check_kind=cp_doc["check_kind"],
                 source=deserialize_guideline_content_document(cp_doc["source"]),
                 target=deserialize_guideline_content_document(cp_doc["target"]),
@@ -388,7 +388,7 @@ class EvaluationDocumentStore(EvaluationStore):
                     deserialize_coherence_check_document(cc_doc)
                     for cc_doc in data_doc["coherence_checks"]
                 ],
-                connection_propositions=(
+                entailment_propositions=(
                     [
                         deserialize_connection_proposition_document(cp_doc)
                         for cp_doc in data_doc["connection_propositions"]

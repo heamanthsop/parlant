@@ -26,9 +26,9 @@ from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import AgentId
 from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerId
-from parlant.core.evaluations import ConnectionProposition, Invoice
-from parlant.core.guideline_connections import (
-    GuidelineConnectionStore,
+from parlant.core.evaluations import EntailmentRelationshipProposition, Invoice
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipStore,
 )
 from parlant.core.guidelines import GuidelineId, GuidelineStore
 from parlant.core.sessions import (
@@ -54,7 +54,7 @@ class Application:
         self._session_store = container[SessionStore]
         self._session_listener = container[SessionListener]
         self._guideline_store = container[GuidelineStore]
-        self._guideline_connection_store = container[GuidelineConnectionStore]
+        self._guideline_relationship_store = container[GuidelineRelationshipStore]
         self._engine = container[Engine]
         self._event_emitter_factory = container[EventEmitterFactory]
         self._background_task_service = container[BackgroundTaskService]
@@ -164,11 +164,11 @@ class Application:
         self,
         invoices: Sequence[Invoice],
     ) -> Iterable[GuidelineId]:
-        async def _create_connection_with_existing_guideline(
+        async def _create_with_existing_guideline(
             source_key: str,
             target_key: str,
             content_guidelines: dict[str, GuidelineId],
-            proposition: ConnectionProposition,
+            proposition: EntailmentRelationshipProposition,
         ) -> None:
             if source_key in content_guidelines:
                 source_guideline_id = content_guidelines[source_key]
@@ -185,9 +185,10 @@ class Application:
                 ).id
                 target_guideline_id = content_guidelines[target_key]
 
-            await self._guideline_connection_store.create_connection(
+            await self._guideline_relationship_store.create_relationship(
                 source=source_guideline_id,
                 target=target_guideline_id,
+                kind="entailment",
             )
 
         content_guidelines: dict[str, GuidelineId] = {
@@ -212,47 +213,51 @@ class Application:
             if invoice.payload.operation == "update" and invoice.payload.connection_proposition:
                 guideline_id = cast(GuidelineId, invoice.payload.updated_id)
 
-                connections_to_delete = list(
-                    await self._guideline_connection_store.list_connections(
+                relationships_to_delete = list(
+                    await self._guideline_relationship_store.list_relationships(
+                        kind="entailment",
                         indirect=False,
                         source=guideline_id,
                     )
                 )
-                connections_to_delete.extend(
-                    await self._guideline_connection_store.list_connections(
+
+                relationships_to_delete.extend(
+                    await self._guideline_relationship_store.list_relationships(
+                        kind="entailment",
                         indirect=False,
                         target=guideline_id,
                     )
                 )
 
-                for conn in connections_to_delete:
-                    await self._guideline_connection_store.delete_connection(conn.id)
+                for relationship in relationships_to_delete:
+                    await self._guideline_relationship_store.delete_relationship(relationship.id)
 
-        connections: set[ConnectionProposition] = set([])
+        entailment_propositions: set[EntailmentRelationshipProposition] = set([])
 
         for invoice in invoices:
             assert invoice.data
 
-            if not invoice.data.connection_propositions:
+            if not invoice.data.entailment_propositions:
                 continue
 
-            for proposition in invoice.data.connection_propositions:
+            for proposition in invoice.data.entailment_propositions:
                 source_key = f"{proposition.source.condition}_{proposition.source.action}"
                 target_key = f"{proposition.target.condition}_{proposition.target.action}"
 
-                if proposition not in connections:
+                if proposition not in entailment_propositions:
                     if proposition.check_kind == "connection_with_another_evaluated_guideline":
-                        await self._guideline_connection_store.create_connection(
+                        await self._guideline_relationship_store.create_relationship(
                             source=content_guidelines[source_key],
                             target=content_guidelines[target_key],
+                            kind="entailment",
                         )
                     else:
-                        await _create_connection_with_existing_guideline(
+                        await _create_with_existing_guideline(
                             source_key,
                             target_key,
                             content_guidelines,
                             proposition,
                         )
-                    connections.add(proposition)
+                    entailment_propositions.add(proposition)
 
         return content_guidelines.values()

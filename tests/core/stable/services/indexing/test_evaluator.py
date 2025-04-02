@@ -105,7 +105,7 @@ async def test_that_an_evaluation_completes_when_all_invoices_have_data(
 
     assert evaluation.invoices[0].data
     assert evaluation.invoices[0].data.coherence_checks == []
-    assert evaluation.invoices[0].data.connection_propositions is None
+    assert evaluation.invoices[0].data.entailment_propositions is None
 
 
 async def test_that_an_evaluation_of_a_coherent_guideline_completes_with_an_approved_invoice(
@@ -157,7 +157,7 @@ async def test_that_an_evaluation_of_a_coherent_guideline_completes_with_an_appr
 
     assert evaluation.invoices[0].data
     assert evaluation.invoices[0].data.coherence_checks == []
-    assert evaluation.invoices[0].data.connection_propositions is None
+    assert evaluation.invoices[0].data.entailment_propositions is None
 
 
 async def test_that_an_evaluation_of_an_incoherent_guideline_completes_with_an_unapproved_invoice(
@@ -210,7 +210,7 @@ async def test_that_an_evaluation_of_an_incoherent_guideline_completes_with_an_u
 
     assert evaluation.invoices[0].data
     assert len(evaluation.invoices[0].data.coherence_checks) == 1
-    assert evaluation.invoices[0].data.connection_propositions is None
+    assert evaluation.invoices[0].data.entailment_propositions is None
 
 
 async def test_that_an_evaluation_of_incoherent_proposed_guidelines_completes_with_an_unapproved_invoice(
@@ -319,7 +319,7 @@ async def test_that_an_evaluation_of_multiple_payloads_completes_with_an_invoice
 
         assert invoice.data
         assert invoice.data.coherence_checks == []
-        assert invoice.data.connection_propositions is None
+        assert invoice.data.entailment_propositions is None
 
 
 async def test_that_an_evaluation_that_failed_due_to_already_running_evaluation_task_contains_its_error_details(
@@ -509,19 +509,19 @@ async def test_that_an_evaluation_completes_and_contains_a_connection_propositio
     assert evaluation.invoices[0].data
     invoice_data = evaluation.invoices[0].data
 
-    assert invoice_data.connection_propositions
-    assert len(invoice_data.connection_propositions) == 1
+    assert invoice_data.entailment_propositions
+    assert len(invoice_data.entailment_propositions) == 1
     assert (
-        invoice_data.connection_propositions[0].check_kind == "connection_with_existing_guideline"
+        invoice_data.entailment_propositions[0].check_kind == "connection_with_existing_guideline"
     )
 
-    assert invoice_data.connection_propositions
+    assert invoice_data.entailment_propositions
     assert (
-        invoice_data.connection_propositions[0].source.action
+        invoice_data.entailment_propositions[0].source.action
         == "provide the current weather update"
     )
     assert (
-        invoice_data.connection_propositions[0].target.condition == "providing the weather update"
+        invoice_data.entailment_propositions[0].target.condition == "providing the weather update"
     )
 
 
@@ -573,34 +573,34 @@ async def test_that_an_evaluation_completes_and_contains_connection_proposition_
     assert evaluation.invoices[0].data
     invoice_data = evaluation.invoices[0].data
 
-    assert invoice_data.connection_propositions
-    assert len(invoice_data.connection_propositions) == 1
+    assert invoice_data.entailment_propositions
+    assert len(invoice_data.entailment_propositions) == 1
     assert (
-        invoice_data.connection_propositions[0].check_kind
+        invoice_data.entailment_propositions[0].check_kind
         == "connection_with_another_evaluated_guideline"
     )
     assert (
-        invoice_data.connection_propositions[0].source.condition
+        invoice_data.entailment_propositions[0].source.condition
         == "the customer asks about the weather"
     )
     assert (
-        invoice_data.connection_propositions[0].target.condition == "providing the weather update"
+        invoice_data.entailment_propositions[0].target.condition == "providing the weather update"
     )
 
     assert evaluation.invoices[1].data
     invoice_data = evaluation.invoices[1].data
 
-    assert invoice_data.connection_propositions
-    assert len(invoice_data.connection_propositions) == 1
+    assert invoice_data.entailment_propositions
+    assert len(invoice_data.entailment_propositions) == 1
     assert (
-        invoice_data.connection_propositions[0].check_kind
+        invoice_data.entailment_propositions[0].check_kind
         == "connection_with_another_evaluated_guideline"
     )
 
     assert (
-        invoice_data.connection_propositions[0].source.action
+        invoice_data.entailment_propositions[0].source.action
         == "provide the current weather update"
     )
     assert (
-        invoice_data.connection_propositions[0].target.condition == "providing the weather update"
+        invoice_data.entailment_propositions[0].target.condition == "providing the weather update"
     )

@@ -120,7 +120,7 @@ class GuidelineStore(ABC):
     ) -> None: ...
 
 
-class _GuidelineDocument_v0_1_0(TypedDict, total=False):
+class GuidelineDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -129,7 +129,7 @@ class _GuidelineDocument_v0_1_0(TypedDict, total=False):
     action: str
 
 
-class _GuidelineDocument_v0_2_0(TypedDict, total=False):
+class GuidelineDocument_v0_2_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -139,7 +139,7 @@ class _GuidelineDocument_v0_2_0(TypedDict, total=False):
     enabled: bool
 
 
-class _GuidelineDocument(TypedDict, total=False):
+class GuidelineDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -148,7 +148,7 @@ class _GuidelineDocument(TypedDict, total=False):
     enabled: bool
 
 
-class _GuidelineTagAssociationDocument(TypedDict, total=False):
+class GuidelineTagAssociationDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -157,8 +157,8 @@ class _GuidelineTagAssociationDocument(TypedDict, total=False):
 
 
 async def guideline_document_converter_0_1_0_to_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-    d = cast(_GuidelineDocument_v0_1_0, doc)
-    return _GuidelineDocument_v0_2_0(
+    d = cast(GuidelineDocument_v0_1_0, doc)
+    return GuidelineDocument_v0_2_0(
         id=d["id"],
         version=Version.String("0.2.0"),
         creation_utc=d["creation_utc"],
@@ -174,19 +174,19 @@ class GuidelineDocumentStore(GuidelineStore):
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
-        self._collection: DocumentCollection[_GuidelineDocument]
-        self._tag_association_collection: DocumentCollection[_GuidelineTagAssociationDocument]
+        self._collection: DocumentCollection[GuidelineDocument]
+        self._tag_association_collection: DocumentCollection[GuidelineTagAssociationDocument]
 
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, doc: BaseDocument) -> Optional[_GuidelineDocument]:
+    async def _document_loader(self, doc: BaseDocument) -> Optional[GuidelineDocument]:
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise Exception(
                 "This code should not be reached! Please run the 'parlant-prepare-migration' script."
             )
 
-        return await DocumentMigrationHelper[_GuidelineDocument](
+        return await DocumentMigrationHelper[GuidelineDocument](
             self,
             {
                 "0.1.0": guideline_document_converter_0_1_0_to_0_2_0,
@@ -196,9 +196,9 @@ class GuidelineDocumentStore(GuidelineStore):
 
     async def _association_document_loader(
         self, doc: BaseDocument
-    ) -> Optional[_GuidelineTagAssociationDocument]:
+    ) -> Optional[GuidelineTagAssociationDocument]:
         if doc["version"] == "0.3.0":
-            return cast(_GuidelineTagAssociationDocument, doc)
+            return cast(GuidelineTagAssociationDocument, doc)
 
         return None
 
@@ -210,13 +210,13 @@ class GuidelineDocumentStore(GuidelineStore):
         ):
             self._collection = await self._database.get_or_create_collection(
                 name="guidelines",
-                schema=_GuidelineDocument,
+                schema=GuidelineDocument,
                 document_loader=self._document_loader,
             )
 
             self._tag_association_collection = await self._database.get_or_create_collection(
                 name="guideline_tag_associations",
-                schema=_GuidelineTagAssociationDocument,
+                schema=GuidelineTagAssociationDocument,
                 document_loader=self._association_document_loader,
             )
 
@@ -233,8 +233,8 @@ class GuidelineDocumentStore(GuidelineStore):
     def _serialize(
         self,
         guideline: Guideline,
-    ) -> _GuidelineDocument:
-        return _GuidelineDocument(
+    ) -> GuidelineDocument:
+        return GuidelineDocument(
             id=ObjectId(guideline.id),
             version=self.VERSION.to_string(),
             creation_utc=guideline.creation_utc.isoformat(),
@@ -245,7 +245,7 @@ class GuidelineDocumentStore(GuidelineStore):
 
     async def _deserialize(
         self,
-        guideline_document: _GuidelineDocument,
+        guideline_document: GuidelineDocument,
     ) -> Guideline:
         tag_ids = [
             d["tag_id"]
@@ -389,7 +389,7 @@ class GuidelineDocumentStore(GuidelineStore):
         params: GuidelineUpdateParams,
     ) -> Guideline:
         async with self._lock.writer_lock:
-            guideline_document = _GuidelineDocument(
+            guideline_document = GuidelineDocument(
                 {
                     **({"condition": params["condition"]} if "condition" in params else {}),
                     **({"action": params["action"]} if "action" in params else {}),
@@ -441,7 +441,7 @@ class GuidelineDocumentStore(GuidelineStore):
 
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            association_document: _GuidelineTagAssociationDocument = {
+            association_document: GuidelineTagAssociationDocument = {
                 "id": ObjectId(generate_id()),
                 "version": self.VERSION.to_string(),
                 "creation_utc": creation_utc.isoformat(),

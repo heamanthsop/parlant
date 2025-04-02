@@ -16,7 +16,9 @@ from pytest_bdd import given, parsers
 
 from parlant.core.agents import AgentId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.guideline_connections import GuidelineConnectionStore
+from parlant.core.guideline_relationships import (
+    GuidelineRelationshipStore,
+)
 from parlant.core.guidelines import Guideline, GuidelineStore
 
 from parlant.core.tags import Tag
@@ -430,18 +432,19 @@ def given_a_guideline_match(
 
 @step(
     given,
-    parsers.parse('a guideline connection whereby "{guideline_a}" entails "{guideline_b}"'),
+    parsers.parse('a guideline relationship whereby "{guideline_a}" entails "{guideline_b}"'),
 )
-def given_a_guideline_connection(
+def given_an_entailment_guideline_relationship(
     context: ContextOfTest,
     guideline_a: str,
     guideline_b: str,
 ) -> None:
-    store = context.container[GuidelineConnectionStore]
+    store = context.container[GuidelineRelationshipStore]
 
     context.sync_await(
-        store.create_connection(
+        store.create_relationship(
             source=context.guidelines[guideline_a].id,
             target=context.guidelines[guideline_b].id,
+            kind="entailment",
         )
     )
