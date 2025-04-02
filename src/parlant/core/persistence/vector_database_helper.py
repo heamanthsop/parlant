@@ -1,7 +1,7 @@
 from typing import Awaitable, Callable, Generic, Mapping, Optional, cast
 from typing_extensions import Self
 from parlant.core.common import Version
-from parlant.core.persistence.common import MigrationRequired, VersionedStore
+from parlant.core.persistence.common import MigrationRequired, ServerOutdated, VersionedStore
 from parlant.core.persistence.vector_database import BaseDocument, TDocument, VectorDatabase
 
 
@@ -49,6 +49,13 @@ class VectorDocumentStoreMigrationHelper:
     ) -> bool:
         metadata = await database.read_metadata()
         if "version" in metadata:
+            if Version.from_string(cast(str, metadata["version"])) > Version.from_string(
+                runtime_store_version
+            ):
+                raise ServerOutdated(
+                    f"Server version {runtime_store_version}, vector database version {metadata['version']}."
+                )
+
             return metadata["version"] != runtime_store_version
         else:
             await database.upsert_metadata("version", runtime_store_version)

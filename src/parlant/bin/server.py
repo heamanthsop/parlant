@@ -46,7 +46,7 @@ from parlant.core.engines.alpha.utterance_selector import (
 )
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.service import NLPService
-from parlant.core.persistence.common import MigrationRequired
+from parlant.core.persistence.common import MigrationRequired, ServerOutdated
 from parlant.core.shots import ShotCollection
 from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.api.app import create_api_app, ASGIApplication
@@ -438,7 +438,12 @@ async def initialize_container(
     except MigrationRequired as e:
         c[Logger].critical(str(e))
         die("Please re-run with `--migrate` to migrate your data to the new version.")
-        sys.exit(1)
+
+    except ServerOutdated as e:
+        c[Logger].critical(str(e))
+        die(
+            "Your server is old and does not support the data. Please upgrade to the latest version."
+        )
 
     c[
         SchematicGenerator[GenericGuidelineMatchesSchema]

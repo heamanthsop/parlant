@@ -26,6 +26,11 @@ class MigrationRequired(Exception):
         super().__init__(message)
 
 
+class ServerOutdated(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class VersionedStore(Protocol):
     VERSION: Version
 
