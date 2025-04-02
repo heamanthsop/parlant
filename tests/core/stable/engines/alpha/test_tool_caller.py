@@ -180,7 +180,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
     assert tool_call.arguments["category"] == "peripherals"
 
 
-async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
+async def test_that_a_plugin_gets_called_with_an_enum_parameter(
     container: Container,
     tool_caller: ToolCaller,
     agent: Agent,
@@ -291,9 +291,6 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
 
     conversation_context = [
         ("customer", "I want to set up an appointment tomorrow at 10am"),
-        ("ai_agent", "What type of appointment would you like to have?"),
-        ("customer", "I would like a general appointment in the phone booth"),
-        #        ("customer", "I would like a general appointment in the phone booth and invite Donald Duck which is the owner of the appointment")
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -337,6 +334,8 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
     assert len(tool_calls) == 1
+    tool_call = tool_calls[0]
+    assert "when" in tool_call.arguments
 
 
 async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter(
@@ -515,16 +514,17 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
 
     conversation_context = [
         ("customer", "Hi, can you register me for the sweepstake?"),
+        ("customer", "I will donate 100 dollars if I win"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
 
     ordinary_guideline_matches = [
         create_guideline_match(
-            condition="customer asks about a sweepstake",
+            condition="customer asks about registration for a sweepstake",
             action="response in concise and breif answer",
             score=9,
-            rationale="customer is interested in the sweepstake",
+            rationale="customer is interested in registering for the sweepstake",
             tags=[Tag.for_agent_id(agent.id)],
         )
     ]
