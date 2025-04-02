@@ -442,7 +442,7 @@ async def initialize_container(
     except ServerOutdated as e:
         c[Logger].critical(str(e))
         die(
-            "Your server is old and does not support the data. Please upgrade to the latest version."
+            "Your server is old and does not support your new data. Please upgrade to the latest version."
         )
 
     c[

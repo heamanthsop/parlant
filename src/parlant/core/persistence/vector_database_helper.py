@@ -52,9 +52,7 @@ class VectorDocumentStoreMigrationHelper:
             if Version.from_string(cast(str, metadata["version"])) > Version.from_string(
                 runtime_store_version
             ):
-                raise ServerOutdated(
-                    f"Server version {runtime_store_version}, vector database version {metadata['version']}."
-                )
+                raise ServerOutdated
 
             return metadata["version"] != runtime_store_version
         else:
