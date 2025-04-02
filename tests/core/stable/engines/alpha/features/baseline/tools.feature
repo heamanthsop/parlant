@@ -309,7 +309,7 @@ Feature: Tools
         And a single message event is emitted
         And the message mentions that a date is missing
 
-    Scenario: Message generator understands that multiple parameters are missing and communicates that to the user correctly
+    Scenario: When multiple parameters are missing, the message generator communicates only the ones with the lowest precedence value (1)
         Given an empty session
         And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
         And the tool "register_for_sweepstake"
@@ -321,7 +321,7 @@ Feature: Tools
         And the number of missing parameters is exactly 1
         And the message mentions last name 
 
-    Scenario: Message generator understands that multiple parameters are missing and communicates that to the user accurately
+    Scenario: When multiple parameters are missing, the message generator communicates only the ones with the lowest precedence value (2)
         Given an empty session
         And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
         And the tool "register_for_confusing_sweepstake"

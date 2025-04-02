@@ -409,7 +409,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
     assert "peripherals" in tool_call.arguments["categories"]
 
 
-async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_missing_by_precedence(
+async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_missing_ones_by_precedence(
     container: Container,
     tool_caller: ToolCaller,
     agent: Agent,

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import enum
 import importlib
 import inspect
+import sys
 from typing import (
     Any,
     Awaitable,
@@ -48,7 +49,7 @@ ToolParameterType = Literal[
 
 EnumValueType = Union[str, int]
 
-DEFAULT_PARAMETER_PRECEDENCE: int = 4294967295
+DEFAULT_PARAMETER_PRECEDENCE: int = sys.maxsize
 
 
 class ToolParameterDescriptor(TypedDict, total=False):
