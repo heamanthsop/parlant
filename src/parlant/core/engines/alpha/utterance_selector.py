@@ -246,17 +246,17 @@ A few examples:
 ---------------
 1) Utterance is "Hello {{{{generative.name}}}}, how may I help you today?"
 Example return value: ###
-{{ "value": "NAME" }}
+{{ "value": "John" }}
 ###
 
 2) Utterance is "Hello {{{{generative.names}}}}, how may I help you today?"
 Example return value: ###
-{{ "value": "NAME1 and NAME2" }}
+{{ "value": "John and Katie" }}
 ###
 
 3) Utterance is "Next flights are {{{{generative.flight_list}}}}
 Example return value: ###
-{{ "value": "- FLIGHT_1\\n- FLIGHT_2\\n" }}
+{{ "value": "- <FLIGHT_1>\\n- <FLIGHT_2>\\n" }}
 ###
 """,
             props={"utterance": utterance, "field_name": field_name},
@@ -865,7 +865,7 @@ Produce a valid JSON object in the following format: ###
     "insights": [<Up to 3 original insights to adhere to>],
     "utterance_choice": {{
         "insights_about_the_user": "<insights based on your utterance selection and what you know about the user>",
-        "utterance_choice_reasoning": "<reason about the user, current state of the conversation, guidelines given, insights generated, and find the best most suitable utterance to utilize at this point as a response>",
+        "utterance_choice_reasoning": "<reason about the user, current state of the conversation, guidelines given, insights generated, including specific details on the user's situation and request, and find the best most suitable, most specialized utterance to utilize at this point as a response>",
         "chosen_utterance": <chosen utterance text or null if no matching utterance is found>,
         "chosen_utterance_id": <id of chosen utterance or null if no matching utterance is found>
     }}
@@ -968,14 +968,19 @@ Produce a valid JSON object in the following format: ###
             on_build=lambda prompt: self._logger.debug(f"Composition Prompt:\n{prompt}")
         )
 
+        builder.add_agent_identity(context.agent)
+        builder.add_interaction_history(context.interaction_history)
+
         builder.add_section(
             name="utterance-selector-composition",
             template="""\
-Please revise this message's style as you see fit—make sure NOT to hallucinate information or add or remove key words (nouns, verbs).
+Please revise this message's style as you see fit, trying to make it continue the above conversation more naturally.
+Make sure NOT to add, remove, or hallucinate information nor add or remove key words (nouns, verbs) to the message.
+Just make it flow more with the conversation (if that's even needed—otherwise you can leave it as-is if it's already perfect): ###
 {raw_message}
 ###
 
-Respond with a JSON object {{ "revised_message": "<message>" }}
+Respond with a JSON object {{ "revised_utterance": "<message>" }}
 """,
             props={"raw_message": raw_message},
         )
@@ -1033,7 +1038,7 @@ example_2_expected = UtteranceSelectionSchema(
     insights=["All of our cheese has expired and is currently out of stock"],
     utterance_choice=UtteranceChoice(
         insights_about_the_user="The user is a long-time user and we should treat him with extra respect",
-        utterance_choice_reasoning="I can't provide the cheeseburger since cheese is out of stock. At the same time, I should try to choose something to say that approaches the long-term user with respect and grace.",
+        utterance_choice_reasoning="There are utterances that help me guide to conversation to provide the burfer. However, I can't provide the cheeseburger since cheese is out of stock, so I should instead use the utterance that says we're out of an ingredient. At the same time, I should try to choose something to say that approaches the long-term user with respect and grace.",
         chosen_utterance="Unfortunately we're out of {{ingredient}}. Would you like anything else instead?",
         chosen_utterance_id="<auto>",
     ),
@@ -1052,7 +1057,7 @@ example_3_expected = UtteranceSelectionSchema(
     insights=["There's no menu information in my context"],
     utterance_choice=UtteranceChoice(
         insights_about_the_user="According to contextual information about the user, this is their first time here",
-        utterance_choice_reasoning="The user wants a drink, and I was told to check the menu and offer what's on it. However, menu information was not given to my in the context. I should choose the utterance that says I can't access the menu.",
+        utterance_choice_reasoning="The user wants a drink, and I was told to check the menu and offer what's on it. While there are utterances for communicating that, I see that menu information was not given to my in the context. I should therefore choose the utterance that says I can't access the menu.",
         chosen_utterance="I'm sorry, but I'm having trouble accessing our menu at the moment. Can I help you with anything else?",
         chosen_utterance_id=shot_utterance_id(2),
     ),
@@ -1090,8 +1095,8 @@ example_5_expected = UtteranceSelectionSchema(
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
     utterance_choice=UtteranceChoice(
-        utterance_choice_reasoning="I don't have any information or utterances about customer support, so I can't help the user with this. The best utterance for this would be the one that explains I cannot help with a topic and asks if there are other ways I could help.",
-        chosen_utterance="Unfortunately, I cannot help you with this topic as I do not have enough information about it. Is there anything else I can help you with?",
+        utterance_choice_reasoning="I don't have any information or utterances about customer support, so I can't help the user with this. A good utterance for this would be the one that explains I cannot help with a topic and asks if there are other ways I could help. However, there's a more specialized utterance that deals specifically with customer support, so I should choose that one as it's the most suitable for this particular scenario.",
+        chosen_utterance="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
         chosen_utterance_id=shot_utterance_id(9),
     ),
 )
