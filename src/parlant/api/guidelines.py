@@ -1349,16 +1349,19 @@ class GuidelineWithRelationshipsAndToolAssociationsDTO(
 
 
 def _dto_to_kind(dto: GuidelineRelationshipKindDTO) -> GuidelineRelationshipKind:
-    if dto in {
-        GuidelineRelationshipKindDTO.ENTAILMENT: "entailment",
-        GuidelineRelationshipKindDTO.PRECEDENCE: "precedence",
-        GuidelineRelationshipKindDTO.REQUIREMENT: "requirement",
-        GuidelineRelationshipKindDTO.PRIORITY: "priority",
-        GuidelineRelationshipKindDTO.PERSISTENCE: "persistence",
-    }:
-        return dto
-
-    raise ValueError(f"Invalid guideline relationship kind: {dto}")
+    match dto:
+        case GuidelineRelationshipKindDTO.ENTAILMENT:
+            return "entailment"
+        case GuidelineRelationshipKindDTO.PRECEDENCE:
+            return "precedence"
+        case GuidelineRelationshipKindDTO.REQUIREMENT:
+            return "requirement"
+        case GuidelineRelationshipKindDTO.PRIORITY:
+            return "priority"
+        case GuidelineRelationshipKindDTO.PERSISTENCE:
+            return "persistence"
+        case _:
+            raise ValueError(f"Invalid guideline relationship kind: {dto}")
 
 
 def create_router(

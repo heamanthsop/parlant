@@ -129,7 +129,7 @@ class EntityQueries:
     ) -> Sequence[Event]:
         return await self._session_store.list_events(session_id)
 
-    async def find_guideline_connections(
+    async def find_guideline_relationships(
         self,
         source: Optional[GuidelineId] = None,
         target: Optional[GuidelineId] = None,

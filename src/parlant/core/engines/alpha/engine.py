@@ -690,7 +690,7 @@ class AlphaEngine(Engine):
         for match in matches:
             connected_guideline_ids = {
                 c.target
-                for c in await self._entity_queries.find_guideline_connections(
+                for c in await self._entity_queries.find_guideline_relationships(
                     indirect=True,
                     source=match.guideline.id,
                 )

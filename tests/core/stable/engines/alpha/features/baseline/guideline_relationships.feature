@@ -1,4 +1,4 @@
-Feature: Guideline Connections
+Feature: Guideline Relationship
     Scenario: The agent follows a guideline that is entailed by another guideline
         Given the alpha engine
         And an agent whose job is to sell pizza
