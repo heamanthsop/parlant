@@ -14,20 +14,30 @@
 
 from parlant.core.services.tools.plugins import PluginServer, tool
 from parlant.core.tools import (
+    ControlOptions,
+    SessionMode,
+    SessionStatus,
     Tool,
+    ToolId,
     ToolContext,
     ToolParameterDescriptor,
     ToolParameterOptions,
+    ToolParameterType,
     ToolResult,
 )
 
 
 __all__ = [
+    "ControlOptions",
     "PluginServer",
+    "SessionMode",
+    "SessionStatus",
     "Tool",
+    "ToolId",
     "ToolContext",
     "ToolParameterDescriptor",
     "ToolParameterOptions",
+    "ToolParameterType",
     "ToolResult",
     "tool",
 ]
