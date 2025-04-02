@@ -1525,19 +1525,19 @@ class Interface:
         action: str,
     ) -> None:
         try:
-            guideline_with_connections = Actions.update_guideline(
+            guideline_with_relationships_and_associations = Actions.update_guideline(
                 ctx,
                 guideline_id,
                 condition=condition,
                 action=action,
             )
 
-            guideline = guideline_with_connections.guideline
+            guideline = guideline_with_relationships_and_associations.guideline
             Interface._write_success(f"Updated guideline (id: {guideline.id})")
             Interface._render_guideline_relationships(
-                guideline_with_connections.guideline,
-                guideline_with_connections.relationships,
-                guideline_with_connections.tool_associations,
+                guideline_with_relationships_and_associations.guideline,
+                guideline_with_relationships_and_associations.relationships,
+                guideline_with_relationships_and_associations.tool_associations,
                 include_indirect=False,
             )
 
@@ -1564,13 +1564,15 @@ class Interface:
         guideline_id: str,
     ) -> None:
         try:
-            guideline_with_connections_and_associations = Actions.view_guideline(ctx, guideline_id)
+            guideline_with_relationships_and_associations = Actions.view_guideline(
+                ctx, guideline_id
+            )
 
-            Interface._render_guidelines([guideline_with_connections_and_associations.guideline])
+            Interface._render_guidelines([guideline_with_relationships_and_associations.guideline])
             Interface._render_guideline_relationships(
-                guideline_with_connections_and_associations.guideline,
-                guideline_with_connections_and_associations.relationships,
-                guideline_with_connections_and_associations.tool_associations,
+                guideline_with_relationships_and_associations.guideline,
+                guideline_with_relationships_and_associations.relationships,
+                guideline_with_relationships_and_associations.tool_associations,
                 include_indirect=True,
             )
 
@@ -1611,7 +1613,7 @@ class Interface:
         kind: GuidelineRelationshipKindDto,
     ) -> None:
         try:
-            guideline_with_connections_and_associations = Actions.create_relationship(
+            guideline_with_relationships_and_associations = Actions.create_relationship(
                 ctx,
                 source_guideline_id,
                 target_guideline_id,
@@ -1621,7 +1623,7 @@ class Interface:
             if new_relationship := next(
                 (
                     r
-                    for r in guideline_with_connections_and_associations.relationships
+                    for r in guideline_with_relationships_and_associations.relationships
                     if source_guideline_id == r.source.id
                     and target_guideline_id == r.target.id
                     and kind == r.kind
