@@ -108,14 +108,7 @@ class LegacyGuidelineDTO(
     enabled: GuidelineEnabledField
 
 
-GuidelineRelationshipIdField: TypeAlias = Annotated[
-    GuidelineRelationshipId,
-    Field(
-        description="Unique identifier for the `GuidelineRelationship`",
-    ),
-]
-
-GuidelineConnectionIndirectField: TypeAlias = Annotated[
+LegacyGuidelineConnectionIndirectField: TypeAlias = Annotated[
     bool,
     Field(
         description="`True` if there is a path from `source` to `target` but no direct connection",
@@ -123,6 +116,12 @@ GuidelineConnectionIndirectField: TypeAlias = Annotated[
     ),
 ]
 
+LegacyGuidelineConnectionIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline connection",
+    ),
+]
 
 legacy_guideline_connection_dto_example: ExampleJson = {
     "id": "conn_456xyz",
@@ -150,10 +149,10 @@ class LegacyGuidelineConnectionDTO(
     Represents a connection between two guidelines.
     """
 
-    id: GuidelineRelationshipIdField
+    id: LegacyGuidelineConnectionIdField
     source: LegacyGuidelineDTO
     target: LegacyGuidelineDTO
-    indirect: GuidelineConnectionIndirectField
+    indirect: LegacyGuidelineConnectionIndirectField
 
 
 GuidelineToolAssociationIdField: TypeAlias = Annotated[
@@ -1117,6 +1116,14 @@ guideline_dto_example = {
 }
 
 
+GuidelineRelationshipIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline relationship",
+    ),
+]
+
+
 class GuidelineDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_dto_example},
@@ -1128,6 +1135,15 @@ class GuidelineDTO(
     action: GuidelineActionField
     enabled: GuidelineEnabledField
     tags: GuidelineTagsField
+
+
+GuidelineRelationshipIndirectField: TypeAlias = Annotated[
+    bool,
+    Field(
+        description="`True` if there is a path from `source` to `target` but no direct relationship",
+        examples=[True, False],
+    ),
+]
 
 
 class GuidelineRelationshipKindDTO(Enum):
@@ -1158,7 +1174,7 @@ class GuidelineRelationshipDTO(
     id: GuidelineRelationshipIdField
     source: GuidelineDTO
     target: GuidelineDTO
-    indirect: GuidelineConnectionIndirectField
+    indirect: GuidelineRelationshipIndirectField
     kind: GuidelineRelationshipKindDTO
 
 
@@ -1325,7 +1341,7 @@ class GuidelineWithRelationshipsAndToolAssociationsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_with_relationships_example},
 ):
-    """A Guideline with its connections and tool associations."""
+    """A Guideline with its relationships and tool associations."""
 
     guideline: GuidelineDTO
     relationships: Sequence[GuidelineRelationshipDTO]
@@ -1428,7 +1444,7 @@ def create_router(
 
         Returns an empty list if no guidelines exist.
         Guidelines are returned in no guaranteed order.
-        Does not include connections or tool associations.
+        Does not include relationships or tool associations.
         """
         if tag_id:
             guidelines = await guideline_store.list_guidelines(
@@ -1454,7 +1470,7 @@ def create_router(
         response_model=GuidelineWithRelationshipsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline details successfully retrieved. Returns the complete guideline with its connections and tool associations.",
+                "description": "Guideline details successfully retrieved. Returns the complete guideline with its relationships and tool associations.",
                 "content": common.example_json_content(guideline_with_relationships_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Guideline not found"},
@@ -1465,9 +1481,9 @@ def create_router(
         guideline_id: GuidelineIdPath,
     ) -> GuidelineWithRelationshipsAndToolAssociationsDTO:
         """
-        Retrieves a specific guideline with all its connections and tool associations.
+        Retrieves a specific guideline with all its relationships and tool associations.
 
-        Returns both direct and indirect connections between guidelines.
+        Returns both direct and indirect relationships between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
         try:
@@ -1535,12 +1551,12 @@ def create_router(
         response_model=GuidelineWithRelationshipsAndToolAssociationsDTO,
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline successfully updated. Returns the updated guideline with its connections and tool associations.",
+                "description": "Guideline successfully updated. Returns the updated guideline with its relationships and tool associations.",
                 "content": common.example_json_content(guideline_with_relationships_example),
             },
             status.HTTP_404_NOT_FOUND: {"description": "Guideline or referenced tool not found"},
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
-                "description": "Invalid connection rules or validation error in update parameters"
+                "description": "Invalid relationship rules or validation error in update parameters"
             },
         },
         **apigen_config(group_name=API_GROUP, method_name="update"),
@@ -1582,12 +1598,12 @@ def create_router(
                 if req.source == req.target:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="A guideline cannot be connected to itself",
+                        detail="A guideline cannot be related to itself",
                     )
                 elif req.source != guideline_id and req.target != guideline_id:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail="The connection must specify the guideline at hand as either source or target",
+                        detail="The relationship must specify the guideline at hand as either source or target",
                     )
 
                 await guideline_relationship_store.create_relationship(

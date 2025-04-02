@@ -44,13 +44,14 @@ from parlant.client.types import (
     Event,
     EventInspectionResult,
     Guideline,
-    GuidelineConnection,
-    GuidelineConnectionAddition,
-    GuidelineConnectionUpdateParams,
+    GuidelineRelationship,
+    GuidelineRelationshipAddition,
+    GuidelineRelationshipUpdateParams,
+    GuidelineRelationshipKindDto,
     GuidelineToolAssociation,
     GuidelineToolAssociationUpdateParams,
     GuidelineTagsUpdateParams,
-    GuidelineWithConnectionsAndToolAssociations,
+    GuidelineWithRelationshipsAndToolAssociations,
     OpenApiServiceParams,
     SdkServiceParams,
     Service,
@@ -372,7 +373,7 @@ class Actions:
         guideline_id: str,
         condition: Optional[str] = None,
         action: Optional[str] = None,
-    ) -> GuidelineWithConnectionsAndToolAssociations:
+    ) -> GuidelineWithRelationshipsAndToolAssociations:
         client = cast(ParlantClient, ctx.obj.client)
 
         return client.guidelines.update(guideline_id, condition=condition, action=action)
@@ -389,7 +390,7 @@ class Actions:
     def view_guideline(
         ctx: click.Context,
         guideline_id: str,
-    ) -> GuidelineWithConnectionsAndToolAssociations:
+    ) -> GuidelineWithRelationshipsAndToolAssociations:
         client = cast(ParlantClient, ctx.obj.client)
         return client.guidelines.retrieve(guideline_id)
 
@@ -405,49 +406,58 @@ class Actions:
             return client.guidelines.list()
 
     @staticmethod
-    def create_entailment(
+    def create_relationship(
         ctx: click.Context,
         source_guideline_id: str,
         target_guideline_id: str,
-    ) -> GuidelineWithConnectionsAndToolAssociations:
+        kind: GuidelineRelationshipKindDto,
+    ) -> GuidelineWithRelationshipsAndToolAssociations:
         client = cast(ParlantClient, ctx.obj.client)
 
         return client.guidelines.update(
             source_guideline_id,
-            connections=GuidelineConnectionUpdateParams(
+            relationships=GuidelineRelationshipUpdateParams(
                 add=[
-                    GuidelineConnectionAddition(
+                    GuidelineRelationshipAddition(
                         source=source_guideline_id,
                         target=target_guideline_id,
+                        kind=kind,
                     ),
                 ]
             ),
         )
 
     @staticmethod
-    def remove_entailment(
+    def remove_relationship(
         ctx: click.Context,
         source_guideline_id: str,
         target_guideline_id: str,
+        kind: GuidelineRelationshipKindDto,
     ) -> str:
         client = cast(ParlantClient, ctx.obj.client)
 
         guideline_result = client.guidelines.retrieve(source_guideline_id)
-        connections = guideline_result.connections
+        relationships = guideline_result.relationships
 
-        if connection := next(
-            (c for c in connections if target_guideline_id in [c.source.id, c.target.id]),
+        if relationship := next(
+            (
+                r
+                for r in relationships
+                if r.source.id == source_guideline_id
+                and r.target.id == target_guideline_id
+                and r.kind == kind
+            ),
             None,
         ):
             client.guidelines.update(
                 source_guideline_id,
-                connections=GuidelineConnectionUpdateParams(remove=[target_guideline_id]),
+                relationships=GuidelineRelationshipUpdateParams(remove=[relationship.id]),
             )
 
-            return connection.id
+            return relationship.id
 
         raise ValueError(
-            f"An entailment between {source_guideline_id} and {target_guideline_id} was not found"
+            f"A relationship between {source_guideline_id} and {target_guideline_id} with kind {kind} was not found"
         )
 
     @staticmethod
@@ -456,7 +466,7 @@ class Actions:
         guideline_id: str,
         service_name: str,
         tool_name: str,
-    ) -> GuidelineWithConnectionsAndToolAssociations:
+    ) -> GuidelineWithRelationshipsAndToolAssociations:
         client = cast(ParlantClient, ctx.obj.client)
 
         return client.guidelines.update(
@@ -1410,47 +1420,49 @@ class Interface:
         Interface._print_table(guideline_items)
 
     @staticmethod
-    def _render_guideline_entailments(
+    def _render_guideline_relationships(
         guideline: Guideline,
-        connections: list[GuidelineConnection],
+        relationships: list[GuidelineRelationship],
         tool_associations: list[GuidelineToolAssociation],
         include_indirect: bool,
     ) -> None:
-        def to_direct_entailment_item(conn: GuidelineConnection) -> dict[str, str]:
-            peer = conn.target if conn.source.id == guideline.id else conn.source
+        def to_direct_relationship_item(rel: GuidelineRelationship) -> dict[str, str]:
+            peer = rel.target if rel.source.id == guideline.id else rel.source
 
             return {
-                "Connection ID": conn.id,
-                "Role": "Source" if conn.source.id == guideline.id else "Target",
-                "Peer Role": "Target" if conn.source.id == guideline.id else "Source",
+                "Relationship ID": rel.id,
+                "Kind": rel.kind,
+                "Role": "Source" if rel.source.id == guideline.id else "Target",
+                "Peer Role": "Target" if rel.source.id == guideline.id else "Source",
                 "Peer ID": peer.id,
                 "Peer Condition": peer.condition,
                 "Peer Action": peer.action,
             }
 
-        def to_indirect_entailment_item(conn: GuidelineConnection) -> dict[str, str]:
+        def to_indirect_relationship_item(rel: GuidelineRelationship) -> dict[str, str]:
             return {
-                "Connection ID": conn.id,
-                "Source ID": conn.source.id,
-                "Source Condition": conn.source.condition,
-                "Source Action": conn.source.action,
-                "Target ID": conn.target.id,
-                "Target Condition": conn.target.condition,
-                "Target Action": conn.target.action,
+                "Relationship ID": rel.id,
+                "Kind": rel.kind,
+                "Source ID": rel.source.id,
+                "Source Condition": rel.source.condition,
+                "Source Action": rel.source.action,
+                "Target ID": rel.target.id,
+                "Target Condition": rel.target.condition,
+                "Target Action": rel.target.action,
             }
 
-        if connections:
-            direct = [c for c in connections if not c.indirect]
-            indirect = [c for c in connections if c.indirect]
+        if relationships:
+            direct = [r for r in relationships if not r.indirect]
+            indirect = [r for r in relationships if r.indirect]
 
             if direct:
-                rich.print("\nDirect Entailments:")
-                Interface._print_table(list(map(lambda c: to_direct_entailment_item(c), direct)))
+                rich.print("\nDirect Relationships:")
+                Interface._print_table(list(map(lambda r: to_direct_relationship_item(r), direct)))
 
             if indirect and include_indirect:
-                rich.print("\nIndirect Entailments:")
+                rich.print("\nIndirect Relationships:")
                 Interface._print_table(
-                    list(map(lambda c: to_indirect_entailment_item(c), indirect))
+                    list(map(lambda r: to_indirect_relationship_item(r), indirect))
                 )
 
         if tool_associations:
@@ -1496,9 +1508,9 @@ class Interface:
 
             guideline = guideline_with_connections.guideline
             Interface._write_success(f"Updated guideline (id: {guideline.id})")
-            Interface._render_guideline_entailments(
+            Interface._render_guideline_relationships(
                 guideline_with_connections.guideline,
-                guideline_with_connections.connections,
+                guideline_with_connections.relationships,
                 guideline_with_connections.tool_associations,
                 include_indirect=False,
             )
@@ -1529,9 +1541,9 @@ class Interface:
             guideline_with_connections_and_associations = Actions.view_guideline(ctx, guideline_id)
 
             Interface._render_guidelines([guideline_with_connections_and_associations.guideline])
-            Interface._render_guideline_entailments(
+            Interface._render_guideline_relationships(
                 guideline_with_connections_and_associations.guideline,
-                guideline_with_connections_and_associations.connections,
+                guideline_with_connections_and_associations.relationships,
                 guideline_with_connections_and_associations.tool_associations,
                 include_indirect=True,
             )
@@ -1566,38 +1578,55 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def create_entailment(
+    def create_relationship(
         ctx: click.Context,
         source_guideline_id: str,
         target_guideline_id: str,
+        kind: GuidelineRelationshipKindDto,
     ) -> None:
         try:
-            connection = Actions.create_entailment(
+            guideline_with_connections_and_associations = Actions.create_relationship(
                 ctx,
                 source_guideline_id,
                 target_guideline_id,
+                kind,
             )
 
-            Interface._write_success(f"Added connection (id: {connection.connections[0].id})")
-            Interface._print_table([connection.dict()])
+            if new_relationship := next(
+                (
+                    r
+                    for r in guideline_with_connections_and_associations.relationships
+                    if source_guideline_id == r.source.id
+                    and target_guideline_id == r.target.id
+                    and kind == r.kind
+                ),
+                None,
+            ):
+                Interface._write_success(f"Added relationship (id: {new_relationship.id})")
+                Interface._print_table([new_relationship.dict()])
+            else:
+                Interface.write_error("Unexpected error: Relationship not found")
+                set_exit_status(1)
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
     @staticmethod
-    def remove_entailment(
+    def remove_relationship(
         ctx: click.Context,
         source_guideline_id: str,
         target_guideline_id: str,
+        kind: GuidelineRelationshipKindDto,
     ) -> None:
         try:
-            connection_id = Actions.remove_entailment(
+            relationship_id = Actions.remove_relationship(
                 ctx,
                 source_guideline_id,
                 target_guideline_id,
+                kind,
             )
 
-            Interface._write_success(f"Removed entailment (id: {connection_id})")
+            Interface._write_success(f"Removed relationship (id: {relationship_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2748,34 +2777,66 @@ async def async_main() -> None:
     ) -> None:
         Interface.list_guidelines(ctx, tag, hide_disabled)
 
-    @guideline.command("entail", help="Create an entailment between two guidelines")
+    @guideline.command("rel-enable", help="Create a relationship between two guidelines")
     @click.option("--source", type=str, metavar="ID", help="Source guideline ID", required=True)
     @click.option("--target", type=str, metavar="ID", help="Target guideline ID", required=True)
+    @click.option(
+        "--kind",
+        type=click.Choice(
+            [
+                "entailment",
+                "precedence",
+                "requirement",
+                "priority",
+                "persistence",
+            ]
+        ),
+        help="Relationship kind",
+        required=True,
+    )
     @click.pass_context
-    def guideline_entail(
+    def guideline_rel_enable(
         ctx: click.Context,
         source: str,
         target: str,
+        kind: GuidelineRelationshipKindDto,
     ) -> None:
-        Interface.create_entailment(
+        Interface.create_relationship(
             ctx=ctx,
             source_guideline_id=source,
             target_guideline_id=target,
+            kind=kind,
         )
 
-    @guideline.command("disentail", help="Delete an entailment between two guidelines")
+    @guideline.command("rel-disable", help="Delete a relationship between two guidelines")
     @click.option("--source", type=str, metavar="ID", help="Source guideline ID", required=True)
     @click.option("--target", type=str, metavar="ID", help="Target guideline ID", required=True)
+    @click.option(
+        "--kind",
+        type=click.Choice(
+            [
+                "entailment",
+                "precedence",
+                "requirement",
+                "priority",
+                "persistence",
+            ]
+        ),
+        help="Relationship kind",
+        required=True,
+    )
     @click.pass_context
-    def guideline_disentail(
+    def guideline_rel_disable(
         ctx: click.Context,
         source: str,
         target: str,
+        kind: GuidelineRelationshipKindDto,
     ) -> None:
-        Interface.remove_entailment(
+        Interface.remove_relationship(
             ctx=ctx,
             source_guideline_id=source,
             target_guideline_id=target,
+            kind=kind,
         )
 
     @guideline.command("tool-enable", help="Allow a guideline to make use of a tool")
