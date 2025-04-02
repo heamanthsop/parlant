@@ -203,6 +203,19 @@ def pay_cc_bill(payment_date: str) -> ToolResult:
     return ToolResult({"result": "success"})
 
 
+def register_for_sweepstake(
+    first_name: str,
+    last_name: str,
+    father_name: str,
+    mother_name: str,
+    entry_type: str,
+    n_entries: int,
+    donation_target: Optional[str] = None,
+    donation_percent: Optional[int] = None,
+) -> ToolResult:
+    return ToolResult({"result": "success"})
+
+
 async def get_electronic_products_by_type(
     product_type: ElectronicProductType,
 ) -> ToolResult:

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import enum
 import importlib
 import inspect
+import sys
 from typing import (
     Any,
     Awaitable,
@@ -47,6 +48,8 @@ ToolParameterType = Literal[
 ]
 
 EnumValueType = Union[str, int]
+
+DEFAULT_PARAMETER_PRECEDENCE: int = sys.maxsize
 
 
 class ToolParameterDescriptor(TypedDict, total=False):
@@ -150,6 +153,13 @@ class ToolParameterOptions(DefaultBaseModel):
     )
     """A custom function to provide valid choicoes for the parameter's argument."""
 
+    precedence: Optional[int] = Field(default=DEFAULT_PARAMETER_PRECEDENCE)
+    """The precedence of this parameter comparing to other parameters. Lower values are higher precedence.
+    This value will be used in order to present the user with fewer and clearer questions about multiple missing parameters."""
+
+    display_name: Optional[str] = Field(default=None)
+    """An alias to use when presenting this parameter to user, instead of the real name"""
+
 
 @dataclass(frozen=True)
 class Tool:
@@ -235,7 +245,7 @@ class _LocalTool:
     creation_utc: datetime
     module_path: str
     description: str
-    parameters: dict[str, ToolParameterDescriptor]
+    parameters: dict[str, tuple[ToolParameterDescriptor, ToolParameterOptions]]
     required: list[str]
     consequential: bool
 
@@ -246,26 +256,27 @@ class LocalToolService(ToolService):
     ) -> None:
         self._local_tools_by_name: dict[str, _LocalTool] = {}
 
+    # It used to have more logic, now it's a candidate for future refactoring... (26/3/2025)
     def _local_tool_to_tool(self, local_tool: _LocalTool) -> Tool:
         return Tool(
             creation_utc=local_tool.creation_utc,
             name=local_tool.name,
             description=local_tool.description,
             metadata={},
-            parameters={
-                name: (descriptor, ToolParameterOptions())
-                for name, descriptor in local_tool.parameters.items()
-            },
+            parameters=local_tool.parameters,
             required=local_tool.required,
             consequential=local_tool.consequential,
         )
 
+    # Note that in this function's arguments ToolParameterOptions is optional (initialized to default if not given)
     async def create_tool(
         self,
         name: str,
         module_path: str,
         description: str,
-        parameters: Mapping[str, ToolParameterDescriptor],
+        parameters: Mapping[
+            str, ToolParameterDescriptor | tuple[ToolParameterDescriptor, ToolParameterOptions]
+        ],
         required: Sequence[str],
         consequential: bool = False,
     ) -> Tool:
@@ -275,7 +286,10 @@ class LocalToolService(ToolService):
             name=name,
             module_path=module_path,
             description=description,
-            parameters=dict(parameters),
+            parameters={
+                prm: details if isinstance(details, tuple) else (details, ToolParameterOptions())
+                for prm, details in parameters.items()
+            },
             creation_utc=creation_utc,
             required=list(required),
             consequential=consequential,

@@ -21,6 +21,7 @@ All notable changes to Parlant will be documented here.
 - Add tags to context variables, guidelines, glossary and agents
 - Rename guideline proposer with guideline matcher
 - Add guideline strategy resolution
+- Add ToolParameterOptions precedence
 
 ## [1.6.2] - 2025-01-29
 

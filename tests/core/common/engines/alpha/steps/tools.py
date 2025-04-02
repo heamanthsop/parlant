@@ -15,7 +15,7 @@
 from typing import Any, cast
 from pytest_bdd import given, parsers
 
-from parlant.core.tools import Tool
+from parlant.core.tools import ToolParameterOptions
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -81,21 +81,6 @@ def given_the_tool_from_service(
         ),
     )
 
-    async def create_tool(
-        name: str,
-        module_path: str,
-        description: str,
-        parameters: dict[str, Any],
-        required: list[str],
-    ) -> Tool:
-        return await local_tool_service.create_tool(
-            name=name,
-            module_path=module_path,
-            description=description,
-            parameters=parameters,
-            required=required,
-        )
-
     service_tools: dict[str, dict[str, Any]] = {
         "first_service": {
             "schedule": {
@@ -131,7 +116,9 @@ def given_the_tool_from_service(
         },
     }
 
-    tool = context.sync_await(create_tool(**service_tools[service_name][tool_name]))
+    tool = context.sync_await(
+        local_tool_service.create_tool(**service_tools[service_name][tool_name])
+    )
 
     context.tools[tool_name] = tool
 
@@ -142,21 +129,6 @@ def given_a_tool(
     tool_name: str,
 ) -> None:
     local_tool_service = context.container[LocalToolService]
-
-    async def create_tool(
-        name: str,
-        module_path: str,
-        description: str,
-        parameters: dict[str, Any],
-        required: list[str],
-    ) -> Tool:
-        return await local_tool_service.create_tool(
-            name=name,
-            module_path=module_path,
-            description=description,
-            parameters=parameters,
-            required=required,
-        )
 
     tools: dict[str, dict[str, Any]] = {
         "get_terrys_offering": {
@@ -363,6 +335,133 @@ def given_a_tool(
             },
             "required": ["payment_date"],
         },
+        "register_for_sweepstake": {
+            "name": "register_for_sweepstake",
+            "description": "Register for a sweepstake given multiple required details",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "first_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=1),
+                ),
+                "last_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=1),
+                ),
+                "father_name": (
+                    {
+                        "type": "string",
+                    }
+                ),
+                "mother_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=2),
+                ),
+                "entry_type": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=3),
+                ),
+                "n_entries": (
+                    {
+                        "type": "int",
+                    },
+                    ToolParameterOptions(precedence=3),
+                ),
+                "donation_target": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=3),
+                ),
+                "donation_percent": (
+                    {
+                        "type": "int",
+                    },
+                    ToolParameterOptions(precedence=3),
+                ),
+            },
+            "required": [
+                "first_name",
+                "last_name",
+                "father_name",
+                "mother_name",
+                "entry_type",
+                "n_entries",
+                "donation_target",
+                "donation_percent",
+            ],
+        },
+        "register_for_confusing_sweepstake": {
+            "name": "register_for_confusing_sweepstake",
+            "description": "Register for a sweepstake with more confusing paramater options",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "first_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=11),
+                ),
+                "last_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=11),
+                ),
+                "father_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=-1),
+                ),
+                "mother_name": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=-1),
+                ),
+                "entry_type": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=30),
+                ),
+                "n_entries": (
+                    {
+                        "type": "int",
+                    },
+                    ToolParameterOptions(precedence=30),
+                ),
+                "donation_target": (
+                    {
+                        "type": "string",
+                    },
+                    ToolParameterOptions(precedence=-3),
+                ),
+                "donation_percent": (
+                    {
+                        "type": "int",
+                    },
+                    ToolParameterOptions(precedence=-3),
+                ),
+            },
+            "required": [
+                "first_name",
+                "last_name",
+                "father_name",
+                "mother_name",
+                "entry_type",
+                "n_entries",
+            ],
+        },
         "get_products_by_type": {
             "name": "get_products_by_type",
             "description": "Get all products that match the specified product type ",
@@ -395,7 +494,7 @@ def given_a_tool(
         },
     }
 
-    tool = context.sync_await(create_tool(**tools[tool_name]))
+    tool = context.sync_await(local_tool_service.create_tool(**tools[tool_name]))
 
     context.tools[tool_name] = tool
 

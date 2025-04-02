@@ -34,7 +34,7 @@ from parlant.core.sessions import (
 
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
-from tests.test_utilities import nlp_test
+from tests.test_utilities import nlp_test, JournalingEngineHooks
 
 
 @step(
@@ -527,3 +527,19 @@ def then_the_tool_calls_event_contains_call(
     ]
 
     assert len(matching_tool_calls) > 0, f"No tool call found for {tool_name}"
+
+
+@step(then, parsers.parse("the number of missing parameters is exactly {number_of_missing:d}"))
+def then_the_number_of_missing_is_exactly(
+    context: ContextOfTest,
+    emitted_events: list[EmittedEvent],
+    number_of_missing: int,
+) -> None:
+    latest_context = next(
+        iter(context.container[JournalingEngineHooks].latest_context_per_correlation_id.values())
+    )
+    missing_data = latest_context.state.tool_insights.missing_data
+
+    assert (
+        len(missing_data) == number_of_missing
+    ), f"Expected {number_of_missing} missing parameters, but found {len(missing_data)}"

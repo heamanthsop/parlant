@@ -308,3 +308,28 @@ Feature: Tools
         Then no tool calls event is emitted
         And a single message event is emitted
         And the message mentions that a date is missing
+
+    Scenario: When multiple parameters are missing, the message generator communicates only the ones with the lowest precedence value (1)
+        Given an empty session
+        And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
+        And the tool "register_for_sweepstake"
+        And an association between "registering_for_a_sweepstake" and "register_for_sweepstake"
+        And a customer message, "Hi, my first name is Sushi, Please register me for a sweepstake with 3 entries. Ask me right away regarding every missing detail."
+        When processing is triggered
+        Then no tool calls event is emitted
+        And a single message event is emitted
+        And the number of missing parameters is exactly 1
+        And the message mentions last name 
+
+    Scenario: When multiple parameters are missing, the message generator communicates only the ones with the lowest precedence value (2)
+        Given an empty session
+        And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
+        And the tool "register_for_confusing_sweepstake"
+        And an association between "registering_for_a_sweepstake" and "register_for_confusing_sweepstake"
+        And a customer message, "Hi, I live in middle earth, Please register me for a sweepstake with 666 satan-type entries. Ask me right away regarding every missing detail."
+        When processing is triggered
+        Then no tool calls event is emitted
+        And a single message event is emitted
+        And the message mentions that parameters are missing
+        And the number of missing parameters is exactly 2
+        And the message mentions father and mother
