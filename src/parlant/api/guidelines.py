@@ -16,13 +16,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import chain
-from typing import Annotated, Optional, Sequence, TypeAlias, get_args
+from typing import Annotated, Mapping, Optional, Sequence, TypeAlias, get_args
 from fastapi import APIRouter, HTTPException, Path, status, Query
 from pydantic import Field
 
 from parlant.api import agents, common
 from parlant.api.common import (
     InvoiceDataDTO,
+    JSONSerializableDTO,
     PayloadKindDTO,
     ToolIdDTO,
     apigen_config,
@@ -1113,14 +1114,13 @@ guideline_dto_example = {
     "action": "provide current pricing information and mention any ongoing promotions",
     "enabled": True,
     "tags": ["tag1", "tag2"],
+    "metadata": {"key1": "value1", "key2": "value2"},
 }
 
 
-GuidelineRelationshipIdField: TypeAlias = Annotated[
-    GuidelineRelationshipId,
-    Field(
-        description="Unique identifier for the guideline relationship",
-    ),
+GuidelineMetadataField: TypeAlias = Annotated[
+    Mapping[str, JSONSerializableDTO],
+    Field(description="Metadata for the guideline"),
 ]
 
 
@@ -1135,6 +1135,15 @@ class GuidelineDTO(
     action: GuidelineActionField
     enabled: GuidelineEnabledField
     tags: GuidelineTagsField
+    metadata: GuidelineMetadataField
+
+
+GuidelineRelationshipIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline relationship",
+    ),
+]
 
 
 GuidelineRelationshipIndirectField: TypeAlias = Annotated[
@@ -1182,6 +1191,7 @@ guideline_creation_params_example: ExampleJson = {
     "condition": "when the customer asks about pricing",
     "action": "provide current pricing information and mention any ongoing promotions",
     "enabled": False,
+    "metadata": {"key1": "value1", "key2": "value2"},
 }
 
 
@@ -1193,6 +1203,7 @@ class GuidelineCreationParamsDTO(
 
     condition: GuidelineConditionField
     action: GuidelineActionField
+    metadata: Optional[GuidelineMetadataField] = None
     enabled: Optional[GuidelineEnabledField] = None
     tags: Optional[GuidelineTagsField] = None
 
@@ -1252,11 +1263,42 @@ class GuidelineRelationshipUpdateParamsDTO(
     remove: Optional[Sequence[GuidelineRelationshipIdField]] = None
 
 
+GuidelineMetadataRemoveField: TypeAlias = Annotated[
+    Sequence[str],
+    Field(description="Metadata keys to remove from the guideline"),
+]
+
+guideline_metadata_update_params_example: ExampleJson = {
+    "add": {
+        "key1": "value1",
+        "key2": "value2",
+    },
+    "remove": ["key3", "key4"],
+}
+
+
+class GuidelineMetadataUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_metadata_update_params_example},
+):
+    """Parameters for updating the metadata of a guideline."""
+
+    add: Optional[GuidelineMetadataField] = None
+    remove: Optional[GuidelineMetadataRemoveField] = None
+
+
 guideline_update_params_example: ExampleJson = {
     "condition": "when the customer asks about pricing",
     "action": "provide current pricing information",
     "enabled": True,
     "tags": ["tag1", "tag2"],
+    "metadata": {
+        "add": {
+            "key1": "value1",
+            "key2": "value2",
+        },
+        "remove": ["key3", "key4"],
+    },
     "relationships": {
         "add": [
             {
@@ -1296,6 +1338,7 @@ class GuidelineUpdateParamsDTO(
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
     enabled: Optional[GuidelineEnabledField] = None
     tags: Optional[GuidelineTagsUpdateParamsDTO] = None
+    metadata: Optional[GuidelineMetadataUpdateParamsDTO] = None
 
 
 guideline_with_relationships_example: ExampleJson = {
@@ -1412,6 +1455,7 @@ def create_router(
         guideline = await guideline_store.create_guideline(
             condition=params.condition,
             action=params.action,
+            metadata=params.metadata or {},
             enabled=params.enabled or True,
             tags=tags or None,
         )
@@ -1420,6 +1464,7 @@ def create_router(
             id=guideline.id,
             condition=guideline.content.condition,
             action=guideline.content.action,
+            metadata=guideline.metadata,
             enabled=guideline.enabled,
             tags=guideline.tags,
         )
@@ -1458,6 +1503,7 @@ def create_router(
                 id=guideline.id,
                 condition=guideline.content.condition,
                 action=guideline.content.action,
+                metadata=guideline.metadata,
                 enabled=guideline.enabled,
                 tags=guideline.tags,
             )
@@ -1506,6 +1552,7 @@ def create_router(
                 id=guideline.id,
                 condition=guideline.content.condition,
                 action=guideline.content.action,
+                metadata=guideline.metadata,
                 enabled=guideline.enabled,
                 tags=guideline.tags,
             ),
@@ -1516,6 +1563,7 @@ def create_router(
                         id=relationship.source.id,
                         condition=relationship.source.content.condition,
                         action=relationship.source.content.action,
+                        metadata=relationship.source.metadata,
                         enabled=relationship.source.enabled,
                         tags=relationship.source.tags,
                     ),
@@ -1523,6 +1571,7 @@ def create_router(
                         id=relationship.target.id,
                         condition=relationship.target.content.condition,
                         action=relationship.target.content.action,
+                        metadata=relationship.target.metadata,
                         enabled=relationship.target.enabled,
                         tags=relationship.target.tags,
                     ),
@@ -1592,6 +1641,19 @@ def create_router(
                 guideline_id=guideline_id,
                 params=GuidelineUpdateParams(**update_params),
             )
+
+        if params.metadata:
+            if params.metadata.add:
+                await guideline_store.add_metadata(
+                    guideline_id=guideline_id,
+                    metadata=params.metadata.add,
+                )
+
+            if params.metadata.remove:
+                await guideline_store.remove_metadata(
+                    guideline_id=guideline_id,
+                    keys=params.metadata.remove,
+                )
 
         if params.relationships and params.relationships.add:
             for req in params.relationships.add:
@@ -1681,6 +1743,7 @@ def create_router(
                 id=updated_guideline.id,
                 condition=updated_guideline.content.condition,
                 action=updated_guideline.content.action,
+                metadata=updated_guideline.metadata,
                 enabled=updated_guideline.enabled,
                 tags=updated_guideline.tags,
             ),
@@ -1691,6 +1754,7 @@ def create_router(
                         id=relationship.source.id,
                         condition=relationship.source.content.condition,
                         action=relationship.source.content.action,
+                        metadata=relationship.source.metadata,
                         enabled=relationship.source.enabled,
                         tags=relationship.source.tags,
                     ),
@@ -1698,6 +1762,7 @@ def create_router(
                         id=relationship.target.id,
                         condition=relationship.target.content.condition,
                         action=relationship.target.content.action,
+                        metadata=relationship.target.metadata,
                         enabled=relationship.target.enabled,
                         tags=relationship.target.tags,
                     ),

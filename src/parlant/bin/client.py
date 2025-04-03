@@ -52,6 +52,7 @@ from parlant.client.types import (
     GuidelineToolAssociationUpdateParams,
     GuidelineTagsUpdateParams,
     GuidelineWithRelationshipsAndToolAssociations,
+    GuidelineMetadataUpdateParams,
     OpenApiServiceParams,
     SdkServiceParams,
     Service,
@@ -68,6 +69,7 @@ from parlant.client.types import (
     UtteranceField,
 )
 from websocket import WebSocketConnectionClosedException, create_connection
+
 
 INDENT = "  "
 
@@ -574,6 +576,31 @@ class Actions:
         client.guidelines.update(guideline_id, tags=GuidelineTagsUpdateParams(remove=[tag_id]))
 
         return tag_id
+
+    @staticmethod
+    def add_guideline_metadata(
+        ctx: click.Context,
+        guideline_id: str,
+        key: str,
+        value: str,
+    ) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.guidelines.update(
+            guideline_id,
+            metadata=GuidelineMetadataUpdateParams(add={key: value}),
+        )
+
+    @staticmethod
+    def remove_guideline_metadata(
+        ctx: click.Context,
+        guideline_id: str,
+        key: str,
+    ) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.guidelines.update(
+            guideline_id,
+            metadata=GuidelineMetadataUpdateParams(remove=[key]),
+        )
 
     @staticmethod
     def list_variables(
@@ -1449,6 +1476,9 @@ class Interface:
                 "Action": guideline.action,
                 "Enabled": guideline.enabled,
                 "Tags": ", ".join(guideline.tags),
+                "Metadata": ", ".join([f"{k}: {v}" for k, v in guideline.metadata.items()])
+                if guideline.metadata
+                else "",
             }
             for guideline in guidelines
         ]
@@ -1776,6 +1806,37 @@ class Interface:
             tag_id = Actions.remove_guideline_tag(ctx, guideline_id, tag)
             Interface._write_success(
                 f"Removed tag (id: {tag_id}) from guideline (id: {guideline_id})"
+            )
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def add_guideline_metadata(
+        ctx: click.Context,
+        guideline_id: str,
+        key: str,
+        value: str,
+    ) -> None:
+        try:
+            Actions.add_guideline_metadata(ctx, guideline_id, key, value)
+            Interface._write_success(
+                f"Added metadata (key: {key}, value: {value}) to guideline (id: {guideline_id})"
+            )
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_guideline_metadata(
+        ctx: click.Context,
+        guideline_id: str,
+        key: str,
+    ) -> None:
+        try:
+            Actions.remove_guideline_metadata(ctx, guideline_id, key)
+            Interface._write_success(
+                f"Removed metadata (key: {key}) from guideline (id: {guideline_id})"
             )
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
@@ -3030,6 +3091,21 @@ async def async_main() -> None:
             guideline_id=id,
             tag=tag,
         )
+
+    @guideline.command("set", help="Set metadata for a guideline using a key and value")
+    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
+    @click.option("--key", type=str, metavar="KEY", help="Key", required=True)
+    @click.option("--value", type=str, metavar="VALUE", help="Value", required=True)
+    @click.pass_context
+    def guideline_set(ctx: click.Context, id: str, key: str, value: str) -> None:
+        Interface.add_guideline_metadata(ctx, id, key, value)
+
+    @guideline.command("unset", help="Remove metadata for a guideline using a key")
+    @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
+    @click.option("--key", type=str, metavar="KEY", help="Key", required=True)
+    @click.pass_context
+    def guideline_unset(ctx: click.Context, id: str, key: str) -> None:
+        Interface.remove_guideline_metadata(ctx, id, key)
 
     @cli.group(help="Manage an agent's context variables")
     def variable() -> None:

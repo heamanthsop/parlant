@@ -873,6 +873,7 @@ class AlphaEngine(Engine):
                     ),
                     enabled=True,
                     tags=[],
+                    metadata={},
                 ),
                 rationale=rationales[utterance.reason],
                 score=10,

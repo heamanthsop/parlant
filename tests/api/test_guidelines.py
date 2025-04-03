@@ -1381,6 +1381,7 @@ async def test_that_a_guideline_can_be_created(
             "condition": "the customer asks about pricing",
             "action": "provide current pricing information",
             "enabled": True,
+            "metadata": {"key1": "value1", "key2": "value2"},
         },
     )
 
@@ -1391,6 +1392,7 @@ async def test_that_a_guideline_can_be_created(
     assert guideline["action"] == "provide current pricing information"
     assert guideline["enabled"] is True
     assert guideline["tags"] == []
+    assert guideline["metadata"] == {"key1": "value1", "key2": "value2"}
 
 
 async def test_that_a_guideline_can_be_created_with_tags(
@@ -1497,6 +1499,7 @@ async def test_that_a_guideline_can_be_read(
     guideline = await guideline_store.create_guideline(
         condition="the customer asks about the weather",
         action="provide the current weather update",
+        metadata={"key1": "value1", "key2": "value2"},
     )
 
     item = (await async_client.get(f"/guidelines/{guideline.id}")).raise_for_status().json()
@@ -1504,6 +1507,7 @@ async def test_that_a_guideline_can_be_read(
     assert item["guideline"]["id"] == guideline.id
     assert item["guideline"]["condition"] == "the customer asks about the weather"
     assert item["guideline"]["action"] == "provide the current weather update"
+    assert item["guideline"]["metadata"] == {"key1": "value1", "key2": "value2"}
     assert len(item["relationships"]) == 0
     assert len(item["tool_associations"]) == 0
 
@@ -1980,3 +1984,35 @@ async def test_that_relationship_with_wrong_type_returns_422(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_that_metadata_can_be_updated_for_a_guideline(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+        action="get meeting event information",
+        metadata={"key3": "value2"},
+    )
+
+    response = await async_client.patch(
+        f"/guidelines/{guideline.id}",
+        json={
+            "metadata": {
+                "add": {
+                    "key1": "value1",
+                    "key2": "value2",
+                },
+                "remove": ["key3"],
+            }
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    updated_guideline = response.json()["guideline"]
+
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["metadata"] == {"key1": "value1", "key2": "value2"}
