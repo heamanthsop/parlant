@@ -180,7 +180,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
     assert tool_call.arguments["category"] == "peripherals"
 
 
-async def test_that_a_plugin_gets_called_with_an_enum_parameter(
+async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
     container: Container,
     tool_caller: ToolCaller,
     agent: Agent,

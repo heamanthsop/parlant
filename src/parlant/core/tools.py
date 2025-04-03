@@ -58,7 +58,6 @@ class ToolParameterDescriptor(TypedDict, total=False):
     enum: Sequence[EnumValueType]
     description: str
     examples: Sequence[str]
-    has_default: bool
 
 
 # These two aliases are redefined here to avoid a circular reference.

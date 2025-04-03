@@ -272,10 +272,22 @@ class ToolCaller:
         with self._logger.operation(f"Evaluation: {tool_id}"):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
+        # Evaluate the tool calls
+        tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
+            inference_output, candidate_descriptor
+        )
+
+        return generation_info, tool_calls, missing_data
+
+    async def _evaluate_tool_calls_parameters(
+        self,
+        inference_output: Sequence[ToolCallEvaluation],
+        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatch]],
+    ) -> tuple[list[ToolCall], list[MissingToolData]]:
         tool_calls = []
         missing_data = []
+        tool_id, tool, _ = candidate_descriptor
 
-        # Evaluate the tool calls parameters
         for tc in inference_output:
             if (
                 tc.applicability_score >= 6
@@ -338,8 +350,7 @@ class ToolCaller:
                 self._logger.debug(
                     f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
                 )
-
-        return generation_info, tool_calls, missing_data
+        return tool_calls, missing_data
 
     async def execute_tool_calls(
         self,
