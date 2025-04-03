@@ -930,14 +930,14 @@ Produce a valid JSON object in the following format: ###
         rendered_utterance = await self._render_utterance(context, utterance)
 
         match composition_mode:
-            case "fluid_utterance" | "composited_utterance":
+            case "composited_utterance":
                 recomposed_utterance = await self._recompose(context, rendered_utterance)
 
                 return message_event_response.info, _UtteranceSelectionResult(
                     message=recomposed_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
-            case "strict_utterance":
+            case "strict_utterance" | "fluid_utterance":
                 return message_event_response.info, _UtteranceSelectionResult(
                     message=rendered_utterance,
                     utterances=[(utterance_id, utterance)],
