@@ -167,7 +167,8 @@ class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
 
 
 class UtteranceFieldExtractionSchema(DefaultBaseModel):
-    value: Optional[str] = None
+    field_name: Optional[str] = None
+    field_value: Optional[str] = None
 
 
 class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
@@ -232,32 +233,34 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         builder.add_section(
             "utterance-generative-field-extraction-field-name",
             """\
+We're now working on rendering an utterance template as a reply to the user.
 
-You must extract the VALUE for the field '{field_name}' from the context above — AND ONLY THIS FIELD — as it's defined in the following template: ###
+The utterance template we're rendering is this: ###
 {utterance}
-## format#
+###
 
-Output a JSON object with a single property 'value' containing the extracted field ONLY such that it neatly substitutes into the utterance template.
+We're rendering one field at a time out of this utterance.
+Your job now is to take all of the context above and extract out of it the value for the field '{field_name}' within the utterance template.
 
-The value itself is never a JSON object. Rather, it's formatted text that fits right inside the utterance template as a substituted value.
+Output a JSON object containing the extracted field such that it neatly renders (substituting the field variable) into the utterance template.
 
-When applicable, if the field is substituted by a list or dict, consider rendering it in Markdown format.
+When applicable, if the field is substituted by a list or dict, consider rendering the value in Markdown format.
 
 A few examples:
 ---------------
 1) Utterance is "Hello {{{{generative.name}}}}, how may I help you today?"
 Example return value: ###
-{{ "value": "John" }}
+{{ "field_name": "name", "field_value": "John" }}
 ###
 
 2) Utterance is "Hello {{{{generative.names}}}}, how may I help you today?"
 Example return value: ###
-{{ "value": "John and Katie" }}
+{{ "field_name": "names", "field_value": "John and Katie" }}
 ###
 
 3) Utterance is "Next flights are {{{{generative.flight_list}}}}
 Example return value: ###
-{{ "value": "- <FLIGHT_1>\\n- <FLIGHT_2>\\n" }}
+{{ "field_name": "flight_list", "field_value": "- <FLIGHT_1>\\n- <FLIGHT_2>\\n" }}
 ###
 """,
             props={"utterance": utterance, "field_name": field_name},
@@ -269,7 +272,7 @@ Example return value: ###
             f"Utterance GenerativeFieldExtraction Completion:\n{result.content.model_dump_json(indent=2)}"
         )
 
-        return result.content.value
+        return result.content.field_value
 
 
 class UtteranceFieldExtractor(ABC):
