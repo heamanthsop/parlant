@@ -21,7 +21,8 @@ import importlib
 import os
 import traceback
 from lagom import Container, Singleton
-from typing import AsyncIterator, Awaitable, Callable, Iterable, Sequence, cast
+from typing import AsyncIterator, Awaitable, Callable, Iterable, Optional, Sequence, cast
+import rich
 import toml
 from typing_extensions import NoReturn
 import click
@@ -124,8 +125,10 @@ from parlant.core.loggers import CompositeLogger, FileLogger, LogLevel, Logger
 from parlant.core.application import Application
 from parlant.core.version import VERSION
 
+
 DEFAULT_PORT = 8800
 SERVER_ADDRESS = "https://localhost"
+CONFIG_FILE_PATH = Path("parlant.toml")
 
 DEFAULT_NLP_SERVICE = "openai"
 
@@ -233,11 +236,10 @@ async def create_agent_if_absent(agent_store: AgentStore) -> None:
 
 
 async def get_module_list_from_config() -> list[str]:
-    config_file = Path("parlant.toml")
-
-    if config_file.exists():
-        config = toml.load(config_file)
-        # Expecting structure of:
+    if CONFIG_FILE_PATH.exists():
+        config = toml.load(CONFIG_FILE_PATH)
+        # Expecting the following toml structure:
+        #
         # [parlant]
         # modules = ["module_1", "module_2"]
         return list(config.get("parlant", {}).get("modules", []))
@@ -616,6 +618,29 @@ def main() -> None:
     click_completion.init()
 
     @click.group(invoke_without_command=True)
+    @click.pass_context
+    def cli(context: click.Context) -> None:
+        if not context.invoked_subcommand:
+            die(context.get_help())
+
+    @cli.command(
+        "help",
+        context_settings={"ignore_unknown_options": True},
+        help="Show help for a command",
+    )
+    @click.argument("command", nargs=-1, required=False)
+    @click.pass_context
+    def help_command(ctx: click.Context, command: Optional[tuple[str]] = None) -> None:
+        def transform_and_exec_help(command: str) -> None:
+            new_args = [sys.argv[0]] + command.split() + ["--help"]
+            os.execvp(sys.executable, [sys.executable] + new_args)
+
+        if not command:
+            click.echo(cli.get_help(ctx))
+        else:
+            transform_and_exec_help(" ".join(command))
+
+    @cli.command("run", help="Run the server")
     @click.option(
         "-p",
         "--port",
@@ -710,7 +735,7 @@ def main() -> None:
         ),
     )
     @click.pass_context
-    def cli(
+    def run(
         ctx: click.Context,
         port: int,
         openai: bool,
@@ -778,6 +803,159 @@ def main() -> None:
         )
 
         asyncio.run(start_server(ctx.obj))
+
+    @cli.group("module", help="Create and manage enabled modules")
+    def module() -> None:
+        pass
+
+    def enable_module(name: str) -> None:
+        if not Path(f"{name}.py").exists():
+            rich.print(rich.text.Text(f"> Module file {name}.py not found", style="bold red"))
+            return
+
+        if not CONFIG_FILE_PATH.exists():
+            CONFIG_FILE_PATH.write_text(toml.dumps({"parlant": {"modules": [name]}}))
+        else:
+            content = toml.loads(CONFIG_FILE_PATH.read_text())
+            enabled_modules = cast(list[str], content["parlant"]["modules"])
+
+            if name not in enabled_modules:
+                enabled_modules.append(name)
+
+            CONFIG_FILE_PATH.write_text(toml.dumps(content))
+
+        rich.print(rich.text.Text(f"> Enabled module {name}.py", style="bold green"))
+
+    @module.command("create", help="Create a new module")
+    @click.option(
+        "-n",
+        "--no-enable",
+        default=False,
+        is_flag=True,
+        help="Do not automatically enable this module",
+    )
+    @click.option(
+        "-t",
+        "--template",
+        type=click.Choice(["blank", "tool-service"]),
+        default="blank",
+        help="Start with a module template",
+    )
+    @click.argument("MODULE_NAME")
+    def create_module(module_name: str, no_enable: bool, template: str) -> None:
+        filename = Path(f"{module_name}.py")
+
+        if filename.exists():
+            die("Module already exists. Please remove it to create a new one under the same name.")
+
+        if template == "blank":
+            content = """\
+from lagom import Container
+
+async def configure_module(container: Container) -> Container:
+    pass
+
+async def initialize_module(container: Container) -> None:
+    pass
+
+async def shutdown_module() -> None:
+    pass
+"""
+        elif template == "tool-service":
+            content = f"""\
+from contextlib import AsyncExitStack
+from lagom import Container
+from typing import Annotated
+
+from parlant.core.services.tools.plugins import PluginServer, tool
+from parlant.core.services.tools.service_registry import ServiceRegistry
+from parlant.core.tools import ToolContext, ToolParameterOptions, ToolResult
+
+
+EXIT_STACK = AsyncExitStack()
+
+
+@tool
+async def greet_person(
+    context: ToolContext,
+    person_name: Annotated[
+        str,
+        ToolParameterOptions(
+            description="The name of the person to greet",
+            source="any",
+        ),
+    ],
+) -> ToolResult:
+    return ToolResult({{"message": f"Howdy, {{person_name}}!"}})
+
+
+async def initialize_module(container: Container) -> None:
+    tools = [greet_person]
+
+    host = "127.0.0.1"
+    port = 8199
+
+    server = PluginServer(
+        tools=tools,
+        port=port,
+        host=host,
+        hosted=True,
+    )
+
+    await container[ServiceRegistry].update_tool_service(
+        name="{module_name}",
+        kind="sdk",
+        url=f"http://{{host}}:{{port}}",
+        transient=True,
+    )
+
+    await EXIT_STACK.enter_async_context(server)
+    EXIT_STACK.push_async_callback(server.shutdown)
+
+
+async def shutdown_module() -> None:
+    await EXIT_STACK.aclose()
+
+"""
+
+        filename.write_text(content)
+
+        rich.print(rich.text.Text(f"> Created module file {module_name}.py", style="bold green"))
+
+        if not no_enable:
+            enable_module(module_name)
+
+    @module.command("enable", help="Enable a module")
+    @click.argument("MODULE_NAME")
+    def module_enable(module_name: str) -> None:
+        enable_module(module_name)
+
+    @module.command("disable", help="Disable a module")
+    @click.argument("MODULE_NAME")
+    def module_disable(module_name: str) -> None:
+        if not CONFIG_FILE_PATH.exists():
+            rich.print(rich.text.Text(f"> Module {module_name} was not enabled", style="bold red"))
+            return
+        else:
+            content = toml.loads(CONFIG_FILE_PATH.read_text())
+            enabled_modules = cast(list[str], content["parlant"]["modules"])
+
+            if module_name in enabled_modules:
+                enabled_modules.remove(module_name)
+
+            CONFIG_FILE_PATH.write_text(toml.dumps(content))
+
+        rich.print(rich.text.Text(f"> Disabled module {module_name}", style="bold green"))
+
+    @module.command("list", help="List enabled modules")
+    def module_list() -> None:
+        if not CONFIG_FILE_PATH.exists():
+            print("No modules enabled")
+            return
+        else:
+            content = toml.loads(CONFIG_FILE_PATH.read_text())
+            enabled_modules = cast(list[str], content["parlant"]["modules"])
+            print(", ".join(enabled_modules))
 
     try:
         cli()
