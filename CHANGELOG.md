@@ -22,6 +22,7 @@ All notable changes to Parlant will be documented here.
 - Rename guideline proposer with guideline matcher
 - Add guideline strategy resolution
 - Add ToolParameterOptions precedence
+- Introduce Guideline relationships
 
 ## [1.6.2] - 2025-01-29
 

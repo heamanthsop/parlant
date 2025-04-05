@@ -62,7 +62,9 @@ async def test_that_direct_guideline_relationships_can_be_listed(
     ]:
         await guideline_relationship_store.create_relationship(
             source=source,
+            source_type="guideline",
             target=target,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -89,7 +91,9 @@ async def test_that_indirect_guideline_relationships_can_be_listed(
     for source, target in [(a_id, b_id), (a_id, c_id), (b_id, d_id), (z_id, b_id)]:
         await guideline_relationship_store.create_relationship(
             source=source,
+            source_type="guideline",
             target=target,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -118,7 +122,9 @@ async def test_that_db_data_is_loaded_correctly(
     for source, target in [(a_id, b_id), (a_id, c_id), (b_id, d_id), (z_id, b_id)]:
         await guideline_relationship_store.create_relationship(
             source=source,
+            source_type="guideline",
             target=target,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -144,12 +150,16 @@ async def test_that_connections_are_returned_for_source_without_indirect_connect
 
     await guideline_relationship_store.create_relationship(
         source=a_id,
+        source_type="guideline",
         target=b_id,
+        target_type="guideline",
         kind="entailment",
     )
     await guideline_relationship_store.create_relationship(
         source=b_id,
+        source_type="guideline",
         target=c_id,
+        target_type="guideline",
         kind="entailment",
     )
 
@@ -172,10 +182,18 @@ async def test_that_connections_are_returned_for_source_with_indirect_connection
     c_id = GuidelineId("c")
 
     await guideline_relationship_store.create_relationship(
-        source=a_id, target=b_id, kind="entailment"
+        source=a_id,
+        source_type="guideline",
+        target=b_id,
+        target_type="guideline",
+        kind="entailment",
     )
     await guideline_relationship_store.create_relationship(
-        source=b_id, target=c_id, kind="entailment"
+        source=b_id,
+        source_type="guideline",
+        target=c_id,
+        target_type="guideline",
+        kind="entailment",
     )
 
     relationships = await guideline_relationship_store.list_relationships(
@@ -198,10 +216,18 @@ async def test_that_relationships_are_returned_for_target_without_indirect_conne
     c_id = GuidelineId("c")
 
     await guideline_relationship_store.create_relationship(
-        source=a_id, target=b_id, kind="entailment"
+        source=a_id,
+        source_type="guideline",
+        target=b_id,
+        target_type="guideline",
+        kind="entailment",
     )
     await guideline_relationship_store.create_relationship(
-        source=b_id, target=c_id, kind="entailment"
+        source=b_id,
+        source_type="guideline",
+        target=c_id,
+        target_type="guideline",
+        kind="entailment",
     )
 
     relationships = await guideline_relationship_store.list_relationships(
@@ -223,10 +249,18 @@ async def test_that_relationships_are_returned_for_target_with_indirect_connecti
     c_id = GuidelineId("c")
 
     await guideline_relationship_store.create_relationship(
-        source=a_id, target=b_id, kind="entailment"
+        source=a_id,
+        source_type="guideline",
+        target=b_id,
+        target_type="guideline",
+        kind="entailment",
     )
     await guideline_relationship_store.create_relationship(
-        source=b_id, target=c_id, kind="entailment"
+        source=b_id,
+        source_type="guideline",
+        target=c_id,
+        target_type="guideline",
+        kind="entailment",
     )
 
     relationships = await guideline_relationship_store.list_relationships(

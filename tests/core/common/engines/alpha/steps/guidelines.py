@@ -444,7 +444,9 @@ def given_an_entailment_guideline_relationship(
     context.sync_await(
         store.create_relationship(
             source=context.guidelines[guideline_a].id,
+            source_type="guideline",
             target=context.guidelines[guideline_b].id,
+            target_type="guideline",
             kind="entailment",
         )
     )

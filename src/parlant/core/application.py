@@ -187,7 +187,9 @@ class Application:
 
             await self._guideline_relationship_store.create_relationship(
                 source=source_guideline_id,
+                source_type="guideline",
                 target=target_guideline_id,
+                target_type="guideline",
                 kind="entailment",
             )
 
@@ -248,7 +250,9 @@ class Application:
                     if proposition.check_kind == "connection_with_another_evaluated_guideline":
                         await self._guideline_relationship_store.create_relationship(
                             source=content_guidelines[source_key],
+                            source_type="guideline",
                             target=content_guidelines[target_key],
+                            target_type="guideline",
                             kind="entailment",
                         )
                     else:

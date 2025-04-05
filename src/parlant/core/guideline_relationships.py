@@ -15,7 +15,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal, NewType, Optional, Sequence, TypeAlias
+from typing import Literal, NewType, Optional, Sequence, TypeAlias, cast
 from typing_extensions import override, TypedDict, Self
 
 import networkx  # type: ignore
@@ -33,6 +33,7 @@ from parlant.core.persistence.document_database_helper import (
     DocumentMigrationHelper,
     DocumentStoreMigrationHelper,
 )
+from parlant.core.tags import TagId
 
 GuidelineRelationshipId = NewType("GuidelineRelationshipId", str)
 
@@ -44,13 +45,17 @@ GuidelineRelationshipKind: TypeAlias = Literal[
     "persistence",
 ]
 
+EntityType: TypeAlias = Literal["guideline", "tag"]
+
 
 @dataclass(frozen=True)
 class GuidelineRelationship:
     id: GuidelineRelationshipId
     creation_utc: datetime
-    source: GuidelineId
-    target: GuidelineId
+    source: GuidelineId | TagId
+    source_type: EntityType
+    target: GuidelineId | TagId
+    target_type: EntityType
     kind: GuidelineRelationshipKind
 
 
@@ -58,8 +63,10 @@ class GuidelineRelationshipStore(ABC):
     @abstractmethod
     async def create_relationship(
         self,
-        source: GuidelineId,
-        target: GuidelineId,
+        source: GuidelineId | TagId,
+        source_type: EntityType,
+        target: GuidelineId | TagId,
+        target_type: EntityType,
         kind: GuidelineRelationshipKind,
     ) -> GuidelineRelationship: ...
 
@@ -74,8 +81,8 @@ class GuidelineRelationshipStore(ABC):
         self,
         kind: GuidelineRelationshipKind,
         indirect: bool,
-        source: Optional[GuidelineId] = None,
-        target: Optional[GuidelineId] = None,
+        source: Optional[GuidelineId | TagId] = None,
+        target: Optional[GuidelineId | TagId] = None,
     ) -> Sequence[GuidelineRelationship]: ...
 
 
@@ -87,7 +94,7 @@ class GuidelineRelationshipDocument_v0_1_0(TypedDict, total=False):
     target: GuidelineId
 
 
-class GuidelineRelationshipDocument(TypedDict, total=False):
+class GuidelineRelationshipDocument_v0_2_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -96,8 +103,19 @@ class GuidelineRelationshipDocument(TypedDict, total=False):
     kind: GuidelineRelationshipKind
 
 
+class GuidelineRelationshipDocument(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    source: GuidelineId | TagId
+    source_type: EntityType
+    target: GuidelineId | TagId
+    target_type: EntityType
+    kind: GuidelineRelationshipKind
+
+
 class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
-    VERSION = Version.from_string("0.2.0")
+    VERSION = Version.from_string("0.3.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -107,6 +125,9 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[GuidelineRelationshipDocument]:
+        async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            return cast(GuidelineRelationshipDocument, doc)
+
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise ValueError("Cannot load v0.1.0 guideline relationships")
 
@@ -114,6 +135,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             self,
             {
                 "0.1.0": v0_1_0_to_v_0_2_0,
+                "0.2.0": v0_2_0_to_v_0_3_0,
             },
         ).migrate(doc)
 
@@ -148,7 +170,9 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             version=self.VERSION.to_string(),
             creation_utc=guideline_relationship.creation_utc.isoformat(),
             source=guideline_relationship.source,
+            source_type=guideline_relationship.source_type,
             target=guideline_relationship.target,
+            target_type=guideline_relationship.target_type,
             kind=guideline_relationship.kind,
         )
 
@@ -156,11 +180,24 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
         self,
         guideline_relationship_document: GuidelineRelationshipDocument,
     ) -> GuidelineRelationship:
+        source = (
+            GuidelineId(guideline_relationship_document["source"])
+            if guideline_relationship_document["source_type"] == "guideline"
+            else TagId(guideline_relationship_document["source"])
+        )
+        target = (
+            GuidelineId(guideline_relationship_document["target"])
+            if guideline_relationship_document["target_type"] == "guideline"
+            else TagId(guideline_relationship_document["target"])
+        )
+
         return GuidelineRelationship(
             id=GuidelineRelationshipId(guideline_relationship_document["id"]),
             creation_utc=datetime.fromisoformat(guideline_relationship_document["creation_utc"]),
-            source=guideline_relationship_document["source"],
-            target=guideline_relationship_document["target"],
+            source=source,
+            source_type=guideline_relationship_document["source_type"],
+            target=target,
+            target_type=guideline_relationship_document["target_type"],
             kind=guideline_relationship_document["kind"],
         )
 
@@ -198,8 +235,10 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
     @override
     async def create_relationship(
         self,
-        source: GuidelineId,
-        target: GuidelineId,
+        source: GuidelineId | TagId,
+        source_type: EntityType,
+        target: GuidelineId | TagId,
+        target_type: EntityType,
         kind: GuidelineRelationshipKind,
         creation_utc: Optional[datetime] = None,
     ) -> GuidelineRelationship:
@@ -210,7 +249,9 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
                 id=GuidelineRelationshipId(generate_id()),
                 creation_utc=creation_utc,
                 source=source,
+                source_type=source_type,
                 target=target,
+                target_type=target_type,
                 kind=kind,
             )
 
@@ -263,13 +304,13 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
         self,
         kind: GuidelineRelationshipKind,
         indirect: bool,
-        source: Optional[GuidelineId] = None,
-        target: Optional[GuidelineId] = None,
+        source: Optional[GuidelineId | TagId] = None,
+        target: Optional[GuidelineId | TagId] = None,
     ) -> Sequence[GuidelineRelationship]:
         assert (source or target) and not (source and target)
 
         async def get_node_relationships(
-            source: GuidelineId,
+            source: GuidelineId | TagId,
             reversed_graph: bool = False,
         ) -> Sequence[GuidelineRelationship]:
             if not graph.has_node(source):

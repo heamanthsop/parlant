@@ -58,7 +58,9 @@ async def create_guidelines_and_create_relationships_between_them(
     for source, target in zip(guidelines, guidelines[1:]):
         await container[GuidelineRelationshipStore].create_relationship(
             source=source.id,
+            source_type="guideline",
             target=target.id,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -587,7 +589,9 @@ async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_co
     for source, target in zip(guidelines, guidelines[1:]):
         await container[GuidelineRelationshipStore].create_relationship(
             source=source.id,
+            source_type="guideline",
             target=target.id,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -992,7 +996,9 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
 
     await relationship_store.create_relationship(
         source=existing_guideline.id,
+        source_type="guideline",
         target=connected_guideline.id,
+        target_type="guideline",
         kind="entailment",
     )
 
@@ -1216,7 +1222,9 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
 
     await relationship_store.create_relationship(
         source=existing_guideline.id,
+        source_type="guideline",
         target=connected_guideline.id,
+        target_type="guideline",
         kind="entailment",
     )
 
@@ -1692,7 +1700,9 @@ async def test_that_a_relationship_can_be_created_between_two_guidelines(
                 "add": [
                     {
                         "source": source_guideline.id,
+                        "source_type": "guideline",
                         "target": target_guideline.id,
+                        "target_type": "guideline",
                         "kind": "entailment",
                     }
                 ],
@@ -1879,7 +1889,9 @@ async def test_that_relationship_can_be_added_to_a_guideline(
                     {
                         "kind": "requirement",
                         "source": source_guideline.id,
+                        "source_type": "guideline",
                         "target": target_guideline.id,
+                        "target_type": "guideline",
                     }
                 ]
             },
@@ -1914,7 +1926,9 @@ async def test_that_relationship_can_be_removed_from_a_guideline(
 
     relationship = await guideline_relationship_store.create_relationship(
         source=source_guideline.id,
+        source_type="guideline",
         target=target_guideline.id,
+        target_type="guideline",
         kind="precedence",
     )
 

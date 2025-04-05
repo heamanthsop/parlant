@@ -160,6 +160,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
         guidelines.create_legacy_router(
             application=application,
             guideline_store=guideline_store,
+            tag_store=tag_store,
             guideline_relationship_store=guideline_relationship_store,
             service_registry=service_registry,
             guideline_tool_association_store=guideline_tool_association_store,
