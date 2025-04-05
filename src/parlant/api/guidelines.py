@@ -1835,10 +1835,10 @@ def create_router(
                         _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)
-                        await guideline_store.upsert_tag(
-                            guideline_id=guideline_id,
-                            tag_id=tag_id,
-                        )
+                    await guideline_store.upsert_tag(
+                        guideline_id=guideline_id,
+                        tag_id=tag_id,
+                    )
             if params.tags.remove:
                 for tag_id in params.tags.remove:
                     await guideline_store.remove_tag(

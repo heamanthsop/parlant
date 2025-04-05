@@ -382,7 +382,10 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    _ = await tag_store.read_tag(tag_id)
+                    if agent_id := Tag.extract_agent_id(tag_id):
+                        _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
                     await customer_store.upsert_tag(customer_id, tag_id)
             if params.tags.remove:
                 for tag_id in params.tags.remove:
