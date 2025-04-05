@@ -387,13 +387,6 @@ class GuidelineRelationshipKindDTO(Enum):
     PERSISTENCE = "persistence"
 
 
-class EntityTypeDTO(Enum):
-    """The type of the entity."""
-
-    GUIDELINE = "guideline"
-    TAG = "tag"
-
-
 @dataclass
 class _GuidelineRelationship:
     """Represents one relationship between two Guidelines."""
@@ -502,26 +495,6 @@ def _invoice_data_dto_to_invoice_data(dto: InvoiceDataDTO) -> InvoiceGuidelineDa
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid invoice guideline data",
         )
-
-
-def _entity_type_to_entity_type_dto(entity_type: EntityType) -> EntityTypeDTO:
-    match entity_type:
-        case "guideline":
-            return EntityTypeDTO.GUIDELINE
-        case "tag":
-            return EntityTypeDTO.TAG
-        case _:
-            raise ValueError(f"Invalid entity type: {entity_type}")
-
-
-def _entity_type_dto_to_entity_type(dto: EntityTypeDTO) -> EntityType:
-    match dto:
-        case EntityTypeDTO.GUIDELINE:
-            return "guideline"
-        case EntityTypeDTO.TAG:
-            return "tag"
-        case _:
-            raise ValueError(f"Invalid entity type: {dto}")
 
 
 def _kind_dto_to_kind(dto: GuidelineRelationshipKindDTO) -> GuidelineRelationshipKind:
@@ -1236,15 +1209,15 @@ TagNameField: TypeAlias = Annotated[
     ),
 ]
 
-tag_dto_example: ExampleJson = {
+guideline_relationship_tag_dto_example: ExampleJson = {
     "id": "tid_123xz",
     "name": "tag1",
 }
 
 
-class TagDTO(
+class GuidelineRelationshipTagDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": tag_dto_example},
+    json_schema_extra={"example": guideline_relationship_tag_dto_example},
 ):
     """Represents a tag."""
 
@@ -1271,8 +1244,17 @@ GuidelineRelationshipIndirectField: TypeAlias = Annotated[
 
 guideline_relationship_example: ExampleJson = {
     "id": "123",
-    "source": "456",
-    "target": "789",
+    "source_guideline": {
+        "id": "456",
+        "condition": "when the customer asks about pricing",
+        "action": "provide current pricing information",
+        "enabled": True,
+        "tags": ["tag1", "tag2"],
+    },
+    "target_tag": {
+        "id": "789",
+        "name": "tag1",
+    },
     "indirect": False,
     "kind": "entailment",
 }
@@ -1282,13 +1264,17 @@ class GuidelineRelationshipDTO(
     DefaultBaseModel,
     json_schema_extra={"example": guideline_relationship_example},
 ):
-    """Represents a guideline relationship addition."""
+    """Represents a guideline relationship addition.
+
+    Only one of `source_guideline` and `source_tag` can have a value.
+    Only one of `target_guideline` and `target_tag` can have a value.
+    """
 
     id: GuidelineRelationshipIdField
-    source: GuidelineDTO | TagDTO
-    source_type: EntityTypeDTO
-    target: GuidelineDTO | TagDTO
-    target_type: EntityTypeDTO
+    source_guideline: Optional[GuidelineDTO] = None
+    source_tag: Optional[GuidelineRelationshipTagDTO] = None
+    target_guideline: Optional[GuidelineDTO] = None
+    target_tag: Optional[GuidelineRelationshipTagDTO] = None
     indirect: GuidelineRelationshipIndirectField
     kind: GuidelineRelationshipKindDTO
 
@@ -1314,23 +1300,15 @@ class GuidelineCreationParamsDTO(
     tags: Optional[GuidelineTagsField] = None
 
 
-guideline_relationship_entity_example: ExampleJson = {
-    "id": "guid_123xz",
-    "type": "guideline",
-}
-
-
 GuidelineRelationshipEntityIdField: TypeAlias = Annotated[
-    GuidelineId | TagId,
+    str,
     Field(description="`id` of guideline or tag that is source or target of this relationship."),
 ]
 
 
 guideline_relationship_addition_example: ExampleJson = {
-    "source": "guid_123xz",
-    "source_type": "guideline",
-    "target": "tid_456yz",
-    "target_type": "tag",
+    "source_guideline": "guid_123xz",
+    "target_tag": "tid_456yz",
     "kind": "entailment",
 }
 
@@ -1341,24 +1319,18 @@ class GuidelineRelationshipAdditionDTO(
 ):
     """Represents a guideline relationship addition."""
 
-    source: GuidelineRelationshipEntityIdField
-    source_type: EntityTypeDTO
-    target: GuidelineRelationshipEntityIdField
-    target_type: EntityTypeDTO
+    source_guideline: Optional[GuidelineRelationshipEntityIdField] = None
+    source_tag: Optional[GuidelineRelationshipEntityIdField] = None
+    target_guideline: Optional[GuidelineRelationshipEntityIdField] = None
+    target_tag: Optional[GuidelineRelationshipEntityIdField] = None
     kind: GuidelineRelationshipKindDTO
 
 
 guideline_relationship_update_params_example: ExampleJson = {
     "add": [
         {
-            "source": {
-                "id": "guid_123xz",
-                "type": "guideline",
-            },
-            "target": {
-                "id": "tid_456yz",
-                "type": "tag",
-            },
+            "source_guideline": "guid_123xz",
+            "target_tag": "tid_456yz",
             "kind": "entailment",
         }
     ],
@@ -1470,19 +1442,16 @@ guideline_with_relationships_example: ExampleJson = {
     "relationships": [
         {
             "id": "123",
-            "source": {
+            "source_guideline": {
                 "id": "guid_123xz",
                 "condition": "when the customer asks about pricing",
                 "action": "provide current pricing information",
                 "enabled": True,
                 "tags": ["tag1", "tag2"],
             },
-            "target": {
-                "id": "guid_789yz",
-                "condition": "when providing pricing information",
-                "action": "mention any seasonal discounts",
-                "enabled": True,
-                "tags": ["tag1", "tag2"],
+            "target_tag": {
+                "id": "tid_456yz",
+                "name": "tag1",
             },
             "indirect": False,
             "kind": "entailment",
@@ -1509,21 +1478,57 @@ class GuidelineWithRelationshipsAndToolAssociationsDTO(
     tool_associations: Sequence[GuidelineToolAssociationDTO]
 
 
-def _get_entity_dto(entity: Guideline | Tag) -> GuidelineDTO | TagDTO:
-    if isinstance(entity, Guideline):
-        return GuidelineDTO(
-            id=entity.id,
-            condition=entity.content.condition,
-            action=entity.content.action,
-            metadata=entity.metadata,
-            enabled=entity.enabled,
-            tags=entity.tags,
-        )
+def _guideline_relationship_to_dto(
+    relationship: _GuidelineRelationship,
+    indirect: bool,
+) -> GuidelineRelationshipDTO:
+    if relationship.source_type == "guideline":
+        rel_source_guideline = cast(Guideline, relationship.source)
     else:
-        return TagDTO(
-            id=entity.id,
-            name=entity.name,
+        rel_source_tag = cast(Tag, relationship.source)
+
+    if relationship.target_type == "guideline":
+        rel_target_guideline = cast(Guideline, relationship.target)
+    else:
+        rel_target_tag = cast(Tag, relationship.target)
+
+    return GuidelineRelationshipDTO(
+        id=relationship.id,
+        source_guideline=GuidelineDTO(
+            id=rel_source_guideline.id,
+            condition=rel_source_guideline.content.condition,
+            action=rel_source_guideline.content.action,
+            enabled=rel_source_guideline.enabled,
+            tags=rel_source_guideline.tags,
+            metadata=rel_source_guideline.metadata,
         )
+        if relationship.source_type == "guideline"
+        else None,
+        source_tag=GuidelineRelationshipTagDTO(
+            id=rel_source_tag.id,
+            name=rel_source_tag.name,
+        )
+        if relationship.source_type == "tag"
+        else None,
+        target_guideline=GuidelineDTO(
+            id=relationship.target.id,
+            condition=rel_target_guideline.content.condition,
+            action=rel_target_guideline.content.action,
+            enabled=rel_target_guideline.enabled,
+            tags=rel_target_guideline.tags,
+            metadata=rel_target_guideline.metadata,
+        )
+        if relationship.target_type == "guideline"
+        else None,
+        target_tag=GuidelineRelationshipTagDTO(
+            id=rel_target_tag.id,
+            name=rel_target_tag.name,
+        )
+        if relationship.target_type == "tag"
+        else None,
+        indirect=indirect,
+        kind=_kind_to_kind_dto(relationship.kind),
+    )
 
 
 def create_router(
@@ -1677,15 +1682,7 @@ def create_router(
                 tags=guideline.tags,
             ),
             relationships=[
-                GuidelineRelationshipDTO(
-                    id=relationship.id,
-                    source=_get_entity_dto(relationship.source),
-                    source_type=_entity_type_to_entity_type_dto(relationship.source_type),
-                    target=_get_entity_dto(relationship.target),
-                    target_type=_entity_type_to_entity_type_dto(relationship.target_type),
-                    indirect=indirect,
-                    kind=_kind_to_kind_dto(relationship.kind),
-                )
+                _guideline_relationship_to_dto(relationship, indirect)
                 for relationship, indirect in relationships
             ],
             tool_associations=[
@@ -1765,22 +1762,36 @@ def create_router(
 
         if params.relationships and params.relationships.add:
             for req in params.relationships.add:
-                if req.source == req.target:
+                if req.source_guideline and req.source_tag:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="A guideline relationship cannot have both a source guideline and a source tag",
+                    )
+                elif req.target_guideline and req.target_tag:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="A guideline relationship cannot have both a target guideline and a target tag",
+                    )
+                elif req.source_guideline == req.target_guideline:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail="A guideline cannot be related to itself",
                     )
-                elif req.source != guideline_id and req.target != guideline_id:
+                elif req.source_guideline != guideline_id and req.target_guideline != guideline_id:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="The relationship must specify the guideline at hand as either source or target",
                     )
 
                 await guideline_relationship_store.create_relationship(
-                    source=req.source,
-                    source_type=_entity_type_dto_to_entity_type(req.source_type),
-                    target=req.target,
-                    target_type=_entity_type_dto_to_entity_type(req.target_type),
+                    source=cast(GuidelineId, req.source_guideline)
+                    if req.source_guideline
+                    else cast(TagId, req.source_tag),
+                    source_type="guideline" if req.source_guideline else "tag",
+                    target=cast(GuidelineId, req.target_guideline)
+                    if req.target_guideline
+                    else cast(TagId, req.target_tag),
+                    target_type="guideline" if req.target_guideline else "tag",
                     kind=_kind_dto_to_kind(req.kind),
                 )
 
@@ -1858,15 +1869,7 @@ def create_router(
                 tags=updated_guideline.tags,
             ),
             relationships=[
-                GuidelineRelationshipDTO(
-                    id=relationship.id,
-                    source=_get_entity_dto(relationship.source),
-                    source_type=_entity_type_to_entity_type_dto(relationship.source_type),
-                    target=_get_entity_dto(relationship.target),
-                    target_type=_entity_type_to_entity_type_dto(relationship.target_type),
-                    indirect=indirect,
-                    kind=_kind_to_kind_dto(relationship.kind),
-                )
+                _guideline_relationship_to_dto(relationship, indirect)
                 for relationship, indirect in await _get_guideline_relationships(
                     guideline_store=guideline_store,
                     tag_store=tag_store,

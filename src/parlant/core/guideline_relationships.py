@@ -126,7 +126,17 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[GuidelineRelationshipDocument]:
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            return cast(GuidelineRelationshipDocument, doc)
+            doc = cast(GuidelineRelationshipDocument_v0_2_0, doc)
+            return GuidelineRelationshipDocument(
+                id=doc["id"],
+                version=Version.String("0.3.0"),
+                creation_utc=doc["creation_utc"],
+                source=doc["source"],
+                source_type="guideline",
+                target=doc["target"],
+                target_type="guideline",
+                kind=doc["kind"],
+            )
 
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise ValueError("Cannot load v0.1.0 guideline relationships")

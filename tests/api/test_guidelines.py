@@ -1699,10 +1699,8 @@ async def test_that_a_relationship_can_be_created_between_two_guidelines(
             "relationships": {
                 "add": [
                     {
-                        "source": source_guideline.id,
-                        "source_type": "guideline",
-                        "target": target_guideline.id,
-                        "target_type": "guideline",
+                        "source_guideline": source_guideline.id,
+                        "target_guideline": target_guideline.id,
                         "kind": "entailment",
                     }
                 ],
@@ -1714,8 +1712,10 @@ async def test_that_a_relationship_can_be_created_between_two_guidelines(
     relationships = response.json()["relationships"]
 
     assert len(relationships) == 1
-    assert relationships[0]["source"]["id"] == source_guideline.id
-    assert relationships[0]["target"]["id"] == target_guideline.id
+    assert relationships[0]["source_guideline"]["id"] == source_guideline.id
+    assert relationships[0]["target_guideline"]["id"] == target_guideline.id
+    assert relationships[0]["source_tag"] is None
+    assert relationships[0]["target_tag"] is None
     assert relationships[0]["indirect"] is False
     assert relationships[0]["kind"] == "entailment"
 
@@ -1888,10 +1888,8 @@ async def test_that_relationship_can_be_added_to_a_guideline(
                 "add": [
                     {
                         "kind": "requirement",
-                        "source": source_guideline.id,
-                        "source_type": "guideline",
-                        "target": target_guideline.id,
-                        "target_type": "guideline",
+                        "source_guideline": source_guideline.id,
+                        "target_guideline": target_guideline.id,
                     }
                 ]
             },
@@ -1902,8 +1900,11 @@ async def test_that_relationship_can_be_added_to_a_guideline(
     relationships = response.json()["relationships"]
 
     assert len(relationships) == 1
-    assert relationships[0]["source"]["id"] == source_guideline.id
-    assert relationships[0]["target"]["id"] == target_guideline.id
+    assert relationships[0]["source_guideline"]["id"] == source_guideline.id
+    assert relationships[0]["target_guideline"]["id"] == target_guideline.id
+    assert relationships[0]["source_tag"] is None
+    assert relationships[0]["target_tag"] is None
+    assert relationships[0]["indirect"] is False
     assert relationships[0]["kind"] == "requirement"
 
 
