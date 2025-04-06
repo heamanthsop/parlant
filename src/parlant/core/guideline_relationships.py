@@ -71,6 +71,12 @@ class GuidelineRelationshipStore(ABC):
     ) -> GuidelineRelationship: ...
 
     @abstractmethod
+    async def read_relationship(
+        self,
+        id: GuidelineRelationshipId,
+    ) -> GuidelineRelationship: ...
+
+    @abstractmethod
     async def delete_relationship(
         self,
         id: GuidelineRelationshipId,
@@ -289,6 +295,19 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             )
 
         return guideline_relationship
+
+    @override
+    async def read_relationship(
+        self,
+        id: GuidelineRelationshipId,
+    ) -> GuidelineRelationship:
+        async with self._lock.reader_lock:
+            relationship_document = await self._collection.find_one(filters={"id": {"$eq": id}})
+
+            if not relationship_document:
+                raise ItemNotFoundError(item_id=UniqueId(id))
+
+        return self._deserialize(relationship_document)
 
     @override
     async def delete_relationship(

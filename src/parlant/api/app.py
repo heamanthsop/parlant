@@ -24,7 +24,7 @@ from starlette.types import Receive, Scope, Send
 from lagom import Container
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
-from parlant.api import agents, index
+from parlant.api import agents, index, relationships
 from parlant.api import sessions
 from parlant.api import glossary
 from parlant.api import guidelines
@@ -272,6 +272,15 @@ async def create_api_app(container: Container) -> ASGIApplication:
             guideline_tool_association_store=guideline_tool_association_store,
             agent_store=agent_store,
             tag_store=tag_store,
+        ),
+    )
+
+    api_app.include_router(
+        prefix="/relationships",
+        router=relationships.create_router(
+            guideline_relationship_store=guideline_relationship_store,
+            tag_store=tag_store,
+            guideline_store=guideline_store,
         ),
     )
 

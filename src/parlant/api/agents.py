@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
 from enum import Enum
-import dateutil
-import dateutil.parser
 from fastapi import APIRouter, Path, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
@@ -52,14 +49,6 @@ AgentDescriptionField: TypeAlias = Annotated[
         default=None,
         description="Detailed description of the agent's purpose and capabilities",
         examples=["Technical Support Assistant"],
-    ),
-]
-
-AgentCreationUTCField: TypeAlias = Annotated[
-    datetime,
-    Field(
-        description="UTC timestamp of when the agent was created",
-        examples=[dateutil.parser.parse("2024-03-24T12:00:00Z")],
     ),
 ]
 
@@ -143,7 +132,6 @@ class AgentDTO(
     id: AgentIdPath
     name: AgentNameField
     description: Optional[AgentDescriptionField] = None
-    creation_utc: AgentCreationUTCField
     max_engine_iterations: AgentMaxEngineIterationsField
     composition_mode: CompositionModeDTO
     tags: AgentTagsField

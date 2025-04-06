@@ -17,7 +17,9 @@ from pydantic import Field
 from typing import Annotated, Any, Mapping, Optional, Sequence, TypeAlias
 
 from parlant.core.common import DefaultBaseModel
+from parlant.core.guideline_relationships import GuidelineRelationshipId, GuidelineRelationshipKind
 from parlant.core.guidelines import GuidelineId
+from parlant.core.tags import TagId
 
 
 def apigen_config(group_name: str, method_name: str) -> Mapping[str, Any]:
@@ -345,3 +347,197 @@ class ToolIdDTO(
 
 def example_json_content(json_example: ExampleJson) -> ExtraSchema:
     return {"application/json": {"example": json_example}}
+
+
+GuidelineMetadataField: TypeAlias = Annotated[
+    Mapping[str, JSONSerializableDTO],
+    Field(description="Metadata for the guideline"),
+]
+
+GuidelineEnabledField: TypeAlias = Annotated[
+    bool,
+    Field(
+        default=True,
+        description="Whether the guideline is enabled",
+        examples=[True, False],
+    ),
+]
+
+
+guideline_dto_example = {
+    "id": "guid_123xz",
+    "condition": "when the customer asks about pricing",
+    "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": True,
+    "tags": ["tag1", "tag2"],
+    "metadata": {"key1": "value1", "key2": "value2"},
+}
+
+GuidelineTagsField: TypeAlias = Annotated[
+    Sequence[TagId],
+    Field(
+        description="The tags associated with the guideline",
+        examples=[["tag1", "tag2"], []],
+    ),
+]
+
+
+class GuidelineDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_dto_example},
+):
+    """Represents a guideline."""
+
+    id: GuidelineIdField
+    condition: GuidelineConditionField
+    action: GuidelineActionField
+    enabled: GuidelineEnabledField
+    tags: GuidelineTagsField
+    metadata: GuidelineMetadataField
+
+
+TagIdField: TypeAlias = Annotated[
+    TagId,
+    Field(
+        description="Unique identifier for the tag",
+        examples=["tag_123xyz", "tag_premium42"],
+    ),
+]
+
+
+TagNameField: TypeAlias = Annotated[
+    str,
+    Field(
+        description="Human-readable name for the tag, used for display and organization",
+        examples=["premium", "enterprise", "beta-tester"],
+        min_length=1,
+        max_length=50,
+    ),
+]
+
+tag_example: ExampleJson = {
+    "id": "tag_123xyz",
+    "name": "premium",
+    "creation_utc": "2024-03-24T12:00:00Z",
+}
+
+
+class TagDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": tag_example},
+):
+    """
+    Represents a tag in the system.
+
+    Tags can be used to categorize and label various resources like customers, sessions,
+    or content. They provide a flexible way to organize and filter data.
+    """
+
+    id: TagIdField
+    name: TagNameField
+
+
+guideline_relationship_tag_dto_example: ExampleJson = {
+    "id": "tid_123xz",
+    "name": "tag1",
+}
+
+
+GuidelineRelationshipIdField: TypeAlias = Annotated[
+    GuidelineRelationshipId,
+    Field(
+        description="Unique identifier for the guideline relationship",
+    ),
+]
+
+
+GuidelineRelationshipIndirectField: TypeAlias = Annotated[
+    bool,
+    Field(
+        description="`True` if there is a path from `source` to `target` but no direct relationship",
+        examples=[True, False],
+    ),
+]
+
+
+guideline_relationship_example: ExampleJson = {
+    "id": "123",
+    "source_guideline": {
+        "id": "456",
+        "condition": "when the customer asks about pricing",
+        "action": "provide current pricing information",
+        "enabled": True,
+        "tags": ["tag1", "tag2"],
+    },
+    "target_tag": {
+        "id": "789",
+        "name": "tag1",
+    },
+    "indirect": False,
+    "kind": "entailment",
+}
+
+
+class GuidelineRelationshipKindDTO(Enum):
+    """The kind of guideline relationship."""
+
+    ENTAILMENT = "entailment"
+    PRECEDENCE = "precedence"
+    REQUIREMENT = "requirement"
+    PRIORITY = "priority"
+    PERSISTENCE = "persistence"
+
+
+class GuidelineRelationshipDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": guideline_relationship_example},
+):
+    """Represents a guideline relationship addition.
+
+    Only one of `source_guideline` and `source_tag` can have a value.
+    Only one of `target_guideline` and `target_tag` can have a value.
+    """
+
+    id: GuidelineRelationshipIdField
+    source_guideline: Optional[GuidelineDTO] = None
+    source_tag: Optional[TagDTO] = None
+    target_guideline: Optional[GuidelineDTO] = None
+    target_tag: Optional[TagDTO] = None
+    indirect: GuidelineRelationshipIndirectField
+    kind: GuidelineRelationshipKindDTO
+
+
+def guideline_relationship_kind_dto_to_kind(
+    dto: GuidelineRelationshipKindDTO,
+) -> GuidelineRelationshipKind:
+    match dto:
+        case GuidelineRelationshipKindDTO.ENTAILMENT:
+            return "entailment"
+        case GuidelineRelationshipKindDTO.PRECEDENCE:
+            return "precedence"
+        case GuidelineRelationshipKindDTO.REQUIREMENT:
+            return "requirement"
+        case GuidelineRelationshipKindDTO.PRIORITY:
+            return "priority"
+        case GuidelineRelationshipKindDTO.PERSISTENCE:
+            return "persistence"
+        case _:
+            raise ValueError(f"Invalid guideline relationship kind: {dto}")
+
+
+def guideline_relationship_kind_to_dto(
+    kind: GuidelineRelationshipKind,
+) -> GuidelineRelationshipKindDTO:
+    match kind:
+        case "entailment":
+            return GuidelineRelationshipKindDTO.ENTAILMENT
+        case "precedence":
+            return GuidelineRelationshipKindDTO.PRECEDENCE
+        case "requirement":
+            return GuidelineRelationshipKindDTO.REQUIREMENT
+        case "priority":
+            return GuidelineRelationshipKindDTO.PRIORITY
+        case "persistence":
+            return GuidelineRelationshipKindDTO.PERSISTENCE
+        case _:
+            raise ValueError(f"Invalid guideline relationship kind: {kind}")

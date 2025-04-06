@@ -16,18 +16,26 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import chain
-from typing import Annotated, Mapping, Optional, Sequence, TypeAlias, cast, get_args
+from typing import Annotated, Optional, Sequence, TypeAlias, cast, get_args
 from fastapi import APIRouter, HTTPException, Path, status, Query
 from pydantic import Field
 
 from parlant.api import agents, common
 from parlant.api.common import (
+    GuidelineDTO,
+    GuidelineEnabledField,
+    GuidelineIdField,
+    GuidelineMetadataField,
+    GuidelineRelationshipDTO,
+    GuidelineTagsField,
     InvoiceDataDTO,
-    JSONSerializableDTO,
     PayloadKindDTO,
+    TagDTO,
     ToolIdDTO,
     apigen_config,
     apigen_skip_config,
+    guideline_dto_example,
+    guideline_relationship_kind_to_dto,
 )
 from parlant.api.index import InvoiceDTO
 from parlant.core.agents import AgentStore, AgentId
@@ -72,6 +80,13 @@ from parlant.core.tools import ToolId
 API_GROUP = "guidelines"
 
 
+legacy_guideline_dto_example: ExampleJson = {
+    "id": "guid_123xz",
+    "condition": "when the customer asks about pricing",
+    "action": "provide current pricing information and mention any ongoing promotions",
+    "enabled": True,
+}
+
 GuidelineIdPath: TypeAlias = Annotated[
     GuidelineId,
     Path(
@@ -81,30 +96,13 @@ GuidelineIdPath: TypeAlias = Annotated[
 ]
 
 
-GuidelineEnabledField: TypeAlias = Annotated[
-    bool,
-    Field(
-        default=True,
-        description="Whether the guideline is enabled",
-        examples=[True, False],
-    ),
-]
-
-legacy_guideline_dto_example: ExampleJson = {
-    "id": "guid_123xz",
-    "condition": "when the customer asks about pricing",
-    "action": "provide current pricing information and mention any ongoing promotions",
-    "enabled": True,
-}
-
-
 class LegacyGuidelineDTO(
     DefaultBaseModel,
     json_schema_extra={"example": legacy_guideline_dto_example},
 ):
     """Assigns an id to the condition-action pair"""
 
-    id: GuidelineIdPath
+    id: GuidelineIdField
     condition: GuidelineConditionField
     action: GuidelineActionField
     enabled: GuidelineEnabledField
@@ -183,7 +181,7 @@ class GuidelineToolAssociationDTO(
     """
 
     id: GuidelineToolAssociationIdField
-    guideline_id: GuidelineIdPath
+    guideline_id: GuidelineIdField
     tool_id: ToolIdDTO
 
 
@@ -335,7 +333,7 @@ class LegacyGuidelineConnectionUpdateParamsDTO(
     """
 
     add: Optional[Sequence[LegacyGuidelineConnectionAdditionDTO]] = None
-    remove: Optional[Sequence[GuidelineIdPath]] = None
+    remove: Optional[Sequence[GuidelineIdField]] = None
 
 
 guideline_tool_association_update_params_example: ExampleJson = {
@@ -495,38 +493,6 @@ def _invoice_data_dto_to_invoice_data(dto: InvoiceDataDTO) -> InvoiceGuidelineDa
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid invoice guideline data",
         )
-
-
-def _kind_dto_to_kind(dto: GuidelineRelationshipKindDTO) -> GuidelineRelationshipKind:
-    match dto:
-        case GuidelineRelationshipKindDTO.ENTAILMENT:
-            return "entailment"
-        case GuidelineRelationshipKindDTO.PRECEDENCE:
-            return "precedence"
-        case GuidelineRelationshipKindDTO.REQUIREMENT:
-            return "requirement"
-        case GuidelineRelationshipKindDTO.PRIORITY:
-            return "priority"
-        case GuidelineRelationshipKindDTO.PERSISTENCE:
-            return "persistence"
-        case _:
-            raise ValueError(f"Invalid guideline relationship kind: {dto}")
-
-
-def _kind_to_kind_dto(kind: GuidelineRelationshipKind) -> GuidelineRelationshipKindDTO:
-    match kind:
-        case "entailment":
-            return GuidelineRelationshipKindDTO.ENTAILMENT
-        case "precedence":
-            return GuidelineRelationshipKindDTO.PRECEDENCE
-        case "requirement":
-            return GuidelineRelationshipKindDTO.REQUIREMENT
-        case "priority":
-            return GuidelineRelationshipKindDTO.PRIORITY
-        case "persistence":
-            return GuidelineRelationshipKindDTO.PERSISTENCE
-        case _:
-            raise ValueError(f"Invalid guideline relationship kind: {kind}")
 
 
 async def _get_guideline_relationships_by_kind(
@@ -1116,13 +1082,7 @@ TagIdQuery: TypeAlias = Annotated[
     ),
 ]
 
-GuidelineTagsField: TypeAlias = Annotated[
-    Sequence[TagId],
-    Field(
-        description="The tags associated with the guideline",
-        examples=[["tag1", "tag2"], []],
-    ),
-]
+
 GuidelineTagsUpdateAddField: TypeAlias = Annotated[
     list[TagId],
     Field(
@@ -1163,36 +1123,6 @@ class GuidelineTagsUpdateParamsDTO(
     remove: Optional[GuidelineTagsUpdateRemoveField] = None
 
 
-guideline_dto_example = {
-    "id": "guid_123xz",
-    "condition": "when the customer asks about pricing",
-    "action": "provide current pricing information and mention any ongoing promotions",
-    "enabled": True,
-    "tags": ["tag1", "tag2"],
-    "metadata": {"key1": "value1", "key2": "value2"},
-}
-
-
-GuidelineMetadataField: TypeAlias = Annotated[
-    Mapping[str, JSONSerializableDTO],
-    Field(description="Metadata for the guideline"),
-]
-
-
-class GuidelineDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_dto_example},
-):
-    """Represents a guideline."""
-
-    id: GuidelineIdPath
-    condition: GuidelineConditionField
-    action: GuidelineActionField
-    enabled: GuidelineEnabledField
-    tags: GuidelineTagsField
-    metadata: GuidelineMetadataField
-
-
 TagIdField: TypeAlias = Annotated[
     TagId,
     Field(
@@ -1208,76 +1138,6 @@ TagNameField: TypeAlias = Annotated[
         examples=["tag1"],
     ),
 ]
-
-guideline_relationship_tag_dto_example: ExampleJson = {
-    "id": "tid_123xz",
-    "name": "tag1",
-}
-
-
-class GuidelineRelationshipTagDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_relationship_tag_dto_example},
-):
-    """Represents a tag."""
-
-    id: TagIdField
-    name: TagNameField
-
-
-GuidelineRelationshipIdField: TypeAlias = Annotated[
-    GuidelineRelationshipId,
-    Field(
-        description="Unique identifier for the guideline relationship",
-    ),
-]
-
-
-GuidelineRelationshipIndirectField: TypeAlias = Annotated[
-    bool,
-    Field(
-        description="`True` if there is a path from `source` to `target` but no direct relationship",
-        examples=[True, False],
-    ),
-]
-
-
-guideline_relationship_example: ExampleJson = {
-    "id": "123",
-    "source_guideline": {
-        "id": "456",
-        "condition": "when the customer asks about pricing",
-        "action": "provide current pricing information",
-        "enabled": True,
-        "tags": ["tag1", "tag2"],
-    },
-    "target_tag": {
-        "id": "789",
-        "name": "tag1",
-    },
-    "indirect": False,
-    "kind": "entailment",
-}
-
-
-class GuidelineRelationshipDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_relationship_example},
-):
-    """Represents a guideline relationship addition.
-
-    Only one of `source_guideline` and `source_tag` can have a value.
-    Only one of `target_guideline` and `target_tag` can have a value.
-    """
-
-    id: GuidelineRelationshipIdField
-    source_guideline: Optional[GuidelineDTO] = None
-    source_tag: Optional[GuidelineRelationshipTagDTO] = None
-    target_guideline: Optional[GuidelineDTO] = None
-    target_tag: Optional[GuidelineRelationshipTagDTO] = None
-    indirect: GuidelineRelationshipIndirectField
-    kind: GuidelineRelationshipKindDTO
-
 
 guideline_creation_params_example: ExampleJson = {
     "condition": "when the customer asks about pricing",
@@ -1338,21 +1198,6 @@ guideline_relationship_update_params_example: ExampleJson = {
 }
 
 
-class GuidelineRelationshipUpdateParamsDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": guideline_relationship_update_params_example},
-):
-    """
-    Parameters for updating a guideline relationship.
-
-    `add` is expected to be a collection of addition objects.
-    `remove` should contain the `id`s of the relationships to remove.
-    """
-
-    add: Optional[Sequence[GuidelineRelationshipAdditionDTO]] = None
-    remove: Optional[Sequence[GuidelineRelationshipIdField]] = None
-
-
 GuidelineMetadataRemoveField: TypeAlias = Annotated[
     Sequence[str],
     Field(description="Metadata keys to remove from the guideline"),
@@ -1389,16 +1234,6 @@ guideline_update_params_example: ExampleJson = {
         },
         "remove": ["key3", "key4"],
     },
-    "relationships": {
-        "add": [
-            {
-                "source": "guid_123xz",
-                "target": "guid_456yz",
-                "kind": "entailment",
-            }
-        ],
-        "remove": ["guideline_relationship_id_789yz"],
-    },
     "tool_associations": {
         "add": [
             {
@@ -1424,7 +1259,6 @@ class GuidelineUpdateParamsDTO(
 
     condition: Optional[GuidelineConditionField] = None
     action: Optional[GuidelineActionField] = None
-    relationships: Optional[GuidelineRelationshipUpdateParamsDTO] = None
     tool_associations: Optional[GuidelineToolAssociationUpdateParamsDTO] = None
     enabled: Optional[GuidelineEnabledField] = None
     tags: Optional[GuidelineTagsUpdateParamsDTO] = None
@@ -1504,14 +1338,16 @@ def _guideline_relationship_to_dto(
         )
         if relationship.source_type == "guideline"
         else None,
-        source_tag=GuidelineRelationshipTagDTO(
+        source_tag=TagDTO(
             id=rel_source_tag.id,
+            creation_utc=rel_source_tag.creation_utc,
             name=rel_source_tag.name,
         )
         if relationship.source_type == "tag"
         else None,
         target_guideline=GuidelineDTO(
             id=relationship.target.id,
+            creation_utc=rel_target_guideline.creation_utc,
             condition=rel_target_guideline.content.condition,
             action=rel_target_guideline.content.action,
             enabled=rel_target_guideline.enabled,
@@ -1520,14 +1356,14 @@ def _guideline_relationship_to_dto(
         )
         if relationship.target_type == "guideline"
         else None,
-        target_tag=GuidelineRelationshipTagDTO(
+        target_tag=TagDTO(
             id=rel_target_tag.id,
             name=rel_target_tag.name,
         )
         if relationship.target_type == "tag"
         else None,
         indirect=indirect,
-        kind=_kind_to_kind_dto(relationship.kind),
+        kind=guideline_relationship_kind_to_dto(relationship.kind),
     )
 
 
@@ -1759,45 +1595,6 @@ def create_router(
                     guideline_id=guideline_id,
                     keys=params.metadata.remove,
                 )
-
-        if params.relationships and params.relationships.add:
-            for req in params.relationships.add:
-                if req.source_guideline and req.source_tag:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="A guideline relationship cannot have both a source guideline and a source tag",
-                    )
-                elif req.target_guideline and req.target_tag:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="A guideline relationship cannot have both a target guideline and a target tag",
-                    )
-                elif req.source_guideline == req.target_guideline:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="A guideline cannot be related to itself",
-                    )
-                elif req.source_guideline != guideline_id and req.target_guideline != guideline_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="The relationship must specify the guideline at hand as either source or target",
-                    )
-
-                await guideline_relationship_store.create_relationship(
-                    source=cast(GuidelineId, req.source_guideline)
-                    if req.source_guideline
-                    else cast(TagId, req.source_tag),
-                    source_type="guideline" if req.source_guideline else "tag",
-                    target=cast(GuidelineId, req.target_guideline)
-                    if req.target_guideline
-                    else cast(TagId, req.target_tag),
-                    target_type="guideline" if req.target_guideline else "tag",
-                    kind=_kind_dto_to_kind(req.kind),
-                )
-
-        if params.relationships and params.relationships.remove:
-            for id in params.relationships.remove:
-                await guideline_relationship_store.delete_relationship(id)
 
         if params.tool_associations and params.tool_associations.add:
             for tool_id_dto in params.tool_associations.add:
