@@ -463,13 +463,14 @@ class Actions:
     ) -> str:
         client = cast(ParlantClient, ctx.obj.client)
 
-        target_id, _ = Actions._parse_guideline_relationship_entity(ctx, target_id)
+        source_id, source_type = Actions._parse_guideline_relationship_entity(ctx, source_id)
 
         if relationship := next(
             (
                 r
                 for r in client.guideline_relationships.list(
-                    entity_id=source_id,
+                    guideline_id=source_id if source_type == "guideline" else None,
+                    tag_id=source_id if source_type == "tag" else None,
                     kind=kind,
                     indirect=False,
                 )
@@ -491,6 +492,25 @@ class Actions:
 
         raise ValueError(
             f"A relationship between {source_id} and {target_id} with kind {kind} was not found"
+        )
+
+    @staticmethod
+    def list_relationships(
+        ctx: click.Context,
+        guideline_id: Optional[str],
+        tag: Optional[str],
+        kind: GuidelineRelationshipKindDto,
+        indirect: bool,
+    ) -> list[GuidelineRelationship]:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tag_id = Actions._fetch_tag_id(ctx, tag) if tag else None
+
+        return client.guideline_relationships.list(
+            guideline_id=guideline_id,
+            tag_id=tag_id,
+            kind=kind,
+            indirect=indirect,
         )
 
     @staticmethod
@@ -1551,59 +1571,60 @@ class Interface:
             return result
 
         def to_indirect_relationship_item(rel: GuidelineRelationship) -> OrderedDict[str, str]:
-            source = rel.source_guideline if rel.source_guideline else rel.source_tag
-            assert source
-            source_type = "Guideline" if rel.source_guideline else "Tag"
+            result = [
+                ("Relationship ID", rel.id),
+                ("Kind", rel.kind),
+                (
+                    "Source ID",
+                    rel.source_guideline.id
+                    if rel.source_guideline
+                    else cast(Tag, rel.source_tag).id,
+                ),
+                ("Source Type", "Guideline" if rel.source_guideline else "Tag"),
+            ]
 
-            target = rel.target_guideline if rel.target_guideline else rel.target_tag
-            assert target
-            target_type = "Guideline" if rel.target_guideline else "Tag"
-
-            result = OrderedDict(
-                {
-                    "Relationship ID": rel.id,
-                    "Kind": rel.kind,
-                    "Source ID": source.id,
-                    "Source Type": source_type,
-                }
-            )
-
-            if isinstance(source, Guideline):
-                result.update(
-                    {
-                        "Source Condition": source.condition,
-                        "Source Action": source.action,
-                    }
+            if rel.source_guideline:
+                rich.print(f"source_guideline: {rel.source_guideline}")
+                result.extend(
+                    [
+                        ("Source Condition", rel.source_guideline.condition),
+                        ("Source Action", rel.source_guideline.action),
+                    ]
                 )
             else:
-                result.update(
-                    {
-                        "Source Name": source.name,
-                    }
+                result.extend(
+                    [
+                        ("Source Name", cast(Tag, rel.source_tag).name),
+                    ]
                 )
 
-            result.update(
-                {
-                    "Target ID": target.id,
-                    "Target Type": target_type,
-                }
+            result.extend(
+                [
+                    (
+                        "Target ID",
+                        rel.target_guideline.id
+                        if rel.target_guideline
+                        else cast(Tag, rel.target_tag).id,
+                    ),
+                    ("Target Type", "Guideline" if rel.target_guideline else "Tag"),
+                ]
             )
 
-            if isinstance(target, Guideline):
-                result.update(
-                    {
-                        "Target Condition": target.condition,
-                        "Target Action": target.action,
-                    }
+            if rel.target_guideline:
+                result.extend(
+                    [
+                        ("Target Condition", rel.target_guideline.condition),
+                        ("Target Action", rel.target_guideline.action),
+                    ]
                 )
             else:
-                result.update(
-                    {
-                        "Target Name": target.name,
-                    }
+                result.extend(
+                    [
+                        ("Target Name", cast(Tag, rel.target_tag).name),
+                    ]
                 )
 
-            return result
+            return OrderedDict(result)
 
         if relationships:
             direct = [r for r in relationships if not r.indirect]
@@ -1769,6 +1790,34 @@ class Interface:
             )
 
             Interface._write_success(f"Removed relationship (id: {relationship_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def list_relationships(
+        ctx: click.Context,
+        guideline_id: Optional[str],
+        tag: Optional[str],
+        kind: GuidelineRelationshipKindDto,
+        indirect: bool,
+    ) -> None:
+        try:
+            relationships = Actions.list_relationships(ctx, guideline_id, tag, kind, indirect)
+
+            if not relationships:
+                rich.print(Text("No data available", style="bold yellow"))
+                return
+
+            Interface._render_guideline_relationships(
+                relationships[0].source_guideline
+                if relationships[0].source_guideline
+                else cast(Tag, relationships[0].source_tag),
+                relationships,
+                [],
+                include_indirect=indirect,
+            )
+
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -3161,6 +3210,50 @@ async def async_main() -> None:
             target_id=target,
             kind=kind,
         )
+
+    @relationship.command("list", help="List relationships")
+    @click.option(
+        "--kind",
+        type=click.Choice(
+            [
+                "entailment",
+                "precedence",
+                "requirement",
+                "priority",
+                "persistence",
+            ]
+        ),
+        help="Relationship kind",
+        required=True,
+    )
+    @click.option(
+        "--guideline-id", type=str, metavar="GUIDELINE_ID", help="Guideline ID", required=False
+    )
+    @tag_option(required=False)
+    @click.option(
+        "--indirect",
+        type=bool,
+        help="Include indirect relationships. Default is true.",
+        required=False,
+        default=True,
+    )
+    @click.pass_context
+    def relationship_list(
+        ctx: click.Context,
+        guideline_id: Optional[str],
+        tag: Optional[str],
+        kind: GuidelineRelationshipKindDto,
+        indirect: bool,
+    ) -> None:
+        if guideline_id and tag:
+            Interface.write_error("Either --guideline-id or --tag must be provided, not both")
+            raise FastExit()
+
+        if not guideline_id and not tag:
+            Interface.write_error("Either --guideline-id or --tag must be provided")
+            raise FastExit()
+
+        Interface.list_relationships(ctx, guideline_id, tag, kind, indirect)
 
     @cli.group(help="Manage an agent's context variables")
     def variable() -> None:

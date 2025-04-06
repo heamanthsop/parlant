@@ -3532,7 +3532,7 @@ pydantic = "^2.9.2"
 type = "git"
 url = "https://github.com/emcie-co/parlant-client-python.git"
 reference = "develop.1743678521"
-resolved_reference = "bd1f9810e36ef6aca098f8982f92cf372618d352"
+resolved_reference = "674583d1927713ccefbf4f497a5b992eac387197"
 
 [[package]]
 name = "parse"
