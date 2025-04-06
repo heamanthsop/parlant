@@ -124,7 +124,7 @@ async def test_that_guideline_relationship_can_be_created_between_a_guideline_an
     assert relationship["target_guideline"] is None
 
 
-async def test_that_guideline_relationships_can_be_listed(
+async def test_that_guideline_relationships_can_be_listed_by_guideline_id(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -149,7 +149,7 @@ async def test_that_guideline_relationships_can_be_listed(
         kind="priority",
     )
 
-    response = await async_client.get(f"/relationships?entity_id={guideline.id}&kind=priority")
+    response = await async_client.get(f"/relationships?guideline_id={guideline.id}&kind=priority")
     assert response.status_code == status.HTTP_200_OK
     relationships = response.json()
     assert len(relationships) == 1
@@ -159,10 +159,51 @@ async def test_that_guideline_relationships_can_be_listed(
     assert relationships[0]["kind"] == "priority"
 
 
-async def test_that_guideline_relationship_cannot_be_listed_without_entity_id(
+async def test_that_guideline_relationships_can_be_listed_by_tag_id(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
+    relationship_store = container[GuidelineRelationshipStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="condition",
+        action="action",
+    )
+
+    tag = await tag_store.create_tag(
+        name="tag",
+    )
+
+    relationship = await relationship_store.create_relationship(
+        source=guideline.id,
+        source_type="guideline",
+        target=tag.id,
+        target_type="tag",
+        kind="priority",
+    )
+
+    response = await async_client.get(f"/relationships?tag_id={tag.id}&kind=priority")
+    assert response.status_code == status.HTTP_200_OK
+    relationships = response.json()
+    assert len(relationships) == 1
+    assert relationships[0]["id"] == relationship.id
+    assert relationships[0]["source_guideline"]["id"] == guideline.id
+    assert relationships[0]["target_tag"]["id"] == tag.id
+
+
+async def test_that_guideline_relationship_cannot_be_listed_without_guideline_id_or_tag_id(
     async_client: httpx.AsyncClient,
 ) -> None:
     response = await async_client.get("/relationships?kind=priority")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+async def test_that_guideline_relationship_cannot_be_listed_with_both_guideline_id_and_tag_id(
+    async_client: httpx.AsyncClient,
+) -> None:
+    response = await async_client.get("/relationships?guideline_id=1&tag_id=2")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
@@ -177,7 +218,7 @@ async def test_that_guideline_relationship_cannot_be_listed_without_kind(
         action="action",
     )
 
-    response = await async_client.get(f"/relationships?entity_id={guideline.id}")
+    response = await async_client.get(f"/relationships?guideline_id={guideline.id}")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 

@@ -46,9 +46,6 @@ from parlant.client.types import (
     EventInspectionResult,
     Guideline,
     GuidelineRelationship,
-    GuidelineRelationshipAddition,
-    GuidelineRelationshipTag,
-    GuidelineRelationshipUpdateParams,
     GuidelineRelationshipKindDto,
     GuidelineToolAssociation,
     GuidelineToolAssociationUpdateParams,
@@ -443,25 +440,18 @@ class Actions:
         source: str,
         target: str,
         kind: GuidelineRelationshipKindDto,
-    ) -> GuidelineWithRelationshipsAndToolAssociations:
+    ) -> GuidelineRelationship:
         client = cast(ParlantClient, ctx.obj.client)
 
         source_id, source_type = Actions._parse_guideline_relationship_entity(ctx, source)
         target_id, target_type = Actions._parse_guideline_relationship_entity(ctx, target)
 
-        return client.guidelines.update(
-            source_id,
-            relationships=GuidelineRelationshipUpdateParams(
-                add=[
-                    GuidelineRelationshipAddition(
-                        source_guideline=source_id if source_type == "guideline" else None,
-                        source_tag=source_id if source_type == "tag" else None,
-                        target_guideline=target_id if target_type == "guideline" else None,
-                        target_tag=target_id if target_type == "tag" else None,
-                        kind=kind,
-                    ),
-                ]
-            ),
+        return client.guideline_relationships.create(
+            source_guideline=source_id if source_type == "guideline" else None,
+            source_tag=source_id if source_type == "tag" else None,
+            target_guideline=target_id if target_type == "guideline" else None,
+            target_tag=target_id if target_type == "tag" else None,
+            kind=kind,
         )
 
     @staticmethod
@@ -475,13 +465,14 @@ class Actions:
 
         target_id, _ = Actions._parse_guideline_relationship_entity(ctx, target_id)
 
-        guideline_result = client.guidelines.retrieve(source_id)
-        relationships = guideline_result.relationships
-
         if relationship := next(
             (
                 r
-                for r in relationships
+                for r in client.guideline_relationships.list(
+                    entity_id=source_id,
+                    kind=kind,
+                    indirect=False,
+                )
                 if (
                     (r.source_guideline and source_id == r.source_guideline.id)
                     or (r.source_tag and source_id == r.source_tag.id)
@@ -494,10 +485,7 @@ class Actions:
             ),
             None,
         ):
-            client.guidelines.update(
-                source_id,
-                relationships=GuidelineRelationshipUpdateParams(remove=[relationship.id]),
-            )
+            client.guideline_relationships.delete(relationship.id)
 
             return relationship.id
 
@@ -1139,7 +1127,6 @@ class Interface:
             {
                 "ID": a.id,
                 "Name": a.name,
-                "Creation Date": reformat_datetime(a.creation_utc),
                 "Description": a.description or "",
                 "Max Engine Iterations": a.max_engine_iterations,
                 "Composition Mode": a.composition_mode.replace("_", "-"),
@@ -1558,7 +1545,7 @@ class Interface:
                 result["Peer Condition"] = peer.condition
                 result["Peer Action"] = peer.action
 
-            elif isinstance(peer, GuidelineRelationshipTag):
+            elif isinstance(peer, Tag):
                 result["Peer Name"] = peer.name
 
             return result
@@ -1754,34 +1741,14 @@ class Interface:
         kind: GuidelineRelationshipKindDto,
     ) -> None:
         try:
-            guideline_with_relationships_and_associations = Actions.create_relationship(
+            relationship = Actions.create_relationship(
                 ctx,
                 source_id,
                 target_id,
                 kind,
             )
 
-            if new_relationship := next(
-                (
-                    r
-                    for r in guideline_with_relationships_and_associations.relationships
-                    if (
-                        (r.source_guideline and source_id == r.source_guideline.id)
-                        or (r.source_tag and source_id == r.source_tag.id)
-                    )
-                    and (
-                        (r.target_guideline and target_id == r.target_guideline.id)
-                        or (r.target_tag and target_id == r.target_tag.id)
-                    )
-                    and kind == r.kind
-                ),
-                None,
-            ):
-                Interface._write_success(f"Added relationship (id: {new_relationship.id})")
-                Interface._print_table([new_relationship.dict()])
-            else:
-                Interface.write_error("Unexpected error: Relationship not found")
-                set_exit_status(1)
+            Interface._write_success(f"Added relationship (id: {relationship.id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2972,92 +2939,6 @@ async def async_main() -> None:
     ) -> None:
         Interface.list_guidelines(ctx, tag, hide_disabled)
 
-    @guideline.command("rel-enable", help="Create a relationship between two guidelines")
-    @click.option(
-        "--source",
-        type=str,
-        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
-        help="Source tag or guideline ID",
-        required=True,
-    )
-    @click.option(
-        "--target",
-        type=str,
-        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
-        help="Target tag or guideline ID",
-        required=True,
-    )
-    @click.option(
-        "--kind",
-        type=click.Choice(
-            [
-                "entailment",
-                "precedence",
-                "requirement",
-                "priority",
-                "persistence",
-            ]
-        ),
-        help="Relationship kind",
-        required=True,
-    )
-    @click.pass_context
-    def guideline_rel_enable(
-        ctx: click.Context,
-        source: str,
-        target: str,
-        kind: GuidelineRelationshipKindDto,
-    ) -> None:
-        Interface.create_relationship(
-            ctx=ctx,
-            source_id=source,
-            target_id=target,
-            kind=kind,
-        )
-
-    @guideline.command("rel-disable", help="Delete a relationship between two guidelines")
-    @click.option(
-        "--source",
-        type=str,
-        metavar="GUIDELINE_ID",
-        help="Source of the relationship",
-        required=True,
-    )
-    @click.option(
-        "--target",
-        type=str,
-        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
-        help="Target tag or guideline ID",
-        required=True,
-    )
-    @click.option(
-        "--kind",
-        type=click.Choice(
-            [
-                "entailment",
-                "precedence",
-                "requirement",
-                "priority",
-                "persistence",
-            ]
-        ),
-        help="Relationship kind",
-        required=True,
-    )
-    @click.pass_context
-    def guideline_rel_disable(
-        ctx: click.Context,
-        source: str,
-        target: str,
-        kind: GuidelineRelationshipKindDto,
-    ) -> None:
-        Interface.remove_relationship(
-            ctx=ctx,
-            source_id=source,
-            target_id=target,
-            kind=kind,
-        )
-
     @guideline.command("tool-enable", help="Allow a guideline to make use of a tool")
     @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
     @click.option(
@@ -3190,6 +3071,96 @@ async def async_main() -> None:
     @click.pass_context
     def guideline_unset(ctx: click.Context, id: str, key: str) -> None:
         Interface.remove_guideline_metadata(ctx, id, key)
+
+    @cli.group(help="Manage an agent's guideline relationships")
+    def relationship() -> None:
+        pass
+
+    @relationship.command("create", help="Create a relationship between two guidelines")
+    @click.option(
+        "--source",
+        type=str,
+        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
+        help="Source tag or guideline ID",
+        required=True,
+    )
+    @click.option(
+        "--target",
+        type=str,
+        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
+        help="Target tag or guideline ID",
+        required=True,
+    )
+    @click.option(
+        "--kind",
+        type=click.Choice(
+            [
+                "entailment",
+                "precedence",
+                "requirement",
+                "priority",
+                "persistence",
+            ]
+        ),
+        help="Relationship kind",
+        required=True,
+    )
+    @click.pass_context
+    def relationship_create(
+        ctx: click.Context,
+        source: str,
+        target: str,
+        kind: GuidelineRelationshipKindDto,
+    ) -> None:
+        Interface.create_relationship(
+            ctx=ctx,
+            source_id=source,
+            target_id=target,
+            kind=kind,
+        )
+
+    @relationship.command("delete", help="Delete a relationship between two guidelines")
+    @click.option(
+        "--source",
+        type=str,
+        metavar="GUIDELINE_ID",
+        help="Source of the relationship",
+        required=True,
+    )
+    @click.option(
+        "--target",
+        type=str,
+        metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
+        help="Target tag or guideline ID",
+        required=True,
+    )
+    @click.option(
+        "--kind",
+        type=click.Choice(
+            [
+                "entailment",
+                "precedence",
+                "requirement",
+                "priority",
+                "persistence",
+            ]
+        ),
+        help="Relationship kind",
+        required=True,
+    )
+    @click.pass_context
+    def relationship_delete(
+        ctx: click.Context,
+        source: str,
+        target: str,
+        kind: GuidelineRelationshipKindDto,
+    ) -> None:
+        Interface.remove_relationship(
+            ctx=ctx,
+            source_id=source,
+            target_id=target,
+            kind=kind,
+        )
 
     @cli.group(help="Manage an agent's context variables")
     def variable() -> None:

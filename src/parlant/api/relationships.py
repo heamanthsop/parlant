@@ -1,4 +1,3 @@
-from contextlib import suppress
 from itertools import chain
 from typing import Optional, Sequence, cast, Annotated, TypeAlias
 from fastapi import APIRouter, HTTPException, Path, Query, status
@@ -16,7 +15,7 @@ from parlant.api.common import (
     guideline_relationship_kind_dto_to_kind,
     guideline_relationship_kind_to_dto,
 )
-from parlant.core.common import DefaultBaseModel, ItemNotFoundError
+from parlant.core.common import DefaultBaseModel
 from parlant.core.guideline_relationships import (
     GuidelineRelationship,
     GuidelineRelationshipId,
@@ -47,9 +46,15 @@ class GuidelineRelationshipCreationParamsDTO(
     kind: GuidelineRelationshipKindDTO
 
 
-EntityIdQuery: TypeAlias = Annotated[
-    str,
-    Query(description="The ID of the entity to list relationships for"),
+GuidelineIdQuery: TypeAlias = Annotated[
+    GuidelineId,
+    Query(description="The ID of the guideline to list relationships for"),
+]
+
+
+TagIdQuery: TypeAlias = Annotated[
+    TagId,
+    Query(description="The ID of the tag to list relationships for"),
 ]
 
 
@@ -169,6 +174,12 @@ def create_router(
     async def create_guideline_relationship(
         params: GuidelineRelationshipCreationParamsDTO,
     ) -> GuidelineRelationshipDTO:
+        """
+        Create a guideline relationship.
+
+        A guideline relationship is a relationship between a guideline and a tag.
+        It can be created between a guideline and a tag, or between two guidelines, or between two tags.
+        """
         if params.source_guideline and params.source_tag:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -227,34 +238,41 @@ def create_router(
     )
     async def list_guideline_relationships(
         kind: GuidelineRelationshipKindQuery,
-        entity_id: EntityIdQuery,
         indirect: IndirectQuery = True,
+        guideline_id: Optional[GuidelineIdQuery] = None,
+        tag_id: Optional[TagIdQuery] = None,
     ) -> Sequence[GuidelineRelationshipDTO]:
-        guideline: Optional[Guideline] = None
-        tag: Optional[Tag] = None
-        with suppress(ItemNotFoundError):
-            guideline = await guideline_store.read_guideline(
-                guideline_id=cast(GuidelineId, entity_id)
-            )
-        if guideline is None:
-            with suppress(ItemNotFoundError):
-                tag = await tag_store.read_tag(tag_id=cast(TagId, entity_id))
+        """
+        List guideline relationships.
 
-        if guideline is None and tag is None:
+        Either `guideline_id` or `tag_id` must be provided.
+        """
+        if guideline_id is None and tag_id is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Entity not found",
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Either guideline_id or tag_id must be provided",
             )
+
+        if guideline_id:
+            await guideline_store.read_guideline(guideline_id=guideline_id)
+        elif tag_id:
+            await tag_store.read_tag(tag_id=tag_id)
+
+        entity_id = (
+            cast(GuidelineId | TagId, guideline_id)
+            if guideline_id
+            else cast(GuidelineId | TagId, tag_id)
+        )
 
         source_relationships = await guideline_relationship_store.list_relationships(
             kind=guideline_relationship_kind_dto_to_kind(kind),
-            source=cast(GuidelineId | TagId, entity_id),
+            source=entity_id,
             indirect=indirect,
         )
 
         target_relationships = await guideline_relationship_store.list_relationships(
             kind=guideline_relationship_kind_dto_to_kind(kind),
-            target=cast(GuidelineId | TagId, entity_id),
+            target=entity_id,
             indirect=indirect,
         )
         relationships = chain(source_relationships, target_relationships)
@@ -280,6 +298,9 @@ def create_router(
     async def read_guideline_relationship(
         relationship_id: GuidelineRelationshipIdPath,
     ) -> GuidelineRelationshipDTO:
+        """
+        Read a guideline relationship by ID.
+        """
         relationship = await guideline_relationship_store.read_relationship(id=relationship_id)
 
         return await guideline_relationship_to_dto(relationship=relationship)
@@ -299,6 +320,9 @@ def create_router(
     async def delete_guideline_relationship(
         relationship_id: GuidelineRelationshipIdPath,
     ) -> None:
+        """
+        Delete a guideline relationship by ID.
+        """
         await guideline_relationship_store.delete_relationship(id=relationship_id)
 
     return router
