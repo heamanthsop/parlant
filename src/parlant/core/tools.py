@@ -58,6 +58,8 @@ class ToolParameterDescriptor(TypedDict, total=False):
     enum: Sequence[EnumValueType]
     description: str
     examples: Sequence[str]
+    # The following fields will not be used in a LLM prompt
+    has_default: bool
 
 
 # These two aliases are redefined here to avoid a circular reference.

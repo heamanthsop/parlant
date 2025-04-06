@@ -131,6 +131,7 @@ class _ToolParameterInfo(NamedTuple):
     resolved_type: type[_ToolParameterType]
     options: Optional[ToolParameterOptions]
     is_optional: bool
+    has_default: bool
 
 
 def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
@@ -191,7 +192,8 @@ def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
                     raw_type=parameter_type,
                     resolved_type=parameter_type,
                     options=parameter_options,
-                    is_optional=has_default,
+                    is_optional=False,
+                    has_default=has_default,
                 )
             else:
                 assert unpacked_type
@@ -200,13 +202,15 @@ def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
                     resolved_type=unpacked_type,
                     options=parameter_options,
                     is_optional=True,
+                    has_default=has_default,
                 )
         else:
             return _ToolParameterInfo(
                 raw_type=parameter_type,
                 resolved_type=parameter_type,
                 options=parameter_options,
-                is_optional=has_default,
+                is_optional=False,
+                has_default=has_default,
             )
     except Exception:
         raise TypeError(f"Parameter type '{param.annotation}' is not supported in tool functions")
@@ -335,6 +339,8 @@ def _tool_decorator_impl(
             param_type = param_info.resolved_type
 
             param_descriptor: ToolParameterDescriptor = {}
+
+            param_descriptor["has_default"] = param_info.has_default
 
             if param_type in type_to_param_type:
                 param_descriptor["type"] = type_to_param_type[param_type]

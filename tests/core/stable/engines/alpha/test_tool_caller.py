@@ -23,7 +23,12 @@ from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer, CustomerStore, CustomerId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCaller
+from parlant.core.engines.alpha.tool_caller import (
+    ToolCallInferenceSchema,
+    ToolCaller,
+    ToolCallEvaluation,
+    ArgumentEvaluation,
+)
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
@@ -336,6 +341,170 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
     assert len(tool_calls) == 1
     tool_call = tool_calls[0]
     assert "when" in tool_call.arguments
+
+
+async def test_that_a_tool_is_properly_called_with_parameters_that_are_inferred_as_none(
+    container: Container,
+    tool_caller: ToolCaller,
+    agent: Agent,
+) -> None:
+    class AppointmentType(enum.Enum):
+        GENERAL = "general"
+        CHECK_UP = "checkup"
+        RESULTS = "result"
+
+    class AppointmentRoom(enum.Enum):
+        TINY = "phone booth"
+        SMALL = "private room"
+        BIG = "meeting room"
+
+    @tool
+    async def schedule_appointment(
+        context: ToolContext,
+        when: datetime,
+        type: Optional[AppointmentType] = AppointmentType.GENERAL,
+        room: AppointmentRoom = AppointmentRoom.TINY,
+        number_of_invites: int = 3,
+        required_participants: list[str] = ["Donald Trump", "Donald Duck", "Ronald McDonald"],
+        meeting_owner: Optional[str] = "Donald Trump",
+    ) -> ToolResult:
+        return ToolResult("Successfully scheduled appointment")
+
+    tool_id = ToolId(service_name="my_appointment_service", tool_name="schedule_appointment")
+    tool_ = Tool(
+        name="schedule_appointment",
+        creation_utc=datetime.now(timezone.utc),
+        description="",
+        metadata={},
+        parameters={
+            "when": ({"type": "string"}, ToolParameterOptions()),
+            "type": (
+                {"type": "string", "enum": ["general", "checkup", "result"], "has_default": True},
+                ToolParameterOptions(),
+            ),
+            "room": (
+                {
+                    "type": "string",
+                    "enum": ["phone booth", "private room", "meeting room"],
+                    "has_default": True,
+                },
+                ToolParameterOptions(),
+            ),
+            "number_of_invites": (
+                {"type": "integer", "has_default": True},
+                ToolParameterOptions(),
+            ),
+            "required_participants": (
+                {"type": "array", "item_type": "string", "has_default": True},
+                ToolParameterOptions(),
+            ),
+            "meeting_owner": (
+                {"type": "string", "has_default": True},
+                ToolParameterOptions(),
+            ),
+        },
+        required=["when", "room", "number_of_invites", "required_participants"],
+        consequential=False,
+    )
+
+    candidate_descriptor = (
+        tool_id,
+        tool_,
+        [],
+    )
+
+    # Create a mock inference output (based on a real one with slight modifications)
+    inference_output = [
+        ToolCallEvaluation(
+            applicability_rationale="The customer explicitly requested to schedule an appointment for tomorrow at 10am, which aligns with the purpose of this tool.",
+            applicability_score=10,
+            argument_evaluations=[
+                ArgumentEvaluation(
+                    parameter_name="when",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer explicitly mentioned 'tomorrow at 10am'.",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=False,
+                    is_missing=False,
+                    value_as_string="tomorrow at 10am",
+                ),
+                ArgumentEvaluation(
+                    parameter_name="type",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=True,
+                    is_missing=False,
+                    value_as_string=None,
+                ),
+                ArgumentEvaluation(
+                    parameter_name="room",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=False,
+                    is_missing=False,
+                    value_as_string=None,
+                ),
+                ArgumentEvaluation(
+                    parameter_name="number_of_invites",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=False,
+                    is_missing=False,
+                    value_as_string=None,
+                ),
+                ArgumentEvaluation(
+                    parameter_name="required_participants",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=False,
+                    is_missing=False,
+                    value_as_string=None,
+                ),
+                ArgumentEvaluation(
+                    parameter_name="meeting_owner",
+                    acceptable_source_for_this_argument_according_to_its_tool_definition="This argument can be extracted in the best way you think",
+                    evaluate_is_it_provided_by_an_acceptable_source="Yes",
+                    evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer has already provided this information clearly.",
+                    evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be problematic to guess, but the customer has provided the necessary details.",
+                    is_optional=True,
+                    is_missing=False,
+                    value_as_string=None,
+                ),
+            ],
+            same_call_is_already_staged=False,
+            comparison_with_rejected_tools_including_references_to_subtleties="There are no rejected tools that are more suitable for this task.",
+            relevant_subtleties="The customer has provided the required 'when' parameter but no optional details.",
+            a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+            are_optional_arguments_missing=True,
+            are_non_optional_arguments_missing=False,
+            allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
+            should_run=True,
+        )
+    ]
+
+    # Evaluate the tool calls
+    tool_calls, missing_data = await tool_caller._evaluate_tool_calls_parameters(
+        inference_output, candidate_descriptor
+    )
+
+    assert len(tool_calls) == 1
+    tool_call = tool_calls[0]
+    # Expecting that only the parameters that were originally defined as Optional to be passed as None (type and meeting_owner)
+    assert "when" in tool_call.arguments and tool_call.arguments["when"] is not None
+    assert "type" in tool_call.arguments and tool_call.arguments["type"] is None
+    assert "room" not in tool_call.arguments
+    assert "number_of_invites" not in tool_call.arguments
+    assert "required_participants" not in tool_call.arguments
+    assert "meeting_owner" in tool_call.arguments and tool_call.arguments["meeting_owner"] is None
 
 
 async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter(

@@ -297,11 +297,17 @@ class ToolCaller:
                     or tc.the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool
                 )
             ):
-                if tc.should_run and all(
-                    not evaluation.is_missing
+                all_missing_parameters_have_default_values = all(
+                    (
+                        not evaluation.is_missing
+                        or tool.parameters[evaluation.parameter_name][0]["has_default"]
+                    )
                     for evaluation in (tc.argument_evaluations or [])
                     if evaluation.parameter_name in candidate_descriptor[1].required
-                ):
+                )
+
+                # If the tool should run according to the LLM and all parameters are either provided, optional, or have a default value
+                if all_missing_parameters_have_default_values:
                     self._logger.debug(
                         f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
                     )
