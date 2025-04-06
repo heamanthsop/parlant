@@ -647,6 +647,11 @@ class Actions:
     ) -> ContextVariableValue:
         client = cast(ParlantClient, ctx.obj.client)
 
+        if key.startswith("tag:"):
+            tag_spec = key.split(":")[1]
+            tag_id = Actions._fetch_tag_id(ctx, tag_spec)
+            key = f"tag:{tag_id}"
+
         return client.context_variables.set_value(
             variable_id,
             key,
@@ -673,6 +678,11 @@ class Actions:
         key: str,
     ) -> ContextVariableValue:
         client = cast(ParlantClient, ctx.obj.client)
+
+        if key.startswith("tag:"):
+            tag_spec = key.split(":")[1]
+            tag_id = Actions._fetch_tag_id(ctx, tag_spec)
+            key = f"tag:{tag_id}"
 
         return client.context_variables.get_value(
             variable_id,
