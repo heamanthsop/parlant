@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.services.tools.plugins import PluginServer, tool
 from parlant.core.tools import (
     ControlOptions,
@@ -30,6 +31,7 @@ from parlant.core.tools import (
 __all__ = [
     "ControlOptions",
     "PluginServer",
+    "ServiceRegistry",
     "SessionMode",
     "SessionStatus",
     "Tool",

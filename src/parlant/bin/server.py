@@ -867,9 +867,14 @@ from contextlib import AsyncExitStack
 from lagom import Container
 from typing import Annotated
 
-from parlant.core.services.tools.plugins import PluginServer, tool
-from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tools import ToolContext, ToolParameterOptions, ToolResult
+from parlant.sdk import (
+    PluginServer,
+    ServiceRegistry,
+    ToolContext,
+    ToolParameterOptions,
+    ToolResult,
+    tool,
+)
 
 
 EXIT_STACK = AsyncExitStack()
