@@ -702,10 +702,10 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
 
     tool_enabled_guideline_matches = {
         create_guideline_match(
-            condition="customer explicitly asks to register for a sweepstake",
+            condition="customer explicitly asks to be registered for a sweepstake",
             action="register the customer for the sweepstake using all provided information",
             score=9,
-            rationale="customer wants to register for the sweepstake and provides all the required information",
+            rationale="customer wants to register for the sweepstake and provides all the relevant information",
             tags=[Tag.for_agent_id(agent.id)],
         ): [ToolId(service_name="my_scharlatan_service", tool_name="register_sweepstake")]
     }
