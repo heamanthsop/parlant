@@ -109,6 +109,7 @@ def given_the_tool_from_service(
                     "category": {
                         "type": "string",
                         "enum": ["laptops", "peripherals"],
+                        "has_default": False,
                     },
                 },
                 "required": ["category"],
@@ -157,7 +158,11 @@ def given_a_tool(
             "description": "Get answers to questions by consulting documentation",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "user_query": {"type": "string", "description": "The query from the customer"}
+                "user_query": {
+                    "type": "string",
+                    "description": "The query from the customer",
+                    "has_default": False,
+                }
             },
             "required": ["user_query"],
         },
@@ -170,6 +175,7 @@ def given_a_tool(
                     "type": "string",
                     "description": "The type of product (either 'drinks' or 'toppings')",
                     "enum": ["drinks", "toppings"],
+                    "has_default": False,
                 }
             },
             "required": ["product_type"],
@@ -179,8 +185,16 @@ def given_a_tool(
             "description": "Getting the addition calculation between two numbers",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "first_number": {"type": "number", "description": "The first number"},
-                "second_number": {"type": "number", "description": "The second number"},
+                "first_number": {
+                    "type": "number",
+                    "description": "The first number",
+                    "has_default": False,
+                },
+                "second_number": {
+                    "type": "number",
+                    "description": "The second number",
+                    "has_default": False,
+                },
             },
             "required": ["first_number", "second_number"],
         },
@@ -189,8 +203,16 @@ def given_a_tool(
             "description": "Getting the multiplication calculation between two numbers",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "first_number": {"type": "number", "description": "The first number"},
-                "second_number": {"type": "number", "description": "The second number"},
+                "first_number": {
+                    "type": "number",
+                    "description": "The first number",
+                    "has_default": False,
+                },
+                "second_number": {
+                    "type": "number",
+                    "description": "The second number",
+                    "has_default": False,
+                },
             },
             "required": ["first_number", "second_number"],
         },
@@ -199,7 +221,11 @@ def given_a_tool(
             "description": "Get the account balance by given name",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "account_name": {"type": "string", "description": "The name of the account"}
+                "account_name": {
+                    "type": "string",
+                    "description": "The name of the account",
+                    "has_default": False,
+                }
             },
             "required": ["account_name"],
         },
@@ -208,7 +234,11 @@ def given_a_tool(
             "description": "Get the account loans by given name",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "account_name": {"type": "string", "description": "The name of the account"}
+                "account_name": {
+                    "type": "string",
+                    "description": "The name of the account",
+                    "has_default": False,
+                }
             },
             "required": ["account_name"],
         },
@@ -220,10 +250,12 @@ def given_a_tool(
                 "from_account": {
                     "type": "string",
                     "description": "The account from which money will be transferred",
+                    "has_default": False,
                 },
                 "to_account": {
                     "type": "string",
                     "description": "The account to which money will be transferred",
+                    "has_default": False,
                 },
             },
             "required": ["from_account", "to_account"],
@@ -236,6 +268,7 @@ def given_a_tool(
                 "fruit": {
                     "type": "string",
                     "description": "Fruit to check for",
+                    "has_default": False,
                 },
             },
             "required": ["fruit"],
@@ -248,6 +281,7 @@ def given_a_tool(
                 "vegetable": {
                     "type": "string",
                     "description": "Vegetable to check for",
+                    "has_default": False,
                 },
             },
             "required": ["vegetable"],
@@ -259,6 +293,7 @@ def given_a_tool(
             "parameters": {
                 "user_is_adult": {
                     "type": "boolean",
+                    "has_default": False,
                 },
             },
             "required": ["user_is_adult"],
@@ -270,6 +305,7 @@ def given_a_tool(
             "parameters": {
                 "name": {
                     "type": "string",
+                    "has_default": False,
                 },
             },
             "required": ["name"],
@@ -309,6 +345,7 @@ def given_a_tool(
             "parameters": {
                 "last_6_digits": {
                     "type": "string",
+                    "has_default": True,
                 },
             },
             "required": [],
@@ -320,6 +357,7 @@ def given_a_tool(
             "parameters": {
                 "inquiry": {
                     "type": "string",
+                    "has_default": False,
                 },
             },
             "required": ["inquiry"],
@@ -331,6 +369,7 @@ def given_a_tool(
             "parameters": {
                 "payment_date": {
                     "type": "string",
+                    "has_default": False,
                 },
             },
             "required": ["payment_date"],
@@ -343,47 +382,55 @@ def given_a_tool(
                 "first_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=1),
                 ),
                 "last_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=1),
                 ),
                 "father_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     }
                 ),
                 "mother_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=2),
                 ),
                 "entry_type": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=3),
                 ),
                 "n_entries": (
                     {
                         "type": "int",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=3),
                 ),
                 "donation_target": (
                     {
                         "type": "string",
+                        "has_default": True,
                     },
                     ToolParameterOptions(precedence=3),
                 ),
                 "donation_percent": (
                     {
                         "type": "int",
+                        "has_default": True,
                     },
                     ToolParameterOptions(precedence=3),
                 ),
@@ -407,48 +454,56 @@ def given_a_tool(
                 "first_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=11),
                 ),
                 "last_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=11),
                 ),
                 "father_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=-1),
                 ),
                 "mother_name": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=-1),
                 ),
                 "entry_type": (
                     {
                         "type": "string",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=30),
                 ),
                 "n_entries": (
                     {
                         "type": "int",
+                        "has_default": False,
                     },
                     ToolParameterOptions(precedence=30),
                 ),
                 "donation_target": (
                     {
                         "type": "string",
+                        "has_default": True,
                     },
                     ToolParameterOptions(precedence=-3),
                 ),
                 "donation_percent": (
                     {
                         "type": "int",
+                        "has_default": True,
                     },
                     ToolParameterOptions(precedence=-3),
                 ),
@@ -470,6 +525,7 @@ def given_a_tool(
                 "product_type": {
                     "type": "string",
                     "enum": ["Monitor", "Keyboard", "Mouse", "Headset", "Audio", "Laptop", "Other"],
+                    "has_default": False,
                 }
             },
             "required": ["product_type"],
@@ -481,6 +537,7 @@ def given_a_tool(
             "parameters": {
                 "customer_id": {
                     "type": "string",
+                    "has_default": False,
                 }
             },
             "required": ["customer_id"],

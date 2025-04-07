@@ -407,7 +407,7 @@ async def test_that_a_tool_is_properly_called_with_parameters_that_are_inferred_
         consequential=False,
     )
 
-    candidate_descriptor = (
+    candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatch]] = (
         tool_id,
         tool_,
         [],
@@ -682,15 +682,17 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
         return ToolResult({"success": True})
 
     conversation_context = [
-        ("customer", "Hi, can you register me for the sweepstake?"),
-        ("customer", "I will donate 100 dollars if I win"),
+        (
+            "customer",
+            "Hi, can you register me for the sweepstake? I will donate 100 dollars if I win",
+        )
     ]
 
     interaction_history = create_interaction_history(conversation_context)
 
     ordinary_guideline_matches = [
         create_guideline_match(
-            condition="customer asks about registration for a sweepstake",
+            condition="customer wishes to be registered for a sweepstake",
             action="response in concise and breif answer",
             score=9,
             rationale="customer is interested in registering for the sweepstake",
@@ -700,7 +702,7 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
 
     tool_enabled_guideline_matches = {
         create_guideline_match(
-            condition="customer asks to register for a sweepstake",
+            condition="customer explicitly asks to register for a sweepstake",
             action="register the customer for the sweepstake using all provided information",
             score=9,
             rationale="customer wants to register for the sweepstake and provides all the required information",
