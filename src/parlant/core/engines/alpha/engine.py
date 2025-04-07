@@ -32,6 +32,7 @@ from parlant.core.context_variables import (
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.utterance_selector import UtteranceSelector
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
@@ -82,6 +83,7 @@ class AlphaEngine(Engine):
         entity_queries: EntityQueries,
         entity_commands: EntityCommands,
         guideline_matcher: GuidelineMatcher,
+        relational_guideline_resolver: RelationalGuidelineResolver,
         tool_event_generator: ToolEventGenerator,
         fluid_message_generator: MessageGenerator,
         utterance_selector: UtteranceSelector,
@@ -94,6 +96,7 @@ class AlphaEngine(Engine):
         self._entity_commands = entity_commands
 
         self._guideline_matcher = guideline_matcher
+        self._relational_guideline_resolver = relational_guideline_resolver
         self._tool_event_generator = tool_event_generator
         self._fluid_message_generator = fluid_message_generator
         self._utterance_selector = utterance_selector
@@ -649,20 +652,14 @@ class AlphaEngine(Engine):
             guidelines=all_stored_guidelines,
         )
 
-        # Step 3: Load connected guidelines that may not have
+        # Step 3: Resolve guideline matches by loading related guidelines that may not have
         # been inferrable just by looking at the interaction.
-        inferred_matches = await self._match_related_guidelines(
+        all_relevant_guidelines = await self._relational_guideline_resolver.resolve(
             all_stored_guidelines=all_stored_guidelines,
             matches=matching_result.matches,
         )
 
-        # Step 4: Put all matches in one basket, looking at them as a whole.
-        all_relevant_guidelines = [
-            *matching_result.matches,
-            *inferred_matches,
-        ]
-
-        # Step 5: Distinguish between ordinary and tool-enabled guidelines.
+        # Step 4: Distinguish between ordinary and tool-enabled guidelines.
         # We do this here as it creates a better subsequent control flow in the engine.
         tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
             guideline_matches=all_relevant_guidelines,
@@ -672,84 +669,6 @@ class AlphaEngine(Engine):
         )
 
         return matching_result, ordinary_guidelines, tool_enabled_guidelines
-
-    async def _match_related_guidelines(
-        self,
-        all_stored_guidelines: Sequence[Guideline],
-        matches: Sequence[GuidelineMatch],
-    ) -> Sequence[GuidelineMatch]:
-        # Some guidelines cannot be inferred simply by evaluating an interaction.
-        #
-        # For example, if we matched a guideline, "When X, Then Y",
-        # we also need to load and account for "When Y, Then Z".
-        # Such connections are pre-indexed in a graph behind the scenes,
-        # and those are the ones we are loading here.
-
-        connected_guidelines_by_match = defaultdict[GuidelineMatch, list[Guideline]](list)
-
-        for match in matches:
-            connected_guideline_ids = {
-                c.target
-                for c in await self._entity_queries.find_guideline_relationships(
-                    indirect=True,
-                    source=match.guideline.id,
-                )
-            }
-
-            for connected_guideline_id in connected_guideline_ids:
-                if any(connected_guideline_id == p.guideline.id for p in matches):
-                    # no need to add this connected one as it's already an assumed match
-                    continue
-
-                connected_guideline = next(
-                    g for g in all_stored_guidelines if g.id == connected_guideline_id
-                )
-
-                connected_guidelines_by_match[match].append(
-                    connected_guideline,
-                )
-
-        match_and_inferred_guideline_pairs: list[tuple[GuidelineMatch, Guideline]] = []
-
-        for match, connected_guidelines in connected_guidelines_by_match.items():
-            for connected_guideline in connected_guidelines:
-                if existing_connections := [
-                    connection
-                    for connection in match_and_inferred_guideline_pairs
-                    if connection[1] == connected_guideline
-                ]:
-                    assert len(existing_connections) == 1
-                    existing_connection = existing_connections[0]
-
-                    # We're basically saying, if this connected guideline is already
-                    # connected to a match with a higher priority than the match
-                    # at hand, then we want to keep the associated with the match
-                    # that has the higher priority, because it will go down as the inferred
-                    # priority of our connected guideline's match...
-                    #
-                    # Now try to read that out loud in one go :)
-                    if existing_connection[0].score >= match.score:
-                        continue  # Stay with existing one
-                    else:
-                        # This match's score is higher, so it's better that
-                        # we associate the connected guideline with this one.
-                        # we'll add it soon, but meanwhile let's remove the old one.
-                        match_and_inferred_guideline_pairs.remove(
-                            existing_connection,
-                        )
-
-                match_and_inferred_guideline_pairs.append(
-                    (match, connected_guideline),
-                )
-
-        return [
-            GuidelineMatch(
-                guideline=connection[1],
-                score=connection[0].score,
-                rationale="Automatically inferred from context",
-            )
-            for connection in match_and_inferred_guideline_pairs
-        ]
 
     async def _find_tool_enabled_guideline_matches(
         self,

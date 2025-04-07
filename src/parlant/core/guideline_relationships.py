@@ -220,6 +220,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
     async def _get_relationships_graph(self, kind: GuidelineRelationshipKind) -> networkx.DiGraph:
         if kind not in self._graphs:
             g = networkx.DiGraph()
+            g.graph["strict"] = True  # Ensure no loops are allowed
 
             relationships = [
                 self._deserialize(d)

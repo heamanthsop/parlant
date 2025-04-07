@@ -12,11 +12,9 @@ from parlant.core.context_variables import (
 from parlant.core.customers import Customer, CustomerId, CustomerStore
 from parlant.core.guidelines import (
     Guideline,
-    GuidelineId,
     GuidelineStore,
 )
 from parlant.core.guideline_relationships import (
-    GuidelineRelationship,
     GuidelineRelationshipStore,
 )
 from parlant.core.guideline_tool_associations import (
@@ -128,19 +126,6 @@ class EntityQueries:
         session_id: SessionId,
     ) -> Sequence[Event]:
         return await self._session_store.list_events(session_id)
-
-    async def find_guideline_relationships(
-        self,
-        source: Optional[GuidelineId] = None,
-        target: Optional[GuidelineId] = None,
-        indirect: bool = False,
-    ) -> Sequence[GuidelineRelationship]:
-        return await self._guideline_relationship_store.list_relationships(
-            kind="entailment",
-            indirect=indirect,
-            source=source,
-            target=target,
-        )
 
     async def find_guideline_tool_associations(
         self,

@@ -38,6 +38,7 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.utterance_selector import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
@@ -482,6 +483,7 @@ async def initialize_container(
         DefaultGuidelineMatchingStrategyResolver
     ]
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
+    c[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
 
 
 async def recover_server_tasks(
