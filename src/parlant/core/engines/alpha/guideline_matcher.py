@@ -20,7 +20,7 @@ from itertools import chain
 import json
 import math
 import time
-from typing import Literal, Optional, Sequence
+from typing import Optional, Sequence
 from typing_extensions import override
 
 from parlant.core import async_utils
@@ -64,7 +64,7 @@ class GenericGuidelineMatchSchema(DefaultBaseModel):
     ] = None
     guideline_previously_applied_rationale: Optional[list[SegmentPreviouslyAppliedRationale]] = None
     guideline_previously_applied: Optional[str] = None
-    is_missing_part_cosmetic_or_functional: Optional[Literal["cosmetic", "functional", ""]] = None
+    is_missing_part_cosmetic_or_functional: Optional[str] = None
     guideline_should_reapply: Optional[bool] = None
     applies_score: int
 

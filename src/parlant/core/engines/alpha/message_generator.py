@@ -93,14 +93,14 @@ class InstructionEvaluation(DefaultBaseModel):
 
 
 class MessageSchema(DefaultBaseModel):
-    last_message_of_customer: Optional[str]
+    last_message_of_customer: Optional[str] = None
     produced_reply: Optional[bool] = None
     produced_reply_rationale: Optional[str] = None
-    guidelines: list[str]
+    guidelines: Optional[list[str]] = None
     context_evaluation: Optional[ContextEvaluation] = None
     insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
-    revisions: list[Revision]
+    revisions: Optional[list[Revision]] = None
 
 
 @dataclass
@@ -371,7 +371,7 @@ If you decide not to emit a message, output the following:
 {{
     "last_message_of_customer": None,
     "produced_reply": false,
-    "guidelines": <list of strings- a re-statement of all guidelines>,
+    "guidelines": [<list of strings- a re-statement of all guidelines>],
     "context_evaluation": None,
     "insights": [<list of strings- up to 3 original insights>],
     "produced_reply_rationale": "<a few words to justify why a reply was NOT produced here>",
