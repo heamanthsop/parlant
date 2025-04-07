@@ -297,28 +297,20 @@ class ToolCaller:
                     or tc.the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool
                 )
             ):
-                # Check that all parameters are either provided, optional, or have a default value
-                all_missing_parameters_have_default_values = all(
-                    (
-                        not evaluation.is_missing
-                        or tool.parameters[evaluation.parameter_name][0]["has_default"]
-                    )
+                # TODO: should_run needs some future rework. If tool shouldn't run (e.g. already staged), but all parameters are ok - this condition will still be true
+                if tc.should_run or all(
+                    (not evaluation.is_missing)
                     for evaluation in (tc.argument_evaluations or [])
                     if evaluation.parameter_name in candidate_descriptor[1].required
-                )
-
-                # TODO: should_run needs some future rework. If tool shouldn't run (e.g. already staged), but all parameters are ok - this condition will still be true
-                if tc.should_run or all_missing_parameters_have_default_values:
+                ):
                     self._logger.debug(
                         f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
                     )
                     arguments = {}
                     for evaluation in tc.argument_evaluations or []:
-                        if evaluation.is_missing or (
-                            evaluation.value_as_string is None
-                            and evaluation.parameter_name in candidate_descriptor[1].required
-                        ):
+                        if evaluation.is_missing:
                             continue
+                        # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
                         arguments[evaluation.parameter_name] = evaluation.value_as_string
 
                     tool_calls.append(
