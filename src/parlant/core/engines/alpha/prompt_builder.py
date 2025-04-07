@@ -20,6 +20,7 @@ from typing import Any, Callable, Optional, Sequence, cast
 
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
+from parlant.core.customers import Customer
 from parlant.core.sessions import Event, EventSource, MessageEventData, ToolEventData
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.utils import (
@@ -30,6 +31,7 @@ from parlant.core.emissions import EmittedEvent
 
 class BuiltInSection(Enum):
     AGENT_IDENTITY = auto()
+    CUSTOMER_IDENTITY = auto()
     INTERACTION_HISTORY = auto()
     CONTEXT_VARIABLES = auto()
     GLOSSARY = auto()
@@ -184,6 +186,23 @@ The following is a description of your background and personality: ###
                 },
                 status=SectionStatus.ACTIVE,
             )
+
+        return self
+
+    def add_customer_identity(
+        self,
+        customer: Customer,
+    ) -> PromptBuilder:
+        self.add_section(
+            name=BuiltInSection.CUSTOMER_IDENTITY,
+            template="""
+The user you're interacting with is called {customer_name}.
+""",
+            props={
+                "customer_name": customer.name,
+            },
+            status=SectionStatus.ACTIVE,
+        )
 
         return self
 
