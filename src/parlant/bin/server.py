@@ -893,16 +893,15 @@ async def greet_person(
 ) -> ToolResult:
     return ToolResult({{"message": f"Howdy, {{person_name}}!"}})
 
+PORT = 8199
+TOOLS = [greet_person]
 
 async def initialize_module(container: Container) -> None:
-    tools = [greet_person]
-
     host = "127.0.0.1"
-    port = 8199
 
     server = PluginServer(
-        tools=tools,
-        port=port,
+        tools=TOOLS,
+        port=PORT,
         host=host,
         hosted=True,
     )
