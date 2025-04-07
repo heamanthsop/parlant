@@ -23,6 +23,7 @@ All notable changes to Parlant will be documented here.
 - Add guideline strategy resolution
 - Add ToolParameterOptions precedence
 - Introduce Relationships
+- Add support for default values for tool parameters in tool calling
 
 ## [1.6.2] - 2025-01-29
 
