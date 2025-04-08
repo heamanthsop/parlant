@@ -482,10 +482,7 @@ class GuidelineRelationshipKindDTO(Enum):
     """The kind of guideline relationship."""
 
     ENTAILMENT = "entailment"
-    PRECEDENCE = "precedence"
-    REQUIREMENT = "requirement"
     PRIORITY = "priority"
-    PERSISTENCE = "persistence"
 
 
 class RelationshipDTO(
@@ -513,14 +510,8 @@ def guideline_relationship_kind_dto_to_kind(
     match dto:
         case GuidelineRelationshipKindDTO.ENTAILMENT:
             return "entailment"
-        case GuidelineRelationshipKindDTO.PRECEDENCE:
-            return "precedence"
-        case GuidelineRelationshipKindDTO.REQUIREMENT:
-            return "requirement"
         case GuidelineRelationshipKindDTO.PRIORITY:
             return "priority"
-        case GuidelineRelationshipKindDTO.PERSISTENCE:
-            return "persistence"
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {dto}")
 
@@ -531,13 +522,7 @@ def guideline_relationship_kind_to_dto(
     match kind:
         case "entailment":
             return GuidelineRelationshipKindDTO.ENTAILMENT
-        case "precedence":
-            return GuidelineRelationshipKindDTO.PRECEDENCE
-        case "requirement":
-            return GuidelineRelationshipKindDTO.REQUIREMENT
         case "priority":
             return GuidelineRelationshipKindDTO.PRIORITY
-        case "persistence":
-            return GuidelineRelationshipKindDTO.PERSISTENCE
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {kind}")

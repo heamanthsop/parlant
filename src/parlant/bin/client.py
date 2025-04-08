@@ -3145,10 +3145,7 @@ async def async_main() -> None:
         type=click.Choice(
             [
                 "entailment",
-                "precedence",
-                "requirement",
                 "priority",
-                "persistence",
             ]
         ),
         help="Relationship kind",
@@ -3188,10 +3185,7 @@ async def async_main() -> None:
         type=click.Choice(
             [
                 "entailment",
-                "precedence",
-                "requirement",
                 "priority",
-                "persistence",
             ]
         ),
         help="Relationship kind",
@@ -3217,10 +3211,7 @@ async def async_main() -> None:
         type=click.Choice(
             [
                 "entailment",
-                "precedence",
-                "requirement",
                 "priority",
-                "persistence",
             ]
         ),
         help="Relationship kind",

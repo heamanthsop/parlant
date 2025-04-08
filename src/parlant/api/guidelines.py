@@ -379,10 +379,7 @@ class GuidelineRelationshipKindDTO(Enum):
     """The kind of guideline relationship."""
 
     ENTAILMENT = "entailment"
-    PRECEDENCE = "precedence"
-    REQUIREMENT = "requirement"
     PRIORITY = "priority"
-    PERSISTENCE = "persistence"
 
 
 @dataclass
