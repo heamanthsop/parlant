@@ -102,7 +102,8 @@ class GuidelineMatchingResult:
         return list(chain.from_iterable(self.batches))
 
 
-class GuidelineMatchingBatchResult(DefaultBaseModel):
+@dataclass(frozen=True)
+class GuidelineMatchingBatchResult:
     matches: Sequence[GuidelineMatch]
     generation_info: GenerationInfo
 

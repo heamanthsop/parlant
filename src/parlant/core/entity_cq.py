@@ -12,12 +12,10 @@ from parlant.core.context_variables import (
 from parlant.core.customers import Customer, CustomerId, CustomerStore
 from parlant.core.guidelines import (
     Guideline,
-    GuidelineId,
     GuidelineStore,
 )
-from parlant.core.guideline_relationships import (
-    GuidelineRelationship,
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -46,7 +44,7 @@ class EntityQueries:
         guideline_store: GuidelineStore,
         customer_store: CustomerStore,
         context_variable_store: ContextVariableStore,
-        guideline_relationship_store: GuidelineRelationshipStore,
+        relationship_store: RelationshipStore,
         guideline_tool_association_store: GuidelineToolAssociationStore,
         glossary_store: GlossaryStore,
         service_registry: ServiceRegistry,
@@ -56,7 +54,7 @@ class EntityQueries:
         self._guideline_store = guideline_store
         self._customer_store = customer_store
         self._context_variable_store = context_variable_store
-        self._guideline_relationship_store = guideline_relationship_store
+        self._relationship_store = relationship_store
         self._guideline_tool_association_store = guideline_tool_association_store
         self._glossary_store = glossary_store
         self._service_registry = service_registry
@@ -128,19 +126,6 @@ class EntityQueries:
         session_id: SessionId,
     ) -> Sequence[Event]:
         return await self._session_store.list_events(session_id)
-
-    async def find_guideline_relationships(
-        self,
-        source: Optional[GuidelineId] = None,
-        target: Optional[GuidelineId] = None,
-        indirect: bool = False,
-    ) -> Sequence[GuidelineRelationship]:
-        return await self._guideline_relationship_store.list_relationships(
-            kind="entailment",
-            indirect=indirect,
-            source=source,
-            target=target,
-        )
 
     async def find_guideline_tool_associations(
         self,

@@ -272,6 +272,7 @@ def create_guideline(
         ),
         enabled=True,
         tags=tags,
+        metadata={},
     )
 
     context.guidelines.append(guideline)

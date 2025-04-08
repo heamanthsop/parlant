@@ -94,6 +94,7 @@ def create_guideline_match(
         ),
         enabled=True,
         tags=tags,
+        metadata={},
     )
 
     return GuidelineMatch(guideline=guideline, score=score, rationale=rationale)

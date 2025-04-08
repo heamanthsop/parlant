@@ -71,7 +71,7 @@ class ProductType(enum.Enum):
     TOPPINGS = "toppings"
 
 
-def get_available_product_by_type(product_type: ProductType) -> ToolResult:
+def get_available_product_by_type(product_type: ProductType = ProductType.DRINKS) -> ToolResult:
     if product_type == ProductType.DRINKS:
         return get_available_drinks()
     elif product_type == ProductType.TOPPINGS:

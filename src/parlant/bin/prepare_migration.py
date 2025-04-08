@@ -43,9 +43,10 @@ from parlant.core.glossary import (
     TermTagAssociationDocument,
     TermId,
 )
-from parlant.core.guideline_relationships import (
+from parlant.core.relationships import (
     GuidelineRelationshipDocument_v0_1_0,
-    GuidelineRelationshipDocument,
+    GuidelineRelationshipDocument_v0_2_0,
+    RelationshipDocument,
 )
 from parlant.core.guidelines import (
     GuidelineDocument_v0_2_0,
@@ -156,6 +157,13 @@ async def get_component_versions() -> list[tuple[str, str]]:
     )
     if guideline_connections_version:
         versions.append(("guideline_connections", guideline_connections_version))
+
+    guideline_relationships_version = _get_version_from_json_file(
+        PARLANT_HOME_DIR / "guideline_relationships.json",
+        "guideline_relationships",
+    )
+    if guideline_relationships_version:
+        versions.append(("guideline_relationships", guideline_relationships_version))
 
     embedder_factory = EmbedderFactory(Container())
     glossary_db = await EXIT_STACK.enter_async_context(
@@ -678,7 +686,7 @@ async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
             doc = cast(GuidelineRelationshipDocument_v0_1_0, doc)
             await guideline_relationships_collection.insert_one(
                 cast(
-                    GuidelineRelationshipDocument,
+                    RelationshipDocument,
                     {
                         "id": doc["id"],
                         "version": Version.String("0.2.0"),
@@ -708,6 +716,79 @@ async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
             )
 
     (PARLANT_HOME_DIR / "guideline_connections.json").unlink()
+
+    rich.print("[green]Successfully migrated guideline connections to guideline relationships")
+
+
+@register_migration("guideline_relationships", "0.2.0", "0.3.0")
+async def migrate_relationships_0_2_0_to_0_3_0() -> None:
+    rich.print("[green]Starting migration for relationships 0.2.0 -> 0.3.0")
+
+    relationships_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "relationships.json")
+    )
+
+    relationships_collection = await relationships_db.get_or_create_collection(
+        "relationships",
+        BaseDocument,
+        identity_loader,
+    )
+
+    relationships_metadata_collection = await relationships_db.get_or_create_collection(
+        "metadata",
+        MetadataDocument,
+        identity_loader,
+    )
+
+    async with JSONFileDocumentDatabase(
+        LOGGER, PARLANT_HOME_DIR / "guideline_relationships.json"
+    ) as guideline_relationships_db:
+        guideline_relationships_collection = (
+            await guideline_relationships_db.get_or_create_collection(
+                "guideline_relationships",
+                BaseDocument,
+                identity_loader,
+            )
+        )
+
+        for doc in await guideline_relationships_collection.find(filters={}):
+            doc = cast(GuidelineRelationshipDocument_v0_2_0, doc)
+            await relationships_collection.insert_one(
+                cast(
+                    RelationshipDocument,
+                    {
+                        "id": doc["id"],
+                        "version": Version.String("0.3.0"),
+                        "creation_utc": doc["creation_utc"],
+                        "source": doc["source"],
+                        "source_type": "guideline",
+                        "target": doc["target"],
+                        "target_type": "guideline",
+                        "kind": doc["kind"],
+                    },
+                )
+            )
+
+        guideline_relationships_metadata_collection = (
+            await guideline_relationships_db.get_or_create_collection(
+                "metadata",
+                MetadataDocument,
+                identity_loader,
+            )
+        )
+
+        if metadata_doc := await guideline_relationships_metadata_collection.find_one(filters={}):
+            await relationships_metadata_collection.insert_one(
+                cast(
+                    MetadataDocument,
+                    {
+                        "id": metadata_doc["id"],
+                        "version": Version.String("0.3.0"),
+                    },
+                )
+            )
+
+    (PARLANT_HOME_DIR / "guideline_relationships.json").unlink()
 
     rich.print("[green]Successfully migrated guideline connections to guideline relationships")
 

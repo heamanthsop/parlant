@@ -12,65 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
 from typing import Annotated, TypeAlias
 from fastapi import APIRouter, Path, status
-from pydantic import Field
 
-from parlant.api.common import apigen_config, ExampleJson
+from parlant.api.common import TagDTO, TagNameField, apigen_config, ExampleJson, tag_example
 from parlant.core.common import DefaultBaseModel
 from parlant.core.tags import TagId, TagStore
 
 API_GROUP = "tags"
-
-
-TagIdField: TypeAlias = Annotated[
-    TagId,
-    Field(
-        description="Unique identifier for the tag",
-        examples=["tag_123xyz", "tag_premium42"],
-    ),
-]
-
-TagCreationUTCField: TypeAlias = Annotated[
-    datetime,
-    Field(
-        description="UTC timestamp of when the tag was created, in ISO 8601 format",
-        examples=["2024-03-24T12:00:00Z"],
-    ),
-]
-
-TagNameField: TypeAlias = Annotated[
-    str,
-    Field(
-        description="Human-readable name for the tag, used for display and organization",
-        examples=["premium", "enterprise", "beta-tester"],
-        min_length=1,
-        max_length=50,
-    ),
-]
-
-tag_example: ExampleJson = {
-    "id": "tag_123xyz",
-    "name": "premium",
-    "creation_utc": "2024-03-24T12:00:00Z",
-}
-
-
-class TagDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": tag_example},
-):
-    """
-    Represents a tag in the system.
-
-    Tags can be used to categorize and label various resources like customers, sessions,
-    or content. They provide a flexible way to organize and filter data.
-    """
-
-    id: TagIdField
-    creation_utc: TagCreationUTCField
-    name: TagNameField
 
 
 tag_creation_params_example: ExampleJson = {"name": "premium-customer"}

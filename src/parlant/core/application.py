@@ -27,8 +27,8 @@ from parlant.core.agents import AgentId
 from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerId
 from parlant.core.evaluations import EntailmentRelationshipProposition, Invoice
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guidelines import GuidelineId, GuidelineStore
 from parlant.core.sessions import (
@@ -54,7 +54,7 @@ class Application:
         self._session_store = container[SessionStore]
         self._session_listener = container[SessionListener]
         self._guideline_store = container[GuidelineStore]
-        self._guideline_relationship_store = container[GuidelineRelationshipStore]
+        self._relationship_store = container[RelationshipStore]
         self._engine = container[Engine]
         self._event_emitter_factory = container[EventEmitterFactory]
         self._background_task_service = container[BackgroundTaskService]
@@ -185,9 +185,11 @@ class Application:
                 ).id
                 target_guideline_id = content_guidelines[target_key]
 
-            await self._guideline_relationship_store.create_relationship(
+            await self._relationship_store.create_relationship(
                 source=source_guideline_id,
+                source_type="guideline",
                 target=target_guideline_id,
+                target_type="guideline",
                 kind="entailment",
             )
 
@@ -214,7 +216,7 @@ class Application:
                 guideline_id = cast(GuidelineId, invoice.payload.updated_id)
 
                 relationships_to_delete = list(
-                    await self._guideline_relationship_store.list_relationships(
+                    await self._relationship_store.list_relationships(
                         kind="entailment",
                         indirect=False,
                         source=guideline_id,
@@ -222,7 +224,7 @@ class Application:
                 )
 
                 relationships_to_delete.extend(
-                    await self._guideline_relationship_store.list_relationships(
+                    await self._relationship_store.list_relationships(
                         kind="entailment",
                         indirect=False,
                         target=guideline_id,
@@ -230,7 +232,7 @@ class Application:
                 )
 
                 for relationship in relationships_to_delete:
-                    await self._guideline_relationship_store.delete_relationship(relationship.id)
+                    await self._relationship_store.delete_relationship(relationship.id)
 
         entailment_propositions: set[EntailmentRelationshipProposition] = set([])
 
@@ -246,9 +248,11 @@ class Application:
 
                 if proposition not in entailment_propositions:
                     if proposition.check_kind == "connection_with_another_evaluated_guideline":
-                        await self._guideline_relationship_store.create_relationship(
+                        await self._relationship_store.create_relationship(
                             source=content_guidelines[source_key],
+                            source_type="guideline",
                             target=content_guidelines[target_key],
+                            target_type="guideline",
                             kind="entailment",
                         )
                     else:

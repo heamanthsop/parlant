@@ -36,7 +36,7 @@ CustomerNameField: TypeAlias = Annotated[
     ),
 ]
 
-CustomerExtra: TypeAlias = Annotated[
+CustomerExtraField: TypeAlias = Annotated[
     Mapping[str, str],
     Field(
         description="Key-value pairs (`str: str`) to describe the customer",
@@ -114,8 +114,19 @@ class CustomerDTO(
     id: CustomerIdPath
     creation_utc: CustomerCreationUTCField
     name: CustomerNameField
-    extra: CustomerExtra
+    extra: CustomerExtraField
     tags: TagIdSequenceField
+
+
+class CustomerCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": customer_creation_params_example},
+):
+    """Parameters for creating a new customer."""
+
+    name: CustomerNameField
+    extra: Optional[CustomerExtraField] = None
+    tags: Optional[TagIdSequenceField] = None
 
 
 CustomerExtraRemoveField: TypeAlias = Annotated[
@@ -135,24 +146,13 @@ customer_extra_update_params_example: ExampleJson = {
 }
 
 
-class CustomerCreationParamsDTO(
-    DefaultBaseModel,
-    json_schema_extra={"example": customer_creation_params_example},
-):
-    """Parameters for creating a new customer."""
-
-    name: CustomerNameField
-    extra: Optional[CustomerExtra] = None
-    tags: Optional[TagIdSequenceField] = None
-
-
 class CustomerExtraUpdateParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": customer_extra_update_params_example},
 ):
     """Parameters for updating a customer's extra metadata."""
 
-    add: Optional[CustomerExtra] = None
+    add: Optional[CustomerExtraField] = None
     remove: Optional[CustomerExtraRemoveField] = None
 
 
@@ -382,7 +382,10 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    _ = await tag_store.read_tag(tag_id)
+                    if agent_id := Tag.extract_agent_id(tag_id):
+                        _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
                     await customer_store.upsert_tag(customer_id, tag_id)
             if params.tags.remove:
                 for tag_id in params.tags.remove:

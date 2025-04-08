@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import NewType, Optional, Sequence, cast
+from typing import Mapping, NewType, Optional, Sequence, cast
 from typing_extensions import override, TypedDict, Self
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from parlant.core.async_utils import ReaderWriterLock
-from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
+from parlant.core.common import ItemNotFoundError, JSONSerializable, UniqueId, Version, generate_id
 from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.persistence.document_database import (
     BaseDocument,
@@ -48,6 +48,7 @@ class Guideline:
     content: GuidelineContent
     enabled: bool
     tags: Sequence[TagId]
+    metadata: Mapping[str, JSONSerializable]
 
     def __str__(self) -> str:
         return f"When {self.content.condition}, then {self.content.action}"
@@ -60,6 +61,7 @@ class GuidelineUpdateParams(TypedDict, total=False):
     condition: str
     action: str
     enabled: bool
+    metadata: Mapping[str, JSONSerializable]
 
 
 class GuidelineStore(ABC):
@@ -68,6 +70,7 @@ class GuidelineStore(ABC):
         self,
         condition: str,
         action: str,
+        metadata: Mapping[str, JSONSerializable] = {},
         creation_utc: Optional[datetime] = None,
         enabled: bool = True,
         tags: Optional[Sequence[TagId]] = None,
@@ -119,6 +122,20 @@ class GuidelineStore(ABC):
         tag_id: TagId,
     ) -> None: ...
 
+    @abstractmethod
+    async def add_metadata(
+        self,
+        guideline_id: GuidelineId,
+        metadata: Mapping[str, JSONSerializable],
+    ) -> Guideline: ...
+
+    @abstractmethod
+    async def remove_metadata(
+        self,
+        guideline_id: GuidelineId,
+        keys: Sequence[str],
+    ) -> Guideline: ...
+
 
 class GuidelineDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
@@ -139,6 +156,15 @@ class GuidelineDocument_v0_2_0(TypedDict, total=False):
     enabled: bool
 
 
+class GuidelineDocument_v0_3_0(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    condition: str
+    action: str
+    enabled: bool
+
+
 class GuidelineDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
@@ -146,6 +172,7 @@ class GuidelineDocument(TypedDict, total=False):
     condition: str
     action: str
     enabled: bool
+    metadata: Mapping[str, JSONSerializable]
 
 
 class GuidelineTagAssociationDocument(TypedDict, total=False):
@@ -170,7 +197,7 @@ async def guideline_document_converter_0_1_0_to_0_2_0(doc: BaseDocument) -> Opti
 
 
 class GuidelineDocumentStore(GuidelineStore):
-    VERSION = Version.from_string("0.3.0")
+    VERSION = Version.from_string("0.4.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -181,6 +208,18 @@ class GuidelineDocumentStore(GuidelineStore):
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[GuidelineDocument]:
+        async def v0_3_0_to_v0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            d = cast(GuidelineDocument_v0_3_0, doc)
+            return GuidelineDocument(
+                id=d["id"],
+                version=Version.String("0.4.0"),
+                creation_utc=d["creation_utc"],
+                condition=d["condition"],
+                action=d["action"],
+                enabled=d["enabled"],
+                metadata={},
+            )
+
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise Exception(
                 "This code should not be reached! Please run the 'parlant-prepare-migration' script."
@@ -191,6 +230,7 @@ class GuidelineDocumentStore(GuidelineStore):
             {
                 "0.1.0": guideline_document_converter_0_1_0_to_0_2_0,
                 "0.2.0": v0_2_0_to_v_0_3_0,
+                "0.3.0": v0_3_0_to_v0_4_0,
             },
         ).migrate(doc)
 
@@ -198,6 +238,16 @@ class GuidelineDocumentStore(GuidelineStore):
         self, doc: BaseDocument
     ) -> Optional[GuidelineTagAssociationDocument]:
         if doc["version"] == "0.3.0":
+            d = cast(GuidelineTagAssociationDocument, doc)
+            return GuidelineTagAssociationDocument(
+                id=d["id"],
+                version=Version.String("0.4.0"),
+                creation_utc=d["creation_utc"],
+                guideline_id=d["guideline_id"],
+                tag_id=d["tag_id"],
+            )
+
+        if doc["version"] == "0.4.0":
             return cast(GuidelineTagAssociationDocument, doc)
 
         return None
@@ -241,6 +291,7 @@ class GuidelineDocumentStore(GuidelineStore):
             condition=guideline.content.condition,
             action=guideline.content.action,
             enabled=guideline.enabled,
+            metadata=guideline.metadata,
         )
 
     async def _deserialize(
@@ -262,6 +313,7 @@ class GuidelineDocumentStore(GuidelineStore):
             ),
             enabled=guideline_document["enabled"],
             tags=[TagId(tag_id) for tag_id in tag_ids],
+            metadata=guideline_document["metadata"],
         )
 
     @override
@@ -269,6 +321,7 @@ class GuidelineDocumentStore(GuidelineStore):
         self,
         condition: str,
         action: str,
+        metadata: Mapping[str, JSONSerializable] = {},
         creation_utc: Optional[datetime] = None,
         enabled: bool = True,
         tags: Optional[Sequence[TagId]] = None,
@@ -285,6 +338,7 @@ class GuidelineDocumentStore(GuidelineStore):
                 ),
                 enabled=enabled,
                 tags=tags or [],
+                metadata=metadata,
             )
 
             await self._collection.insert_one(
@@ -479,3 +533,55 @@ class GuidelineDocumentStore(GuidelineStore):
 
         if not guideline_document:
             raise ItemNotFoundError(item_id=UniqueId(guideline_id))
+
+    @override
+    async def add_metadata(
+        self,
+        guideline_id: GuidelineId,
+        metadata: Mapping[str, JSONSerializable],
+    ) -> Guideline:
+        async with self._lock.writer_lock:
+            guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
+
+            if not guideline_document:
+                raise ItemNotFoundError(item_id=UniqueId(guideline_id))
+
+            updated_metadata = {**guideline_document["metadata"], **metadata}
+
+            result = await self._collection.update_one(
+                filters={"id": {"$eq": guideline_id}},
+                params={
+                    "metadata": updated_metadata,
+                },
+            )
+
+        assert result.updated_document
+
+        return await self._deserialize(guideline_document=result.updated_document)
+
+    @override
+    async def remove_metadata(
+        self,
+        guideline_id: GuidelineId,
+        keys: Sequence[str],
+    ) -> Guideline:
+        async with self._lock.writer_lock:
+            guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
+
+            if not guideline_document:
+                raise ItemNotFoundError(item_id=UniqueId(guideline_id))
+
+            updated_metadata = {
+                k: v for k, v in guideline_document["metadata"].items() if k not in keys
+            }
+
+            result = await self._collection.update_one(
+                filters={"id": {"$eq": guideline_id}},
+                params={
+                    "metadata": updated_metadata,
+                },
+            )
+
+        assert result.updated_document
+
+        return await self._deserialize(guideline_document=result.updated_document)

@@ -36,6 +36,7 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.utterance_selector import (
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
@@ -52,9 +53,9 @@ from parlant.core.evaluations import (
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
 from parlant.core.nlp.embedding import EmbedderFactory
 from parlant.core.nlp.generation import T, SchematicGenerator
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipDocumentStore,
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipDocumentStore,
+    RelationshipStore,
 )
 from parlant.core.guidelines import GuidelineDocumentStore, GuidelineStore
 from parlant.adapters.db.transient import TransientDocumentDatabase
@@ -218,8 +219,8 @@ async def container(
         container[GuidelineStore] = await stack.enter_async_context(
             GuidelineDocumentStore(TransientDocumentDatabase())
         )
-        container[GuidelineRelationshipStore] = await stack.enter_async_context(
-            GuidelineRelationshipDocumentStore(TransientDocumentDatabase())
+        container[RelationshipStore] = await stack.enter_async_context(
+            RelationshipDocumentStore(TransientDocumentDatabase())
         )
         container[SessionStore] = await stack.enter_async_context(
             SessionDocumentStore(TransientDocumentDatabase())
@@ -312,6 +313,7 @@ async def container(
         ]
         container[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
+        container[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
         container[UtteranceSelector] = Singleton(UtteranceSelector)
         container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
         container[MessageGenerator] = Singleton(MessageGenerator)

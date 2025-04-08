@@ -247,6 +247,7 @@ def create_guideline(
             action=action,
         ),
         tags=tags,
+        metadata={},
     )
 
     context.guidelines[guideline_name] = guideline

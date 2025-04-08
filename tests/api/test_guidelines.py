@@ -19,8 +19,8 @@ from pytest import raises
 
 from parlant.core.agents import AgentId
 from parlant.core.common import ItemNotFoundError
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
@@ -56,9 +56,11 @@ async def create_guidelines_and_create_relationships_between_them(
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
-        await container[GuidelineRelationshipStore].create_relationship(
+        await container[RelationshipStore].create_relationship(
             source=source.id,
+            source_type="guideline",
             target=target.id,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -271,7 +273,7 @@ async def test_legacy_that_a_connection_between_two_introduced_guidelines_is_cre
     )
     assert source_guideline_item
 
-    relationships = await container[GuidelineRelationshipStore].list_relationships(
+    relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=source_guideline_item["guideline"]["id"],
@@ -341,7 +343,7 @@ async def test_legacy_that_a_connection_to_an_existing_guideline_is_created(
         .json()["items"][0]["guideline"]
     )
 
-    relationships = await container[GuidelineRelationshipStore].list_relationships(
+    relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=existing_guideline.id,
@@ -439,7 +441,7 @@ async def test_legacy_that_a_connection_can_be_added_to_a_guideline(
     )
 
     stored_relationships = list(
-        await container[GuidelineRelationshipStore].list_relationships(
+        await container[RelationshipStore].list_relationships(
             kind="entailment",
             indirect=False,
             source=guidelines[0].id,
@@ -486,7 +488,7 @@ async def test_legacy_that_a_direct_target_connection_can_be_removed_from_a_guid
 
     assert len(response_collections) == 0
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=True,
         source=guidelines[0].id,
@@ -521,7 +523,7 @@ async def test_legacy_that_an_indirect_connection_cannot_be_removed_from_a_guide
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=True,
         source=guidelines[0].id,
@@ -548,7 +550,7 @@ async def test_legacy_that_deleting_a_guideline_also_deletes_all_of_its_direct_c
         await async_client.delete(f"/agents/{agent_id}/guidelines/{guidelines[0].id}")
     ).raise_for_status()
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=guidelines[0].id,
@@ -585,9 +587,11 @@ async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_co
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
-        await container[GuidelineRelationshipStore].create_relationship(
+        await container[RelationshipStore].create_relationship(
             source=source.id,
+            source_type="guideline",
             target=target.id,
+            target_type="guideline",
             kind="entailment",
         )
 
@@ -958,7 +962,7 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
@@ -992,7 +996,9 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
 
     await relationship_store.create_relationship(
         source=existing_guideline.id,
+        source_type="guideline",
         target=connected_guideline.id,
+        target_type="guideline",
         kind="entailment",
     )
 
@@ -1067,7 +1073,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
@@ -1192,7 +1198,7 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
@@ -1216,7 +1222,9 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
 
     await relationship_store.create_relationship(
         source=existing_guideline.id,
+        source_type="guideline",
         target=connected_guideline.id,
+        target_type="guideline",
         kind="entailment",
     )
 
@@ -1381,6 +1389,7 @@ async def test_that_a_guideline_can_be_created(
             "condition": "the customer asks about pricing",
             "action": "provide current pricing information",
             "enabled": True,
+            "metadata": {"key1": "value1", "key2": "value2"},
         },
     )
 
@@ -1391,6 +1400,7 @@ async def test_that_a_guideline_can_be_created(
     assert guideline["action"] == "provide current pricing information"
     assert guideline["enabled"] is True
     assert guideline["tags"] == []
+    assert guideline["metadata"] == {"key1": "value1", "key2": "value2"}
 
 
 async def test_that_a_guideline_can_be_created_with_tags(
@@ -1497,6 +1507,7 @@ async def test_that_a_guideline_can_be_read(
     guideline = await guideline_store.create_guideline(
         condition="the customer asks about the weather",
         action="provide the current weather update",
+        metadata={"key1": "value1", "key2": "value2"},
     )
 
     item = (await async_client.get(f"/guidelines/{guideline.id}")).raise_for_status().json()
@@ -1504,6 +1515,7 @@ async def test_that_a_guideline_can_be_read(
     assert item["guideline"]["id"] == guideline.id
     assert item["guideline"]["condition"] == "the customer asks about the weather"
     assert item["guideline"]["action"] == "provide the current weather update"
+    assert item["guideline"]["metadata"] == {"key1": "value1", "key2": "value2"}
     assert len(item["relationships"]) == 0
     assert len(item["tool_associations"]) == 0
 
@@ -1665,47 +1677,6 @@ async def test_that_a_guideline_can_be_deleted(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_a_relationship_can_be_created_between_two_guidelines(
-    async_client: httpx.AsyncClient,
-    container: Container,
-) -> None:
-    guideline_store = container[GuidelineStore]
-
-    source_guideline = await guideline_store.create_guideline(
-        condition="the customer asks about nearby restaurants",
-        action="provide a list of restaurants",
-    )
-
-    target_guideline = await guideline_store.create_guideline(
-        condition="highlight the best-reviewed restaurant",
-        action="recommend the top choice",
-    )
-
-    response = await async_client.patch(
-        f"/guidelines/{source_guideline.id}",
-        json={
-            "relationships": {
-                "add": [
-                    {
-                        "source": source_guideline.id,
-                        "target": target_guideline.id,
-                        "kind": "entailment",
-                    }
-                ],
-            },
-        },
-    )
-
-    assert response.status_code == status.HTTP_200_OK
-    relationships = response.json()["relationships"]
-
-    assert len(relationships) == 1
-    assert relationships[0]["source"]["id"] == source_guideline.id
-    assert relationships[0]["target"]["id"] == target_guideline.id
-    assert relationships[0]["indirect"] is False
-    assert relationships[0]["kind"] == "entailment"
-
-
 async def test_that_a_tool_association_can_be_added_to_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
@@ -1851,132 +1822,33 @@ async def test_that_adding_nonexistent_tag_to_guideline_returns_404(
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test_that_relationship_can_be_added_to_a_guideline(
+async def test_that_metadata_can_be_updated_for_a_guideline(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
 
-    source_guideline = await guideline_store.create_guideline(
+    guideline = await guideline_store.create_guideline(
         condition="the customer wants to get meeting details",
         action="get meeting event information",
-    )
-
-    target_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
+        metadata={"key3": "value2"},
     )
 
     response = await async_client.patch(
-        f"/guidelines/{source_guideline.id}",
+        f"/guidelines/{guideline.id}",
         json={
-            "relationships": {
-                "add": [
-                    {
-                        "kind": "requirement",
-                        "source": source_guideline.id,
-                        "target": target_guideline.id,
-                    }
-                ]
-            },
+            "metadata": {
+                "add": {
+                    "key1": "value1",
+                    "key2": "value2",
+                },
+                "remove": ["key3"],
+            }
         },
     )
 
     assert response.status_code == status.HTTP_200_OK
-    relationships = response.json()["relationships"]
+    updated_guideline = response.json()["guideline"]
 
-    assert len(relationships) == 1
-    assert relationships[0]["source"]["id"] == source_guideline.id
-    assert relationships[0]["target"]["id"] == target_guideline.id
-    assert relationships[0]["kind"] == "requirement"
-
-
-async def test_that_relationship_can_be_removed_from_a_guideline(
-    async_client: httpx.AsyncClient,
-    container: Container,
-) -> None:
-    guideline_store = container[GuidelineStore]
-    guideline_relationship_store = container[GuidelineRelationshipStore]
-
-    source_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
-    )
-
-    target_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
-    )
-
-    relationship = await guideline_relationship_store.create_relationship(
-        source=source_guideline.id,
-        target=target_guideline.id,
-        kind="precedence",
-    )
-
-    response = await async_client.patch(
-        f"/guidelines/{source_guideline.id}",
-        json={
-            "relationships": {"remove": [relationship.id]},
-        },
-    )
-
-    assert response.status_code == status.HTTP_200_OK
-    relationships = response.json()["relationships"]
-
-    assert len(relationships) == 0
-
-
-async def test_that_removing_relationship_from_nonexistent_guideline_returns_404(
-    async_client: httpx.AsyncClient,
-    container: Container,
-) -> None:
-    guideline_store = container[GuidelineStore]
-
-    source_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
-    )
-
-    response = await async_client.patch(
-        f"/guidelines/{source_guideline.id}",
-        json={
-            "relationships": {"remove": ["nonexistent_guideline_id"]},
-        },
-    )
-
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-
-async def test_that_relationship_with_wrong_type_returns_422(
-    async_client: httpx.AsyncClient,
-    container: Container,
-) -> None:
-    guideline_store = container[GuidelineStore]
-
-    source_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
-    )
-
-    target_guideline = await guideline_store.create_guideline(
-        condition="the customer wants to get meeting details",
-        action="get meeting event information",
-    )
-
-    response = await async_client.patch(
-        f"/guidelines/{source_guideline.id}",
-        json={
-            "relationships": {
-                "add": [
-                    {
-                        "kind": "wrong_type",
-                        "source": source_guideline.id,
-                        "target": target_guideline.id,
-                    }
-                ]
-            },
-        },
-    )
-
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert updated_guideline["id"] == guideline.id
+    assert updated_guideline["metadata"] == {"key1": "value1", "key2": "value2"}
