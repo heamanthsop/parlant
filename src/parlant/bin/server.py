@@ -911,7 +911,7 @@ async def initialize_module(container: Container) -> None:
     await container[ServiceRegistry].update_tool_service(
         name="{module_name}",
         kind="sdk",
-        url=f"http://{{host}}:{{port}}",
+        url=f"http://{{host}}:{{PORT}}",
         transient=True,
     )
 
