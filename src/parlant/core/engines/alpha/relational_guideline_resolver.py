@@ -21,7 +21,7 @@ class RelationalGuidelineResolver:
 
     async def resolve(
         self,
-        all_stored_guidelines: Sequence[Guideline],
+        usable_guidelines: Sequence[Guideline],
         matches: Sequence[GuidelineMatch],
     ) -> Sequence[GuidelineMatch]:
         result = await self.replace_with_prioritized(matches)
@@ -29,7 +29,7 @@ class RelationalGuidelineResolver:
             chain(
                 result,
                 await self.get_entailed(
-                    all_stored_guidelines=all_stored_guidelines,
+                    usable_guidelines=usable_guidelines,
                     matches=result,
                 ),
             )
@@ -43,11 +43,11 @@ class RelationalGuidelineResolver:
         #
         # For example, if we matched guidelines "When X, Then Y" (S) and "When A, Then B" (T),
         # and S is prioritized, only "When X, Then Y" should be activated.
-        # Such priority relationships are pre-indexed in a graph behind the scenes,
+        # Such priority relationships are stored in GuidelineRelationshipStore,
         # and those are the ones we are loading here.
         guideline_ids = {m.guideline.id for m in matches}
 
-        source_that_got_iterated_over: set[GuidelineId] = set()
+        target_that_got_iterated_over: set[GuidelineId] = set()
 
         result = []
         for match in matches:
@@ -55,7 +55,7 @@ class RelationalGuidelineResolver:
                 await self._guideline_relationship_store.list_relationships(
                     kind="priority",
                     indirect=True,
-                    source=match.guideline.id,
+                    target=match.guideline.id,
                 )
             )
 
@@ -69,6 +69,7 @@ class RelationalGuidelineResolver:
                 if relationship.target_type == "guideline" and relationship.target in guideline_ids:
                     prioritized = False
                     break
+
                 elif relationship.target_type == "tag":
                     # In case target is a tag, we need to find all guidelines
                     # that are associated with this tag.
@@ -79,6 +80,7 @@ class RelationalGuidelineResolver:
                     guideline_associated_to_tag = await self._guideline_store.list_guidelines(
                         tags=[cast(TagId, relationship.target)]
                     )
+
                     if any(
                         g.id in guideline_ids and g.id != match.guideline.id
                         for g in guideline_associated_to_tag
@@ -89,22 +91,22 @@ class RelationalGuidelineResolver:
                     for g in guideline_associated_to_tag:
                         # In case we already iterated over this guideline,
                         # we don't need to iterate over it again.
-                        if g.id in source_that_got_iterated_over and g.id not in guideline_ids:
+                        if g.id in target_that_got_iterated_over or g.id in guideline_ids:
                             continue
 
                         relationships.extend(
                             await self._guideline_relationship_store.list_relationships(
                                 kind="priority",
                                 indirect=True,
-                                source=g.id,
+                                target=g.id,
                             )
                         )
 
-                    source_that_got_iterated_over.update(
+                    target_that_got_iterated_over.update(
                         g.id for g in guideline_associated_to_tag if g.id not in guideline_ids
                     )
 
-            source_that_got_iterated_over.add(match.guideline.id)
+            target_that_got_iterated_over.add(match.guideline.id)
 
             if prioritized:
                 result.append(match)
@@ -113,7 +115,7 @@ class RelationalGuidelineResolver:
 
     async def get_entailed(
         self,
-        all_stored_guidelines: Sequence[Guideline],
+        usable_guidelines: Sequence[Guideline],
         matches: Sequence[GuidelineMatch],
     ) -> Sequence[GuidelineMatch]:
         # Some guidelines cannot be inferred simply by evaluating an interaction.
@@ -144,7 +146,7 @@ class RelationalGuidelineResolver:
                         # no need to add this related guideline as it's already an assumed match
                         continue
                     related_guidelines_by_match[match].add(
-                        next(g for g in all_stored_guidelines if g.id == relationship.target)
+                        next(g for g in usable_guidelines if g.id == relationship.target)
                     )
 
                 elif relationship.target_type == "tag":

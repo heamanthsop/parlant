@@ -39,11 +39,11 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
         [
             GuidelineMatch(guideline=g1, score=8, rationale=""),
             GuidelineMatch(guideline=g2, score=5, rationale=""),
-            GuidelineMatch(guideline=g3, score=3, rationale=""),
+            GuidelineMatch(guideline=g3, score=9, rationale=""),
         ],
     )
 
-    assert result == [GuidelineMatch(guideline=g3, score=3, rationale="")]
+    assert result == [GuidelineMatch(guideline=g1, score=8, rationale="")]
 
 
 async def test_that_relational_guideline_resolver_prioritizes_guidelines(
@@ -71,7 +71,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
 
     result = await resolver.resolve([g1, g2], matches)
 
-    assert result == [GuidelineMatch(guideline=g2, score=5, rationale="")]
+    assert result == [GuidelineMatch(guideline=g1, score=8, rationale="")]
 
 
 async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
@@ -145,6 +145,14 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
         kind="priority",
     )
 
+    await guideline_relationship_store.create_relationship(
+        source=t1.id,
+        source_type="tag",
+        target=g2.id,
+        target_type="guideline",
+        kind="priority",
+    )
+
     result = await resolver.resolve(
         [g1, g2],
         [
@@ -154,7 +162,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
     )
 
     assert len(result) == 1
-    assert result[0].guideline.id == g2.id
+    assert result[0].guideline.id == g1.id
 
 
 async def test_that_relational_guideline_resolver_handles_indirect_guidelines_from_tags(
@@ -193,9 +201,9 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
         [g1, g2, g3],
         [
             GuidelineMatch(guideline=g1, score=8, rationale=""),
-            GuidelineMatch(guideline=g3, score=3, rationale=""),
+            GuidelineMatch(guideline=g3, score=9, rationale=""),
         ],
     )
 
     assert len(result) == 1
-    assert result[0].guideline.id == g3.id
+    assert result[0].guideline.id == g1.id

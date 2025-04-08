@@ -655,7 +655,7 @@ class AlphaEngine(Engine):
         # Step 3: Resolve guideline matches by loading related guidelines that may not have
         # been inferrable just by looking at the interaction.
         all_relevant_guidelines = await self._relational_guideline_resolver.resolve(
-            all_stored_guidelines=all_stored_guidelines,
+            usable_guidelines=all_stored_guidelines,
             matches=matching_result.matches,
         )
 
