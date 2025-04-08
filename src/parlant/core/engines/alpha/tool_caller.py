@@ -268,11 +268,25 @@ class ToolCaller:
 
         tool_id, tool, _ = candidate_descriptor
 
+        # Send the tool call inference prompt to the LLM
         with self._logger.operation(f"Evaluation: {tool_id}"):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
+        # Evaluate the tool calls
+        tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
+            inference_output, candidate_descriptor
+        )
+
+        return generation_info, tool_calls, missing_data
+
+    async def _evaluate_tool_calls_parameters(
+        self,
+        inference_output: Sequence[ToolCallEvaluation],
+        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatch]],
+    ) -> tuple[list[ToolCall], list[MissingToolData]]:
         tool_calls = []
         missing_data = []
+        tool_id, tool, _ = candidate_descriptor
 
         for tc in inference_output:
             if (
@@ -292,16 +306,22 @@ class ToolCaller:
                         f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
                     )
 
+                    arguments = {}
+                    for evaluation in tc.argument_evaluations or []:
+                        if evaluation.is_missing:
+                            continue
+
+                        # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
+                        arguments[evaluation.parameter_name] = evaluation.value_as_string
+
                     tool_calls.append(
                         ToolCall(
                             id=ToolCallId(generate_id()),
                             tool_id=tool_id,
-                            arguments={
-                                evaluation.parameter_name: evaluation.value_as_string
-                                for evaluation in tc.argument_evaluations or []
-                            },
+                            arguments=arguments,
                         )
                     )
+
                 elif tc.applicability_score >= 8:
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.parameter_name not in tool.parameters:
@@ -332,7 +352,7 @@ class ToolCaller:
                     f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
                 )
 
-        return generation_info, tool_calls, missing_data
+        return tool_calls, missing_data
 
     async def execute_tool_calls(
         self,

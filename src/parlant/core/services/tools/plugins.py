@@ -138,6 +138,12 @@ def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
         parameter_type = param.annotation
         parameter_options: Optional[ToolParameterOptions] = None
 
+        # If parameter has default then we'll consider it as optional (in terms of tool calling)
+        if param.default is not inspect.Parameter.empty:
+            has_default = True
+        else:
+            has_default = False
+
         # First thing, is our parameter annotated?
         if getattr(parameter_type, "__name__", None) == "Annotated":
             annotation_params = get_args(parameter_type)
@@ -185,7 +191,7 @@ def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
                     raw_type=parameter_type,
                     resolved_type=parameter_type,
                     options=parameter_options,
-                    is_optional=False,
+                    is_optional=has_default,
                 )
             else:
                 assert unpacked_type
@@ -200,7 +206,7 @@ def _resolve_param_info(param: inspect.Parameter) -> _ToolParameterInfo:
                 raw_type=parameter_type,
                 resolved_type=parameter_type,
                 options=parameter_options,
-                is_optional=False,
+                is_optional=has_default,
             )
     except Exception:
         raise TypeError(f"Parameter type '{param.annotation}' is not supported in tool functions")

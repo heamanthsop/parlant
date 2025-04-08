@@ -157,7 +157,10 @@ def given_a_tool(
             "description": "Get answers to questions by consulting documentation",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "user_query": {"type": "string", "description": "The query from the customer"}
+                "user_query": {
+                    "type": "string",
+                    "description": "The query from the customer",
+                }
             },
             "required": ["user_query"],
         },
@@ -179,8 +182,14 @@ def given_a_tool(
             "description": "Getting the addition calculation between two numbers",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "first_number": {"type": "number", "description": "The first number"},
-                "second_number": {"type": "number", "description": "The second number"},
+                "first_number": {
+                    "type": "number",
+                    "description": "The first number",
+                },
+                "second_number": {
+                    "type": "number",
+                    "description": "The second number",
+                },
             },
             "required": ["first_number", "second_number"],
         },
@@ -189,8 +198,14 @@ def given_a_tool(
             "description": "Getting the multiplication calculation between two numbers",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "first_number": {"type": "number", "description": "The first number"},
-                "second_number": {"type": "number", "description": "The second number"},
+                "first_number": {
+                    "type": "number",
+                    "description": "The first number",
+                },
+                "second_number": {
+                    "type": "number",
+                    "description": "The second number",
+                },
             },
             "required": ["first_number", "second_number"],
         },
@@ -199,7 +214,10 @@ def given_a_tool(
             "description": "Get the account balance by given name",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "account_name": {"type": "string", "description": "The name of the account"}
+                "account_name": {
+                    "type": "string",
+                    "description": "The name of the account",
+                }
             },
             "required": ["account_name"],
         },
@@ -208,7 +226,10 @@ def given_a_tool(
             "description": "Get the account loans by given name",
             "module_path": "tests.tool_utilities",
             "parameters": {
-                "account_name": {"type": "string", "description": "The name of the account"}
+                "account_name": {
+                    "type": "string",
+                    "description": "The name of the account",
+                }
             },
             "required": ["account_name"],
         },

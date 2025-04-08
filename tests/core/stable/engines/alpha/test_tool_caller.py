@@ -23,7 +23,10 @@ from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer, CustomerStore, CustomerId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCaller
+from parlant.core.engines.alpha.tool_caller import (
+    ToolCallInferenceSchema,
+    ToolCaller,
+)
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
@@ -255,6 +258,89 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
     assert tool_call.arguments["category"] == "peripherals"
 
 
+async def test_that_a_plugin_tool_is_called_with_required_parameters_with_default_value(
+    container: Container,
+    tool_caller: ToolCaller,
+    agent: Agent,
+) -> None:
+    service_registry = container[ServiceRegistry]
+
+    class AppointmentType(enum.Enum):
+        GENERAL = "general"
+        CHECK_UP = "checkup"
+        RESULTS = "result"
+
+    class AppointmentRoom(enum.Enum):
+        TINY = "phone booth"
+        SMALL = "private room"
+        BIG = "meeting room"
+
+    @tool
+    async def schedule_appointment(
+        context: ToolContext,
+        when: datetime,
+        type: Optional[AppointmentType] = AppointmentType.GENERAL,
+        room: AppointmentRoom = AppointmentRoom.TINY,
+        number_of_invites: int = 3,
+        required_participants: list[str] = ["Donald Trump", "Donald Duck", "Ronald McDonald"],
+        meeting_owner: str = "Donald Trump",
+    ) -> ToolResult:
+        if type is None:
+            type_display = "NONE"
+        else:
+            type_display = type.value
+
+        return ToolResult(f"Scheduled {type_display} appointment in {room.value} at {when}")
+
+    conversation_context = [
+        ("customer", "I want to set up an appointment tomorrow at 10am"),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    ordinary_guideline_matches = [
+        create_guideline_match(
+            condition="customer asking a question",
+            action="response in concise and breif answer",
+            score=9,
+            rationale="customer asks a question about appointments",
+            tags=[Tag.for_agent_id(agent.id)],
+        )
+    ]
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer asks to schedule an appointment",
+            action="schedule an appointment for the customer",
+            score=9,
+            rationale="customer wants to schedule some kind of an appointment",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ToolId(service_name="my_appointment_service", tool_name="schedule_appointment")]
+    }
+
+    async with run_service_server([schedule_appointment]) as server:
+        await service_registry.update_tool_service(
+            name="my_appointment_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            staged_events=[],
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+    assert len(tool_calls) == 1
+    tool_call = tool_calls[0]
+    assert "when" in tool_call.arguments
+
+
 async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter(
     container: Container,
     tool_caller: ToolCaller,
@@ -430,27 +516,30 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
         return ToolResult({"success": True})
 
     conversation_context = [
-        ("customer", "Hi, can you register me for the sweepstake?"),
+        (
+            "customer",
+            "Hi, can you register me for the sweepstake? I will donate 100 dollars if I win",
+        )
     ]
 
     interaction_history = create_interaction_history(conversation_context)
 
     ordinary_guideline_matches = [
         create_guideline_match(
-            condition="customer asks about a sweepstake",
+            condition="customer wishes to be registered for a sweepstake",
             action="response in concise and breif answer",
             score=9,
-            rationale="customer is interested in the sweepstake",
+            rationale="customer is interested in registering for the sweepstake",
             tags=[Tag.for_agent_id(agent.id)],
         )
     ]
 
     tool_enabled_guideline_matches = {
         create_guideline_match(
-            condition="customer asks to register for a sweepstake",
+            condition="customer explicitly asks to be registered for a sweepstake",
             action="register the customer for the sweepstake using all provided information",
             score=9,
-            rationale="customer wants to register for the sweepstake and provides all the required information",
+            rationale="customer wants to register for the sweepstake and provides all the relevant information",
             tags=[Tag.for_agent_id(agent.id)],
         ): [ToolId(service_name="my_scharlatan_service", tool_name="register_sweepstake")]
     }
