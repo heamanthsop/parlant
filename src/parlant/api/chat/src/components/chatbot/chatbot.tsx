@@ -16,7 +16,7 @@ export const SessionProvider = createContext({});
 const SessionsSection = () => {
 	const [filterSessionVal, setFilterSessionVal] = useState('');
 	return (
-		<div className='bg-white [box-shadow:0px_0px_25px_0px_#0000000A] h-[100%] rounded-[16px] overflow-hidden border-solid w-[352px] min-w-[352px] max-mobile:hidden z-[11] '>
+		<div className='bg-white [box-shadow:0px_0px_25px_0px_#0000000A] h-full rounded-[16px] overflow-hidden border-solid w-[352px] min-w-[352px] max-mobile:hidden z-[11] '>
 			<ChatHeader setFilterSessionVal={setFilterSessionVal} />
 			<SessionList filterSessionVal={filterSessionVal} />
 		</div>
