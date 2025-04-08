@@ -593,6 +593,7 @@ class PluginServer:
                                     metadata=result.metadata,
                                     control=result.control,
                                     utterances=result.utterances,
+                                    utterance_fields=result.utterance_fields,
                                 )
                             ).model_dump_json()
 
