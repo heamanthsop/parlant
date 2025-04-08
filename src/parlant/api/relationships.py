@@ -7,7 +7,7 @@ from parlant.api.common import (
     ExampleJson,
     GuidelineDTO,
     GuidelineIdField,
-    GuidelineRelationshipDTO,
+    RelationshipDTO,
     GuidelineRelationshipKindDTO,
     TagDTO,
     TagIdField,
@@ -16,28 +16,28 @@ from parlant.api.common import (
     guideline_relationship_kind_to_dto,
 )
 from parlant.core.common import DefaultBaseModel
-from parlant.core.guideline_relationships import (
-    GuidelineRelationship,
-    GuidelineRelationshipId,
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    Relationship,
+    RelationshipId,
+    RelationshipStore,
 )
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineStore
 from parlant.core.tags import Tag, TagId, TagStore
-from parlant.api.common import guideline_relationship_example
+from parlant.api.common import relationship_example
 
-API_GROUP = "guideline relationships"
+API_GROUP = "relationships"
 
 
-guideline_relationship_creation_params_example: ExampleJson = {
+relationship_creation_params_example: ExampleJson = {
     "source_guideline": "gid_123",
     "target_tag": "tid_456",
     "kind": "entailment",
 }
 
 
-class GuidelineRelationshipCreationParamsDTO(
+class RelationshipCreationParamsDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_relationship_creation_params_example},
+    json_schema_extra={"example": relationship_creation_params_example},
 ):
     source_guideline: Optional[GuidelineIdField] = None
     source_tag: Optional[TagIdField] = None
@@ -64,17 +64,17 @@ IndirectQuery: TypeAlias = Annotated[
 ]
 
 
-GuidelineRelationshipKindQuery: TypeAlias = Annotated[
+RelationshipKindQuery: TypeAlias = Annotated[
     GuidelineRelationshipKindDTO,
-    Query(description="The kind of guideline relationship to list"),
+    Query(description="The kind of relationship to list"),
 ]
 
 
-GuidelineRelationshipIdPath: TypeAlias = Annotated[
-    GuidelineRelationshipId,
+RelationshipIdPath: TypeAlias = Annotated[
+    RelationshipId,
     Path(
-        description="identifier of guideline relationship",
-        examples=[GuidelineRelationshipId("gr_123")],
+        description="identifier of relationship",
+        examples=[RelationshipId("gr_123")],
     ),
 ]
 
@@ -82,11 +82,11 @@ GuidelineRelationshipIdPath: TypeAlias = Annotated[
 def create_router(
     guideline_store: GuidelineStore,
     tag_store: TagStore,
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> APIRouter:
-    async def guideline_relationship_to_dto(
-        relationship: GuidelineRelationship,
-    ) -> GuidelineRelationshipDTO:
+    async def relationship_to_dto(
+        relationship: Relationship,
+    ) -> RelationshipDTO:
         source_guideline = (
             await guideline_store.read_guideline(
                 guideline_id=cast(GuidelineId, relationship.source)
@@ -115,7 +115,7 @@ def create_router(
             else None
         )
 
-        return GuidelineRelationshipDTO(
+        return RelationshipDTO(
             id=relationship.id,
             source_guideline=GuidelineDTO(
                 id=cast(Guideline, source_guideline).id,
@@ -158,12 +158,12 @@ def create_router(
     @router.post(
         "",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_guideline_relationship",
-        response_model=GuidelineRelationshipDTO,
+        operation_id="create_relationship",
+        response_model=RelationshipDTO,
         responses={
             status.HTTP_201_CREATED: {
-                "description": "Guideline relationship successfully created. Returns the created guideline relationship.",
-                "content": common.example_json_content(guideline_relationship_example),
+                "description": "Relationship successfully created. Returns the created relationship.",
+                "content": common.example_json_content(relationship_example),
             },
             status.HTTP_422_UNPROCESSABLE_ENTITY: {
                 "description": "Validation error in request parameters"
@@ -171,24 +171,24 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
-    async def create_guideline_relationship(
-        params: GuidelineRelationshipCreationParamsDTO,
-    ) -> GuidelineRelationshipDTO:
+    async def create_relationship(
+        params: RelationshipCreationParamsDTO,
+    ) -> RelationshipDTO:
         """
-        Create a guideline relationship.
+        Create a relationship.
 
-        A guideline relationship is a relationship between a guideline and a tag.
+        A relationship is a relationship between a guideline and a tag.
         It can be created between a guideline and a tag, or between two guidelines, or between two tags.
         """
         if params.source_guideline and params.source_tag:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="A guideline relationship cannot have both a source guideline and a source tag",
+                detail="A relationship cannot have both a source guideline and a source tag",
             )
         elif params.target_guideline and params.target_tag:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="A guideline relationship cannot have both a target guideline and a target tag",
+                detail="A relationship cannot have both a target guideline and a target tag",
             )
         elif (
             params.source_guideline
@@ -210,7 +210,7 @@ def create_router(
         else:
             await tag_store.read_tag(tag_id=cast(TagId, params.target_tag))
 
-        relationship = await guideline_relationship_store.create_relationship(
+        relationship = await relationship_store.create_relationship(
             source=cast(GuidelineId | TagId, params.source_guideline)
             if params.source_guideline
             else cast(GuidelineId | TagId, params.source_tag),
@@ -222,28 +222,28 @@ def create_router(
             kind=guideline_relationship_kind_dto_to_kind(params.kind),
         )
 
-        return await guideline_relationship_to_dto(relationship=relationship)
+        return await relationship_to_dto(relationship=relationship)
 
     @router.get(
         "",
-        operation_id="list_guideline_relationships",
-        response_model=Sequence[GuidelineRelationshipDTO],
+        operation_id="list_relationships",
+        response_model=Sequence[RelationshipDTO],
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline relationships successfully retrieved. Returns a list of all guideline relationships.",
-                "content": common.example_json_content([guideline_relationship_example]),
+                "description": "Relationships successfully retrieved. Returns a list of all relationships.",
+                "content": common.example_json_content([relationship_example]),
             },
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_guideline_relationships(
-        kind: GuidelineRelationshipKindQuery,
+    async def list_relationships(
+        kind: RelationshipKindQuery,
         indirect: IndirectQuery = True,
         guideline_id: Optional[GuidelineIdQuery] = None,
         tag_id: Optional[TagIdQuery] = None,
-    ) -> Sequence[GuidelineRelationshipDTO]:
+    ) -> Sequence[RelationshipDTO]:
         """
-        List guideline relationships.
+        List relationships.
 
         Either `guideline_id` or `tag_id` must be provided.
         """
@@ -264,13 +264,13 @@ def create_router(
             else cast(GuidelineId | TagId, tag_id)
         )
 
-        source_relationships = await guideline_relationship_store.list_relationships(
+        source_relationships = await relationship_store.list_relationships(
             kind=guideline_relationship_kind_dto_to_kind(kind),
             source=entity_id,
             indirect=indirect,
         )
 
-        target_relationships = await guideline_relationship_store.list_relationships(
+        target_relationships = await relationship_store.list_relationships(
             kind=guideline_relationship_kind_dto_to_kind(kind),
             target=entity_id,
             indirect=indirect,
@@ -278,51 +278,48 @@ def create_router(
         relationships = chain(source_relationships, target_relationships)
 
         return [
-            await guideline_relationship_to_dto(relationship=relationship)
-            for relationship in relationships
+            await relationship_to_dto(relationship=relationship) for relationship in relationships
         ]
 
     @router.get(
         "/{relationship_id}",
-        operation_id="read_guideline_relationship",
+        operation_id="read_relationship",
         status_code=status.HTTP_200_OK,
-        response_model=GuidelineRelationshipDTO,
+        response_model=RelationshipDTO,
         responses={
             status.HTTP_200_OK: {
-                "description": "Guideline relationship successfully retrieved. Returns the requested guideline relationship.",
-                "content": common.example_json_content(guideline_relationship_example),
+                "description": "Relationship successfully retrieved. Returns the requested relationship.",
+                "content": common.example_json_content(relationship_example),
             },
         },
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
-    async def read_guideline_relationship(
-        relationship_id: GuidelineRelationshipIdPath,
-    ) -> GuidelineRelationshipDTO:
+    async def read_relationship(
+        relationship_id: RelationshipIdPath,
+    ) -> RelationshipDTO:
         """
-        Read a guideline relationship by ID.
+        Read a relationship by ID.
         """
-        relationship = await guideline_relationship_store.read_relationship(id=relationship_id)
+        relationship = await relationship_store.read_relationship(id=relationship_id)
 
-        return await guideline_relationship_to_dto(relationship=relationship)
+        return await relationship_to_dto(relationship=relationship)
 
     @router.delete(
         "/{relationship_id}",
-        operation_id="delete_guideline_relationship",
+        operation_id="delete_relationship",
         status_code=status.HTTP_204_NO_CONTENT,
         responses={
-            status.HTTP_204_NO_CONTENT: {
-                "description": "Guideline relationship successfully deleted."
-            },
-            status.HTTP_404_NOT_FOUND: {"description": "Guideline relationship not found."},
+            status.HTTP_204_NO_CONTENT: {"description": "Relationship successfully deleted."},
+            status.HTTP_404_NOT_FOUND: {"description": "Relationship not found."},
         },
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
-    async def delete_guideline_relationship(
-        relationship_id: GuidelineRelationshipIdPath,
+    async def delete_relationship(
+        relationship_id: RelationshipIdPath,
     ) -> None:
         """
-        Delete a guideline relationship by ID.
+        Delete a relationship by ID.
         """
-        await guideline_relationship_store.delete_relationship(id=relationship_id)
+        await relationship_store.delete_relationship(id=relationship_id)
 
     return router

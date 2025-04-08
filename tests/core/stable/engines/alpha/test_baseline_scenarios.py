@@ -39,7 +39,7 @@ scenarios(
             "fluid_utterances",
             "conversation",
             "errors",
-            "guideline_relationships",
+            "relationships",
             "moderation",
             "proactivity",
             "supervision",

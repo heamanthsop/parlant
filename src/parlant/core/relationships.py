@@ -15,7 +15,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal, NewType, Optional, Sequence, TypeAlias, cast
+from typing import Literal, NewType, Optional, Sequence, TypeAlias
 from typing_extensions import override, TypedDict, Self
 
 import networkx  # type: ignore
@@ -35,7 +35,7 @@ from parlant.core.persistence.document_database_helper import (
 )
 from parlant.core.tags import TagId
 
-GuidelineRelationshipId = NewType("GuidelineRelationshipId", str)
+RelationshipId = NewType("RelationshipId", str)
 
 GuidelineRelationshipKind: TypeAlias = Literal[
     "entailment",
@@ -49,8 +49,8 @@ EntityType: TypeAlias = Literal["guideline", "tag"]
 
 
 @dataclass(frozen=True)
-class GuidelineRelationship:
-    id: GuidelineRelationshipId
+class Relationship:
+    id: RelationshipId
     creation_utc: datetime
     source: GuidelineId | TagId
     source_type: EntityType
@@ -59,7 +59,7 @@ class GuidelineRelationship:
     kind: GuidelineRelationshipKind
 
 
-class GuidelineRelationshipStore(ABC):
+class RelationshipStore(ABC):
     @abstractmethod
     async def create_relationship(
         self,
@@ -68,18 +68,18 @@ class GuidelineRelationshipStore(ABC):
         target: GuidelineId | TagId,
         target_type: EntityType,
         kind: GuidelineRelationshipKind,
-    ) -> GuidelineRelationship: ...
+    ) -> Relationship: ...
 
     @abstractmethod
     async def read_relationship(
         self,
-        id: GuidelineRelationshipId,
-    ) -> GuidelineRelationship: ...
+        id: RelationshipId,
+    ) -> Relationship: ...
 
     @abstractmethod
     async def delete_relationship(
         self,
-        id: GuidelineRelationshipId,
+        id: RelationshipId,
     ) -> None: ...
 
     @abstractmethod
@@ -89,7 +89,7 @@ class GuidelineRelationshipStore(ABC):
         indirect: bool,
         source: Optional[GuidelineId | TagId] = None,
         target: Optional[GuidelineId | TagId] = None,
-    ) -> Sequence[GuidelineRelationship]: ...
+    ) -> Sequence[Relationship]: ...
 
 
 class GuidelineRelationshipDocument_v0_1_0(TypedDict, total=False):
@@ -109,7 +109,7 @@ class GuidelineRelationshipDocument_v0_2_0(TypedDict, total=False):
     kind: GuidelineRelationshipKind
 
 
-class GuidelineRelationshipDocument(TypedDict, total=False):
+class RelationshipDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -120,34 +120,24 @@ class GuidelineRelationshipDocument(TypedDict, total=False):
     kind: GuidelineRelationshipKind
 
 
-class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
+class RelationshipDocumentStore(RelationshipStore):
     VERSION = Version.from_string("0.3.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
-        self._collection: DocumentCollection[GuidelineRelationshipDocument]
+        self._collection: DocumentCollection[RelationshipDocument]
         self._graphs: dict[GuidelineRelationshipKind, networkx.DiGraph] = {}
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
-    async def _document_loader(self, doc: BaseDocument) -> Optional[GuidelineRelationshipDocument]:
+    async def _document_loader(self, doc: BaseDocument) -> Optional[RelationshipDocument]:
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(GuidelineRelationshipDocument_v0_2_0, doc)
-            return GuidelineRelationshipDocument(
-                id=doc["id"],
-                version=Version.String("0.3.0"),
-                creation_utc=doc["creation_utc"],
-                source=doc["source"],
-                source_type="guideline",
-                target=doc["target"],
-                target_type="guideline",
-                kind=doc["kind"],
-            )
+            raise ValueError("Cannot load v0.2.0 relationships")
 
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            raise ValueError("Cannot load v0.1.0 guideline relationships")
+            raise ValueError("Cannot load v0.1.0 relationships")
 
-        return await DocumentMigrationHelper[GuidelineRelationshipDocument](
+        return await DocumentMigrationHelper[RelationshipDocument](
             self,
             {
                 "0.1.0": v0_1_0_to_v_0_2_0,
@@ -162,8 +152,8 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             allow_migration=self._allow_migration,
         ):
             self._collection = await self._database.get_or_create_collection(
-                name="guideline_relationships",
-                schema=GuidelineRelationshipDocument,
+                name="relationships",
+                schema=RelationshipDocument,
                 document_loader=self._document_loader,
             )
 
@@ -179,42 +169,42 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
 
     def _serialize(
         self,
-        guideline_relationship: GuidelineRelationship,
-    ) -> GuidelineRelationshipDocument:
-        return GuidelineRelationshipDocument(
-            id=ObjectId(guideline_relationship.id),
+        relationship: Relationship,
+    ) -> RelationshipDocument:
+        return RelationshipDocument(
+            id=ObjectId(relationship.id),
             version=self.VERSION.to_string(),
-            creation_utc=guideline_relationship.creation_utc.isoformat(),
-            source=guideline_relationship.source,
-            source_type=guideline_relationship.source_type,
-            target=guideline_relationship.target,
-            target_type=guideline_relationship.target_type,
-            kind=guideline_relationship.kind,
+            creation_utc=relationship.creation_utc.isoformat(),
+            source=relationship.source,
+            source_type=relationship.source_type,
+            target=relationship.target,
+            target_type=relationship.target_type,
+            kind=relationship.kind,
         )
 
     def _deserialize(
         self,
-        guideline_relationship_document: GuidelineRelationshipDocument,
-    ) -> GuidelineRelationship:
+        relationship_document: RelationshipDocument,
+    ) -> Relationship:
         source = (
-            GuidelineId(guideline_relationship_document["source"])
-            if guideline_relationship_document["source_type"] == "guideline"
-            else TagId(guideline_relationship_document["source"])
+            GuidelineId(relationship_document["source"])
+            if relationship_document["source_type"] == "guideline"
+            else TagId(relationship_document["source"])
         )
         target = (
-            GuidelineId(guideline_relationship_document["target"])
-            if guideline_relationship_document["target_type"] == "guideline"
-            else TagId(guideline_relationship_document["target"])
+            GuidelineId(relationship_document["target"])
+            if relationship_document["target_type"] == "guideline"
+            else TagId(relationship_document["target"])
         )
 
-        return GuidelineRelationship(
-            id=GuidelineRelationshipId(guideline_relationship_document["id"]),
-            creation_utc=datetime.fromisoformat(guideline_relationship_document["creation_utc"]),
+        return Relationship(
+            id=RelationshipId(relationship_document["id"]),
+            creation_utc=datetime.fromisoformat(relationship_document["creation_utc"]),
             source=source,
-            source_type=guideline_relationship_document["source_type"],
+            source_type=relationship_document["source_type"],
             target=target,
-            target_type=guideline_relationship_document["target_type"],
-            kind=guideline_relationship_document["kind"],
+            target_type=relationship_document["target_type"],
+            kind=relationship_document["kind"],
         )
 
     async def _get_relationships_graph(self, kind: GuidelineRelationshipKind) -> networkx.DiGraph:
@@ -258,12 +248,12 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
         target_type: EntityType,
         kind: GuidelineRelationshipKind,
         creation_utc: Optional[datetime] = None,
-    ) -> GuidelineRelationship:
+    ) -> Relationship:
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
-            guideline_relationship = GuidelineRelationship(
-                id=GuidelineRelationshipId(generate_id()),
+            relationship = Relationship(
+                id=RelationshipId(generate_id()),
                 creation_utc=creation_utc,
                 source=source,
                 source_type=source_type,
@@ -278,7 +268,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
                     "target": {"$eq": target},
                     "kind": {"$eq": kind},
                 },
-                params=self._serialize(guideline_relationship),
+                params=self._serialize(relationship),
                 upsert=True,
             )
 
@@ -292,16 +282,16 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
             graph.add_edge(
                 source,
                 target,
-                id=guideline_relationship.id,
+                id=relationship.id,
             )
 
-        return guideline_relationship
+        return relationship
 
     @override
     async def read_relationship(
         self,
-        id: GuidelineRelationshipId,
-    ) -> GuidelineRelationship:
+        id: RelationshipId,
+    ) -> Relationship:
         async with self._lock.reader_lock:
             relationship_document = await self._collection.find_one(filters={"id": {"$eq": id}})
 
@@ -313,7 +303,7 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
     @override
     async def delete_relationship(
         self,
-        id: GuidelineRelationshipId,
+        id: RelationshipId,
     ) -> None:
         async with self._lock.writer_lock:
             relationship_document = await self._collection.find_one(filters={"id": {"$eq": id}})
@@ -336,13 +326,13 @@ class GuidelineRelationshipDocumentStore(GuidelineRelationshipStore):
         indirect: bool,
         source: Optional[GuidelineId | TagId] = None,
         target: Optional[GuidelineId | TagId] = None,
-    ) -> Sequence[GuidelineRelationship]:
+    ) -> Sequence[Relationship]:
         assert (source or target) and not (source and target)
 
         async def get_node_relationships(
             source: GuidelineId | TagId,
             reversed_graph: bool = False,
-        ) -> Sequence[GuidelineRelationship]:
+        ) -> Sequence[Relationship]:
             if not graph.has_node(source):
                 return []
 

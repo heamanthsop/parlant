@@ -15,10 +15,10 @@
 from typing import AsyncIterator, Sequence
 from pytest import fixture, raises
 
-from parlant.core.guideline_relationships import (
-    GuidelineRelationship,
-    GuidelineRelationshipDocumentStore,
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    Relationship,
+    RelationshipDocumentStore,
+    RelationshipStore,
 )
 from parlant.core.guidelines import GuidelineId
 from parlant.core.persistence.document_database import DocumentDatabase
@@ -31,22 +31,22 @@ def underlying_database() -> DocumentDatabase:
 
 
 @fixture
-async def guideline_relationship_store(
+async def relationship_store(
     underlying_database: DocumentDatabase,
-) -> AsyncIterator[GuidelineRelationshipStore]:
-    async with GuidelineRelationshipDocumentStore(database=underlying_database) as store:
+) -> AsyncIterator[RelationshipStore]:
+    async with RelationshipDocumentStore(database=underlying_database) as store:
         yield store
 
 
 def has_relationship(
-    guidelines: Sequence[GuidelineRelationship],
+    guidelines: Sequence[Relationship],
     relationship: tuple[str, str],
 ) -> bool:
     return any(g.source == relationship[0] and g.target == relationship[1] for g in guidelines)
 
 
 async def test_that_direct_guideline_relationships_can_be_listed(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
@@ -60,7 +60,7 @@ async def test_that_direct_guideline_relationships_can_be_listed(
         (b_id, d_id),
         (z_id, b_id),
     ]:
-        await guideline_relationship_store.create_relationship(
+        await relationship_store.create_relationship(
             source=source,
             source_type="guideline",
             target=target,
@@ -68,7 +68,7 @@ async def test_that_direct_guideline_relationships_can_be_listed(
             kind="entailment",
         )
 
-    a_relationships = await guideline_relationship_store.list_relationships(
+    a_relationships = await relationship_store.list_relationships(
         kind="entailment",
         indirect=False,
         source=a_id,
@@ -80,7 +80,7 @@ async def test_that_direct_guideline_relationships_can_be_listed(
 
 
 async def test_that_indirect_guideline_relationships_can_be_listed(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
@@ -89,7 +89,7 @@ async def test_that_indirect_guideline_relationships_can_be_listed(
     z_id = GuidelineId("z")
 
     for source, target in [(a_id, b_id), (a_id, c_id), (b_id, d_id), (z_id, b_id)]:
-        await guideline_relationship_store.create_relationship(
+        await relationship_store.create_relationship(
             source=source,
             source_type="guideline",
             target=target,
@@ -97,7 +97,7 @@ async def test_that_indirect_guideline_relationships_can_be_listed(
             kind="entailment",
         )
 
-    a_relationships = await guideline_relationship_store.list_relationships(
+    a_relationships = await relationship_store.list_relationships(
         kind="entailment",
         indirect=True,
         source=a_id,
@@ -110,7 +110,7 @@ async def test_that_indirect_guideline_relationships_can_be_listed(
 
 
 async def test_that_db_data_is_loaded_correctly(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
     underlying_database: DocumentDatabase,
 ) -> None:
     a_id = GuidelineId("a")
@@ -120,7 +120,7 @@ async def test_that_db_data_is_loaded_correctly(
     z_id = GuidelineId("z")
 
     for source, target in [(a_id, b_id), (a_id, c_id), (b_id, d_id), (z_id, b_id)]:
-        await guideline_relationship_store.create_relationship(
+        await relationship_store.create_relationship(
             source=source,
             source_type="guideline",
             target=target,
@@ -128,7 +128,7 @@ async def test_that_db_data_is_loaded_correctly(
             kind="entailment",
         )
 
-    async with GuidelineRelationshipDocumentStore(underlying_database) as new_store_with_same_db:
+    async with RelationshipDocumentStore(underlying_database) as new_store_with_same_db:
         a_relationships = await new_store_with_same_db.list_relationships(
             kind="entailment",
             source=a_id,
@@ -141,21 +141,21 @@ async def test_that_db_data_is_loaded_correctly(
     assert has_relationship(a_relationships, (b_id, d_id))
 
 
-async def test_that_connections_are_returned_for_source_without_indirect_connections(
-    guideline_relationship_store: GuidelineRelationshipStore,
+async def test_that_relationships_are_returned_for_source_without_indirect_relationships(
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
     c_id = GuidelineId("c")
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=a_id,
         source_type="guideline",
         target=b_id,
         target_type="guideline",
         kind="entailment",
     )
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=b_id,
         source_type="guideline",
         target=c_id,
@@ -163,7 +163,7 @@ async def test_that_connections_are_returned_for_source_without_indirect_connect
         kind="entailment",
     )
 
-    connections = await guideline_relationship_store.list_relationships(
+    connections = await relationship_store.list_relationships(
         kind="entailment",
         indirect=False,
         source=a_id,
@@ -175,20 +175,20 @@ async def test_that_connections_are_returned_for_source_without_indirect_connect
 
 
 async def test_that_connections_are_returned_for_source_with_indirect_connections(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
     c_id = GuidelineId("c")
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=a_id,
         source_type="guideline",
         target=b_id,
         target_type="guideline",
         kind="entailment",
     )
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=b_id,
         source_type="guideline",
         target=c_id,
@@ -196,7 +196,7 @@ async def test_that_connections_are_returned_for_source_with_indirect_connection
         kind="entailment",
     )
 
-    relationships = await guideline_relationship_store.list_relationships(
+    relationships = await relationship_store.list_relationships(
         kind="entailment",
         indirect=True,
         source=a_id,
@@ -209,20 +209,20 @@ async def test_that_connections_are_returned_for_source_with_indirect_connection
 
 
 async def test_that_relationships_are_returned_for_target_without_indirect_connections(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
     c_id = GuidelineId("c")
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=a_id,
         source_type="guideline",
         target=b_id,
         target_type="guideline",
         kind="entailment",
     )
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=b_id,
         source_type="guideline",
         target=c_id,
@@ -230,7 +230,7 @@ async def test_that_relationships_are_returned_for_target_without_indirect_conne
         kind="entailment",
     )
 
-    relationships = await guideline_relationship_store.list_relationships(
+    relationships = await relationship_store.list_relationships(
         kind="entailment",
         indirect=False,
         target=b_id,
@@ -242,20 +242,20 @@ async def test_that_relationships_are_returned_for_target_without_indirect_conne
 
 
 async def test_that_relationships_are_returned_for_target_with_indirect_connections(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
     c_id = GuidelineId("c")
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=a_id,
         source_type="guideline",
         target=b_id,
         target_type="guideline",
         kind="entailment",
     )
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=b_id,
         source_type="guideline",
         target=c_id,
@@ -263,7 +263,7 @@ async def test_that_relationships_are_returned_for_target_with_indirect_connecti
         kind="entailment",
     )
 
-    relationships = await guideline_relationship_store.list_relationships(
+    relationships = await relationship_store.list_relationships(
         kind="entailment",
         indirect=True,
         target=c_id,
@@ -276,10 +276,10 @@ async def test_that_relationships_are_returned_for_target_with_indirect_connecti
 
 
 async def test_that_error_is_raised_when_neither_source_nor_target_is_provided(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     with raises(AssertionError):
-        await guideline_relationship_store.list_relationships(
+        await relationship_store.list_relationships(
             kind="entailment",
             indirect=False,
             source=None,
@@ -288,13 +288,13 @@ async def test_that_error_is_raised_when_neither_source_nor_target_is_provided(
 
 
 async def test_that_error_is_raised_when_both_source_and_target_are_provided(
-    guideline_relationship_store: GuidelineRelationshipStore,
+    relationship_store: RelationshipStore,
 ) -> None:
     a_id = GuidelineId("a")
     b_id = GuidelineId("b")
 
     with raises(AssertionError):
-        await guideline_relationship_store.list_relationships(
+        await relationship_store.list_relationships(
             kind="entailment",
             indirect=False,
             source=a_id,

@@ -2,7 +2,7 @@ from lagom import Container
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
-from parlant.core.guideline_relationships import GuidelineRelationshipStore
+from parlant.core.relationships import RelationshipStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.tags import TagStore
 
@@ -10,7 +10,7 @@ from parlant.core.tags import TagStore
 async def test_that_relational_guideline_resolver_prioritizes_indirectly_between_guidelines(
     container: Container,
 ) -> None:
-    guideline_relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
     guideline_store = container[GuidelineStore]
     resolver = container[RelationalGuidelineResolver]
 
@@ -18,7 +18,7 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
     g2 = await guideline_store.create_guideline(condition="y", action="z")
     g3 = await guideline_store.create_guideline(condition="z", action="t")
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g1.id,
         source_type="guideline",
         target=g2.id,
@@ -26,7 +26,7 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
         kind="priority",
     )
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g2.id,
         source_type="guideline",
         target=g3.id,
@@ -49,7 +49,7 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
 async def test_that_relational_guideline_resolver_prioritizes_guidelines(
     container: Container,
 ) -> None:
-    guideline_relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
     guideline_store = container[GuidelineStore]
     resolver = container[RelationalGuidelineResolver]
 
@@ -61,7 +61,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
         GuidelineMatch(guideline=g2, score=5, rationale=""),
     ]
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g1.id,
         source_type="guideline",
         target=g2.id,
@@ -77,7 +77,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
 async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
     container: Container,
 ) -> None:
-    guideline_relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
     resolver = container[RelationalGuidelineResolver]
@@ -92,7 +92,7 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
     await guideline_store.upsert_tag(g2.id, t1.id)
     await guideline_store.upsert_tag(g3.id, t1.id)
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g1.id,
         source_type="guideline",
         target=t1.id,
@@ -100,7 +100,7 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
         kind="entailment",
     )
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=t1.id,
         source_type="tag",
         target=g4.id,
@@ -125,7 +125,7 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
 async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_tags(
     container: Container,
 ) -> None:
-    guideline_relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
     resolver = container[RelationalGuidelineResolver]
@@ -137,7 +137,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
 
     await guideline_store.upsert_tag(g2.id, t1.id)
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g1.id,
         source_type="guideline",
         target=t1.id,
@@ -145,7 +145,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
         kind="priority",
     )
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=t1.id,
         source_type="tag",
         target=g2.id,
@@ -168,7 +168,7 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
 async def test_that_relational_guideline_resolver_handles_indirect_guidelines_from_tags(
     container: Container,
 ) -> None:
-    guideline_relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
     resolver = container[RelationalGuidelineResolver]
@@ -181,7 +181,7 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
 
     await guideline_store.upsert_tag(g2.id, t1.id)
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=g1.id,
         source_type="guideline",
         target=t1.id,
@@ -189,7 +189,7 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
         kind="priority",
     )
 
-    await guideline_relationship_store.create_relationship(
+    await relationship_store.create_relationship(
         source=t1.id,
         source_type="tag",
         target=g3.id,

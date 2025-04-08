@@ -45,7 +45,7 @@ from parlant.client.types import (
     Event,
     EventInspectionResult,
     Guideline,
-    GuidelineRelationship,
+    Relationship,
     GuidelineRelationshipKindDto,
     GuidelineToolAssociation,
     GuidelineToolAssociationUpdateParams,
@@ -125,7 +125,7 @@ class Actions:
         raise Exception(f"Tag ({tag}) not found")
 
     @staticmethod
-    def _parse_guideline_relationship_entity(
+    def _parse_relationship_entity(
         ctx: click.Context,
         entity_id: str,
     ) -> tuple[str, str]:
@@ -440,13 +440,13 @@ class Actions:
         source: str,
         target: str,
         kind: GuidelineRelationshipKindDto,
-    ) -> GuidelineRelationship:
+    ) -> Relationship:
         client = cast(ParlantClient, ctx.obj.client)
 
-        source_id, source_type = Actions._parse_guideline_relationship_entity(ctx, source)
-        target_id, target_type = Actions._parse_guideline_relationship_entity(ctx, target)
+        source_id, source_type = Actions._parse_relationship_entity(ctx, source)
+        target_id, target_type = Actions._parse_relationship_entity(ctx, target)
 
-        return client.guideline_relationships.create(
+        return client.relationships.create(
             source_guideline=source_id if source_type == "guideline" else None,
             source_tag=source_id if source_type == "tag" else None,
             target_guideline=target_id if target_type == "guideline" else None,
@@ -463,12 +463,12 @@ class Actions:
     ) -> str:
         client = cast(ParlantClient, ctx.obj.client)
 
-        source_id, source_type = Actions._parse_guideline_relationship_entity(ctx, source_id)
+        source_id, source_type = Actions._parse_relationship_entity(ctx, source_id)
 
         if relationship := next(
             (
                 r
-                for r in client.guideline_relationships.list(
+                for r in client.relationships.list(
                     guideline_id=source_id if source_type == "guideline" else None,
                     tag_id=source_id if source_type == "tag" else None,
                     kind=kind,
@@ -486,7 +486,7 @@ class Actions:
             ),
             None,
         ):
-            client.guideline_relationships.delete(relationship.id)
+            client.relationships.delete(relationship.id)
 
             return relationship.id
 
@@ -501,12 +501,12 @@ class Actions:
         tag: Optional[str],
         kind: GuidelineRelationshipKindDto,
         indirect: bool,
-    ) -> list[GuidelineRelationship]:
+    ) -> list[Relationship]:
         client = cast(ParlantClient, ctx.obj.client)
 
         tag_id = Actions._fetch_tag_id(ctx, tag) if tag else None
 
-        return client.guideline_relationships.list(
+        return client.relationships.list(
             guideline_id=guideline_id,
             tag_id=tag_id,
             kind=kind,
@@ -1532,13 +1532,13 @@ class Interface:
         Interface._print_table(guideline_items)
 
     @staticmethod
-    def _render_guideline_relationships(
+    def _render_relationships(
         entity: Guideline | Tag,
-        relationships: list[GuidelineRelationship],
+        relationships: list[Relationship],
         tool_associations: list[GuidelineToolAssociation],
         include_indirect: bool,
     ) -> None:
-        def to_direct_relationship_item(rel: GuidelineRelationship) -> OrderedDict[str, str]:
+        def to_direct_relationship_item(rel: Relationship) -> OrderedDict[str, str]:
             source = rel.source_guideline if rel.source_guideline else rel.source_tag
             assert source
             source_type = "Guideline" if rel.source_guideline else "Tag"
@@ -1570,7 +1570,7 @@ class Interface:
 
             return result
 
-        def to_indirect_relationship_item(rel: GuidelineRelationship) -> OrderedDict[str, str]:
+        def to_indirect_relationship_item(rel: Relationship) -> OrderedDict[str, str]:
             result = [
                 ("Relationship ID", rel.id),
                 ("Kind", rel.kind),
@@ -1683,7 +1683,7 @@ class Interface:
 
             guideline = guideline_with_relationships_and_associations.guideline
             Interface._write_success(f"Updated guideline (id: {guideline.id})")
-            Interface._render_guideline_relationships(
+            Interface._render_relationships(
                 guideline_with_relationships_and_associations.guideline,
                 guideline_with_relationships_and_associations.relationships,
                 guideline_with_relationships_and_associations.tool_associations,
@@ -1718,7 +1718,7 @@ class Interface:
             )
 
             Interface._render_guidelines([guideline_with_relationships_and_associations.guideline])
-            Interface._render_guideline_relationships(
+            Interface._render_relationships(
                 guideline_with_relationships_and_associations.guideline,
                 guideline_with_relationships_and_associations.relationships,
                 guideline_with_relationships_and_associations.tool_associations,
@@ -1809,7 +1809,7 @@ class Interface:
                 rich.print(Text("No data available", style="bold yellow"))
                 return
 
-            Interface._render_guideline_relationships(
+            Interface._render_relationships(
                 relationships[0].source_guideline
                 if relationships[0].source_guideline
                 else cast(Tag, relationships[0].source_tag),
@@ -3121,11 +3121,11 @@ async def async_main() -> None:
     def guideline_unset(ctx: click.Context, id: str, key: str) -> None:
         Interface.remove_guideline_metadata(ctx, id, key)
 
-    @cli.group(help="Manage an agent's guideline relationships")
+    @cli.group(help="Manage relationships")
     def relationship() -> None:
         pass
 
-    @relationship.command("create", help="Create a relationship between two guidelines")
+    @relationship.command("create", help="Create a relationship")
     @click.option(
         "--source",
         type=str,

@@ -3,8 +3,8 @@ from itertools import chain
 from typing import Sequence, cast
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineStore
 from parlant.core.tags import TagId
@@ -13,10 +13,10 @@ from parlant.core.tags import TagId
 class RelationalGuidelineResolver:
     def __init__(
         self,
-        guideline_relationship_store: GuidelineRelationshipStore,
+        relationship_store: RelationshipStore,
         guideline_store: GuidelineStore,
     ) -> None:
-        self._guideline_relationship_store = guideline_relationship_store
+        self._relationship_store = relationship_store
         self._guideline_store = guideline_store
 
     async def resolve(
@@ -43,16 +43,16 @@ class RelationalGuidelineResolver:
         #
         # For example, if we matched guidelines "When X, Then Y" (S) and "When A, Then B" (T),
         # and S is prioritized, only "When X, Then Y" should be activated.
-        # Such priority relationships are stored in GuidelineRelationshipStore,
+        # Such priority relationships are stored in RelationshipStore,
         # and those are the ones we are loading here.
         guideline_ids = {m.guideline.id for m in matches}
 
-        target_that_got_iterated_over: set[GuidelineId] = set()
+        itarated_guidelines: set[GuidelineId] = set()
 
         result = []
         for match in matches:
             relationships = list(
-                await self._guideline_relationship_store.list_relationships(
+                await self._relationship_store.list_relationships(
                     kind="priority",
                     indirect=True,
                     target=match.guideline.id,
@@ -91,22 +91,22 @@ class RelationalGuidelineResolver:
                     for g in guideline_associated_to_tag:
                         # In case we already iterated over this guideline,
                         # we don't need to iterate over it again.
-                        if g.id in target_that_got_iterated_over or g.id in guideline_ids:
+                        if g.id in itarated_guidelines or g.id in guideline_ids:
                             continue
 
                         relationships.extend(
-                            await self._guideline_relationship_store.list_relationships(
+                            await self._relationship_store.list_relationships(
                                 kind="priority",
                                 indirect=True,
                                 target=g.id,
                             )
                         )
 
-                    target_that_got_iterated_over.update(
+                    itarated_guidelines.update(
                         g.id for g in guideline_associated_to_tag if g.id not in guideline_ids
                     )
 
-            target_that_got_iterated_over.add(match.guideline.id)
+            itarated_guidelines.add(match.guideline.id)
 
             if prioritized:
                 result.append(match)
@@ -131,7 +131,7 @@ class RelationalGuidelineResolver:
 
         for match in matches:
             relationships = list(
-                await self._guideline_relationship_store.list_relationships(
+                await self._relationship_store.list_relationships(
                     kind="entailment",
                     indirect=True,
                     source=match.guideline.id,
@@ -163,7 +163,7 @@ class RelationalGuidelineResolver:
                     # Add all the relationships for the related guidelines to the stack
                     for g in guidelines_associated_to_tag:
                         relationships.extend(
-                            await self._guideline_relationship_store.list_relationships(
+                            await self._relationship_store.list_relationships(
                                 kind="entailment",
                                 indirect=True,
                                 source=g.id,

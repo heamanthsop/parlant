@@ -4,13 +4,13 @@ import httpx
 from lagom import Container
 from pytest import raises
 
-from parlant.core.guideline_relationships import GuidelineRelationshipStore
+from parlant.core.relationships import RelationshipStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.tags import TagStore
 from parlant.core.common import ItemNotFoundError
 
 
-async def test_that_guideline_relationship_can_be_created_between_two_guidelines(
+async def test_that_relationship_can_be_created_between_two_guidelines(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -50,7 +50,7 @@ async def test_that_guideline_relationship_can_be_created_between_two_guidelines
     assert relationship["target_tag"] is None
 
 
-async def test_that_guideline_relationship_can_be_created_between_two_tags(
+async def test_that_relationship_can_be_created_between_two_tags(
     async_client: httpx.AsyncClient, container: Container
 ) -> None:
     tag_store = container[TagStore]
@@ -85,7 +85,7 @@ async def test_that_guideline_relationship_can_be_created_between_two_tags(
     assert relationship["target_guideline"] is None
 
 
-async def test_that_guideline_relationship_can_be_created_between_a_guideline_and_a_tag(
+async def test_that_relationship_can_be_created_between_a_guideline_and_a_tag(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -124,13 +124,13 @@ async def test_that_guideline_relationship_can_be_created_between_a_guideline_an
     assert relationship["target_guideline"] is None
 
 
-async def test_that_guideline_relationships_can_be_listed_by_guideline_id(
+async def test_that_relationships_can_be_listed_by_guideline_id(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     guideline = await guideline_store.create_guideline(
         condition="condition",
@@ -159,13 +159,13 @@ async def test_that_guideline_relationships_can_be_listed_by_guideline_id(
     assert relationships[0]["kind"] == "priority"
 
 
-async def test_that_guideline_relationships_can_be_listed_by_tag_id(
+async def test_that_relationships_can_be_listed_by_tag_id(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     guideline = await guideline_store.create_guideline(
         condition="condition",
@@ -193,21 +193,21 @@ async def test_that_guideline_relationships_can_be_listed_by_tag_id(
     assert relationships[0]["target_tag"]["id"] == tag.id
 
 
-async def test_that_guideline_relationship_cannot_be_listed_without_guideline_id_or_tag_id(
+async def test_that_relationship_cannot_be_listed_without_guideline_id_or_tag_id(
     async_client: httpx.AsyncClient,
 ) -> None:
     response = await async_client.get("/relationships?kind=priority")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-async def test_that_guideline_relationship_cannot_be_listed_with_both_guideline_id_and_tag_id(
+async def test_that_relationship_cannot_be_listed_with_both_guideline_id_and_tag_id(
     async_client: httpx.AsyncClient,
 ) -> None:
     response = await async_client.get("/relationships?guideline_id=1&tag_id=2")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-async def test_that_guideline_relationship_cannot_be_listed_without_kind(
+async def test_that_relationship_cannot_be_listed_without_kind(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -222,13 +222,13 @@ async def test_that_guideline_relationship_cannot_be_listed_without_kind(
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-async def test_that_guideline_relationship_can_be_read(
+async def test_that_relationship_can_be_read(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
     guideline_store = container[GuidelineStore]
     tag_store = container[TagStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     guideline = await guideline_store.create_guideline(
         condition="condition",
@@ -258,11 +258,11 @@ async def test_that_guideline_relationship_can_be_read(
     assert relationship_data["kind"] == "entailment"
 
 
-async def test_that_guideline_relationship_can_be_deleted(
+async def test_that_relationship_can_be_deleted(
     async_client: httpx.AsyncClient, container: Container
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     guideline = await guideline_store.create_guideline(
         condition="condition",

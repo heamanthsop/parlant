@@ -14,8 +14,8 @@ from parlant.core.guidelines import (
     Guideline,
     GuidelineStore,
 )
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -44,7 +44,7 @@ class EntityQueries:
         guideline_store: GuidelineStore,
         customer_store: CustomerStore,
         context_variable_store: ContextVariableStore,
-        guideline_relationship_store: GuidelineRelationshipStore,
+        relationship_store: RelationshipStore,
         guideline_tool_association_store: GuidelineToolAssociationStore,
         glossary_store: GlossaryStore,
         service_registry: ServiceRegistry,
@@ -54,7 +54,7 @@ class EntityQueries:
         self._guideline_store = guideline_store
         self._customer_store = customer_store
         self._context_variable_store = context_variable_store
-        self._guideline_relationship_store = guideline_relationship_store
+        self._relationship_store = relationship_store
         self._guideline_tool_association_store = guideline_tool_association_store
         self._glossary_store = glossary_store
         self._service_registry = service_registry

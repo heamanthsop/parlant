@@ -67,9 +67,9 @@ from parlant.core.evaluations import (
     EvaluationStore,
 )
 from parlant.core.entity_cq import EntityQueries, EntityCommands
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipDocumentStore,
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipDocumentStore,
+    RelationshipStore,
 )
 from parlant.core.guidelines import (
     GuidelineDocumentStore,
@@ -354,8 +354,8 @@ async def initialize_container(
     guideline_tool_associations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_tool_associations.json")
     )
-    guideline_relationships_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_relationships.json")
+    relationships_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "relationships.json")
     )
     evaluations_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluations.json")
@@ -388,8 +388,8 @@ async def initialize_container(
         c[GuidelineToolAssociationStore] = await EXIT_STACK.enter_async_context(
             GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
         )
-        c[GuidelineRelationshipStore] = await EXIT_STACK.enter_async_context(
-            GuidelineRelationshipDocumentStore(guideline_relationships_db, migrate)
+        c[RelationshipStore] = await EXIT_STACK.enter_async_context(
+            RelationshipDocumentStore(relationships_db, migrate)
         )
         c[SessionStore] = await EXIT_STACK.enter_async_context(
             SessionDocumentStore(sessions_db, migrate)

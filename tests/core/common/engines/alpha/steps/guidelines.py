@@ -16,8 +16,8 @@ from pytest_bdd import given, parsers
 
 from parlant.core.agents import AgentId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guidelines import Guideline, GuidelineStore
 
@@ -439,7 +439,7 @@ def given_an_entailment_guideline_relationship(
     guideline_a: str,
     guideline_b: str,
 ) -> None:
-    store = context.container[GuidelineRelationshipStore]
+    store = context.container[RelationshipStore]
 
     context.sync_await(
         store.create_relationship(

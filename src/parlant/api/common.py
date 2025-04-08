@@ -17,7 +17,7 @@ from pydantic import Field
 from typing import Annotated, Any, Mapping, Optional, Sequence, TypeAlias
 
 from parlant.core.common import DefaultBaseModel
-from parlant.core.guideline_relationships import GuidelineRelationshipId, GuidelineRelationshipKind
+from parlant.core.relationships import RelationshipId, GuidelineRelationshipKind
 from parlant.core.guidelines import GuidelineId
 from parlant.core.tags import TagId
 
@@ -437,21 +437,21 @@ class TagDTO(
     name: TagNameField
 
 
-guideline_relationship_tag_dto_example: ExampleJson = {
+relationship_tag_dto_example: ExampleJson = {
     "id": "tid_123xz",
     "name": "tag1",
 }
 
 
-GuidelineRelationshipIdField: TypeAlias = Annotated[
-    GuidelineRelationshipId,
+RelationshipIdField: TypeAlias = Annotated[
+    RelationshipId,
     Field(
-        description="Unique identifier for the guideline relationship",
+        description="Unique identifier for the relationship",
     ),
 ]
 
 
-GuidelineRelationshipIndirectField: TypeAlias = Annotated[
+RelationshipIndirectField: TypeAlias = Annotated[
     bool,
     Field(
         description="`True` if there is a path from `source` to `target` but no direct relationship",
@@ -460,7 +460,7 @@ GuidelineRelationshipIndirectField: TypeAlias = Annotated[
 ]
 
 
-guideline_relationship_example: ExampleJson = {
+relationship_example: ExampleJson = {
     "id": "123",
     "source_guideline": {
         "id": "456",
@@ -488,22 +488,22 @@ class GuidelineRelationshipKindDTO(Enum):
     PERSISTENCE = "persistence"
 
 
-class GuidelineRelationshipDTO(
+class RelationshipDTO(
     DefaultBaseModel,
-    json_schema_extra={"example": guideline_relationship_example},
+    json_schema_extra={"example": relationship_example},
 ):
-    """Represents a guideline relationship addition.
+    """Represents a relationship.
 
     Only one of `source_guideline` and `source_tag` can have a value.
     Only one of `target_guideline` and `target_tag` can have a value.
     """
 
-    id: GuidelineRelationshipIdField
+    id: RelationshipIdField
     source_guideline: Optional[GuidelineDTO] = None
     source_tag: Optional[TagDTO] = None
     target_guideline: Optional[GuidelineDTO] = None
     target_tag: Optional[TagDTO] = None
-    indirect: GuidelineRelationshipIndirectField
+    indirect: RelationshipIndirectField
     kind: GuidelineRelationshipKindDTO
 
 

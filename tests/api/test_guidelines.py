@@ -19,8 +19,8 @@ from pytest import raises
 
 from parlant.core.agents import AgentId
 from parlant.core.common import ItemNotFoundError
-from parlant.core.guideline_relationships import (
-    GuidelineRelationshipStore,
+from parlant.core.relationships import (
+    RelationshipStore,
 )
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
@@ -56,7 +56,7 @@ async def create_guidelines_and_create_relationships_between_them(
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
-        await container[GuidelineRelationshipStore].create_relationship(
+        await container[RelationshipStore].create_relationship(
             source=source.id,
             source_type="guideline",
             target=target.id,
@@ -273,7 +273,7 @@ async def test_legacy_that_a_connection_between_two_introduced_guidelines_is_cre
     )
     assert source_guideline_item
 
-    relationships = await container[GuidelineRelationshipStore].list_relationships(
+    relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=source_guideline_item["guideline"]["id"],
@@ -343,7 +343,7 @@ async def test_legacy_that_a_connection_to_an_existing_guideline_is_created(
         .json()["items"][0]["guideline"]
     )
 
-    relationships = await container[GuidelineRelationshipStore].list_relationships(
+    relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=existing_guideline.id,
@@ -441,7 +441,7 @@ async def test_legacy_that_a_connection_can_be_added_to_a_guideline(
     )
 
     stored_relationships = list(
-        await container[GuidelineRelationshipStore].list_relationships(
+        await container[RelationshipStore].list_relationships(
             kind="entailment",
             indirect=False,
             source=guidelines[0].id,
@@ -488,7 +488,7 @@ async def test_legacy_that_a_direct_target_connection_can_be_removed_from_a_guid
 
     assert len(response_collections) == 0
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=True,
         source=guidelines[0].id,
@@ -523,7 +523,7 @@ async def test_legacy_that_an_indirect_connection_cannot_be_removed_from_a_guide
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=True,
         source=guidelines[0].id,
@@ -550,7 +550,7 @@ async def test_legacy_that_deleting_a_guideline_also_deletes_all_of_its_direct_c
         await async_client.delete(f"/agents/{agent_id}/guidelines/{guidelines[0].id}")
     ).raise_for_status()
 
-    stored_relationships = await container[GuidelineRelationshipStore].list_relationships(
+    stored_relationships = await container[RelationshipStore].list_relationships(
         kind="entailment",
         indirect=False,
         source=guidelines[0].id,
@@ -587,7 +587,7 @@ async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_co
         )
 
     for source, target in zip(guidelines, guidelines[1:]):
-        await container[GuidelineRelationshipStore].create_relationship(
+        await container[RelationshipStore].create_relationship(
             source=source.id,
             source_type="guideline",
             target=target.id,
@@ -962,7 +962,7 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
@@ -1073,7 +1073,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
@@ -1198,7 +1198,7 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
     agent_id: AgentId,
 ) -> None:
     guideline_store = container[GuidelineStore]
-    relationship_store = container[GuidelineRelationshipStore]
+    relationship_store = container[RelationshipStore]
 
     existing_guideline = await guideline_store.create_guideline(
         condition="the customer greets you",
