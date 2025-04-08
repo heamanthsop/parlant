@@ -93,14 +93,14 @@ class InstructionEvaluation(DefaultBaseModel):
 
 
 class MessageSchema(DefaultBaseModel):
-    last_message_of_customer: Optional[str]
+    last_message_of_customer: Optional[str] = None
     produced_reply: Optional[bool] = None
     produced_reply_rationale: Optional[str] = None
-    guidelines: list[str]
+    guidelines: Optional[list[str]] = None
     context_evaluation: Optional[ContextEvaluation] = None
     insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
-    revisions: list[Revision]
+    revisions: Optional[list[Revision]] = None
 
 
 @dataclass
@@ -331,7 +331,7 @@ Do not disregard a guideline because you believe its 'when' condition or rationa
             template="""
 GENERAL INSTRUCTIONS
 -----------------
-You are an AI agent who is part of a system that interacts with a customer, also referred to as 'the user'. The current state of this interaction will be provided to you later in this message.
+You are an AI agent who is part of a system that interacts with a user. The current state of this interaction will be provided to you later in this message.
 You role is to generate a reply message to the current (latest) state of the interaction, based on provided guidelines and background information.
 
 Later in this prompt, you'll be provided with behavioral guidelines and other contextual information you must take into account when generating your response.
@@ -341,6 +341,7 @@ Later in this prompt, you'll be provided with behavioral guidelines and other co
         )
 
         builder.add_agent_identity(agent)
+        builder.add_customer_identity(customer)
         builder.add_section(
             name="message-generator-task-description",
             template="""
@@ -371,7 +372,7 @@ If you decide not to emit a message, output the following:
 {{
     "last_message_of_customer": None,
     "produced_reply": false,
-    "guidelines": <list of strings- a re-statement of all guidelines>,
+    "guidelines": [<list of strings- a re-statement of all guidelines>],
     "context_evaluation": None,
     "insights": [<list of strings- up to 3 original insights>],
     "produced_reply_rationale": "<a few words to justify why a reply was NOT produced here>",
@@ -675,7 +676,10 @@ Produce a valid JSON object in the following format: ###
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
-        if message_event_response.content.produced_reply is False:
+        if (
+            message_event_response.content.produced_reply is False
+            or not message_event_response.content.revisions
+        ):
             self._logger.debug("Produced no reply")
             return message_event_response.info, None
 

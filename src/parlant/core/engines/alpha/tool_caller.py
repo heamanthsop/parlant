@@ -319,7 +319,8 @@ class ToolCaller:
                         ):
                             missing_data.append(
                                 MissingToolData(
-                                    parameter=evaluation.parameter_name,
+                                    parameter=tool_options.display_name
+                                    or evaluation.parameter_name,
                                     significance=tool_options.significance,
                                     description=tool_descriptor.get("description"),
                                     precedence=tool_options.precedence,
