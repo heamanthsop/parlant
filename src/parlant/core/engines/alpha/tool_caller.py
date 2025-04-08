@@ -298,17 +298,19 @@ class ToolCaller:
                 )
             ):
                 if tc.should_run and all(
-                    (not evaluation.is_missing)
-                    for evaluation in (tc.argument_evaluations or [])
+                    not evaluation.is_missing
+                    for evaluation in tc.argument_evaluations or []
                     if evaluation.parameter_name in candidate_descriptor[1].required
                 ):
                     self._logger.debug(
                         f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
                     )
+
                     arguments = {}
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.is_missing:
                             continue
+
                         # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
                         arguments[evaluation.parameter_name] = evaluation.value_as_string
 
@@ -319,6 +321,7 @@ class ToolCaller:
                             arguments=arguments,
                         )
                     )
+
                 elif tc.applicability_score >= 8:
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.parameter_name not in tool.parameters:
@@ -348,6 +351,7 @@ class ToolCaller:
                 self._logger.debug(
                     f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
                 )
+
         return tool_calls, missing_data
 
     async def execute_tool_calls(
