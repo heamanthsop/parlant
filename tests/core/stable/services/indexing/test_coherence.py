@@ -1,4 +1,4 @@
-# Copyright 2024 Emcie Co Ltd.
+# Copyright 2025 Emcie Co Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ The following two guidelines were found to have contradicting 'then' statements:
 {guideline_a_text}
 {guideline_b_text}
 
-The rationale for marking these 'then' statements as contradicting is: 
+The rationale for marking these 'then' statements as contradicting is:
 {incoherence.actions_contradiction_rationale}
 
 The following is a description of the agent these guidelines apply to:
@@ -86,7 +86,7 @@ Such an entailment was {entailment_found_text} between these two guidelines:
 {guideline_a_text}
 {guideline_b_text}
 
-The rationale given for this decision is: 
+The rationale given for this decision is:
 {incoherence.conditions_entailment_rationale}
 
 The following is a description of the agent these guidelines apply to:
