@@ -297,8 +297,7 @@ class ToolCaller:
                     or tc.the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool
                 )
             ):
-                # TODO: should_run needs some future rework. If tool shouldn't run (e.g. already staged), but all parameters are ok - this condition will still be true
-                if tc.should_run or all(
+                if tc.should_run and all(
                     (not evaluation.is_missing)
                     for evaluation in (tc.argument_evaluations or [])
                     if evaluation.parameter_name in candidate_descriptor[1].required
