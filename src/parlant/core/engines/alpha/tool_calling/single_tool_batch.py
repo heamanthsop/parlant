@@ -435,7 +435,7 @@ Given the tool, your output should adhere to the following format:
     "last_customer_message": "<REPEAT THE LAST USER MESSAGE IN THE INTERACTION>",
     "most_recent_customer_inquiry_or_need": "<CUSTOMER"S INQUIRY OR NEED>",
     "most_recent_customer_inquiry_or_need_was_already_resolved": <BOOL>,
-    "name": "{service_name}:{tool_name}",
+    "name": "<TOOL NAME>",
     "subtleties_to_be_aware_of": "<NOTE ANY SIGNIFICANT SUBTLETIES TO BE AWARE OF WHEN RUNNING THIS TOOL IN OUR AGENT'S CONTEXT>",
     "tool_calls_for_candidate_tool": [
         {tool_calls_for_candidate_tool_json_description}
