@@ -1,6 +1,6 @@
 
 <div align="center">
-<img alt="Parlant Logo" src="https://github.com/emcie-co/parlant/blob/e0fefba25efd1b956ead881964025baae5dc4119/logo.png" />
+<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />
   <h3>Parlant: The Conversation Modeling Engine 💬 ✅</h3>
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
