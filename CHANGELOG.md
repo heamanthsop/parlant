@@ -3,27 +3,34 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
+TBD
 
-- Allow returning a new (modified) container in modules using configure_module()
+## [2.0.0] - 2025-04-09
+
+### Added
 - Improved tool parameter flexibility: custom types, Pydantic models, and annotated ToolParameterOptions
-- Added Tool Insights
+- Allow returning a new (modified) container in modules using configure_module()
+- Added Tool Insights with tool parameter options
+- Added support for default values for tool parameters in tool calling
+- Added WebSocket logger feature for streaming logs in real time
+- Added a log viewer to the sandbox UI
+- Added API and CLI for Utterances
+- Added support for the --migrate CLI flag to enable seamless store version upgrades during server startup
+- Added clear rate limit error logs for NLP adapters
+- Added enabled/disabled flag for guidelines to facilitate experimentation without deletion
+- Allow different schematic generators to adjust incoming prompts in a structured manner
+- Added tags to context variables, guidelines, glossary and agents
+- Added guideline matching strategies
+- Added guideline relationships
+
+### Changed
+- Made the message generator slightly more polite by default, following user feedback
+- Allow only specifying guideline condition or action when updating guideline from CLI
+- Renamed guideline proposer with guideline matcher
+
+### Fixed
 - Lowered likelihood of the agent hallucinating facts in fluid mode
 - Lowered likelihood of the agent offering services that were not specifically mentioned by the business
-- Made the agent slightly more polite, following user feedback
-- Allow only specifying guideline condition or action when updating guideline from CLI
-- Add WebSocket logger feature for streaming logs in real time
-- Add a log viewer to the sandbox UI
-- Add API and CLI for Utterances
-- Add support for the --migrate CLI flag to enable seamless store version upgrades during server startup
-- Add clear rate limit error logs for NLP adapters
-- Add enabled/disabled flag for guidelines to facilitate experimentation without deletion
-- Allow different schematic generators to adjust incoming prompts in a structured manner
-- Add tags to context variables, guidelines, glossary and agents
-- Rename guideline proposer with guideline matcher
-- Add guideline strategy resolution
-- Add ToolParameterOptions precedence
-- Introduce Relationships
-- Add support for default values for tool parameters in tool calling
 
 ## [1.6.2] - 2025-01-29
 
