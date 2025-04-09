@@ -26,7 +26,7 @@
 ## What is Conversation Modeling?
 You've built an AI agent—that's great! However, when you actually test it, you see it's not handling many customer interactions properly, and your business experts are displeased with it. What do you do?
 
-Enter Conversation Modeling (CM): a new powerful and reliable approach to getting AI agents to controlling how your agents interact with your users.
+Enter Conversation Modeling (CM): a new powerful and reliable approach to controlling how your agents interact with your users.
 
 A conversation model is a structured, domain-specific set of principles, actions, objectives, and terms that an agent applies to a given conversation.
 
