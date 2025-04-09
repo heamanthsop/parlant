@@ -5,7 +5,7 @@
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
-    <a href="https://www.parlant.io/docs/tutorial/getting-started/starting-the-tutorial" target="_blank">Tutorial</a> —
+    <a href="https://www.parlant.io/docs/tutorial/getting-started" target="_blank">Tutorial</a> —
     <a href="https://www.parlant.io/docs/about" target="_blank">About</a>
   </p>
   <p>
@@ -76,8 +76,6 @@ $ pip install parlant
 $ parlant-server run
 $ # Open the sandbox UI at http://localhost:8800 and play
 ```
-
-<img alt="Parlant Preview" src="https://github.com/emcie-co/parlant/blob/02c0e11116e03f3622077436ce9d61811bceb519/preview.gif" />
 
 ## 🙋‍♂️🙋‍♀️ Who Is Parlant For?
 Parlant is the right tool for the job if you're building an LLM-based chat agent, and:
