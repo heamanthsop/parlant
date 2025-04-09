@@ -1,7 +1,7 @@
 
 <div align="center">
 <img alt="Parlant Logo" src="https://github.com/emcie-co/parlant/blob/e0fefba25efd1b956ead881964025baae5dc4119/logo.png" />
-  <h3>Parlant: The LLM-Native Conversation Design Engine 💬 ✅</h3>
+  <h3>Parlant: The Conversation Modeling Engine 💬 ✅</h3>
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
@@ -19,9 +19,22 @@
   </p>
 </div>
 
-Welcome to Parlant, a Conversational AI engine that gives developers the control they need over their user-facing AI agents, utilizing behavioral guidelines, runtime supervision—and much more. 🔧 🎛️ Parlant is operated using an easy-to-use CLI 📟 and native client SDKs in Python and TypeScript 📦.
-
 **IMPORTANT NOTE:** We're looking for more contributors to help get user-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
+
+## What is Conversation Modeling?
+You've built an AI agent—that's great! However, when you actually test it, you see it's not handling many customer interactions properly, and your business experts are displeased with it. What do you do?
+
+Enter Conversation Modeling (CM): a new powerful and reliable approach to getting AI agents to controlling how your agents interact with your users.
+
+A conversation model is a structured, domain-specific set of principles, actions, objectives, and terms that an agent applies to a given conversation.
+
+### Why Conversation Modeling?
+
+The problem of getting your AI agent to say what _you_ want it to say is a hard one, experienced by virtually anyone building customer-facing agents. Here's how Conversation Modeling compares to other approaches to solving this problem.
+
+- **Flow engines** (such as [Rasa](https://github.com/RasaHQ/rasa), [Botpress](https://github.com/botpress/botpress) or [LangFlow](https://github.com/langflow-ai/langflow)) _force_ the user to interact according to predefined flows. In contrast, a **CM engine** dynamically _adapts_ to a user's natural interaction patterns while conforming to your rules.
+
+- **Free-form prompt engineering** (such as with [LangGraph](https://www.langchain.com/langgraph) or [LlamaIndex](https://docs.llamaindex.ai/)) leads to _inconsistency_, frequently failing to uphold requirements. Conversely, a **CM engine** leverages structure to _enforce_ conformance to a Conversation Model.
 
 ## Who uses Parlant?
 Parlant is used to deliver complex conversational agents that reliably follow your business protocols in use cases such as:
@@ -41,19 +54,14 @@ Developers and data-scientists are using Parlant to:
 - 📖 Manage their agents’ glossary to ensure strict interpretation of terms in a conversational context
 - 👤 Add customer-specific information to deliver personalized interactions
 
-## ✨ Take Control of AI Agent Decisions
-**Parlant transforms how AI agents make decisions in customer-facing use cases.**
-
-It moves beyond traditional prompt engineering and flow charts. Instead, you provide it with contextual atomic guidelines, and it adapts your instructions to each conversation in real-time. By intelligently matching and activating relevant behavioral guidelines for each specific context, your agents end up consistently following your business rules while maintaining much more natural conversations with your customers than you could achieve with predefined semantic graphs or flow charts.
-
-### How does Parlant work?
+#### How does Parlant work?
 ```mermaid
 graph TD
     API(Parlant REST API) -->|React to Session Trigger| Engine[AI Response Engine]
     Engine -->|Load Domain Terminology| GlossaryStore
-    Engine -->|Match Guidelines| GuidelineProposer
+    Engine -->|Match Guidelines| GuidelineMatcher
     Engine -->|Infer & Call Tools| ToolCaller
-    Engine -->|Tailor Guided Message| MessageGenerator
+    Engine -->|Tailor Guided Message| MessageComposer
 ```
 
 When an agent needs to respond to a customer, Parlant's engine evaluates the situation, checks relevant guidelines, gathers necessary information through your tools, and continuously re-evaluates its approach based on your guidelines as new information emerges. When it's time to generate a message, Parlant implements self-critique mechanisms to ensure that the agent's responses precisely align with your intended behavior as given by the contextually-matched guidelines.
@@ -65,7 +73,7 @@ Parlant comes pre-built with responsive session (conversation) management, a det
 
 ```bash
 $ pip install parlant
-$ parlant-server
+$ parlant-server run
 $ # Open the sandbox UI at http://localhost:8800 and play
 ```
 
@@ -103,24 +111,12 @@ By giving structure to behavioral guidelines, and _granularizing_ guidelines (i.
 1. 💡 **Explainability:** Providing feedback around its interpretation of guidelines in each real-life context, which helps in troubleshooting and improvement
 1. 🔧 **Maintainability:** Helping you maintain a coherent set of guidelines by detecting and alerting you to possible contradictions (gross or subtle) in your instructions
 
-## 💪 Other benefits
-
-### Control that actually works
-* **Coherence checks**: Catch conflicts by having Parlant evaluate new guidelines against existing ones before they're applied
-* **See changes instantly**: Modify behavior on the fly by updating guidelines directly — no retraining or redeployment needed
-* **Track changes in Git**: Manage agent behavior like code by storing configuration as JSON in your repo. Review, rollback, branch, and merge just like any other code
-* **Clean architecture**: Separate concerns by keeping business logic in tools and conversation patterns in guidelines. Each piece does what it does best
-
-### Deploy with confidence
-* **Reliable at scale**: Parlant filters and selects guidelines per context, allowing you to scale your agent's complexity and use-cases while maintaining consistent, focused behavior
-* **Debug with ease**: Troubleshoot effectively by tracing which guidelines were applied and why for any given response. leveraging Parlant's highly descriptive and explainable log outputs
-* **Test before deploy**: Validate changes using the built-in chat UI to test new behaviors before they reach customers
-
 ## 🤖 Works with all major LLM providers
 - [OpenAI](https://platform.openai.com/docs/overview) (also via [Azure](https://learn.microsoft.com/en-us/azure/ai-services/openai/))
 - [Gemini](https://ai.google.dev/)
 - [Meta Llama 3](https://www.llama.com/) (via [Together AI](https://www.together.ai/) or [Cerebras](https://cerebras.ai/))
 - [Anthropic](https://www.anthropic.com/api) (also via [AWS Bedrock](https://aws.amazon.com/bedrock/))
+- And more are added regularly
 
 ## 📚 Learning Parlant
 
@@ -132,46 +128,8 @@ Need help? Ask us anything on [Discord](https://discord.gg/duxWqxKk6J). We're ha
 Adding a guideline for an agent—for example, to ask a counter-question to get more info when a customer asks a question:
 ```bash
 parlant guideline create \
-    --agent-id CUSTOMER_SUCCESS_AGENT_ID \
     --condition "a free-tier customer is asking how to use our product" \
     --action "first seek to understand what they're trying to achieve"
-```
-
-In Parlant, Customer-Agent interaction happens asynchronously, to enable more natural customer interactions, rather than forcing a strict and unnatural request-reply mode.
-
-Here's a basic example of a simple client (using the TypeScript client SDK):
-
-```typescript
-import { ParlantClient } from 'parlant-client';
-
-const client = ParlantClient({ environment: SERVER_ADDRESS });
-
-session_id = "...";
-
-// Post customer message
-const customerEvent = await client.sessions.createEvent(session_id, {
-   kind: "message",
-   source: "customer",
-   message: "How do you use this product?",
-});
-
-// Wait for and get the agent's reply
-const [agentEvent] = (await client.sessions.listEvents(session_id, {
-   kinds: "message",
-   source: "ai_agent",
-   minOffset: customerEvent.offset,
-   waitForData: 60 // Wait up to 60 seconds for an answer
-}));
-
-// Print the agent's reply
-const { agentMessage } = agentEvent.data as { message: string };
-console.log(agentMessage);
-
-// Inspect the details of the message generation process
-const { trace } = await client.sessions.inspectEvent(
-   session_id,
-   agentEvent.id
-);
 ```
 
 ## 👋 Contributing
