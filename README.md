@@ -21,6 +21,8 @@
 
 **IMPORTANT NOTE:** We're looking for more contributors to help get user-facing agents under control! To be a part of this effort, join our [Discord server](https://discord.gg/duxWqxKk6J) and tell us about your relevant skills and how you wish to help.
 
+[![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
+
 ## What is Conversation Modeling?
 You've built an AI agent—that's great! However, when you actually test it, you see it's not handling many customer interactions properly, and your business experts are displeased with it. What do you do?
 
