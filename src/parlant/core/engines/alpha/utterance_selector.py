@@ -1046,7 +1046,7 @@ example_2_expected = UtteranceSelectionSchema(
     insights=["All of our cheese has expired and is currently out of stock"],
     utterance_choice=UtteranceChoice(
         insights_about_the_user="The user is a long-time user and we should treat him with extra respect",
-        utterance_choice_reasoning="There are utterances that help me guide to conversation to provide the burfer. However, I can't provide the cheeseburger since cheese is out of stock, so I should instead use the utterance that says we're out of an ingredient. At the same time, I should try to choose something to say that approaches the long-term user with respect and grace.",
+        utterance_choice_reasoning="There are multiple utterances that help me guide to conversation to provide the burger. However, I can't provide the cheeseburger since cheese is out of stock, so I should instead use the utterance that says we're out of an ingredient. At the same time, I should try to choose something to say that approaches the long-term user with respect and grace.",
         chosen_utterance="Unfortunately we're out of {{ingredient}}. Would you like anything else instead?",
         chosen_utterance_id="<auto>",
     ),
@@ -1083,7 +1083,7 @@ example_4_expected = UtteranceSelectionSchema(
     guidelines=[],
     insights=["I should not keep repeating myself as it makes me sound robotic"],
     utterance_choice=UtteranceChoice(
-        utterance_choice_reasoning="I've been repeating myself asking for clarifications from the user regarding their request. To avoid repeating myself further as per the insights, I should simply apologize for not being able to assist.",
+        utterance_choice_reasoning="I've been repeating myself asking for clarifications from the user regarding their request. To avoid repeating myself further as per the insights, I shouldn't choose the utterance that asks for clarification again. I should instead choose the utterance that apologizes for not being able to assist.",
         chosen_utterance="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
         chosen_utterance_id=shot_utterance_id(4),
     ),
@@ -1103,7 +1103,7 @@ example_5_expected = UtteranceSelectionSchema(
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
     utterance_choice=UtteranceChoice(
-        utterance_choice_reasoning="I don't have any information or utterances about customer support, so I can't help the user with this. A good utterance for this would be the one that explains I cannot help with a topic and asks if there are other ways I could help. However, there's a more specialized utterance that deals specifically with customer support, so I should choose that one as it's the most suitable for this particular scenario.",
+        utterance_choice_reasoning="I don't have any information or utterances about customer support, so I can't help the user with this. A good utterance for this would be the one that explains I cannot help with a topic and asks if there are other ways I could help. However, there's a more specialized utterance I can choose here, which deals specifically with not being able to help with respect to customer support, so I should choose that one as it's the most suitable for this particular scenario.",
         chosen_utterance="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
         chosen_utterance_id=shot_utterance_id(9),
     ),
