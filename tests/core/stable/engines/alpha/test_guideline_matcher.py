@@ -50,7 +50,7 @@ from parlant.core.engines.alpha.guideline_match import (
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
-from parlant.core.sessions import EventSource
+from parlant.core.sessions import EventKind, EventSource
 from parlant.core.loggers import Logger
 from parlant.core.glossary import TermId
 
@@ -674,8 +674,12 @@ def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_context_vari
         },
     )
     staged_events = [
-        EmittedEvent(source="ai_agent", kind="tool", correlation_id="", data=tool_result_1),
-        EmittedEvent(source="ai_agent", kind="tool", correlation_id="", data=tool_result_2),
+        EmittedEvent(
+            source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result_1
+        ),
+        EmittedEvent(
+            source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result_2
+        ),
     ]
     context_variables = [
         create_context_variable(
@@ -751,8 +755,18 @@ def test_that_guidelines_are_matched_based_on_staged_tool_calls_without_context_
         },
     )
     staged_events = [
-        EmittedEvent(source="ai_agent", kind="tool", correlation_id="", data=tool_result_1),
-        EmittedEvent(source="ai_agent", kind="tool", correlation_id="", data=tool_result_2),
+        EmittedEvent(
+            source=EventSource.AI_AGENT,
+            kind=EventKind.TOOL,
+            correlation_id="",
+            data=tool_result_1,
+        ),
+        EmittedEvent(
+            source=EventSource.AI_AGENT,
+            kind=EventKind.TOOL,
+            correlation_id="",
+            data=tool_result_2,
+        ),
     ]
     conversation_guideline_names: list[str] = ["suggest_drink_underage", "suggest_drink_adult"]
     relevant_guideline_names = ["suggest_drink_underage"]

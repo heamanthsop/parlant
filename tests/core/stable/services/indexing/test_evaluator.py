@@ -19,6 +19,7 @@ from pytest import raises
 
 from parlant.core.agents import Agent
 from parlant.core.evaluations import (
+    EntailmentRelationshipPropositionKind,
     EvaluationListener,
     EvaluationStatus,
     EvaluationStore,
@@ -512,7 +513,8 @@ async def test_that_an_evaluation_completes_and_contains_a_connection_propositio
     assert invoice_data.entailment_propositions
     assert len(invoice_data.entailment_propositions) == 1
     assert (
-        invoice_data.entailment_propositions[0].check_kind == "connection_with_existing_guideline"
+        invoice_data.entailment_propositions[0].check_kind
+        == EntailmentRelationshipPropositionKind.CONNECTION_WITH_EXISTING_GUIDELINE
     )
 
     assert invoice_data.entailment_propositions
@@ -577,7 +579,7 @@ async def test_that_an_evaluation_completes_and_contains_connection_proposition_
     assert len(invoice_data.entailment_propositions) == 1
     assert (
         invoice_data.entailment_propositions[0].check_kind
-        == "connection_with_another_evaluated_guideline"
+        == EntailmentRelationshipPropositionKind.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE
     )
     assert (
         invoice_data.entailment_propositions[0].source.condition
@@ -594,7 +596,7 @@ async def test_that_an_evaluation_completes_and_contains_connection_proposition_
     assert len(invoice_data.entailment_propositions) == 1
     assert (
         invoice_data.entailment_propositions[0].check_kind
-        == "connection_with_another_evaluated_guideline"
+        == EntailmentRelationshipPropositionKind.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE
     )
 
     assert (

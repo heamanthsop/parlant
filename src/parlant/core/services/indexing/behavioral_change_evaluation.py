@@ -21,7 +21,9 @@ from parlant.core.background_tasks import BackgroundTaskService
 from parlant.core.common import md5_checksum
 from parlant.core.evaluations import (
     CoherenceCheck,
+    CoherenceCheckKind,
     EntailmentRelationshipProposition,
+    EntailmentRelationshipPropositionKind,
     Evaluation,
     EvaluationStatus,
     EvaluationId,
@@ -204,10 +206,10 @@ class GuidelineEvaluator:
                     f"{c.guideline_a.condition}{c.guideline_a.action}"
                 ].append(
                     CoherenceCheck(
-                        kind="contradiction_with_another_evaluated_guideline"
+                        kind=CoherenceCheckKind.CONTRADICTION_WITH_ANOTHER_EVALUATED_GUIDELINE
                         if f"{c.guideline_b.condition}{c.guideline_b.action}"
                         in coherence_checks_by_guideline_payload
-                        else "contradiction_with_existing_guideline",
+                        else CoherenceCheckKind.CONTRADICTION_WITH_EXISTING_GUIDELINE,
                         first=c.guideline_a,
                         second=c.guideline_b,
                         issue=c.actions_contradiction_rationale,
@@ -226,7 +228,7 @@ class GuidelineEvaluator:
                     f"{c.guideline_b.condition}{c.guideline_b.action}"
                 ].append(
                     CoherenceCheck(
-                        kind="contradiction_with_another_evaluated_guideline",
+                        kind=CoherenceCheckKind.CONTRADICTION_WITH_ANOTHER_EVALUATED_GUIDELINE,
                         first=c.guideline_a,
                         second=c.guideline_b,
                         issue=c.actions_contradiction_rationale,
@@ -287,10 +289,10 @@ class GuidelineEvaluator:
                     f"{c.source.condition}{c.source.action}"
                 ].append(
                     EntailmentRelationshipProposition(
-                        check_kind="connection_with_another_evaluated_guideline"
+                        check_kind=EntailmentRelationshipPropositionKind.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE
                         if f"{c.target.condition}{c.target.action}"
                         in connection_results_by_guideline_payload
-                        else "connection_with_existing_guideline",
+                        else EntailmentRelationshipPropositionKind.CONNECTION_WITH_EXISTING_GUIDELINE,
                         source=c.source,
                         target=c.target,
                     )
@@ -304,10 +306,10 @@ class GuidelineEvaluator:
                     f"{c.target.condition}{c.target.action}"
                 ].append(
                     EntailmentRelationshipProposition(
-                        check_kind="connection_with_another_evaluated_guideline"
+                        check_kind=EntailmentRelationshipPropositionKind.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE
                         if f"{c.source.condition}{c.source.action}"
                         in connection_results_by_guideline_payload
-                        else "connection_with_existing_guideline",
+                        else EntailmentRelationshipPropositionKind.CONNECTION_WITH_EXISTING_GUIDELINE,
                         source=c.source,
                         target=c.target,
                     )

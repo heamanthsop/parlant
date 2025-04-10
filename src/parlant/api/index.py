@@ -38,6 +38,8 @@ from parlant.core.async_utils import Timeout
 from parlant.core.common import DefaultBaseModel
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.evaluations import (
+    CoherenceCheckKind,
+    EntailmentRelationshipPropositionKind,
     Evaluation,
     EvaluationId,
     EvaluationListener,
@@ -119,13 +121,33 @@ def _payload_descriptor_to_dto(descriptor: PayloadDescriptor) -> PayloadDTO:
     )
 
 
+def _coherence_check_kind_to_dto(
+    kind: CoherenceCheckKind,
+) -> CoherenceCheckKindDTO:
+    match kind:
+        case CoherenceCheckKind.CONTRADICTION_WITH_EXISTING_GUIDELINE:
+            return CoherenceCheckKindDTO.CONTRADICTION_WITH_EXISTING_GUIDELINE
+        case CoherenceCheckKind.CONTRADICTION_WITH_ANOTHER_EVALUATED_GUIDELINE:
+            return CoherenceCheckKindDTO.CONTRADICTION_WITH_ANOTHER_EVALUATED_GUIDELINE
+
+
+def _connection_proposition_kind_to_dto(
+    kind: EntailmentRelationshipPropositionKind,
+) -> ConnectionPropositionKindDTO:
+    match kind:
+        case EntailmentRelationshipPropositionKind.CONNECTION_WITH_EXISTING_GUIDELINE:
+            return ConnectionPropositionKindDTO.CONNECTION_WITH_EXISTING_GUIDELINE
+        case EntailmentRelationshipPropositionKind.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE:
+            return ConnectionPropositionKindDTO.CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE
+
+
 def _invoice_data_to_dto(kind: PayloadKind, invoice_data: InvoiceData) -> InvoiceDataDTO:
     if kind == PayloadKind.GUIDELINE:
         return InvoiceDataDTO(
             guideline=GuidelineInvoiceDataDTO(
                 coherence_checks=[
                     CoherenceCheckDTO(
-                        kind=CoherenceCheckKindDTO(c.kind),
+                        kind=_coherence_check_kind_to_dto(c.kind),
                         first=GuidelineContentDTO(
                             condition=c.first.condition,
                             action=c.first.action,
@@ -141,7 +163,7 @@ def _invoice_data_to_dto(kind: PayloadKind, invoice_data: InvoiceData) -> Invoic
                 ],
                 connection_propositions=[
                     ConnectionPropositionDTO(
-                        check_kind=ConnectionPropositionKindDTO(c.check_kind),
+                        check_kind=_connection_proposition_kind_to_dto(c.check_kind),
                         source=GuidelineContentDTO(
                             condition=c.source.condition,
                             action=c.source.action,

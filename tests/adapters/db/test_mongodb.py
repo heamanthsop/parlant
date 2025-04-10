@@ -55,7 +55,7 @@ from parlant.core.persistence.document_database import (
     identity_loader,
 )
 from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
-from parlant.core.sessions import Event, Session, SessionDocumentStore
+from parlant.core.sessions import Event, EventKind, EventSource, Session, SessionDocumentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
     GuidelineToolAssociationDocumentStore,
@@ -230,8 +230,8 @@ async def test_event_creation(
 
             event = await session_store.create_event(
                 session_id=session.id,
-                source="customer",
-                kind="message",
+                source=EventSource.CUSTOMER,
+                kind=EventKind.MESSAGE,
                 correlation_id="test_correlation_id",
                 data={"message": "Hello, world!"},
                 creation_utc=datetime.now(timezone.utc),

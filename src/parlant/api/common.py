@@ -509,20 +509,20 @@ def guideline_relationship_kind_dto_to_kind(
 ) -> GuidelineRelationshipKind:
     match dto:
         case GuidelineRelationshipKindDTO.ENTAILMENT:
-            return "entailment"
+            return GuidelineRelationshipKind.ENTAILMENT
         case GuidelineRelationshipKindDTO.PRIORITY:
-            return "priority"
+            return GuidelineRelationshipKind.PRIORITY
         case _:
-            raise ValueError(f"Invalid guideline relationship kind: {dto}")
+            raise ValueError(f"Invalid guideline relationship kind: {dto.value}")
 
 
 def guideline_relationship_kind_to_dto(
     kind: GuidelineRelationshipKind,
 ) -> GuidelineRelationshipKindDTO:
     match kind:
-        case "entailment":
+        case GuidelineRelationshipKind.ENTAILMENT:
             return GuidelineRelationshipKindDTO.ENTAILMENT
-        case "priority":
+        case GuidelineRelationshipKind.PRIORITY:
             return GuidelineRelationshipKindDTO.PRIORITY
         case _:
-            raise ValueError(f"Invalid guideline relationship kind: {kind}")
+            raise ValueError(f"Invalid guideline relationship kind: {kind.value}")

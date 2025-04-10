@@ -223,6 +223,7 @@ class OpenAISchematicGenerator(SchematicGenerator[T]):
                         ),
                     ),
                 )
+
             except ValidationError as e:
                 self._logger.error(
                     f"Error: {e.json(indent=2)}\nJSON content returned by {self.model_name} does not match expected schema:\n{raw_content}"

@@ -36,6 +36,7 @@ from parlant.core.sessions import (
     Event,
     EventId,
     EventKind,
+    EventSource,
     MessageEventData,
     MessageGenerationInspection,
     Participant,
@@ -1119,6 +1120,26 @@ def utterance_request_dto_to_utterance_request(utter: UtteranceRequestDTO) -> Ut
     return UtteranceRequest(action=utter.action, reason=reason_dto_to_reason[utter.reason])
 
 
+def _event_kind_dto_to_event_kind(kind: EventKindDTO) -> EventKind:
+    return {
+        EventKindDTO.MESSAGE: EventKind.MESSAGE,
+        EventKindDTO.TOOL: EventKind.TOOL,
+        EventKindDTO.STATUS: EventKind.STATUS,
+        EventKindDTO.CUSTOM: EventKind.CUSTOM,
+    }[kind]
+
+
+def _event_source_dto_to_event_source(source: EventSourceDTO) -> EventSource:
+    return {
+        EventSourceDTO.CUSTOMER: EventSource.CUSTOMER,
+        EventSourceDTO.CUSTOMER_UI: EventSource.CUSTOMER_UI,
+        EventSourceDTO.HUMAN_AGENT: EventSource.HUMAN_AGENT,
+        EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT: EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
+        EventSourceDTO.AI_AGENT: EventSource.AI_AGENT,
+        EventSourceDTO.SYSTEM: EventSource.SYSTEM,
+    }[source]
+
+
 def create_router(
     logger: Logger,
     application: Application,
@@ -1441,9 +1462,9 @@ def create_router(
 
         event = await application.post_event(
             session_id=session_id,
-            kind=params.kind.value,
+            kind=_event_kind_dto_to_event_kind(params.kind),
             data=message_data,
-            source="customer",
+            source=EventSource.CUSTOMER,
             trigger_processing=True,
         )
 
@@ -1467,7 +1488,7 @@ def create_router(
             event, *_ = await session_store.list_events(
                 session_id=session_id,
                 correlation_id=correlation_id,
-                kinds=["message"],
+                kinds=[EventKind.MESSAGE],
             )
             return event_to_dto(event)
         else:
@@ -1484,7 +1505,7 @@ def create_router(
                     await session_store.list_events(
                         session_id=session_id,
                         correlation_id=correlation_id,
-                        kinds=["status"],
+                        kinds=[EventKind.STATUS],
                     )
                 )
             )
@@ -1514,9 +1535,9 @@ def create_router(
 
         event = await application.post_event(
             session_id=session_id,
-            kind=params.kind.value,
+            kind=_event_kind_dto_to_event_kind(params.kind),
             data=message_data,
-            source="human_agent_on_behalf_of_ai_agent",
+            source=EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
             trigger_processing=False,
         )
 
@@ -1576,14 +1597,16 @@ def create_router(
                 - If no new events arrive before timeout, raises 504 Gateway Timeout
                 - If matching events already exist, returns immediately with those events
         """
-        kind_list: Sequence[EventKind] = kinds.split(",") if kinds else []  # type: ignore
-        assert all(k in EventKind.__args__ for k in kind_list)  # type: ignore
+        kind_list: Sequence[EventKind] = [
+            _event_kind_dto_to_event_kind(EventKindDTO(k))
+            for k in (kinds.split(",") if kinds else [])
+        ]
 
         if wait_for_data > 0:
             if not await session_listener.wait_for_events(
                 session_id=session_id,
                 min_offset=min_offset or 0,
-                source=source.value if source else None,
+                source=_event_source_dto_to_event_source(source) if source else None,
                 kinds=kind_list,
                 correlation_id=correlation_id,
                 timeout=Timeout(wait_for_data),
@@ -1596,7 +1619,7 @@ def create_router(
         events = await session_store.list_events(
             session_id=session_id,
             min_offset=min_offset,
-            source=source.value if source else None,
+            source=_event_source_dto_to_event_source(source) if source else None,
             kinds=kind_list,
             correlation_id=correlation_id,
         )
@@ -1674,7 +1697,7 @@ def create_router(
 
         trace: Optional[EventTraceDTO] = None
 
-        if event.kind == "message" and event.source == "ai_agent":
+        if event.kind == EventKind.MESSAGE and event.source == EventSource.AI_AGENT:
             inspection = await session_store.read_inspection(
                 session_id=session_id,
                 correlation_id=event.correlation_id,
@@ -1705,7 +1728,7 @@ def create_router(
 
         tool_events = await session_store.list_events(
             session_id=session_id,
-            kinds=["tool"],
+            kinds=[EventKind.TOOL],
             correlation_id=event.correlation_id,
         )
 

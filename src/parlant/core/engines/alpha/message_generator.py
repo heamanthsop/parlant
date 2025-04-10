@@ -34,7 +34,7 @@ from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
-from parlant.core.sessions import Event
+from parlant.core.sessions import Event, EventKind, EventSource
 from parlant.core.common import DefaultBaseModel
 from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
@@ -156,7 +156,7 @@ class MessageGenerator(MessageEventComposer):
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[EmittedEvent]:
         for event in staged_events:
-            if event.kind == "tool":
+            if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
                 for tool_call in tool_calls:
@@ -361,7 +361,7 @@ Always abide by the following general principles (note these are not the "guidel
             props={},
         )
         if not interaction_history or all(
-            [event.kind != "message" for event in interaction_history]
+            [event.kind != EventKind.MESSAGE for event in interaction_history]
         ):
             builder.add_section(
                 name="message-generator-initial-message-instructions",
@@ -568,8 +568,8 @@ Produce a valid JSON object in the following format: ###
                 event.data["message"] if not event.data.get("flagged", False) else "<N/A>"
                 for event in reversed(interaction_history)
                 if (
-                    event.kind == "message"
-                    and event.source == "customer"
+                    event.kind == EventKind.MESSAGE
+                    and event.source == EventSource.CUSTOMER
                     and isinstance(event.data, dict)
                 )
             ),

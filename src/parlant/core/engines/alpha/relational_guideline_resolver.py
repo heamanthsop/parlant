@@ -18,6 +18,8 @@ from typing import Sequence, cast
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.relationships import (
+    EntityType,
+    GuidelineRelationshipKind,
     RelationshipStore,
 )
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineStore
@@ -67,7 +69,7 @@ class RelationalGuidelineResolver:
         for match in matches:
             relationships = list(
                 await self._relationship_store.list_relationships(
-                    kind="priority",
+                    kind=GuidelineRelationshipKind.PRIORITY,
                     indirect=True,
                     target=match.guideline.id,
                 )
@@ -80,11 +82,14 @@ class RelationalGuidelineResolver:
             prioritized = True
             while relationships:
                 relationship = relationships.pop()
-                if relationship.target_type == "guideline" and relationship.target in guideline_ids:
+                if (
+                    relationship.target_type == EntityType.GUIDELINE
+                    and relationship.target in guideline_ids
+                ):
                     prioritized = False
                     break
 
-                elif relationship.target_type == "tag":
+                elif relationship.target_type == EntityType.TAG:
                     # In case target is a tag, we need to find all guidelines
                     # that are associated with this tag.
                     #
@@ -110,7 +115,7 @@ class RelationalGuidelineResolver:
 
                         relationships.extend(
                             await self._relationship_store.list_relationships(
-                                kind="priority",
+                                kind=GuidelineRelationshipKind.PRIORITY,
                                 indirect=True,
                                 target=g.id,
                             )
@@ -146,7 +151,7 @@ class RelationalGuidelineResolver:
         for match in matches:
             relationships = list(
                 await self._relationship_store.list_relationships(
-                    kind="entailment",
+                    kind=GuidelineRelationshipKind.ENTAILMENT,
                     indirect=True,
                     source=match.guideline.id,
                 )
@@ -155,7 +160,7 @@ class RelationalGuidelineResolver:
             while relationships:
                 relationship = relationships.pop()
 
-                if relationship.target_type == "guideline":
+                if relationship.target_type == EntityType.GUIDELINE:
                     if any(relationship.target == m.guideline.id for m in matches):
                         # no need to add this related guideline as it's already an assumed match
                         continue
@@ -163,7 +168,7 @@ class RelationalGuidelineResolver:
                         next(g for g in usable_guidelines if g.id == relationship.target)
                     )
 
-                elif relationship.target_type == "tag":
+                elif relationship.target_type == EntityType.TAG:
                     # In case target is a tag, we need to find all guidelines
                     # that are associated with this tag.
                     guidelines_associated_to_tag = await self._guideline_store.list_guidelines(
@@ -178,7 +183,7 @@ class RelationalGuidelineResolver:
                     for g in guidelines_associated_to_tag:
                         relationships.extend(
                             await self._relationship_store.list_relationships(
-                                kind="entailment",
+                                kind=GuidelineRelationshipKind.ENTAILMENT,
                                 indirect=True,
                                 source=g.id,
                             )

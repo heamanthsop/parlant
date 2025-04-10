@@ -18,7 +18,7 @@ import httpx
 from lagom import Container
 from pytest import raises
 
-from parlant.core.relationships import RelationshipStore
+from parlant.core.relationships import EntityType, GuidelineRelationshipKind, RelationshipStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.tags import TagStore
 from parlant.core.common import ItemNotFoundError
@@ -157,10 +157,10 @@ async def test_that_relationships_can_be_listed_by_guideline_id(
 
     relationship = await relationship_store.create_relationship(
         source=guideline.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=tag.id,
-        target_type="tag",
-        kind="priority",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     response = await async_client.get(f"/relationships?guideline_id={guideline.id}&kind=priority")
@@ -192,10 +192,10 @@ async def test_that_relationships_can_be_listed_by_tag_id(
 
     relationship = await relationship_store.create_relationship(
         source=guideline.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=tag.id,
-        target_type="tag",
-        kind="priority",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     response = await async_client.get(f"/relationships?tag_id={tag.id}&kind=priority")
@@ -255,10 +255,10 @@ async def test_that_relationship_can_be_read(
 
     relationship = await relationship_store.create_relationship(
         source=guideline.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=tag.id,
-        target_type="tag",
-        kind="entailment",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     response = await async_client.get(f"/relationships/{relationship.id}")
@@ -285,10 +285,10 @@ async def test_that_relationship_can_be_deleted(
 
     relationship = await relationship_store.create_relationship(
         source=guideline.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=guideline.id,
-        target_type="guideline",
-        kind="entailment",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     response = await async_client.delete(f"/relationships/{relationship.id}")
