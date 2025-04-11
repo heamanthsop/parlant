@@ -15,7 +15,7 @@
 from datetime import datetime, timezone
 import enum
 from itertools import chain
-from typing import Annotated, Any, Optional, cast
+from typing import Annotated, Any, Optional
 from lagom import Container
 from pytest import fixture
 
@@ -67,13 +67,13 @@ async def customer(container: Container, customer_id: CustomerId) -> Customer:
 
 
 def create_interaction_history(
-    conversation_context: list[tuple[str, str]],
+    conversation_context: list[tuple[EventSource, str]],
     customer: Optional[Customer] = None,
 ) -> list[Event]:
     return [
         create_event_message(
             offset=i,
-            source=cast(EventSource, source),
+            source=source,
             message=message,
             customer=customer,
         )
@@ -138,9 +138,9 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
     )
 
     conversation_context = [
-        ("customer", "Are you selling computers products?"),
-        ("ai_agent", "Yes"),
-        ("customer", "What available keyboards do you have?"),
+        (EventSource.CUSTOMER, "Are you selling computers products?"),
+        (EventSource.AI_AGENT, "Yes"),
+        (EventSource.CUSTOMER, "What available keyboards do you have?"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -206,9 +206,9 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
         return ToolResult(products_by_category[category])
 
     conversation_context = [
-        ("customer", "Are you selling computers products?"),
-        ("ai_agent", "Yes"),
-        ("customer", "What available keyboards do you have?"),
+        (EventSource.CUSTOMER, "Are you selling computers products?"),
+        (EventSource.AI_AGENT, "Yes"),
+        (EventSource.CUSTOMER, "What available keyboards do you have?"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -293,7 +293,7 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
         return ToolResult(f"Scheduled {type_display} appointment in {room.value} at {when}")
 
     conversation_context = [
-        ("customer", "I want to set up an appointment tomorrow at 10am"),
+        (EventSource.CUSTOMER, "I want to set up an appointment tomorrow at 10am"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -364,9 +364,9 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
         return ToolResult([products_by_category[category] for category in categories])
 
     conversation_context = [
-        ("customer", "Are you selling computers products?"),
-        ("ai_agent", "Yes"),
-        ("customer", "What available keyboards and laptops do you have?"),
+        (EventSource.CUSTOMER, "Are you selling computers products?"),
+        (EventSource.AI_AGENT, "Yes"),
+        (EventSource.CUSTOMER, "What available keyboards and laptops do you have?"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -442,9 +442,9 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
         return ToolResult([products_by_category[category] for category in categories])
 
     conversation_context = [
-        ("customer", "Are you selling computers products?"),
-        ("ai_agent", "Yes"),
-        ("customer", "What available keyboards and laptops do you have?"),
+        (EventSource.CUSTOMER, "Are you selling computers products?"),
+        (EventSource.AI_AGENT, "Yes"),
+        (EventSource.CUSTOMER, "What available keyboards and laptops do you have?"),
     ]
 
     interaction_history = create_interaction_history(conversation_context)
@@ -517,7 +517,7 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
 
     conversation_context = [
         (
-            "customer",
+            EventSource.CUSTOMER,
             "Hi, can you register me for the sweepstake? I will donate 100 dollars if I win",
         )
     ]

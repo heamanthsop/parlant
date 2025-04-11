@@ -122,11 +122,14 @@ def event_is_according_to_params(
     event: dict[str, Any],
     params: dict[str, Any],
 ) -> bool:
-    tested_properties = ["source", "kind", "data"]
+    if "source" in params:
+        assert EventSource(event["source"]) == params["source"]
 
-    for p in tested_properties:
-        if event[p] != params[p]:
-            return False
+    if "kind" in params:
+        assert EventKind(event["kind"]) == params["kind"]
+
+    if "data" in params:
+        assert event["data"] == params["data"]
 
     return True
 

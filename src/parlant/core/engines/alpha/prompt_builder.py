@@ -160,7 +160,7 @@ class PromptBuilder:
 
         return json.dumps(
             {
-                "event_kind": e.kind,
+                "event_kind": e.kind.value,
                 "event_source": source_map[e.source],
                 "data": data,
             }

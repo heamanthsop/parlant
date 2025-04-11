@@ -952,8 +952,8 @@ class EventInspectionResult(
 def event_to_dto(event: Event) -> EventDTO:
     return EventDTO(
         id=event.id,
-        source=EventSourceDTO(event.source),
-        kind=EventKindDTO(event.kind),
+        source=_event_source_to_event_source_dto(event.source),
+        kind=_event_kind_to_event_kind_dto(event.kind),
         offset=event.offset,
         creation_utc=event.creation_utc,
         correlation_id=event.correlation_id,
@@ -1117,27 +1117,60 @@ def utterance_request_dto_to_utterance_request(utter: UtteranceRequestDTO) -> Ut
         UtteranceReasonDTO.BUY_TIME: UtteranceReason.BUY_TIME,
         UtteranceReasonDTO.FOLLOW_UP: UtteranceReason.FOLLOW_UP,
     }
+
     return UtteranceRequest(action=utter.action, reason=reason_dto_to_reason[utter.reason])
 
 
-def _event_kind_dto_to_event_kind(kind: EventKindDTO) -> EventKind:
-    return {
+def _event_kind_dto_to_event_kind(dto: EventKindDTO) -> EventKind:
+    if kind := {
         EventKindDTO.MESSAGE: EventKind.MESSAGE,
         EventKindDTO.TOOL: EventKind.TOOL,
         EventKindDTO.STATUS: EventKind.STATUS,
         EventKindDTO.CUSTOM: EventKind.CUSTOM,
-    }[kind]
+    }.get(dto):
+        return kind
+
+    raise ValueError(f"Invalid event kind: {dto}")
 
 
-def _event_source_dto_to_event_source(source: EventSourceDTO) -> EventSource:
-    return {
+def _event_kind_to_event_kind_dto(kind: EventKind) -> EventKindDTO:
+    if dto := {
+        EventKind.MESSAGE: EventKindDTO.MESSAGE,
+        EventKind.TOOL: EventKindDTO.TOOL,
+        EventKind.STATUS: EventKindDTO.STATUS,
+        EventKind.CUSTOM: EventKindDTO.CUSTOM,
+    }.get(kind):
+        return dto
+
+    raise ValueError(f"Invalid event kind: {kind}")
+
+
+def _event_source_dto_to_event_source(dto: EventSourceDTO) -> EventSource:
+    if source := {
         EventSourceDTO.CUSTOMER: EventSource.CUSTOMER,
         EventSourceDTO.CUSTOMER_UI: EventSource.CUSTOMER_UI,
         EventSourceDTO.HUMAN_AGENT: EventSource.HUMAN_AGENT,
         EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT: EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
         EventSourceDTO.AI_AGENT: EventSource.AI_AGENT,
         EventSourceDTO.SYSTEM: EventSource.SYSTEM,
-    }[source]
+    }.get(dto):
+        return source
+
+    raise ValueError(f"Invalid event source: {dto}")
+
+
+def _event_source_to_event_source_dto(source: EventSource) -> EventSourceDTO:
+    if dto := {
+        EventSource.CUSTOMER: EventSourceDTO.CUSTOMER,
+        EventSource.CUSTOMER_UI: EventSourceDTO.CUSTOMER_UI,
+        EventSource.HUMAN_AGENT: EventSourceDTO.HUMAN_AGENT,
+        EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT: EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
+        EventSource.AI_AGENT: EventSourceDTO.AI_AGENT,
+        EventSource.SYSTEM: EventSourceDTO.SYSTEM,
+    }.get(source):
+        return dto
+
+    raise ValueError(f"Invalid event source: {source}")
 
 
 def create_router(
@@ -1543,8 +1576,8 @@ def create_router(
 
         return EventDTO(
             id=event.id,
-            source=EventSourceDTO(event.source),
-            kind=EventKindDTO(event.kind),
+            source=_event_source_to_event_source_dto(event.source),
+            kind=_event_kind_to_event_kind_dto(event.kind),
             offset=event.offset,
             creation_utc=event.creation_utc,
             correlation_id=event.correlation_id,
@@ -1627,8 +1660,8 @@ def create_router(
         return [
             EventDTO(
                 id=e.id,
-                source=EventSourceDTO(e.source),
-                kind=EventKindDTO(e.kind),
+                source=_event_source_to_event_source_dto(e.source),
+                kind=_event_kind_to_event_kind_dto(e.kind),
                 offset=e.offset,
                 creation_utc=e.creation_utc,
                 correlation_id=e.correlation_id,

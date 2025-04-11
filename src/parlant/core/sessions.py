@@ -939,7 +939,7 @@ class SessionDocumentStore(SessionStore):
 
             base_filters = {
                 "session_id": {"$eq": session_id},
-                **({"source": {"$eq": source}} if source else {}),
+                **({"source": {"$eq": source.value}} if source else {}),
                 **({"offset": {"$gte": min_offset}} if min_offset else {}),
                 **({"correlation_id": {"$eq": correlation_id}} if correlation_id else {}),
                 **({"deleted": {"$eq": False}} if exclude_deleted else {}),
@@ -947,7 +947,10 @@ class SessionDocumentStore(SessionStore):
 
             if kinds:
                 event_documents = await self._event_collection.find(
-                    cast(Where, {"$or": [{**base_filters, "kind": {"$eq": k}} for k in kinds]})
+                    cast(
+                        Where,
+                        {"$or": [{**base_filters, "kind": {"$eq": k.value}} for k in kinds]},
+                    )
                 )
             else:
                 event_documents = await self._event_collection.find(
