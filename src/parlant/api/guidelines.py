@@ -38,6 +38,7 @@ from parlant.api.common import (
     apigen_skip_config,
     guideline_dto_example,
     guideline_relationship_kind_to_dto,
+    operation_dto_to_operation,
 )
 from parlant.api.index import InvoiceDTO
 from parlant.core.agents import AgentStore, AgentId
@@ -422,7 +423,7 @@ def _invoice_dto_to_invoice(dto: InvoiceDTO) -> Invoice:
             condition=dto.payload.guideline.content.condition,
             action=dto.payload.guideline.content.action,
         ),
-        operation=dto.payload.guideline.operation.value,
+        operation=operation_dto_to_operation(dto.payload.guideline.operation),
         coherence_check=dto.payload.guideline.coherence_check,
         connection_proposition=dto.payload.guideline.connection_proposition,
         updated_id=dto.payload.guideline.updated_id,

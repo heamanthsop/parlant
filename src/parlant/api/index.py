@@ -33,6 +33,7 @@ from parlant.api.common import (
     PayloadKindDTO,
     ExampleJson,
     apigen_skip_config,
+    operation_dto_to_operation,
 )
 from parlant.core.async_utils import Timeout
 from parlant.core.common import DefaultBaseModel
@@ -46,6 +47,7 @@ from parlant.core.evaluations import (
     EvaluationStatus,
     EvaluationStore,
     GuidelinePayload,
+    GuidelinePayloadOperation,
     InvoiceData,
     Payload,
     PayloadDescriptor,
@@ -87,7 +89,7 @@ def _payload_from_dto(dto: PayloadDTO) -> Payload:
                 condition=dto.guideline.content.condition,
                 action=dto.guideline.content.action,
             ),
-            operation=dto.guideline.operation.value,
+            operation=operation_dto_to_operation(dto.guideline.operation),
             updated_id=dto.guideline.updated_id,
             coherence_check=dto.guideline.coherence_check,
             connection_proposition=dto.guideline.connection_proposition,
@@ -99,6 +101,18 @@ def _payload_from_dto(dto: PayloadDTO) -> Payload:
     )
 
 
+def _operation_to_operation_dto(
+    operation: GuidelinePayloadOperation,
+) -> GuidelinePayloadOperationDTO:
+    if dto := {
+        GuidelinePayloadOperation.ADD: GuidelinePayloadOperationDTO.ADD,
+        GuidelinePayloadOperation.UPDATE: GuidelinePayloadOperationDTO.UPDATE,
+    }.get(operation):
+        return dto
+
+    raise ValueError(f"Unsupported operation: {operation}")
+
+
 def _payload_descriptor_to_dto(descriptor: PayloadDescriptor) -> PayloadDTO:
     if descriptor.kind == PayloadKind.GUIDELINE:
         return PayloadDTO(
@@ -108,7 +122,7 @@ def _payload_descriptor_to_dto(descriptor: PayloadDescriptor) -> PayloadDTO:
                     condition=descriptor.payload.content.condition,
                     action=descriptor.payload.content.action,
                 ),
-                operation=GuidelinePayloadOperationDTO(descriptor.payload.operation),
+                operation=_operation_to_operation_dto(descriptor.payload.operation),
                 updated_id=descriptor.payload.updated_id,
                 coherence_check=descriptor.payload.coherence_check,
                 connection_proposition=descriptor.payload.connection_proposition,

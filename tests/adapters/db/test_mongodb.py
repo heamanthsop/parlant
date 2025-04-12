@@ -35,6 +35,7 @@ from parlant.core.evaluations import (
     Evaluation,
     EvaluationDocumentStore,
     GuidelinePayload,
+    GuidelinePayloadOperation,
     Invoice,
     InvoiceData,
     InvoiceGuidelineData,
@@ -734,7 +735,7 @@ async def test_evaluation_creation(
                         condition="Test evaluation creation with invoice",
                         action="Ensure the evaluation with invoice is persisted in MongoDB",
                     ),
-                    operation="add",
+                    operation=GuidelinePayloadOperation.ADD,
                     coherence_check=True,
                     connection_proposition=True,
                 )
@@ -781,7 +782,7 @@ async def test_evaluation_update(
                         condition="Initial evaluation payload with invoice",
                         action="This content will be updated",
                     ),
-                    operation="add",
+                    operation=GuidelinePayloadOperation.ADD,
                     coherence_check=True,
                     connection_proposition=True,
                 )

@@ -29,6 +29,7 @@ from parlant.core.customers import CustomerId
 from parlant.core.evaluations import (
     EntailmentRelationshipProposition,
     EntailmentRelationshipPropositionKind,
+    GuidelinePayloadOperation,
     Invoice,
 )
 from parlant.core.relationships import (
@@ -205,7 +206,7 @@ class Application:
                     condition=invoice.payload.content.condition,
                     action=invoice.payload.content.action,
                 )
-                if invoice.payload.operation == "add"
+                if invoice.payload.operation == GuidelinePayloadOperation.ADD
                 else await self._guideline_store.update_guideline(
                     guideline_id=cast(GuidelineId, invoice.payload.updated_id),
                     params={
@@ -218,7 +219,10 @@ class Application:
         }
 
         for invoice in invoices:
-            if invoice.payload.operation == "update" and invoice.payload.connection_proposition:
+            if (
+                invoice.payload.operation == GuidelinePayloadOperation.UPDATE
+                and invoice.payload.connection_proposition
+            ):
                 guideline_id = cast(GuidelineId, invoice.payload.updated_id)
 
                 relationships_to_delete = list(

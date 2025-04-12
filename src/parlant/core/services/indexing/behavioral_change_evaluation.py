@@ -27,6 +27,7 @@ from parlant.core.evaluations import (
     Evaluation,
     EvaluationStatus,
     EvaluationId,
+    GuidelinePayloadOperation,
     Invoice,
     InvoiceGuidelineData,
     Payload,
@@ -157,7 +158,11 @@ class GuidelineEvaluator:
 
         guidelines_to_skip = [(p.content, False) for p in payloads if not p.coherence_check]
 
-        updated_ids = {cast(GuidelineId, p.updated_id) for p in payloads if p.operation == "update"}
+        updated_ids = {
+            cast(GuidelineId, p.updated_id)
+            for p in payloads
+            if p.operation == GuidelinePayloadOperation.UPDATE
+        }
 
         remaining_existing_guidelines = []
 
@@ -249,7 +254,9 @@ class GuidelineEvaluator:
 
         guidelines_to_skip = [(p.content, False) for p in payloads if not p.connection_proposition]
 
-        updated_ids = {p.updated_id for p in payloads if p.operation == "update"}
+        updated_ids = {
+            p.updated_id for p in payloads if p.operation == GuidelinePayloadOperation.UPDATE
+        }
 
         remaining_existing_guidelines = [
             (GuidelineContent(condition=g.content.condition, action=g.content.action), True)

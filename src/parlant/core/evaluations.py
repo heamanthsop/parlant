@@ -73,10 +73,15 @@ class EntailmentRelationshipPropositionKind(Enum):
     CONNECTION_WITH_ANOTHER_EVALUATED_GUIDELINE = "connection_with_another_evaluated_guideline"
 
 
+class GuidelinePayloadOperation(Enum):
+    ADD = "add"
+    UPDATE = "update"
+
+
 @dataclass(frozen=True)
 class GuidelinePayload:
     content: GuidelineContent
-    operation: Literal["add", "update"]
+    operation: GuidelinePayloadOperation
     coherence_check: bool
     connection_proposition: bool
     updated_id: Optional[GuidelineId] = None
@@ -323,7 +328,7 @@ class EvaluationDocumentStore(EvaluationStore):
                         condition=payload.content.condition,
                         action=payload.content.action,
                     ),
-                    action=payload.operation,
+                    action=payload.operation.value,
                     updated_id=payload.updated_id,
                     coherence_check=payload.coherence_check,
                     connection_proposition=payload.connection_proposition,
@@ -411,7 +416,7 @@ class EvaluationDocumentStore(EvaluationStore):
                         condition=payload_doc["content"]["condition"],
                         action=payload_doc["content"]["action"],
                     ),
-                    operation=payload_doc["action"],
+                    operation=GuidelinePayloadOperation(payload_doc["action"]),
                     updated_id=payload_doc["updated_id"],
                     coherence_check=payload_doc["coherence_check"],
                     connection_proposition=payload_doc["connection_proposition"],
