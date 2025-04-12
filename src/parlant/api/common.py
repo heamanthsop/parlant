@@ -17,6 +17,7 @@ from pydantic import Field
 from typing import Annotated, Any, Mapping, Optional, Sequence, TypeAlias
 
 from parlant.core.common import DefaultBaseModel
+from parlant.core.evaluations import GuidelinePayloadOperation
 from parlant.core.relationships import RelationshipId, GuidelineRelationshipKind
 from parlant.core.guidelines import GuidelineId
 from parlant.core.tags import TagId
@@ -187,6 +188,16 @@ class GuidelinePayloadDTO(
     updated_id: Optional[GuidelineIdField] = None
     coherence_check: GuidelinePayloadCoherenceCheckField
     connection_proposition: GuidelinePayloadConnectionPropositionField
+
+
+def operation_dto_to_operation(dto: GuidelinePayloadOperationDTO) -> GuidelinePayloadOperation:
+    if operation := {
+        GuidelinePayloadOperationDTO.ADD: GuidelinePayloadOperation.ADD,
+        GuidelinePayloadOperationDTO.UPDATE: GuidelinePayloadOperation.UPDATE,
+    }.get(dto):
+        return operation
+
+    raise ValueError(f"Unsupported operation: {dto}")
 
 
 payload_example: ExampleJson = {
@@ -509,20 +520,20 @@ def guideline_relationship_kind_dto_to_kind(
 ) -> GuidelineRelationshipKind:
     match dto:
         case GuidelineRelationshipKindDTO.ENTAILMENT:
-            return "entailment"
+            return GuidelineRelationshipKind.ENTAILMENT
         case GuidelineRelationshipKindDTO.PRIORITY:
-            return "priority"
+            return GuidelineRelationshipKind.PRIORITY
         case _:
-            raise ValueError(f"Invalid guideline relationship kind: {dto}")
+            raise ValueError(f"Invalid guideline relationship kind: {dto.value}")
 
 
 def guideline_relationship_kind_to_dto(
     kind: GuidelineRelationshipKind,
 ) -> GuidelineRelationshipKindDTO:
     match kind:
-        case "entailment":
+        case GuidelineRelationshipKind.ENTAILMENT:
             return GuidelineRelationshipKindDTO.ENTAILMENT
-        case "priority":
+        case GuidelineRelationshipKind.PRIORITY:
             return GuidelineRelationshipKindDTO.PRIORITY
         case _:
-            raise ValueError(f"Invalid guideline relationship kind: {kind}")
+            raise ValueError(f"Invalid guideline relationship kind: {kind.value}")

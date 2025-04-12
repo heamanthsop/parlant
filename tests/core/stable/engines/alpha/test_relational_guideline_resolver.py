@@ -16,7 +16,7 @@ from lagom import Container
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
-from parlant.core.relationships import RelationshipStore
+from parlant.core.relationships import EntityType, GuidelineRelationshipKind, RelationshipStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.tags import TagStore
 
@@ -34,18 +34,18 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
 
     await relationship_store.create_relationship(
         source=g1.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=g2.id,
-        target_type="guideline",
-        kind="priority",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
         source=g2.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=g3.id,
-        target_type="guideline",
-        kind="priority",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     result = await resolver.resolve(
@@ -77,10 +77,10 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
 
     await relationship_store.create_relationship(
         source=g1.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=g2.id,
-        target_type="guideline",
-        kind="priority",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     result = await resolver.resolve([g1, g2], matches)
@@ -108,18 +108,18 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
 
     await relationship_store.create_relationship(
         source=g1.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=t1.id,
-        target_type="tag",
-        kind="entailment",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
         source=t1.id,
-        source_type="tag",
+        source_type=EntityType.TAG,
         target=g4.id,
-        target_type="guideline",
-        kind="entailment",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     result = await resolver.resolve(
@@ -153,18 +153,18 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
 
     await relationship_store.create_relationship(
         source=g1.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=t1.id,
-        target_type="tag",
-        kind="priority",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
         source=t1.id,
-        source_type="tag",
+        source_type=EntityType.TAG,
         target=g2.id,
-        target_type="guideline",
-        kind="priority",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     result = await resolver.resolve(
@@ -197,18 +197,18 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
 
     await relationship_store.create_relationship(
         source=g1.id,
-        source_type="guideline",
+        source_type=EntityType.GUIDELINE,
         target=t1.id,
-        target_type="tag",
-        kind="priority",
+        target_type=EntityType.TAG,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
         source=t1.id,
-        source_type="tag",
+        source_type=EntityType.TAG,
         target=g3.id,
-        target_type="guideline",
-        kind="priority",
+        target_type=EntityType.GUIDELINE,
+        kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     result = await resolver.resolve(

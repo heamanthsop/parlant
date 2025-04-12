@@ -15,7 +15,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal, NewType, Optional, Sequence, TypeAlias
+from enum import Enum
+from typing import NewType, Optional, Sequence
 from typing_extensions import override, TypedDict, Self
 
 import networkx  # type: ignore
@@ -37,15 +38,18 @@ from parlant.core.tags import TagId
 
 RelationshipId = NewType("RelationshipId", str)
 
-GuidelineRelationshipKind: TypeAlias = Literal[
-    "entailment",
-    "precedence",
-    "requirement",
-    "priority",
-    "persistence",
-]
 
-EntityType: TypeAlias = Literal["guideline", "tag"]
+class GuidelineRelationshipKind(Enum):
+    ENTAILMENT = "entailment"
+    PRECEDENCE = "precedence"
+    REQUIREMENT = "requirement"
+    PRIORITY = "priority"
+    PERSISTENCE = "persistence"
+
+
+class EntityType(Enum):
+    GUIDELINE = "guideline"
+    TAG = "tag"
 
 
 @dataclass(frozen=True)
@@ -114,10 +118,10 @@ class RelationshipDocument(TypedDict, total=False):
     version: Version.String
     creation_utc: str
     source: GuidelineId | TagId
-    source_type: EntityType
+    source_type: str
     target: GuidelineId | TagId
-    target_type: EntityType
-    kind: GuidelineRelationshipKind
+    target_type: str
+    kind: str
 
 
 class RelationshipDocumentStore(RelationshipStore):
@@ -176,10 +180,10 @@ class RelationshipDocumentStore(RelationshipStore):
             version=self.VERSION.to_string(),
             creation_utc=relationship.creation_utc.isoformat(),
             source=relationship.source,
-            source_type=relationship.source_type,
+            source_type=relationship.source_type.value,
             target=relationship.target,
-            target_type=relationship.target_type,
-            kind=relationship.kind,
+            target_type=relationship.target_type.value,
+            kind=relationship.kind.value,
         )
 
     def _deserialize(
@@ -201,10 +205,10 @@ class RelationshipDocumentStore(RelationshipStore):
             id=RelationshipId(relationship_document["id"]),
             creation_utc=datetime.fromisoformat(relationship_document["creation_utc"]),
             source=source,
-            source_type=relationship_document["source_type"],
+            source_type=EntityType(relationship_document["source_type"]),
             target=target,
-            target_type=relationship_document["target_type"],
-            kind=relationship_document["kind"],
+            target_type=EntityType(relationship_document["target_type"]),
+            kind=GuidelineRelationshipKind(relationship_document["kind"]),
         )
 
     async def _get_relationships_graph(self, kind: GuidelineRelationshipKind) -> networkx.DiGraph:
@@ -214,7 +218,7 @@ class RelationshipDocumentStore(RelationshipStore):
 
             relationships = [
                 self._deserialize(d)
-                for d in await self._collection.find(filters={"kind": {"$eq": kind}})
+                for d in await self._collection.find(filters={"kind": {"$eq": kind.value}})
             ]
 
             nodes = set()
@@ -266,7 +270,7 @@ class RelationshipDocumentStore(RelationshipStore):
                 filters={
                     "source": {"$eq": source},
                     "target": {"$eq": target},
-                    "kind": {"$eq": kind},
+                    "kind": {"$eq": kind.value},
                 },
                 params=self._serialize(relationship),
                 upsert=True,

@@ -43,6 +43,7 @@ from parlant.core.tools import (
     ToolService,
     DEFAULT_PARAMETER_PRECEDENCE,
 )
+from parlant.core.sessions import EventKind
 
 ToolCallId = NewType("ToolCallId", str)
 ToolResultId = NewType("ToolResultId", str)
@@ -766,7 +767,9 @@ Guidelines:
         self,
         emitted_events: Sequence[EmittedEvent],
     ) -> Optional[str]:
-        staged_calls = [PromptBuilder.adapt_event(e) for e in emitted_events if e.kind == "tool"]
+        staged_calls = [
+            PromptBuilder.adapt_event(e) for e in emitted_events if e.kind == EventKind.TOOL
+        ]
 
         if not staged_calls:
             return None

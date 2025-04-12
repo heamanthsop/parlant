@@ -17,6 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 from typing import (
     Literal,
     Mapping,
@@ -61,15 +62,22 @@ from parlant.core.persistence.document_database_helper import (
 SessionId = NewType("SessionId", str)
 
 EventId = NewType("EventId", str)
-EventSource: TypeAlias = Literal[
-    "customer",
-    "customer_ui",
-    "human_agent",
-    "human_agent_on_behalf_of_ai_agent",
-    "ai_agent",
-    "system",
-]
-EventKind: TypeAlias = Literal["message", "tool", "status", "custom"]
+
+
+class EventSource(Enum):
+    CUSTOMER = "customer"
+    CUSTOMER_UI = "customer_ui"
+    HUMAN_AGENT = "human_agent"
+    HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT = "human_agent_on_behalf_of_ai_agent"
+    AI_AGENT = "ai_agent"
+    SYSTEM = "system"
+
+
+class EventKind(Enum):
+    MESSAGE = "message"
+    TOOL = "tool"
+    STATUS = "status"
+    CUSTOM = "custom"
 
 
 @dataclass(frozen=True)
@@ -84,21 +92,17 @@ class Event:
     deleted: bool
 
     def is_from_client(self) -> bool:
-        return self.source in list[EventSource](
-            [
-                "customer",
-                "customer_ui",
-            ]
-        )
+        return self.source in [
+            EventSource.CUSTOMER,
+            EventSource.CUSTOMER_UI,
+        ]
 
     def is_from_server(self) -> bool:
-        return self.source in list[EventSource](
-            [
-                "human_agent",
-                "human_agent_on_behalf_of_ai_agent",
-                "ai_agent",
-            ]
-        )
+        return self.source in [
+            EventSource.HUMAN_AGENT,
+            EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
+            EventSource.AI_AGENT,
+        ]
 
 
 class Participant(TypedDict):
@@ -337,8 +341,8 @@ class _EventDocument(TypedDict, total=False):
     version: Version.String
     creation_utc: str
     session_id: SessionId
-    source: EventSource
-    kind: EventKind
+    source: str
+    kind: str
     offset: int
     correlation_id: str
     data: JSONSerializable
@@ -629,8 +633,8 @@ class SessionDocumentStore(SessionStore):
             version=self.VERSION.to_string(),
             creation_utc=event.creation_utc.isoformat(),
             session_id=session_id,
-            source=event.source,
-            kind=event.kind,
+            source=event.source.value,
+            kind=event.kind.value,
             offset=event.offset,
             correlation_id=event.correlation_id,
             data=event.data,
@@ -644,8 +648,8 @@ class SessionDocumentStore(SessionStore):
         return Event(
             id=EventId(event_document["id"]),
             creation_utc=datetime.fromisoformat(event_document["creation_utc"]),
-            source=event_document["source"],
-            kind=event_document["kind"],
+            source=EventSource(event_document["source"]),
+            kind=EventKind(event_document["kind"]),
             offset=event_document["offset"],
             correlation_id=event_document["correlation_id"],
             data=event_document["data"],
@@ -935,7 +939,7 @@ class SessionDocumentStore(SessionStore):
 
             base_filters = {
                 "session_id": {"$eq": session_id},
-                **({"source": {"$eq": source}} if source else {}),
+                **({"source": {"$eq": source.value}} if source else {}),
                 **({"offset": {"$gte": min_offset}} if min_offset else {}),
                 **({"correlation_id": {"$eq": correlation_id}} if correlation_id else {}),
                 **({"deleted": {"$eq": False}} if exclude_deleted else {}),
@@ -943,7 +947,10 @@ class SessionDocumentStore(SessionStore):
 
             if kinds:
                 event_documents = await self._event_collection.find(
-                    cast(Where, {"$or": [{**base_filters, "kind": {"$eq": k}} for k in kinds]})
+                    cast(
+                        Where,
+                        {"$or": [{**base_filters, "kind": {"$eq": k.value}} for k in kinds]},
+                    )
                 )
             else:
                 event_documents = await self._event_collection.find(

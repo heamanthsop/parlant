@@ -17,6 +17,8 @@ from pytest_bdd import given, parsers
 from parlant.core.agents import AgentId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.relationships import (
+    EntityType,
+    GuidelineRelationshipKind,
     RelationshipStore,
 )
 from parlant.core.guidelines import Guideline, GuidelineStore
@@ -444,9 +446,9 @@ def given_an_entailment_guideline_relationship(
     context.sync_await(
         store.create_relationship(
             source=context.guidelines[guideline_a].id,
-            source_type="guideline",
+            source_type=EntityType.GUIDELINE,
             target=context.guidelines[guideline_b].id,
-            target_type="guideline",
-            kind="entailment",
+            target_type=EntityType.GUIDELINE,
+            kind=GuidelineRelationshipKind.ENTAILMENT,
         )
     )

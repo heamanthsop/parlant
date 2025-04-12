@@ -46,7 +46,14 @@ from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
-from parlant.core.sessions import Event, MessageEventData, Participant, ToolEventData
+from parlant.core.sessions import (
+    Event,
+    EventKind,
+    EventSource,
+    MessageEventData,
+    Participant,
+    ToolEventData,
+)
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
@@ -156,7 +163,7 @@ class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
         if not context.staged_events:
             return False, None
 
-        for tool_event in [e for e in context.staged_events if e.kind == "tool"]:
+        for tool_event in [e for e in context.staged_events if e.kind == EventKind.TOOL]:
             data = cast(ToolEventData, tool_event.data)
 
             for tool_call in data["tool_calls"]:
@@ -389,7 +396,7 @@ class UtteranceSelector(MessageEventComposer):
         utterances_by_staged_event: list[Utterance] = []
 
         for event in staged_events:
-            if event.kind == "tool":
+            if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
                 for tool_call in tool_calls:
@@ -431,7 +438,7 @@ class UtteranceSelector(MessageEventComposer):
 
         utterances = await self._get_utterances(staged_events)
 
-        if not utterances and agent.composition_mode != "fluid_utterance":
+        if not utterances and agent.composition_mode != CompositionMode.FLUID_UTTERANCE:
             self._logger.warning("No utterances found; skipping response")
             return []
 
@@ -637,7 +644,7 @@ Example {i} - {shot.description}: ###
         utterances: Sequence[Utterance],
         shots: Sequence[UtteranceSelectorShot],
     ) -> PromptBuilder:
-        can_suggest_utterances = agent.composition_mode == "fluid_utterance"
+        can_suggest_utterances = agent.composition_mode == CompositionMode.FLUID_UTTERANCE
 
         builder = PromptBuilder(
             on_build=lambda prompt: self._logger.debug(f"Utterance Choice Prompt:\n{prompt}")
@@ -674,7 +681,7 @@ Always abide by the following general principles (note these are not the "guidel
             props={},
         )
         if not interaction_history or all(
-            [event.kind != "message" for event in interaction_history]
+            [event.kind != EventKind.MESSAGE for event in interaction_history]
         ):
             builder.add_section(
                 name="utterance-selector-initial-message-instructions",
@@ -857,8 +864,8 @@ Produce a valid JSON object in the following format: ###
                 event.data["message"] if not event.data.get("flagged", False) else "<N/A>"
                 for event in reversed(interaction_history)
                 if (
-                    event.kind == "message"
-                    and event.source == "customer"
+                    event.kind == EventKind.MESSAGE
+                    and event.source == EventSource.CUSTOMER
                     and isinstance(event.data, dict)
                 )
             ),
@@ -901,7 +908,10 @@ Produce a valid JSON object in the following format: ###
             not message_event_response.content.utterance_choice
             or not message_event_response.content.utterance_choice.chosen_utterance_id
         ):
-            if composition_mode in ["strict_utterance", "composited_utterance"]:
+            if composition_mode in [
+                CompositionMode.STRICT_UTTERANCE,
+                CompositionMode.COMPOSITED_UTTERANCE,
+            ]:
                 self._logger.warning(
                     "Failed to find relevant utterances. Please review utterance selection prompt and completion."
                 )
@@ -930,14 +940,14 @@ Produce a valid JSON object in the following format: ###
         rendered_utterance = await self._render_utterance(context, utterance)
 
         match composition_mode:
-            case "composited_utterance":
+            case CompositionMode.COMPOSITED_UTTERANCE:
                 recomposed_utterance = await self._recompose(context, rendered_utterance)
 
                 return message_event_response.info, _UtteranceSelectionResult(
                     message=recomposed_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
-            case "strict_utterance" | "fluid_utterance":
+            case CompositionMode.STRICT_UTTERANCE | CompositionMode.FLUID_UTTERANCE:
                 return message_event_response.info, _UtteranceSelectionResult(
                     message=rendered_utterance,
                     utterances=[(utterance_id, utterance)],
@@ -1031,7 +1041,11 @@ Here's the relevant train schedule:
 )
 
 example_1_shot = UtteranceSelectorShot(
-    composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
+    composition_modes=[
+        CompositionMode.STRICT_UTTERANCE,
+        CompositionMode.COMPOSITED_UTTERANCE,
+        CompositionMode.FLUID_UTTERANCE,
+    ],
     description="When needed to respond with a list, prefer an utterance that contains a looping template",
     expected_result=example_1_expected,
 )
@@ -1053,7 +1067,7 @@ example_2_expected = UtteranceSelectionSchema(
 )
 
 example_2_shot = UtteranceSelectorShot(
-    composition_modes=["fluid_utterance"],
+    composition_modes=[CompositionMode.FLUID_UTTERANCE],
     description="A reply where one instruction was prioritized over another",
     expected_result=example_2_expected,
 )
@@ -1072,7 +1086,11 @@ example_3_expected = UtteranceSelectionSchema(
 )
 
 example_3_shot = UtteranceSelectorShot(
-    composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
+    composition_modes=[
+        CompositionMode.STRICT_UTTERANCE,
+        CompositionMode.COMPOSITED_UTTERANCE,
+        CompositionMode.FLUID_UTTERANCE,
+    ],
     description="Non-adherence to guideline due to missing data",
     expected_result=example_3_expected,
 )
@@ -1090,7 +1108,11 @@ example_4_expected = UtteranceSelectionSchema(
 )
 
 example_4_shot = UtteranceSelectorShot(
-    composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
+    composition_modes=[
+        CompositionMode.STRICT_UTTERANCE,
+        CompositionMode.COMPOSITED_UTTERANCE,
+        CompositionMode.FLUID_UTTERANCE,
+    ],
     description="Avoiding repetitive responses—in this case, given that the previous response by the agent was 'I am sorry, could you please clarify your request?'",
     expected_result=example_4_expected,
 )
@@ -1110,7 +1132,11 @@ example_5_expected = UtteranceSelectionSchema(
 )
 
 example_5_shot = UtteranceSelectorShot(
-    composition_modes=["strict_utterance", "composited_utterance", "fluid_utterance"],
+    composition_modes=[
+        CompositionMode.STRICT_UTTERANCE,
+        CompositionMode.COMPOSITED_UTTERANCE,
+        CompositionMode.FLUID_UTTERANCE,
+    ],
     description="An insight is derived and followed on not offering to help with something you don't know about",
     expected_result=example_5_expected,
 )

@@ -23,7 +23,7 @@ from typing import Optional, Sequence, cast
 from croniter import croniter
 from typing_extensions import override
 
-from parlant.core.agents import Agent, AgentId
+from parlant.core.agents import Agent, AgentId, CompositionMode
 from parlant.core.context_variables import (
     ContextVariable,
     ContextVariableValue,
@@ -42,6 +42,7 @@ from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.glossary import Term
 from parlant.core.sessions import (
     ContextVariable as StoredContextVariable,
+    EventKind,
     GuidelineMatch as StoredGuidelineMatch,
     GuidelineMatchingInspection,
     MessageGenerationInspection,
@@ -510,7 +511,7 @@ class AlphaEngine(Engine):
                     generation=event_generation_result.generation_info,
                     messages=[
                         e.data.get("message")
-                        if e and e.kind == "message" and isinstance(e.data, dict)
+                        if e and e.kind == EventKind.MESSAGE and isinstance(e.data, dict)
                         else None
                         for e in event_generation_result.events
                     ],
@@ -575,9 +576,13 @@ class AlphaEngine(Engine):
         # modes every now and then. This makes sure that we are
         # composing the message using the right mechanism for this agent.
         match agent.composition_mode:
-            case "fluid":
+            case CompositionMode.FLUID:
                 return self._fluid_message_generator
-            case "strict_utterance" | "composited_utterance" | "fluid_utterance":
+            case (
+                CompositionMode.STRICT_UTTERANCE
+                | CompositionMode.COMPOSITED_UTTERANCE
+                | CompositionMode.FLUID_UTTERANCE
+            ):
                 return self._utterance_selector
 
         raise Exception("Unsupported agent composition mode")

@@ -36,11 +36,10 @@ from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.emission.event_buffer import EventBuffer, EventBufferFactory
 from parlant.core.emissions import EventEmitter, EventEmitterFactory
 from parlant.core.services.tools.plugins import PluginClient
-from parlant.core.sessions import SessionId
+from parlant.core.sessions import SessionId, EventKind
 from parlant.core.tools import ToolExecutionError
-from parlant.core.utterances import Utterance, UtteranceId, UtteranceField
-
 from tests.test_utilities import run_service_server
+from parlant.core.utterances import Utterance, UtteranceId, UtteranceField
 
 
 class SessionBuffers(EventEmitterFactory):
@@ -281,16 +280,16 @@ async def test_that_a_plugin_tool_can_emit_events(
 
             assert len(emitted_events) == 3
 
-            assert emitted_events[0].kind == "status"
+            assert emitted_events[0].kind == EventKind.STATUS
             assert emitted_events[0].data == {"status": "typing", "data": {"tool": "my_tool"}}
 
-            assert emitted_events[1].kind == "message"
+            assert emitted_events[1].kind == EventKind.MESSAGE
             assert emitted_events[1].data == {
                 "message": "Hello, cherry-pie!",
                 "participant": {"id": agent.id, "display_name": agent.name},
             }
 
-            assert emitted_events[2].kind == "message"
+            assert emitted_events[2].kind == EventKind.MESSAGE
             assert emitted_events[2].data == {
                 "message": "How are you?",
                 "participant": {"id": agent.id, "display_name": agent.name},
@@ -329,13 +328,13 @@ async def test_that_a_plugin_tool_can_emit_events_and_ultimately_fail_with_an_er
 
             assert len(emitted_events) == 2
 
-            assert emitted_events[0].kind == "message"
+            assert emitted_events[0].kind == EventKind.MESSAGE
             assert emitted_events[0].data == {
                 "message": "Hello, cherry-pie!",
                 "participant": {"id": agent.id, "display_name": agent.name},
             }
 
-            assert emitted_events[1].kind == "message"
+            assert emitted_events[1].kind == EventKind.MESSAGE
             assert emitted_events[1].data == {
                 "message": "How are you?",
                 "participant": {"id": agent.id, "display_name": agent.name},
