@@ -2573,7 +2573,6 @@ async def async_main() -> None:
         pass
 
     @agent.command("create", help="Create an agent")
-    @tag_option()
     @click.option("--name", type=str, help="Agent name", required=True)
     @click.option("--description", type=str, help="Agent description", required=False)
     @click.option(
