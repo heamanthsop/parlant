@@ -202,7 +202,9 @@ class ToolCaller:
                         tool_id.service_name
                     )
 
-                tool = await services[tool_id.service_name].read_tool(tool_id.tool_name)
+                tool = await services[tool_id.service_name].resolve_tool(
+                    tool_id.tool_name, tool_context
+                )
 
                 batches[(tool_id, tool)].append(guideline_match)
 

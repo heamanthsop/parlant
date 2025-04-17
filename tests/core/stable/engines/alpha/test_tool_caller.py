@@ -76,10 +76,12 @@ async def tool_context(
     else:
         customer_id = customer.id
 
+    session = await container[SessionStore].create_session(customer_id, agent.id)
+
     return ToolContext(
         agent_id=agent.id,
         customer_id=customer_id,
-        session_id=container[SessionStore].create_session(customer_id, agent.id),
+        session_id=session.id,
     )
 
 
@@ -560,11 +562,15 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
 
         return ToolResult({"choices": [products_by_category[category] for category in categories]})
 
-    conversation_context = [
-        ("customer", "Hi, what categories and products do you have for me ?"),
+    conversation_context_laptops = [
+        ("customer", "Hi, what products are available in category of laptops and peripherals ?"),
+    ]
+    conversation_context_cakes = [
+        ("customer", "Hi, what products are available in category of cakes and cookies ?"),
     ]
 
-    interaction_history = create_interaction_history(conversation_context)
+    interaction_history_larry = create_interaction_history(conversation_context_laptops)
+    interaction_history_harry = create_interaction_history(conversation_context_cakes)
 
     ordinary_guideline_matches = [
         create_guideline_match(
@@ -597,7 +603,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
         inference_tool_calls_result_larry = await tool_caller.infer_tool_calls(
             agent=agent,
             context_variables=[],
-            interaction_history=interaction_history,
+            interaction_history=interaction_history_larry,
             terms=[],
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
@@ -608,7 +614,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
         inference_tool_calls_result_harry = await tool_caller.infer_tool_calls(
             agent=agent,
             context_variables=[],
-            interaction_history=interaction_history,
+            interaction_history=interaction_history_harry,
             terms=[],
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
@@ -616,18 +622,30 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
             tool_context=tool_context_harry,
         )
 
-    tool_calls = list(
-        chain.from_iterable(
-            inference_tool_calls_result_larry.batches, inference_tool_calls_result_harry.batches
+        # Check that mixing of "larry" chat and "harry" context doesn't work well
+        inference_tool_calls_result_mixed = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history_larry,
+            terms=[],
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            staged_events=[],
+            tool_context=tool_context_harry,
         )
+
+    assert len(inference_tool_calls_result_larry.batches) == 1
+    assert len(inference_tool_calls_result_harry.batches) == 1
+    assert (
+        len(inference_tool_calls_result_mixed.batches) == 0
+        or inference_tool_calls_result_mixed.batches[0] == []
     )
-    assert len(tool_calls) == 2
-    tc_larry = tool_calls[0]
+    tc_larry = inference_tool_calls_result_larry.batches[0][0]
     assert "categories" in tc_larry.arguments
     assert isinstance(tc_larry.arguments["categories"], str)
     assert "laptops" in tc_larry.arguments["categories"]
     assert "peripherals" in tc_larry.arguments["categories"]
-    tc_harry = tool_calls[1]
+    tc_harry = inference_tool_calls_result_harry.batches[0][0]
     assert "categories" in tc_harry.arguments
     assert isinstance(tc_harry.arguments["categories"], str)
     assert "cakes" in tc_harry.arguments["categories"]
