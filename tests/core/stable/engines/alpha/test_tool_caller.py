@@ -563,10 +563,16 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
         return ToolResult({"choices": [products_by_category[category] for category in categories]})
 
     conversation_context_laptops = [
-        ("customer", "Hi, what products are available in category of laptops and peripherals ?"),
+        (
+            EventSource.CUSTOMER,
+            "Hi, what products are available in category of laptops and peripherals ?",
+        ),
     ]
     conversation_context_cakes = [
-        ("customer", "Hi, what products are available in category of cakes and cookies ?"),
+        (
+            EventSource.CUSTOMER,
+            "Hi, what products are available in category of cakes and cookies ?",
+        ),
     ]
 
     interaction_history_larry = create_interaction_history(conversation_context_laptops)
