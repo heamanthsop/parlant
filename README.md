@@ -17,9 +17,10 @@
     <a href="https://discord.gg/duxWqxKk6J"><img alt="Discord" src="https://img.shields.io/discord/1312378700993663007?style=flat&logo=discord&logoColor=white&label=discord">
 </a>
   </p>
-</div>
 
 <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+</div>
 
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
 
