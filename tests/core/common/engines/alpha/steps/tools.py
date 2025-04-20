@@ -364,6 +364,7 @@ def given_a_tool(
                 "first_name": (
                     {
                         "type": "string",
+                        "enum": ["Sushi", "Mushi", "Tushi"],
                     },
                     ToolParameterOptions(precedence=1),
                 ),

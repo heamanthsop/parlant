@@ -574,3 +574,17 @@ Feature: Tools
         And the tool calls event contains a call to "local:search_electronic_products" with Dell vendor and laptop keyword
         And the tool calls event contains a call to "local:search_electronic_products" with Samsung vendor and SSD keyword
 
+    Scenario: When tool have a mix of missing and invalid parameters, the message generator communicates the invalids with the missing, by precedence
+        Given an empty session
+        And a guideline "registering_for_a_sweepstake" to register to a sweepstake when the customer wants to participate in a sweepstake
+        And the tool "register_for_sweepstake"
+        And an association between "registering_for_a_sweepstake" and "register_for_sweepstake"
+        And a customer message, "Hi, my first name is Nushi, Please register me for a sweepstake with 3 entries"
+        When processing is triggered
+        Then no tool calls event is emitted
+        And a single message event is emitted
+        And the message mentions that parameters are missing
+        And the number of missing parameters is exactly 1
+        And the message mentions that parameters are invalid
+        And the number of invalid parameters is exactly 1
+        And the message mentions mentions last name

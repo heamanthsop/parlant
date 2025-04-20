@@ -732,6 +732,151 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
     assert missing_parameters == {"full_name", "city", "street", "house_number"}
 
 
+async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missing_parameter_interacts_correctly(
+    container: Container,
+    agent: Agent,
+) -> None:
+    service_registry = container[ServiceRegistry]
+    tool_caller = container[ToolCaller]
+
+    async def destination_choices() -> list[str]:
+        return "London", "Tokyo", "Reykjavik"
+
+    @tool
+    def book_flight(
+        context: ToolContext,
+        destination: Annotated[str, ToolParameterOptions(choice_provider=destination_choices)],
+        passenger_id: int,
+    ) -> ToolResult:
+        return ToolResult(
+            {f"Successfully booked flight to {destination} for passenger {passenger_id}"}
+        )
+
+    conversation_context = [
+        (EventSource.CUSTOMER, "Hi, my nemesis would like to book a one-way flight to Hell"),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    ordinary_guideline_matches = [
+        create_guideline_match(
+            condition="customer asking a question",
+            action="response in concise and breif answer",
+            score=9,
+            rationale="customer asks a question and wants to get an answer",
+            tags=[Tag.for_agent_id(agent.id)],
+        )
+    ]
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer wants to book a flight",
+            action="book a flight for the customer",
+            score=9,
+            rationale="customer wants to book a flight",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ToolId(service_name="my_sdk_service", tool_name="book_flight")]
+    }
+
+    async with run_service_server([book_flight]) as server:
+        await service_registry.update_tool_service(
+            name="my_sdk_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            staged_events=[],
+            tool_context=await tool_context(container, agent),
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+    insights = list(chain.from_iterable(inference_tool_calls_result.insights))
+    assert len(tool_calls) == 0 or tool_calls[0] == []
+    assert len(insights) == 2
+
+
+async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_parameter_interacts_correctly(
+    container: Container,
+    agent: Agent,
+) -> None:
+    service_registry = container[ServiceRegistry]
+    tool_caller = container[ToolCaller]
+
+    class Destination(enum.Enum):
+        LONDON = "London"
+        TOKYO = "Tokyo"
+        REYKJAVIK = "Reykjavik"
+
+    @tool
+    def book_flight(
+        context: ToolContext,
+        destination: Destination,
+        passenger_id: int,
+    ) -> ToolResult:
+        return ToolResult(
+            {f"Successfully booked flight to {destination} for passenger {passenger_id}"}
+        )
+
+    conversation_context = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, I would like to book a flight to Singapore",
+        ),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    ordinary_guideline_matches = [
+        create_guideline_match(
+            condition="customer asking a question",
+            action="response in concise and breif answer",
+            score=9,
+            rationale="customer asks a question and wants to get an answer",
+            tags=[Tag.for_agent_id(agent.id)],
+        )
+    ]
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer wants to book a flight",
+            action="book a flight for the customer",
+            score=9,
+            rationale="customer wants to book a flight",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ToolId(service_name="my_sdk_service", tool_name="book_flight")]
+    }
+
+    async with run_service_server([book_flight]) as server:
+        await service_registry.update_tool_service(
+            name="my_sdk_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            staged_events=[],
+            tool_context=await tool_context(container, agent),
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+    insights = list(chain.from_iterable(inference_tool_calls_result.insights))
+    assert len(tool_calls) == 0 or tool_calls[0] == []
+    assert len(insights) == 2
+
+
 async def test_that_tool_calling_batchers_can_be_overridden(
     container: Container,
     agent: Agent,
