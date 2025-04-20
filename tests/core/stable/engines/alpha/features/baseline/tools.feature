@@ -513,16 +513,6 @@ Feature: Tools
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains SSD as keyword and Samsung as Vendor and no price limit
-
-    Scenario: Tool caller correctly infers arguments values with optional (3)
-        Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
-        And the tool "search_electronic_products"
-        And an association between "filter_electronic_products" and "search_electronic_products"
-        And a customer message, "Hey, how much does a SSD of Samsung cost?"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains SSD as keyword and Samsung as Vendor 
        
     Scenario: Tool caller doesnt call tool when optional arguments exist but required not (1)
         Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
