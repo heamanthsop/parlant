@@ -81,9 +81,15 @@ class ToolCallEvaluation(DefaultBaseModel):
     ] = None
     # These 3 ARQs are for cases we've observed where many optional arguments are missing
     # such that the model would be possibly biased to say the tool shouldn't run.
+<<<<<<< HEAD
     are_optional_arguments_missing: Optional[bool] = None
     are_non_optional_arguments_missing: Optional[bool] = None
     allowed_to_run_without_optional_arguments_even_if_they_are_missing: Optional[bool] = None
+=======
+    are_optional_arguments_missing: bool
+    are_non_optional_arguments_missing: bool
+    allowed_to_run_without_optional_arguments_even_if_they_are_missing: bool
+>>>>>>> 5a36d0f0 (Add a comment for the old fields that left for decomentation)
     should_run: Optional[bool] = (
         None  # No longer used; left here as a reminder of the original design
     )
