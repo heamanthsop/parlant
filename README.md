@@ -28,6 +28,7 @@
 
 ```bash
 pip install parlant
+```
 
 ```bash
 parlant-server run
