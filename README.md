@@ -4,7 +4,7 @@
 
 
 
-  <h3>Parlant: The Conversation Modeling Engine 💬 ✅</h3>
+  <h3>Parlant: The Conversation Modeling Engine</h3>
 
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
