@@ -2,16 +2,20 @@
 <div align="center">
 <!--<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />-->
 
-<a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
 
   <h3>Parlant: The Conversation Modeling Engine 💬 ✅</h3>
+
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
     <a href="https://www.parlant.io/docs/tutorial/getting-started" target="_blank">Tutorial</a> —
     <a href="https://www.parlant.io/docs/about" target="_blank">About</a>
   </p>
+
+  <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+  
   <p>
     <a href="https://pypi.org/project/parlant/" alt="Parlant on PyPi"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/parlant"></a>
     <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/parlant">
