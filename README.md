@@ -28,6 +28,13 @@
 
 ```bash
 pip install parlant
+parlant-server run  # Now visit http://localhost:8800
+```
+
+```bash
+parlant guideline create \
+    --condition "the user greets you" \
+    --action "thank them for checking out Parlant"
 ```
 
 ## What is Conversation Modeling?
