@@ -63,9 +63,6 @@ class ArgumentEvaluation(DefaultBaseModel):
 
 class ToolCallEvaluation(DefaultBaseModel):
     applicability_rationale: str
-    applicability_score: Optional[int] = (
-        None  # No longer used; left here as a reminder of the original design
-    )
     is_applicable: bool
     argument_evaluations: Optional[list[ArgumentEvaluation]] = None
     same_call_is_already_staged: bool
@@ -84,9 +81,6 @@ class ToolCallEvaluation(DefaultBaseModel):
     are_optional_arguments_missing: Optional[bool] = None
     are_non_optional_arguments_missing: Optional[bool] = None
     allowed_to_run_without_optional_arguments_even_if_they_are_missing: Optional[bool] = None
-    should_run: Optional[bool] = (
-        None  # No longer used; left here as a reminder of the original design
-    )
 
 
 class ToolCallInferenceSchema(DefaultBaseModel):
