@@ -6,6 +6,9 @@
 
   <h3>Parlant: The Conversation Modeling Engine</h3>
 
+  <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+
   <p>
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
@@ -13,7 +16,6 @@
     <a href="https://www.parlant.io/docs/about" target="_blank">About</a>
   </p>
 
-  <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
   
   <p>
