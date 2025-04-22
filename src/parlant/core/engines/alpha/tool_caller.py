@@ -1289,6 +1289,46 @@ example_9_shot = ToolCallerInferenceShot(
     ),
 )
 
+example_10_shot = (
+    ToolCallerInferenceShot(
+        description="the candidate tool is check_products_availability(products: list[str])",
+        expected_result=ToolCallInferenceSchema(
+            last_customer_message="Hey can I buy a laptop and a mouse please?",
+            most_recent_customer_inquiry_or_need=(
+                "The customer wants to purchase a laptop and a mouse and we need to check if those products are available"
+            ),
+            most_recent_customer_inquiry_or_need_was_already_resolved=False,
+            name="check_products_availability",
+            subtleties_to_be_aware_of="Before the customer can make a purchase, we need to check the availability of laptops and mice. The 'products' parameter is a list, so the tool should be called once with both products in the list.",
+            tool_calls_for_candidate_tool=[
+                ToolCallEvaluation(
+                    applicability_rationale="The tool is applicable because the customer is inquiring about purchasing specific products and the tool checks the availability of a list of products.",
+                    is_applicable=True,
+                    argument_evaluations=[
+                        ArgumentEvaluation(
+                            parameter_name="products",
+                            acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                            evaluate_is_it_provided_by_an_acceptable_source="Yes, the product names 'laptop' and 'mouse' were provided in the customer's message so should be passed as list.",
+                            evaluate_was_it_already_provided_and_should_it_be_provided_again="It was provided in customer's message and should not be provided again.",
+                            evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing product names can result in incorrect availability checks.",
+                            is_missing=False,
+                            is_optional=False,
+                            value_as_string='["laptop", "mouse"]',
+                        )
+                    ],
+                    same_call_is_already_staged=False,
+                    relevant_subtleties="We should run this tool.",
+                    comparison_with_rejected_tools_including_references_to_subtleties="There are no tools in the list of rejected tools",
+                    a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                    are_optional_arguments_missing=False,
+                    are_non_optional_arguments_missing=False,
+                    allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
+                )
+            ],
+        ),
+    ),
+)
+
 _baseline_shots: Sequence[ToolCallerInferenceShot] = [
     example_1_shot,
     example_2_shot,
@@ -1299,6 +1339,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
     example_7_shot,
     example_8_shot,
     example_9_shot,
+    example_10_shot,
 ]
 
 
