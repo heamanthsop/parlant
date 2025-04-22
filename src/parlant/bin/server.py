@@ -95,7 +95,13 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
     GuidelineToolAssociationStore,
 )
-from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCallerInferenceShot
+from parlant.core.engines.alpha.tool_caller import (
+    DefaultToolCallStrategyResolver,
+    SingleStrategyToolCallInferenceSchema,
+    SingleStrategyToolCallerInferenceShot,
+    ToolCallStrategyResolver,
+    ToolCaller,
+)
 from parlant.core.engines.alpha.guideline_matcher import (
     GenericGuidelineMatching,
     GuidelineMatcher,
@@ -289,7 +295,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
     c[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
-    c[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
+    c[ShotCollection[SingleStrategyToolCallerInferenceShot]] = tool_caller.shot_collection
     c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
     c[EngineHooks] = EngineHooks()
@@ -465,9 +471,9 @@ async def initialize_container(
     c[
         SchematicGenerator[UtteranceFieldExtractionSchema]
     ] = await nlp_service.get_schematic_generator(UtteranceFieldExtractionSchema)
-    c[SchematicGenerator[ToolCallInferenceSchema]] = await nlp_service.get_schematic_generator(
-        ToolCallInferenceSchema
-    )
+    c[
+        SchematicGenerator[SingleStrategyToolCallInferenceSchema]
+    ] = await nlp_service.get_schematic_generator(SingleStrategyToolCallInferenceSchema)
     c[
         SchematicGenerator[ConditionsEntailmentTestsSchema]
     ] = await nlp_service.get_schematic_generator(ConditionsEntailmentTestsSchema)
@@ -487,6 +493,11 @@ async def initialize_container(
         DefaultGuidelineMatchingStrategyResolver
     ]
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
+
+    c[DefaultToolCallStrategyResolver] = Singleton(DefaultToolCallStrategyResolver)
+    c[ToolCallStrategyResolver] = lambda c: c[DefaultToolCallStrategyResolver]
+    c[ToolCaller] = Singleton(ToolCaller)
+
     c[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
 
 

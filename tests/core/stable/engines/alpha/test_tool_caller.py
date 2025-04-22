@@ -15,21 +15,27 @@
 from datetime import datetime, timezone
 import enum
 from itertools import chain
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Optional, Sequence
 from lagom import Container
 from pytest import fixture
+from typing_extensions import override
 
 from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer, CustomerStore, CustomerId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.tool_caller import (
-    ToolCallInferenceSchema,
+    ToolCall,
+    ToolCallId,
+    ToolCallBatch,
+    ToolCallBatchResult,
+    ToolCallContext,
+    ToolCallStrategyResolver,
     ToolCaller,
+    ToolInsights,
 )
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
-from parlant.core.loggers import Logger
-from parlant.core.nlp.generation import SchematicGenerator
+from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Event, EventSource, SessionStore
@@ -50,15 +56,6 @@ from tests.test_utilities import run_service_server
 @fixture
 def local_tool_service(container: Container) -> LocalToolService:
     return container[LocalToolService]
-
-
-@fixture
-def tool_caller(container: Container) -> ToolCaller:
-    return ToolCaller(
-        container[Logger],
-        container[ServiceRegistry],
-        container[SchematicGenerator[ToolCallInferenceSchema]],
-    )
 
 
 @fixture
@@ -142,9 +139,10 @@ async def create_local_tool(
 async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_parameter(
     container: Container,
     local_tool_service: LocalToolService,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
+
     tool = await create_local_tool(
         local_tool_service,
         name="available_products_by_category",
@@ -206,9 +204,9 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
 
 async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class ProductCategory(enum.Enum):
@@ -282,9 +280,9 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
 
 async def test_that_a_plugin_tool_is_called_with_required_parameters_with_default_value(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class AppointmentType(enum.Enum):
@@ -366,9 +364,9 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
 
 async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class ProductCategory(enum.Enum):
@@ -444,9 +442,9 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
 
 async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_to_a_choice_provider(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
     plugin_data = {"choices": ["laptops", "peripherals"]}
 
@@ -660,9 +658,9 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
 
 async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_missing_ones_by_precedence(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
+    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     @tool
@@ -732,3 +730,134 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
         map(lambda x: x.parameter, inference_tool_calls_result.insights.missing_data)
     )
     assert missing_parameters == {"full_name", "city", "street", "house_number"}
+
+
+async def test_that_tool_calling_strategies_can_be_overridden(
+    container: Container,
+    agent: Agent,
+) -> None:
+    tool_caller = container[ToolCaller]
+
+    class ActivateToolCallBatch(ToolCallBatch):
+        def __init__(self, tools: Sequence[tuple[ToolId, Tool]]):
+            self.tools = tools
+
+        @override
+        async def process(self) -> ToolCallBatchResult:
+            return ToolCallBatchResult(
+                tool_calls=[
+                    ToolCall(
+                        id=ToolCallId(generate_id()),
+                        tool_id=tool_id,
+                        arguments={},
+                    )
+                    for tool_id, _ in self.tools
+                ],
+                generation_info=GenerationInfo(
+                    schema_name="",
+                    model="",
+                    duration=0.0,
+                    usage=UsageInfo(
+                        input_tokens=0,
+                        output_tokens=0,
+                        extra={},
+                    ),
+                ),
+                insights=ToolInsights(
+                    missing_data=[],
+                ),
+            )
+
+    class NeverActivateToolCallBatch(ToolCallBatch):
+        def __init__(self, tools: Sequence[tuple[ToolId, Tool]]):
+            self.tools = tools
+
+        @override
+        async def process(self) -> ToolCallBatchResult:
+            return ToolCallBatchResult(
+                tool_calls=[],
+                generation_info=GenerationInfo(
+                    schema_name="",
+                    model="",
+                    duration=0.0,
+                    usage=UsageInfo(
+                        input_tokens=0,
+                        output_tokens=0,
+                        extra={},
+                    ),
+                ),
+                insights=ToolInsights(
+                    missing_data=[],
+                ),
+            )
+
+    class ActivateOnlyPingToolStrategyResolver(ToolCallStrategyResolver):
+        @override
+        async def create_batches(
+            self,
+            tools: Sequence[tuple[ToolId, Tool]],
+            context: ToolCallContext,
+        ) -> Sequence[ToolCallBatch]:
+            batches: list[ToolCallBatch] = []
+            for tool_id, _tool in tools:
+                if tool_id.tool_name == "ping":
+                    batches.append(ActivateToolCallBatch([(tool_id, _tool)]))
+                else:
+                    batches.append(NeverActivateToolCallBatch([(tool_id, _tool)]))
+
+            return batches
+
+    local_tool_service = container[LocalToolService]
+
+    for tool_name in ("echo", "ping"):
+        await local_tool_service.create_tool(
+            name=tool_name,
+            module_path="tests.tool_utilities",
+            description="dummy",
+            parameters={},
+            required=[],
+        )
+
+    echo_tool_id = ToolId(service_name="local", tool_name="echo")
+    ping_tool_id = ToolId(service_name="local", tool_name="ping")
+
+    container[ToolCaller].strategy_resolver = ActivateOnlyPingToolStrategyResolver()
+
+    interaction_history = [
+        create_event_message(
+            offset=0,
+            source=EventSource.CUSTOMER,
+            message="hello",
+        )
+    ]
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer asks to echo",
+            action="echo the customer's message",
+            score=9,
+            rationale="customer wants to echo their message",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [echo_tool_id],
+        create_guideline_match(
+            condition="customer asks to ping",
+            action="ping the customer's message",
+            score=9,
+            rationale="customer wants to ping their message",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ping_tool_id],
+    }
+
+    res = await tool_caller.infer_tool_calls(
+        agent=agent,
+        context_variables=[],
+        interaction_history=interaction_history,
+        terms=[],
+        ordinary_guideline_matches=[],
+        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        staged_events=[],
+    )
+
+    all_tool_ids = {tc.tool_id.to_string() for tc in chain.from_iterable(res.batches)}
+    assert ping_tool_id.to_string() in all_tool_ids
+    assert echo_tool_id.to_string() not in all_tool_ids

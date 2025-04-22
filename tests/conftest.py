@@ -87,7 +87,13 @@ from parlant.core.engines.alpha.message_generator import (
     MessageGeneratorShot,
     MessageSchema,
 )
-from parlant.core.engines.alpha.tool_caller import ToolCallInferenceSchema, ToolCallerInferenceShot
+from parlant.core.engines.alpha.tool_caller import (
+    DefaultToolCallStrategyResolver,
+    SingleStrategyToolCallInferenceSchema,
+    SingleStrategyToolCallerInferenceShot,
+    ToolCallStrategyResolver,
+    ToolCaller,
+)
 from parlant.core.engines.alpha.tool_event_generator import ToolEventGenerator
 from parlant.core.engines.types import Engine
 from parlant.core.services.indexing.behavioral_change_evaluation import (
@@ -283,7 +289,7 @@ async def container(
             UtteranceSelectionSchema,
             UtteranceRevisionSchema,
             UtteranceFieldExtractionSchema,
-            ToolCallInferenceSchema,
+            SingleStrategyToolCallInferenceSchema,
             ConditionsEntailmentTestsSchema,
             ActionsContradictionTestsSchema,
             GuidelineConnectionPropositionsSchema,
@@ -295,7 +301,9 @@ async def container(
             )
 
         container[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
-        container[ShotCollection[ToolCallerInferenceShot]] = tool_caller.shot_collection
+        container[ShotCollection[SingleStrategyToolCallerInferenceShot]] = (
+            tool_caller.shot_collection
+        )
         container[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
         container[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
@@ -315,6 +323,12 @@ async def container(
         ]
         container[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
+
+        container[DefaultToolCallStrategyResolver] = Singleton(DefaultToolCallStrategyResolver)
+        container[ToolCallStrategyResolver] = lambda container: container[
+            DefaultToolCallStrategyResolver
+        ]
+        container[ToolCaller] = Singleton(ToolCaller)
         container[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
         container[UtteranceSelector] = Singleton(UtteranceSelector)
         container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
@@ -409,12 +423,12 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[ToolCallInferenceSchema]],
+        container[SchematicGenerator[SingleStrategyToolCallInferenceSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[ToolCallInferenceSchema],
-            container[SchematicGenerator[ToolCallInferenceSchema]],
+            CachedSchematicGenerator[SingleStrategyToolCallInferenceSchema],
+            container[SchematicGenerator[SingleStrategyToolCallInferenceSchema]],
         ).use_cache = False
 
     if isinstance(
