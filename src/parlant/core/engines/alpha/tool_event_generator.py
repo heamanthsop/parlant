@@ -121,7 +121,7 @@ class ToolEventGenerator:
             customer_id=customer.id,
         )
 
-        inference_result = await self.tool_caller.infer_tool_calls(
+        inference_result = await self._tool_caller.infer_tool_calls(
             agent,
             context_variables,
             interaction_history,
@@ -141,7 +141,7 @@ class ToolEventGenerator:
                 insights=inference_result.insights,
             )
 
-        tool_results = await self.tool_caller.execute_tool_calls(
+        tool_results = await self._tool_caller.execute_tool_calls(
             tool_context,
             tool_calls,
         )
