@@ -30,7 +30,11 @@
 
 </div>
 
+## YouTube Video Intro
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
+
+## Quick Demo
+<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/ParlantGIF.gif?raw=true" />
 
 ```bash
 pip install parlant
