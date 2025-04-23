@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, asdict, field
 from itertools import chain
 import json
@@ -122,7 +123,7 @@ class ToolCallStrategyResolver(ABC):
     @abstractmethod
     async def create_batches(
         self,
-        tools: Sequence[tuple[ToolId, Tool]],
+        tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> Sequence[ToolCallBatch]: ...
 
@@ -161,7 +162,7 @@ class ToolCaller:
 
             t_start = time.time()
 
-            tools: list[tuple[ToolId, Tool]] = []
+            tools: dict[tuple[ToolId, Tool], list[GuidelineMatch]] = defaultdict(list)
             services: dict[str, ToolService] = {}
 
             for guideline_match, tool_ids in tool_enabled_guideline_matches.items():
@@ -175,7 +176,7 @@ class ToolCaller:
                         tool_id.tool_name, tool_context
                     )
 
-                    tools.append((tool_id, tool))
+                    tools[(tool_id, tool)].append(guideline_match)
 
             with self._logger.scope("ToolCaller"):
                 with self._logger.operation("Creating batches"):
@@ -353,20 +354,18 @@ class SingleToolCallerBatch(ToolCallBatch):
         logger: Logger,
         service_registry: ServiceRegistry,
         schematic_generator: SchematicGenerator[SingleStrategyToolCallInferenceSchema],
-        tool_id: ToolId,
-        tool: Tool,
+        candidate_tool: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> None:
         self._service_registry = service_registry
         self._logger = logger
         self._schematic_generator = schematic_generator
         self._context = context
-        self._tool_id = tool_id
-        self._tool = tool
+        self._candidate_tool = candidate_tool
 
     @override
     async def process(self) -> ToolCallBatchResult:
-        with self._logger.operation(f"Evaluation: {self._tool_id}"):
+        with self._logger.operation(f"Evaluation: {self._candidate_tool[0]}"):
             (
                 generation_info,
                 inference_output,
@@ -377,7 +376,7 @@ class SingleToolCallerBatch(ToolCallBatch):
                 interaction_history=self._context.interaction_history,
                 terms=self._context.terms,
                 ordinary_guideline_matches=self._context.ordinary_guideline_matches,
-                candidate_descriptor=(self._tool_id, self._tool, []),
+                candidate_descriptor=self._candidate_tool,
                 reference_tools=[],
                 staged_events=self._context.staged_events,
             )
@@ -395,7 +394,7 @@ class SingleToolCallerBatch(ToolCallBatch):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
-        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatch]],
+        candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
     ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
@@ -427,7 +426,7 @@ class SingleToolCallerBatch(ToolCallBatch):
     async def _evaluate_tool_calls_parameters(
         self,
         inference_output: Sequence[SingleStrategyToolCallEvaluation],
-        candidate_descriptor: tuple[ToolId, Tool, list[GuidelineMatch]],
+        candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
     ) -> tuple[list[ToolCall], list[MissingToolData]]:
         tool_calls = []
         missing_data = []
@@ -562,7 +561,7 @@ Example #{i}: ###
         interaction_event_list: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
-        batch: tuple[ToolId, Tool, list[GuidelineMatch]],
+        batch: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
         shots: Sequence[SingleStrategyToolCallerInferenceShot],
@@ -880,7 +879,7 @@ Candidate tool: ###
     def _add_guideline_matches_section(
         self,
         ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_id_propositions: tuple[ToolId, list[GuidelineMatch]],
+        tool_id_propositions: tuple[ToolId, Sequence[GuidelineMatch]],
     ) -> str:
         all_matches = list(chain(ordinary_guideline_matches, tool_id_propositions[1]))
 
@@ -949,19 +948,19 @@ class DefaultToolCallStrategyResolver(ToolCallStrategyResolver):
 
     async def create_batches(
         self,
-        tools: Sequence[tuple[ToolId, Tool]],
+        tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> Sequence[ToolCallBatch]:
         result: list[ToolCallBatch] = []
 
-        independent_tools = []
-        dependent_tools = []
+        independent_tools = {}
+        dependent_tools = {}
 
         for tool_id, _tool in tools:
             if _tool.overlap == ToolOverlap.NONE:
-                independent_tools.append((tool_id, _tool))
+                independent_tools[(tool_id, _tool)] = tools[(tool_id, _tool)]
             else:
-                dependent_tools.append((tool_id, _tool))
+                dependent_tools[(tool_id, _tool)] = tools[(tool_id, _tool)]
 
         if independent_tools:
             context_without_reference_tools = ToolCallContext(
@@ -981,30 +980,28 @@ class DefaultToolCallStrategyResolver(ToolCallStrategyResolver):
             )
             result.extend(
                 self._create_single_strategy_batch(
-                    tool_id=t[0], tool=t[1], context=context_without_reference_tools
+                    candidate_tool=(k[0], k[1], v), context=context_without_reference_tools
                 )
-                for t in independent_tools
+                for k, v in independent_tools.items()
             )
         if dependent_tools:
             result.extend(
-                self._create_single_strategy_batch(tool_id=t[0], tool=t[1], context=context)
-                for t in dependent_tools
+                self._create_single_strategy_batch(candidate_tool=(k[0], k[1], v), context=context)
+                for k, v in dependent_tools.items()
             )
 
         return result
 
     def _create_single_strategy_batch(
         self,
-        tool_id: ToolId,
-        tool: Tool,
+        candidate_tool: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> ToolCallBatch:
         return SingleToolCallerBatch(
             logger=self._logger,
             service_registry=self._service_registry,
             schematic_generator=self._schematic_generator,
-            tool_id=tool_id,
-            tool=tool,
+            candidate_tool=candidate_tool,
             context=context,
         )
 

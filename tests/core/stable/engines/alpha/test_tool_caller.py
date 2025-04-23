@@ -15,7 +15,7 @@
 from datetime import datetime, timezone
 import enum
 from itertools import chain
-from typing import Annotated, Any, Optional, Sequence
+from typing import Annotated, Any, Mapping, Optional, Sequence
 from lagom import Container
 from pytest import fixture
 from typing_extensions import override
@@ -521,11 +521,11 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
 
 async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_the_tool_context(
     container: Container,
-    tool_caller: ToolCaller,
     agent: Agent,
 ) -> None:
     service_registry = container[ServiceRegistry]
     customer_store = container[CustomerStore]
+    tool_caller = container[ToolCaller]
 
     # Fabricate two customers and sessions
     customer_larry = await customer_store.create_customer(
@@ -739,7 +739,7 @@ async def test_that_tool_calling_strategies_can_be_overridden(
     tool_caller = container[ToolCaller]
 
     class ActivateToolCallBatch(ToolCallBatch):
-        def __init__(self, tools: Sequence[tuple[ToolId, Tool]]):
+        def __init__(self, tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]]):
             self.tools = tools
 
         @override
@@ -748,10 +748,10 @@ async def test_that_tool_calling_strategies_can_be_overridden(
                 tool_calls=[
                     ToolCall(
                         id=ToolCallId(generate_id()),
-                        tool_id=tool_id,
+                        tool_id=k[0],
                         arguments={},
                     )
-                    for tool_id, _ in self.tools
+                    for k, _ in self.tools.items()
                 ],
                 generation_info=GenerationInfo(
                     schema_name="",
@@ -769,7 +769,7 @@ async def test_that_tool_calling_strategies_can_be_overridden(
             )
 
     class NeverActivateToolCallBatch(ToolCallBatch):
-        def __init__(self, tools: Sequence[tuple[ToolId, Tool]]):
+        def __init__(self, tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]]):
             self.tools = tools
 
         @override
@@ -795,15 +795,15 @@ async def test_that_tool_calling_strategies_can_be_overridden(
         @override
         async def create_batches(
             self,
-            tools: Sequence[tuple[ToolId, Tool]],
+            tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]],
             context: ToolCallContext,
         ) -> Sequence[ToolCallBatch]:
             batches: list[ToolCallBatch] = []
             for tool_id, _tool in tools:
                 if tool_id.tool_name == "ping":
-                    batches.append(ActivateToolCallBatch([(tool_id, _tool)]))
+                    batches.append(ActivateToolCallBatch({(tool_id, _tool): []}))
                 else:
-                    batches.append(NeverActivateToolCallBatch([(tool_id, _tool)]))
+                    batches.append(NeverActivateToolCallBatch({(tool_id, _tool): []}))
 
             return batches
 
