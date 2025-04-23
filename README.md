@@ -33,8 +33,6 @@
 ## YouTube Video Intro
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
 
-## Quick Demo
-<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/ParlantGIF.gif?raw=true" />
 
 ```bash
 pip install parlant
@@ -66,6 +64,10 @@ The problem of getting your AI agent to say what _you_ want it to say is a hard 
 - **Flow engines** (such as [Rasa](https://github.com/RasaHQ/rasa), [Botpress](https://github.com/botpress/botpress) or [LangFlow](https://github.com/langflow-ai/langflow)) _force_ the user to interact according to predefined flows. In contrast, a **CM engine** dynamically _adapts_ to a user's natural interaction patterns while conforming to your rules.
 
 - **Free-form prompt engineering** (such as with [LangGraph](https://www.langchain.com/langgraph) or [LlamaIndex](https://docs.llamaindex.ai/)) leads to _inconsistency_, frequently failing to uphold requirements. Conversely, a **CM engine** leverages structure to _enforce_ conformance to a Conversation Model.
+
+## Quick Demo
+<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/ParlantGIF.gif?raw=true" />
+
 
 ## Who uses Parlant?
 Parlant is used to deliver complex conversational agents that reliably follow your business protocols in use cases such as:
