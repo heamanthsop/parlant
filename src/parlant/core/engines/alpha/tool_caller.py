@@ -63,7 +63,7 @@ class ArgumentEvaluation(DefaultBaseModel):
 
 class ToolCallEvaluation(DefaultBaseModel):
     applicability_rationale: str
-    applicability_score: int
+    is_applicable: bool
     argument_evaluations: Optional[list[ArgumentEvaluation]] = None
     same_call_is_already_staged: bool
     comparison_with_rejected_tools_including_references_to_subtleties: Optional[str] = None
@@ -81,7 +81,6 @@ class ToolCallEvaluation(DefaultBaseModel):
     are_optional_arguments_missing: Optional[bool] = None
     are_non_optional_arguments_missing: Optional[bool] = None
     allowed_to_run_without_optional_arguments_even_if_they_are_missing: Optional[bool] = None
-    should_run: bool
 
 
 class ToolCallInferenceSchema(DefaultBaseModel):
@@ -302,14 +301,14 @@ class ToolCaller:
 
         for tc in inference_output:
             if (
-                tc.applicability_score >= 6
+                tc.is_applicable
                 and not tc.same_call_is_already_staged
                 and (
                     not tc.a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected
                     or tc.the_better_rejected_tool_should_clearly_be_run_in_tandem_with_the_candidate_tool
                 )
             ):
-                if tc.should_run and all(
+                if all(
                     not evaluation.is_missing
                     for evaluation in tc.argument_evaluations or []
                     if evaluation.parameter_name in candidate_descriptor[1].required
@@ -333,8 +332,7 @@ class ToolCaller:
                             arguments=arguments,
                         )
                     )
-
-                elif tc.applicability_score >= 8:
+                else:
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.parameter_name not in tool.parameters:
                             self._logger.error(
@@ -482,9 +480,11 @@ These calls do not require to be re-run at this time, unless you identify a vali
 -----------------
 TASK DESCRIPTION
 -----------------
-Your task is to review the provided tool and, based on your most recent interaction with the customer, decide whether to use it.
-For the provided tool, assign a score from 1 to 10 to indicate its usefulness at this time, where a higher score indicates that the tool call should execute.
-For any tool with a score of 5 or higher, provide the arguments for activation, following the format in its description.
+Your task is to review the provided tool and, based on your most recent interaction with the customer, decide whether it is applicable.
+Indicate the tool applicability with a boolean value: true if the tool is useful at this point, or false if it is not.
+For any tool marked as true, include the available arguments for activation.
+Note that a tool may be considered applicable even if not all of its required arguments are available. In such cases, provide the parameters that are currently available, 
+following the format specified in its description.
 
 While doing so, take the following instructions into account:
 
@@ -492,8 +492,7 @@ While doing so, take the following instructions into account:
 2. Each tool may be called multiple times with different arguments.
 3. Avoid calling a tool with the same arguments more than once, unless clearly justified by the interaction.
 4. Ensure each tool call relies only on the immediate context and staged calls, without requiring other tools not yet invoked, to avoid dependencies.
-5. Use the "should_run" argument to indicate whether a tool should be executed, meaning it has a high applicability score and either (a) has not been staged with the same arguments, or (b) was staged but needs to be re-executed.
-6. If a tool needs to be applied multiple times (each with different arguments), you may include it in the output multiple times.
+5. If a tool needs to be applied multiple times (each with different arguments), you may include it in the output multiple times.
 
 The exact format of your output will be provided to you at the end of this prompt.
 
@@ -616,7 +615,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
         ]
         result = """{{
             "applicability_rationale": "<A FEW WORDS THAT EXPLAIN WHETHER, HOW, AND TO WHAT EXTENT THE TOOL NEEDS TO BE CALLED AT THIS POINT>",
-            "applicability_score": <INTEGER FROM 1 TO 10>,"""
+            "is_applicable": <BOOL>,"""
         result += """    
             "argument_evaluations": [
                 {
@@ -651,10 +650,8 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
             result += """
             "are_optional_arguments_missing": <BOOL>,
             "are_non_optional_arguments_missing": <BOOL>,
-            "allowed_to_run_without_optional_arguments_even_if_they_are_missing": <BOOL-ALWAYS TRUE>,"""
+            "allowed_to_run_without_optional_arguments_even_if_they_are_missing": <BOOL-ALWAYS TRUE>,
 
-        result += """
-            "should_run": <BOOL-WHETHER THE TOOL IS APPLICABLE, NOT YET STAGED, AND ALL REQUIRED PARAMS ARE PROVIDED>
         }}"""
         return result
 
@@ -897,7 +894,7 @@ example_1_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="We need the client's current balance to respond to their question",
-                applicability_score=9,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="customer_id",
@@ -915,7 +912,6 @@ example_1_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
             )
         ],
     ),
@@ -936,13 +932,12 @@ example_2_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="There is no reason to notify the supervisor of anything",
-                applicability_score=1,
+                is_applicable=False,
                 same_call_is_already_staged=False,
                 relevant_subtleties="no subtleties were detected",
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
             )
         ],
     ),
@@ -966,7 +961,7 @@ example_3_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="We need to know the price of a ride from New York to Newark to respond to the customer",
-                applicability_score=9,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="origin",
@@ -998,7 +993,6 @@ example_3_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=True,
             )
         ],
     ),
@@ -1021,7 +1015,7 @@ example_4_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="We need to check how many calories are in the margherita pizza",
-                applicability_score=9,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="product_name",
@@ -1043,11 +1037,10 @@ example_4_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=True,
             ),
             ToolCallEvaluation(
                 applicability_rationale="We need to check how many calories are in the deep dish pizza",
-                applicability_score=9,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="product_name",
@@ -1069,7 +1062,6 @@ example_4_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=True,
             ),
         ],
     ),
@@ -1089,7 +1081,7 @@ example_5_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="we need to check for the price of a specific motorcycle model",
-                applicability_score=9,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="model",
@@ -1118,7 +1110,6 @@ example_5_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=True,
             )
         ],
     ),
@@ -1138,7 +1129,7 @@ example_6_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="we need to check for the price of a specific vehicle - a Harley-Davidson Street Glide",
-                applicability_score=8,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="model",
@@ -1164,7 +1155,6 @@ example_6_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
             )
         ],
     ),
@@ -1184,7 +1174,7 @@ example_7_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="need to check the current temperature in the living room",
-                applicability_score=8,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="location",
@@ -1210,7 +1200,6 @@ example_7_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
             )
         ],
     ),
@@ -1232,7 +1221,7 @@ example_8_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="need to search for a product with specific technical requirements",
-                applicability_score=6,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="query",
@@ -1259,7 +1248,6 @@ example_8_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
             )
         ],
     ),
@@ -1278,7 +1266,7 @@ example_9_shot = ToolCallerInferenceShot(
         tool_calls_for_candidate_tool=[
             ToolCallEvaluation(
                 applicability_rationale="The customer specifically wants to schedule an appointment, and there are no better reference tools",
-                applicability_score=10,
+                is_applicable=True,
                 argument_evaluations=[
                     ArgumentEvaluation(
                         parameter_name="date",
@@ -1296,7 +1284,120 @@ example_9_shot = ToolCallerInferenceShot(
                 are_optional_arguments_missing=False,
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
-                should_run=False,
+            )
+        ],
+    ),
+)
+
+example_10_shot = ToolCallerInferenceShot(
+    description="the candidate tool is check_products_availability(products: list[str])",
+    feature_set=[],
+    expected_result=ToolCallInferenceSchema(
+        last_customer_message="Hey can I buy a laptop and a mouse please?",
+        most_recent_customer_inquiry_or_need=(
+            "The customer wants to purchase a laptop and a mouse and we need to check if those products are available"
+        ),
+        most_recent_customer_inquiry_or_need_was_already_resolved=False,
+        name="check_products_availability",
+        subtleties_to_be_aware_of="Before the customer can make a purchase, we need to check the availability of laptops and mice. The 'products' parameter is a list, so the tool should be called once with both products in the list.",
+        tool_calls_for_candidate_tool=[
+            ToolCallEvaluation(
+                applicability_rationale="The tool is applicable because the customer is inquiring about purchasing specific products and the tool checks the availability of a list of products.",
+                is_applicable=True,
+                argument_evaluations=[
+                    ArgumentEvaluation(
+                        parameter_name="products",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="Yes, the product names 'laptop' and 'mouse' were provided in the customer's message so should be passed as list.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It was provided in customer's message and should not be provided again.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing product names can result in incorrect availability checks.",
+                        is_missing=False,
+                        is_optional=False,
+                        value_as_string='["laptop", "mouse"]',
+                    )
+                ],
+                same_call_is_already_staged=False,
+                relevant_subtleties="We should run this tool.",
+                comparison_with_rejected_tools_including_references_to_subtleties="There are no tools in the list of rejected tools",
+                a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                are_optional_arguments_missing=False,
+                are_non_optional_arguments_missing=False,
+                allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
+            )
+        ],
+    ),
+)
+
+example_11_shot = ToolCallerInferenceShot(
+    description="the candidate tool is book_flight(passenger_name: str, origin: str, destination: str, departure_date: str, return_date:str)",
+    feature_set=[],
+    expected_result=ToolCallInferenceSchema(
+        last_customer_message="Hey can I book a flight to Bangkok?",
+        most_recent_customer_inquiry_or_need=("The customer wants to book a flight to Bangkok"),
+        most_recent_customer_inquiry_or_need_was_already_resolved=False,
+        name="book_flight",
+        subtleties_to_be_aware_of="The customer clearly wants to book a flight but has not provided many of the required details for booking like origin anf departure date.",
+        tool_calls_for_candidate_tool=[
+            ToolCallEvaluation(
+                applicability_rationale="The customer explicitly asked to book a flight and mentioned the destination. Although multiple required details are missing, the customer's intent is clear, so this tool should be applied.",
+                is_applicable=True,
+                argument_evaluations=[
+                    ArgumentEvaluation(
+                        parameter_name="passenger_name",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer has not provided a name and there is no prior context.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, using an incorrect or placeholder name could result in booking errors.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="origin",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention the departure location.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the origin can result in incorrect flight details.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="destination",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer specifically mentioned Bangkok.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, it was included in the customer's message and should not be asked again.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the destination could lead to incorrect booking",
+                        is_missing=False,
+                        is_optional=False,
+                        value_as_string="Bangkok",
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="departure_date",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a departure date.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing a date could lead to incorrect or undesired bookings.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="return_date",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a return date.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, assuming a return date can misrepresent the customer's intent",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                ],
+                same_call_is_already_staged=False,
+                relevant_subtleties="We should run this tool as it aligns with customer's inquiry while requesting the necessary missing booking information.",
+                are_optional_arguments_missing=False,
+                are_non_optional_arguments_missing=True,
+                allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
             )
         ],
     ),
@@ -1312,6 +1413,7 @@ _baseline_shots: Sequence[ToolCallerInferenceShot] = [
     example_7_shot,
     example_8_shot,
     example_9_shot,
+    example_10_shot,
 ]
 
 
