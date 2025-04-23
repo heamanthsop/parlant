@@ -1328,6 +1328,81 @@ example_10_shot = ToolCallerInferenceShot(
     ),
 )
 
+example_11_shot = ToolCallerInferenceShot(
+    description="the candidate tool is book_flight(passenger_name: str, origin: str, destination: str, departure_date: str, return_date:str)",
+    feature_set=[],
+    expected_result=ToolCallInferenceSchema(
+        last_customer_message="Hey can I book a flight to Bangkok?",
+        most_recent_customer_inquiry_or_need=("The customer wants to book a flight to Bangkok"),
+        most_recent_customer_inquiry_or_need_was_already_resolved=False,
+        name="book_flight",
+        subtleties_to_be_aware_of="The customer clearly wants to book a flight but has not provided many of the required details for booking like origin anf departure date.",
+        tool_calls_for_candidate_tool=[
+            ToolCallEvaluation(
+                applicability_rationale="The customer explicitly asked to book a flight and mentioned the destination. Although multiple required details are missing, the customer's intent is clear, so this tool should be applied.",
+                is_applicable=True,
+                argument_evaluations=[
+                    ArgumentEvaluation(
+                        parameter_name="passenger_name",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer has not provided a name and there is no prior context.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, using an incorrect or placeholder name could result in booking errors.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="origin",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention the departure location.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the origin can result in incorrect flight details.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="destination",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer specifically mentioned Bangkok.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, it was included in the customer's message and should not be asked again.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the destination could lead to incorrect booking",
+                        is_missing=False,
+                        is_optional=False,
+                        value_as_string="Bangkok",
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="departure_date",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a departure date.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing a date could lead to incorrect or undesired bookings.",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="return_date",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a return date.",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, assuming a return date can misrepresent the customer's intent",
+                        is_missing=True,
+                        is_optional=False,
+                        value_as_string=None,
+                    ),
+                ],
+                same_call_is_already_staged=False,
+                relevant_subtleties="We should run this tool as it aligns with customer's inquiry while requesting the necessary missing booking information.",
+                are_optional_arguments_missing=False,
+                are_non_optional_arguments_missing=True,
+                allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
+            )
+        ],
+    ),
+)
+
 _baseline_shots: Sequence[ToolCallerInferenceShot] = [
     example_1_shot,
     example_2_shot,
