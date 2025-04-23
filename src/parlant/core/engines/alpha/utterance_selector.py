@@ -148,6 +148,7 @@ class StandardFieldExtraction(UtteranceFieldExtractionMethod):
                 variable.name: value.data for variable, value in context.context_variables
             },
             "missing_params": self._extract_missing_params(context.tool_insights),
+            "invalid_params": self._extract_invalid_params(context.tool_insights),
         }
 
     def _extract_missing_params(
@@ -155,6 +156,12 @@ class StandardFieldExtraction(UtteranceFieldExtractionMethod):
         tool_insights: ToolInsights,
     ) -> list[str]:
         return [missing_data.parameter for missing_data in tool_insights.missing_data]
+
+    def _extract_invalid_params(
+        self,
+        tool_insights: ToolInsights,
+    ) -> list[str]:
+        return [invalid_data.parameter for invalid_data in tool_insights.invalid_data]
 
 
 class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
@@ -749,6 +756,34 @@ If it makes sense in the current state of the interaction, you may choose to inf
                         ]
                     ),
                     "missing_data": tool_insights.missing_data,
+                },
+            )
+
+        if tool_insights.invalid_data:
+            builder.add_section(
+                name="utterance-selector-invalid-data-for-tools",
+                template="""
+INVALID DATA FOR TOOL CALLS:
+-------------------------------------
+The following is a description of invalid data that has been deemed necessary
+in order to run tools. The tools would have run, if they only had this data available.
+You should inform the user about this invalid data: ###
+{formatted_invalid_data}
+###
+""",
+                props={
+                    "formatted_invalid_data": json.dumps(
+                        [
+                            {
+                                "datum_name": d.parameter,
+                                **({"description": d.description} if d.description else {}),
+                                **({"significance": d.significance} if d.significance else {}),
+                                **({"examples": d.examples} if d.examples else {}),
+                            }
+                            for d in tool_insights.invalid_data
+                        ]
+                    ),
+                    "invalid_data": tool_insights.invalid_data,
                 },
             )
 

@@ -740,7 +740,7 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
     tool_caller = container[ToolCaller]
 
     async def destination_choices() -> list[str]:
-        return "London", "Tokyo", "Reykjavik"
+        return ["London", "Tokyo", "Reykjavik"]
 
     @tool
     def book_flight(
@@ -749,7 +749,7 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
         passenger_id: int,
     ) -> ToolResult:
         return ToolResult(
-            {f"Successfully booked flight to {destination} for passenger {passenger_id}"}
+            {"message": f"Successfully booked flight to {destination} for passenger {passenger_id}"}
         )
 
     conversation_context = [
@@ -822,7 +822,7 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
         passenger_id: int,
     ) -> ToolResult:
         return ToolResult(
-            {f"Successfully booked flight to {destination} for passenger {passenger_id}"}
+            {"message": f"Successfully booked flight to {destination} for passenger {passenger_id}"}
         )
 
     conversation_context = [

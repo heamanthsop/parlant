@@ -242,7 +242,8 @@ class AlphaEngine(Engine):
 
             # Filter missing and invalid tool parameters jointly
             problematic_data = await self._filter_problematic_tool_parameters(
-                context.state.tool_insights.missing_data + context.state.tool_insights.invalid_data
+                list(context.state.tool_insights.missing_data)
+                + list(context.state.tool_insights.invalid_data)
             )
             context.state.tool_insights = ToolInsights(
                 missing_data=[p for p in problematic_data if isinstance(p, MissingToolData)],
