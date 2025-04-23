@@ -825,6 +825,7 @@ class PluginClient(ToolService):
             parameters=self._translate_parameters(t["parameters"]),
             required=t["required"],
             consequential=t["consequential"],
+            overlap=t["overlap"],
         )
 
     @override

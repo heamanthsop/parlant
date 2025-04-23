@@ -150,90 +150,68 @@ class ToolCaller:
         tool_context: ToolContext,
     ) -> ToolCallInferenceResult:
         with self._logger.scope("ToolCaller"):
-            return await self._do_infer_tool_calls(
-                agent,
-                context_variables,
-                interaction_history,
-                terms,
-                ordinary_guideline_matches,
-                tool_enabled_guideline_matches,
-                staged_events,
-                tool_context,
-            )
+            if not tool_enabled_guideline_matches:
+                return ToolCallInferenceResult(
+                    total_duration=0.0,
+                    batch_count=0,
+                    batch_generations=[],
+                    batches=[],
+                    insights=ToolInsights(),
+                )
 
-    async def _do_infer_tool_calls(
-        self,
-        agent: Agent,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EmittedEvent],
-        tool_context: ToolContext,
-    ) -> ToolCallInferenceResult:
-        if not tool_enabled_guideline_matches:
-            return ToolCallInferenceResult(
-                total_duration=0.0,
-                batch_count=0,
-                batch_generations=[],
-                batches=[],
-                insights=ToolInsights(),
-            )
+            t_start = time.time()
 
-        t_start = time.time()
+            tools: list[tuple[ToolId, Tool]] = []
+            services: dict[str, ToolService] = {}
 
-        tools: list[tuple[ToolId, Tool]] = []
-        services: dict[str, ToolService] = {}
+            for guideline_match, tool_ids in tool_enabled_guideline_matches.items():
+                for tool_id in tool_ids:
+                    if tool_id.service_name not in services:
+                        services[
+                            tool_id.service_name
+                        ] = await self._service_registry.read_tool_service(tool_id.service_name)
 
-        for guideline_match, tool_ids in tool_enabled_guideline_matches.items():
-            for tool_id in tool_ids:
-                if tool_id.service_name not in services:
-                    services[tool_id.service_name] = await self._service_registry.read_tool_service(
-                        tool_id.service_name
+                    tool = await services[tool_id.service_name].resolve_tool(
+                        tool_id.tool_name, tool_context
                     )
 
-                tool = await services[tool_id.service_name].resolve_tool(
-                    tool_id.tool_name, tool_context
-                )
+                    tools.append((tool_id, tool))
 
-                tools.append((tool_id, tool))
+            with self._logger.scope("ToolCaller"):
+                with self._logger.operation("Creating batches"):
+                    batches = await self.strategy_resolver.create_batches(
+                        tools=tools,
+                        context=ToolCallContext(
+                            agent=agent,
+                            services=services,
+                            context_variables=context_variables,
+                            interaction_history=interaction_history,
+                            terms=terms,
+                            ordinary_guideline_matches=ordinary_guideline_matches,
+                            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+                            staged_events=staged_events,
+                        ),
+                    )
 
-        with self._logger.scope("ToolCaller"):
-            with self._logger.operation("Creating batches"):
-                batches = await self.strategy_resolver.create_batches(
-                    tools=tools,
-                    context=ToolCallContext(
-                        agent=agent,
-                        services=services,
-                        context_variables=context_variables,
-                        interaction_history=interaction_history,
-                        terms=terms,
-                        ordinary_guideline_matches=ordinary_guideline_matches,
-                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                        staged_events=staged_events,
-                    ),
-                )
+                with self._logger.operation("Processing batches"):
+                    batch_tasks = [batch.process() for batch in batches]
+                    batch_results = await async_utils.safe_gather(*batch_tasks)
 
-            with self._logger.operation("Processing batches"):
-                batch_tasks = [batch.process() for batch in batches]
-                batch_results = await async_utils.safe_gather(*batch_tasks)
+            t_end = time.time()
 
-        t_end = time.time()
+            # Aggregate insights from all batch results (e.g., missing data across strategies)
+            aggregated_missing_data: list[MissingToolData] = []
+            for result in batch_results:
+                if result.insights and result.insights.missing_data:
+                    aggregated_missing_data.extend(result.insights.missing_data)
 
-        # Aggregate insights from all batch results (e.g., missing data across strategies)
-        aggregated_missing_data: list[MissingToolData] = []
-        for result in batch_results:
-            if result.insights and result.insights.missing_data:
-                aggregated_missing_data.extend(result.insights.missing_data)
-
-        return ToolCallInferenceResult(
-            total_duration=t_end - t_start,
-            batch_count=len(batches),
-            batch_generations=[result.generation_info for result in batch_results],
-            batches=[result.tool_calls for result in batch_results],
-            insights=ToolInsights(missing_data=aggregated_missing_data),
-        )
+            return ToolCallInferenceResult(
+                total_duration=t_end - t_start,
+                batch_count=len(batches),
+                batch_generations=[result.generation_info for result in batch_results],
+                batches=[result.tool_calls for result in batch_results],
+                insights=ToolInsights(missing_data=aggregated_missing_data),
+            )
 
     async def _run_tool(
         self,

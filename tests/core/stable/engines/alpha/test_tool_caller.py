@@ -856,6 +856,7 @@ async def test_that_tool_calling_strategies_can_be_overridden(
         ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
         staged_events=[],
+        tool_context=await tool_context(container, agent),
     )
 
     all_tool_ids = {tc.tool_id.to_string() for tc in chain.from_iterable(res.batches)}
