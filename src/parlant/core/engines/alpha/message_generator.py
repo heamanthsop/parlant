@@ -27,7 +27,11 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
     MessageEventComposition,
 )
-from parlant.core.engines.alpha.tool_calling.tool_caller import MissingToolData, ToolInsights
+from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    MissingToolData,
+    ToolInsights,
+    InvalidToolData,
+)
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
@@ -512,7 +516,7 @@ INTERACTION CONTEXT
 MISSING DATA FOR TOOL REQUIRED CALLS:
 -------------------------------------
 The following is a description of missing data that has been deemed necessary
-in order to run tools. The tools would have run, if they only had this data available.
+in order to run tools. The tools would have run, if they only had this data available and the rest of the data was valid.
 If it makes sense in the current state of the interaction, you may choose to inform the user about this missing data: ###
 {formatted_missing_data}
 ###
@@ -521,6 +525,25 @@ If it makes sense in the current state of the interaction, you may choose to inf
                 props={
                     "formatted_missing_data": self._format_missing_data(tool_insights.missing_data),
                     "missing_data": tool_insights.missing_data,
+                },
+            )
+
+        if tool_insights.invalid_data:
+            builder.add_section(
+                name="message-generator-invalid-data-for-tools",
+                template="""
+INVALID DATA FOR TOOL REQUIRED CALLS:
+-------------------------------------
+The following is a description of data that has been provided but are not valid values for their tool parameters in order to run tools.
+The tools would have run, if they only had this data available and there was no missing data.
+You should inform the user about this invalid data: ###
+{formatted_invalid_data}
+###
+
+""",
+                props={
+                    "formatted_invalid_data": self._format_invalid_data(tool_insights.invalid_data),
+                    "invalid_data": tool_insights.invalid_data,
                 },
             )
 
@@ -559,6 +582,19 @@ Produce a valid JSON object in the following format: ###
                     **({"examples": d.examples} if d.examples else {}),
                 }
                 for d in missing_data
+            ]
+        )
+
+    def _format_invalid_data(self, invalid_data: Sequence[InvalidToolData]) -> str:
+        return json.dumps(
+            [
+                {
+                    "datum_name": d.parameter,
+                    **({"description": d.description} if d.description else {}),
+                    **({"significance": d.significance} if d.significance else {}),
+                    **({"examples": d.examples} if d.examples else {}),
+                }
+                for d in invalid_data
             ]
         )
 

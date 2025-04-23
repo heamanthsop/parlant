@@ -12,6 +12,7 @@ from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
     MissingToolData,
+    InvalidToolData,
     ToolCall,
     ToolCallBatch,
     ToolCallBatchResult,
@@ -119,6 +120,20 @@ class SingleToolBatch(ToolCallBatch):
             insights=ToolInsights(missing_data=missing_data),
         )
 
+    async def _validate_argument_value(
+        self,
+        parameter: tuple[ToolParameterDescriptor, ToolParameterOptions],
+        value: str,
+    ) -> bool:
+        """Currently validate only parameters with enum values"""
+        descriptor = parameter[0]
+        if "enum" in descriptor:
+            if descriptor["type"] == "string":
+                return value in descriptor["enum"]
+            if descriptor["type"] == "array":
+                return all(v in descriptor["enum"] for v in json.loads(value))
+        return True
+
     async def _infer_calls_for_single_tool(
         self,
         agent: Agent,
@@ -129,7 +144,7 @@ class SingleToolBatch(ToolCallBatch):
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
-    ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
+    ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData], list[InvalidToolData]]:
         inference_prompt = self._build_tool_call_inference_prompt(
             agent,
             context_variables,
@@ -149,22 +164,43 @@ class SingleToolBatch(ToolCallBatch):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
         # Evaluate the tool calls
-        tool_calls, missing_data = await self._evaluate_tool_calls(
+        tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls_parameters(
             inference_output, candidate_descriptor
         )
 
-        return generation_info, tool_calls, missing_data
+        return generation_info, tool_calls, missing_data, invalid_data
 
     async def _evaluate_tool_calls(
         self,
         inference_output: Sequence[SingleToolBatchToolCallEvaluation],
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
-    ) -> tuple[list[ToolCall], list[MissingToolData]]:
+    ) -> tuple[list[ToolCall], list[MissingToolData], list[InvalidToolData]]:
         tool_calls = []
         missing_data = []
+        invalid_data = []
         tool_id, tool, _ = candidate_descriptor
 
         for tc in inference_output:
+            # First - check validity of all parameters with provided values
+            all_values_valid = True
+            for evaluation in tc.argument_evaluations or []:
+                descriptor, options = tool.parameters[evaluation.parameter_name]
+
+                if evaluation.value_as_string and not await self._validate_argument_value(
+                    tool.parameters[evaluation.parameter_name],
+                    evaluation.value_as_string,
+                ):
+                    all_values_valid = False
+                    if not options.hidden:
+                        invalid_data.append(
+                            InvalidToolData(
+                                parameter=options.display_name or evaluation.parameter_name,
+                                significance=options.significance,
+                                description=descriptor.get("description"),
+                                precedence=options.precedence,
+                            )
+                        )
+
             if (
                 tc.is_applicable
                 and not tc.same_call_is_already_staged
@@ -176,7 +212,7 @@ class SingleToolBatch(ToolCallBatch):
                 if all(
                     not evaluation.is_missing
                     for evaluation in tc.argument_evaluations or []
-                    if evaluation.parameter_name in candidate_descriptor[1].required
+                    if evaluation.parameter_name in tool.required
                 ):
                     self._logger.debug(
                         f"Inference::Completion::Activated: {tool.name}:\n{tc.model_dump_json(indent=2)}"
@@ -192,13 +228,14 @@ class SingleToolBatch(ToolCallBatch):
                             # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
                             arguments[evaluation.parameter_name] = evaluation.value_as_string
 
-                    tool_calls.append(
-                        ToolCall(
-                            id=ToolCallId(generate_id()),
-                            tool_id=tool_id,
-                            arguments=arguments,
+                    if all_values_valid:
+                        tool_calls.append(
+                            ToolCall(
+                                id=ToolCallId(generate_id()),
+                                tool_id=tool_id,
+                                arguments=arguments,
+                            )
                         )
-                    )
                 else:
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.parameter_name not in tool.parameters:
@@ -214,15 +251,19 @@ class SingleToolBatch(ToolCallBatch):
                             and not evaluation.is_optional
                             and not tool_options.hidden
                         ):
-                            missing_data.append(
-                                MissingToolData(
-                                    parameter=tool_options.display_name
-                                    or evaluation.parameter_name,
-                                    significance=tool_options.significance,
-                                    description=tool_descriptor.get("description"),
-                                    precedence=tool_options.precedence,
+                            # Note that a parameter may have an invalid value and it is also marked as missing
+                            disp = tool_options.display_name or evaluation.parameter_name
+                            if not evaluation.value_as_string or disp not in [
+                                p.parameter for p in invalid_data
+                            ]:
+                                missing_data.append(
+                                    MissingToolData(
+                                        parameter=disp,
+                                        significance=tool_options.significance,
+                                        description=tool_descriptor.get("description"),
+                                        precedence=tool_options.precedence,
+                                    )
                                 )
-                            )
 
                     self._logger.debug(
                         f"Inference::Completion::Skipped: Missing arguments for {tool.name}\n{tc.model_dump_json(indent=2)}"
@@ -233,7 +274,7 @@ class SingleToolBatch(ToolCallBatch):
                     f"Inference::Completion::Skipped: {tool.name}\n{tc.model_dump_json(indent=2)}"
                 )
 
-        return tool_calls, missing_data
+        return tool_calls, missing_data, invalid_data
 
     def _get_shot_collection_for_tools(
         self, shots: Sequence[SingleToolBatchShot], has_reference_tools: bool

@@ -797,9 +797,10 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
-    insights = list(chain.from_iterable(inference_tool_calls_result.insights))
     assert len(tool_calls) == 0 or tool_calls[0] == []
-    assert len(insights) == 2
+    insights = inference_tool_calls_result.insights
+    assert len(insights.missing_data) == 1 and insights.missing_data[0].parameter == "passenger_id"
+    assert len(insights.invalid_data) == 1 and insights.invalid_data[0].parameter == "destination"
 
 
 async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_parameter_interacts_correctly(
@@ -872,9 +873,10 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
-    insights = list(chain.from_iterable(inference_tool_calls_result.insights))
+    insights = inference_tool_calls_result.insights
     assert len(tool_calls) == 0 or tool_calls[0] == []
-    assert len(insights) == 2
+    assert len(insights.missing_data) == 1 and insights.missing_data[0].parameter == "passenger_id"
+    assert len(insights.invalid_data) == 1 and insights.invalid_data[0].parameter == "destination"
 
 
 async def test_that_tool_calling_batchers_can_be_overridden(

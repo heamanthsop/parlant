@@ -33,7 +33,12 @@ from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
-from parlant.core.engines.alpha.tool_calling.tool_caller import MissingToolData, ToolInsights
+from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    MissingToolData,
+    ToolInsights,
+    InvalidToolData,
+    ProblematicToolData,
+)
 from parlant.core.engines.alpha.utterance_selector import UtteranceSelector
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
@@ -235,11 +240,13 @@ class AlphaEngine(Engine):
             if not await self._hooks.call_on_generating_messages(context):
                 return
 
-            # Filter missing tool parameters
+            # Filter missing and invalid tool parameters jointly
+            problematic_data = await self._filter_problematic_tool_parameters(
+                context.state.tool_insights.missing_data + context.state.tool_insights.invalid_data
+            )
             context.state.tool_insights = ToolInsights(
-                missing_data=await self._filter_missing_tool_parameters(
-                    context.state.tool_insights.missing_data
-                )
+                missing_data=[p for p in problematic_data if isinstance(p, MissingToolData)],
+                invalid_data=[p for p in problematic_data if isinstance(p, InvalidToolData)],
             )
 
             # Money time: communicate with the customer given
@@ -807,15 +814,17 @@ class AlphaEngine(Engine):
             key=key,
         )
 
-    async def _filter_missing_tool_parameters(
-        self, missing_parameters: Sequence[MissingToolData]
-    ) -> Sequence[MissingToolData]:
-        precedence_values = [m.precedence for m in missing_parameters if m.precedence is not None]
+    async def _filter_problematic_tool_parameters(
+        self, problematic_parameters: Sequence[ProblematicToolData]
+    ) -> Sequence[ProblematicToolData]:
+        precedence_values = [
+            m.precedence for m in problematic_parameters if m.precedence is not None
+        ]
 
         if precedence_values == []:
-            return missing_parameters
+            return problematic_parameters
 
-        return [m for m in missing_parameters if m.precedence == min(precedence_values)]
+        return [m for m in problematic_parameters if m.precedence == min(precedence_values)]
 
 
 # This is module-level and public for isolated testability purposes.
