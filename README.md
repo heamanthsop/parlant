@@ -131,7 +131,6 @@ Hence Parlant's fundamentally different approach to agent building: [Managed Gui
 
 ```bash
 $ parlant guideline create \
-    --agent-id MY_AGENT_ID \
     --condition "the customer wants to return an item" \
     --action "get the order number and item name and then help them return it"
 ```
