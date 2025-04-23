@@ -234,10 +234,12 @@ class MessageGenerator(MessageEventComposer):
                         data=response_message,
                     )
 
-                    return [MessageEventComposition(generation_info, [event])]
+                    return [
+                        MessageEventComposition({"message_generation": generation_info}, [event])
+                    ]
                 else:
                     self._logger.debug("Skipping response; no response deemed necessary")
-                    return [MessageEventComposition(generation_info, [])]
+                    return [MessageEventComposition({"message_generation": generation_info}, [])]
             except Exception as exc:
                 self._logger.warning(
                     f"Generation attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
@@ -332,7 +334,7 @@ Do not disregard a guideline because you believe its 'when' condition or rationa
 GENERAL INSTRUCTIONS
 -----------------
 You are an AI agent who is part of a system that interacts with a user. The current state of this interaction will be provided to you later in this message.
-You role is to generate a reply message to the current (latest) state of the interaction, based on provided guidelines and background information.
+Your role is to generate a reply message to the current (latest) state of the interaction, based on provided guidelines and background information.
 
 Later in this prompt, you'll be provided with behavioral guidelines and other contextual information you must take into account when generating your response.
 

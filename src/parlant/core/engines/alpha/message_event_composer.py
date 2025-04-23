@@ -30,7 +30,7 @@ from parlant.core.nlp.generation_info import GenerationInfo
 
 @dataclass(frozen=True)
 class MessageEventComposition:
-    generation_info: GenerationInfo
+    generation_info: Mapping[str, GenerationInfo]
     events: Sequence[Optional[EmittedEvent]]
 
 

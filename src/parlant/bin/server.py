@@ -40,10 +40,11 @@ from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.utterance_selector import (
+    UtteranceDraftSchema,
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
     UtteranceSelectionSchema,
-    UtteranceCompositionSchema,
+    UtteranceRevisionSchema,
     UtteranceSelector,
 )
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
@@ -452,11 +453,14 @@ async def initialize_container(
         SchematicGenerator[GenericGuidelineMatchesSchema]
     ] = await nlp_service.get_schematic_generator(GenericGuidelineMatchesSchema)
     c[SchematicGenerator[MessageSchema]] = await nlp_service.get_schematic_generator(MessageSchema)
+    c[SchematicGenerator[UtteranceDraftSchema]] = await nlp_service.get_schematic_generator(
+        UtteranceDraftSchema
+    )
     c[SchematicGenerator[UtteranceSelectionSchema]] = await nlp_service.get_schematic_generator(
         UtteranceSelectionSchema
     )
-    c[SchematicGenerator[UtteranceCompositionSchema]] = await nlp_service.get_schematic_generator(
-        UtteranceCompositionSchema
+    c[SchematicGenerator[UtteranceRevisionSchema]] = await nlp_service.get_schematic_generator(
+        UtteranceRevisionSchema
     )
     c[
         SchematicGenerator[UtteranceFieldExtractionSchema]

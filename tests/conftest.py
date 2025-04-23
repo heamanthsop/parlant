@@ -38,11 +38,12 @@ from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.utterance_selector import (
+    UtteranceDraftSchema,
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
     UtteranceSelector,
     UtteranceSelectionSchema,
-    UtteranceCompositionSchema,
+    UtteranceRevisionSchema,
 )
 from parlant.core.evaluations import (
     EvaluationListener,
@@ -278,8 +279,9 @@ async def container(
         for generation_schema in (
             GenericGuidelineMatchesSchema,
             MessageSchema,
+            UtteranceDraftSchema,
             UtteranceSelectionSchema,
-            UtteranceCompositionSchema,
+            UtteranceRevisionSchema,
             UtteranceFieldExtractionSchema,
             ToolCallInferenceSchema,
             ConditionsEntailmentTestsSchema,
@@ -371,6 +373,15 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
+        container[SchematicGenerator[UtteranceDraftSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[UtteranceDraftSchema],
+            container[SchematicGenerator[UtteranceDraftSchema]],
+        ).use_cache = False
+
+    if isinstance(
         container[SchematicGenerator[UtteranceSelectionSchema]],
         CachedSchematicGenerator,
     ):
@@ -380,12 +391,12 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceCompositionSchema]],
+        container[SchematicGenerator[UtteranceRevisionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceCompositionSchema],
-            container[SchematicGenerator[UtteranceCompositionSchema]],
+            CachedSchematicGenerator[UtteranceRevisionSchema],
+            container[SchematicGenerator[UtteranceRevisionSchema]],
         ).use_cache = False
 
     if isinstance(

@@ -318,12 +318,14 @@ class ToolCaller:
                     )
 
                     arguments = {}
-                    for evaluation in tc.argument_evaluations or []:
-                        if evaluation.is_missing:
-                            continue
 
-                        # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
-                        arguments[evaluation.parameter_name] = evaluation.value_as_string
+                    if tool.parameters:  # We check this because sometimes LLMs hallucinate placeholders for no-param tools
+                        for evaluation in tc.argument_evaluations or []:
+                            if evaluation.is_missing:
+                                continue
+
+                            # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
+                            arguments[evaluation.parameter_name] = evaluation.value_as_string
 
                     tool_calls.append(
                         ToolCall(
@@ -483,7 +485,7 @@ TASK DESCRIPTION
 Your task is to review the provided tool and, based on your most recent interaction with the customer, decide whether it is applicable.
 Indicate the tool applicability with a boolean value: true if the tool is useful at this point, or false if it is not.
 For any tool marked as true, include the available arguments for activation.
-Note that a tool may be considered applicable even if not all of its required arguments are available. In such cases, provide the parameters that are currently available, 
+Note that a tool may be considered applicable even if not all of its required arguments are available. In such cases, provide the parameters that are currently available,
 following the format specified in its description.
 
 While doing so, take the following instructions into account:
@@ -616,7 +618,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
         result = """{{
             "applicability_rationale": "<A FEW WORDS THAT EXPLAIN WHETHER, HOW, AND TO WHAT EXTENT THE TOOL NEEDS TO BE CALLED AT THIS POINT>",
             "is_applicable": <BOOL>,"""
-        result += """    
+        result += """
             "argument_evaluations": [
                 {
                     "parameter_name": "<PARAMETER NAME>",

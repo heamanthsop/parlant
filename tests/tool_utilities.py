@@ -247,7 +247,7 @@ def get_bookings(customer_id: str) -> ToolResult:
 
 def get_qualification_info() -> ToolResult:
     return ToolResult(
-        data={},
+        data={"qualification_info": "5+ years of experience"},
         utterance_fields={"qualification_info": "5+ years of experience"},
     )
 
