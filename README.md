@@ -130,9 +130,9 @@ Parlant's engine revolves around solving one key problem: How can we _reliably g
 Hence Parlant's fundamentally different approach to agent building: [Managed Guidelines](https://www.parlant.io/docs/concepts/customization/guidelines):
 
 ```bash
-$ parlant guideline create \
-    --condition "the customer wants to return an item" \
-    --action "get the order number and item name and then help them return it"
+parlant guideline create \
+  --condition "the customer wants to return an item" \
+  --action "get the order number and item name and then help them return it"
 ```
 
 By giving structure to behavioral guidelines, and _granularizing_ guidelines (i.e. making each behavioral guideline a first-class entity in the engine), Parlant's engine is able to offer unprecedented control, quality, and efficiency in building LLM-based agents:
