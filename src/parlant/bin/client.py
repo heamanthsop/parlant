@@ -3644,7 +3644,6 @@ async def async_main() -> None:
             "utterances": [
                 {
                     "value": "Hello, {{username}}!",
-                    "tags": [],
                 },
                 {
                     "value": "Your balance is {{balance}}",
