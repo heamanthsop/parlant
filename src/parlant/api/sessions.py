@@ -753,7 +753,7 @@ class MessageGenerationInspectionDTO(
 ):
     """Inspection data for message generation."""
 
-    generation: GenerationInfoDTO
+    generations: Mapping[str, GenerationInfoDTO]
     messages: Sequence[Optional[str]]
 
 
@@ -986,7 +986,9 @@ def message_generation_inspection_to_dto(
     m: MessageGenerationInspection,
 ) -> MessageGenerationInspectionDTO:
     return MessageGenerationInspectionDTO(
-        generation=generation_info_to_dto(m.generation),
+        generations={
+            name: generation_info_to_dto(generation) for name, generation in m.generations.items()
+        },
         messages=[message for message in m.messages if message is not None],
     )
 

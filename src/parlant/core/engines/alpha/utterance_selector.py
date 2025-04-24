@@ -59,31 +59,28 @@ from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
 from parlant.core.tools import ToolId
 
-DEFAULT_NO_MATCH_UTTERANCE = (
-    "Sorry, I couldn't hear you very well due to a hiccup. Could you please repeat that?"
-)
+DEFAULT_NO_MATCH_UTTERANCE = "Not sure I understand. Could you please say that another way?"
 
 
-class UtteranceChoice(DefaultBaseModel):
-    insights_about_the_user: Optional[str] = None
-    utterance_choice_reasoning: str
-    chosen_utterance: Optional[str] = None
-    chosen_utterance_id: Optional[str] = None
-
-
-class UtteranceSelectionSchema(DefaultBaseModel):
+class UtteranceDraftSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
     guidelines: list[str]
     insights: Optional[list[str]] = None
-    utterance_choice: Optional[UtteranceChoice] = None
+    message: Optional[str] = None
 
 
-class UtteranceCompositionSchema(DefaultBaseModel):
+class UtteranceSelectionSchema(DefaultBaseModel):
+    chosen_template_id: Optional[str] = None
+    match_quality: Optional[str] = None
+    rationale: Optional[str] = None
+
+
+class UtteranceRevisionSchema(DefaultBaseModel):
     revised_utterance: str
 
 
 @dataclass
-class UtteranceSelectorShot(Shot):
+class UtteranceSelectorDraftShot(Shot):
     composition_modes: list[CompositionMode]
     expected_result: UtteranceSelectionSchema
 
@@ -108,6 +105,8 @@ class UtteranceContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
+    ordinary_guideline_matches: Sequence[GuidelineMatch]
+    tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     tool_insights: ToolInsights
     staged_events: Sequence[EmittedEvent]
 
@@ -324,21 +323,25 @@ class UtteranceSelector(MessageEventComposer):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
+        utterance_draft_generator: SchematicGenerator[UtteranceDraftSchema],
         utterance_selection_generator: SchematicGenerator[UtteranceSelectionSchema],
-        utterance_composition_generator: SchematicGenerator[UtteranceCompositionSchema],
+        utterance_composition_generator: SchematicGenerator[UtteranceRevisionSchema],
         utterance_store: UtteranceStore,
         field_extractor: UtteranceFieldExtractor,
         message_generator: MessageGenerator,
     ) -> None:
         self._logger = logger
         self._correlator = correlator
+        self._utterance_draft_generator = utterance_draft_generator
         self._utterance_selection_generator = utterance_selection_generator
         self._utterance_composition_generator = utterance_composition_generator
         self._utterance_store = utterance_store
         self._field_extractor = field_extractor
         self._message_generator = message_generator
 
-    async def shots(self, composition_mode: CompositionMode) -> Sequence[UtteranceSelectorShot]:
+    async def shots(
+        self, composition_mode: CompositionMode
+    ) -> Sequence[UtteranceSelectorDraftShot]:
         shots = await shot_collection.list()
         supported_shots = [s for s in shots if composition_mode in s.composition_modes]
         return supported_shots
@@ -442,20 +445,6 @@ class UtteranceSelector(MessageEventComposer):
             self._logger.warning("No utterances found; skipping response")
             return []
 
-        prompt = self._build_prompt(
-            agent=agent,
-            context_variables=context_variables,
-            customer=customer,
-            interaction_history=interaction_history,
-            terms=terms,
-            ordinary_guideline_matches=ordinary_guideline_matches,
-            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            staged_events=staged_events,
-            tool_insights=tool_insights,
-            utterances=utterances,
-            shots=await self.shots(agent.composition_mode),
-        )
-
         last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
 
         await event_emitter.emit_status_event(
@@ -481,6 +470,8 @@ class UtteranceSelector(MessageEventComposer):
             context_variables=context_variables,
             interaction_history=interaction_history,
             terms=terms,
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             tool_insights=tool_insights,
             staged_events=staged_events,
         )
@@ -488,7 +479,6 @@ class UtteranceSelector(MessageEventComposer):
         for generation_attempt in range(3):
             try:
                 generation_info, assembly_result = await self._generate_utterance(
-                    prompt,
                     context,
                     utterances,
                     agent.composition_mode,
@@ -518,56 +508,6 @@ class UtteranceSelector(MessageEventComposer):
                 last_generation_exception = exc
 
         raise MessageCompositionError() from last_generation_exception
-
-    def _get_utterance_bank_text(
-        self,
-        utterances: Sequence[Utterance],
-    ) -> tuple[str, list[str]]:
-        template = """
-In formulating your reply, you must rely on the following bank of utterances.
-Each utterance contains content, which may or may not refer to "utterance fields" using curly braces.
-For example, in the utterance 'I can help you with {{something}}', there is one utterance field called 'something'.
-For your references, some utterance may include some examples for how to fill out their utterance fields properly—though you should not fill them yourself! This is only for reference to guide your utterance choice.
-
-Note: If you do not have utterances for fulfilling any instruction, you should at least try to
-explain to the user that cannot help (even if only because you don't have the necessary utterances).
-Only attempt to say something like this if you do at least have utterances in the bank that help
-you explain this situation (the very fact you cannot help). Otherwise, produce no reply (utterance_choice = null).
-
-UTTERANCE BANK:
---------------
-{rendered_utterances}
-"""
-
-        rendered_utterances = []
-
-        for utterance in utterances:
-            utterance_dict: dict[str, Any] = {
-                "utterance_id": utterance.id,
-                "value": utterance.value,
-            }
-
-            if utterance.fields:
-                utterance_dict["fields"] = {}
-
-                for field in utterance.fields:
-                    field_description = field.description
-
-                    if field.examples:
-                        examples = []
-
-                        for i, example in enumerate(field.examples, start=1):
-                            examples.append(f"{i}) {example}")
-
-                        field_description += f" -- Example Extractions (only use these for reference on how to properly extract values in the right format): {'; '.join(examples)}"
-
-                    utterance_dict["fields"][field.name] = field_description
-
-            rendered_utterances.append(str(utterance_dict))
-
-        template
-
-        return template, rendered_utterances
 
     def _get_guideline_matches_text(
         self,
@@ -609,7 +549,7 @@ Never disregard a guideline, even if you believe its 'when' condition or rationa
 
     def _format_shots(
         self,
-        shots: Sequence[UtteranceSelectorShot],
+        shots: Sequence[UtteranceSelectorDraftShot],
     ) -> str:
         return "\n".join(
             f"""
@@ -622,7 +562,7 @@ Example {i} - {shot.description}: ###
 
     def _format_shot(
         self,
-        shot: UtteranceSelectorShot,
+        shot: UtteranceSelectorDraftShot,
     ) -> str:
         return f"""
 - **Expected Result**:
@@ -630,7 +570,7 @@ Example {i} - {shot.description}: ###
 {json.dumps(shot.expected_result.model_dump(mode="json", exclude_unset=True), indent=2)}
 ```"""
 
-    def _build_prompt(
+    def _build_draft_prompt(
         self,
         agent: Agent,
         customer: Customer,
@@ -642,21 +582,19 @@ Example {i} - {shot.description}: ###
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         utterances: Sequence[Utterance],
-        shots: Sequence[UtteranceSelectorShot],
+        shots: Sequence[UtteranceSelectorDraftShot],
     ) -> PromptBuilder:
-        can_suggest_utterances = agent.composition_mode == CompositionMode.FLUID_UTTERANCE
-
         builder = PromptBuilder(
-            on_build=lambda prompt: self._logger.debug(f"Utterance Choice Prompt:\n{prompt}")
+            on_build=lambda prompt: self._logger.debug(f"Utterance Draft Prompt:\n{prompt}")
         )
 
         builder.add_section(
-            name="utterance-selector-general-instructions",
+            name="utterance-selector-draft-general-instructions",
             template="""
 GENERAL INSTRUCTIONS
 -----------------
 You are an AI agent who is part of a system that interacts with a user. The current state of this interaction will be provided to you later in this message.
-You role is to generate a reply message to the current (latest) state of the interaction, based on provided guidelines, background information, and user-provided information.
+Your role is to generate a reply message to the current (latest) state of the interaction, based on provided guidelines, background information, and user-provided information.
 
 Later in this prompt, you'll be provided with behavioral guidelines and other contextual information you must take into account when generating your response.
 
@@ -665,8 +603,9 @@ Later in this prompt, you'll be provided with behavioral guidelines and other co
         )
 
         builder.add_agent_identity(agent)
+        builder.add_customer_identity(customer)
         builder.add_section(
-            name="utterance-selector-task-description",
+            name="utterance-selector-draft-task-description",
             template="""
 TASK DESCRIPTION:
 -----------------
@@ -684,7 +623,7 @@ Always abide by the following general principles (note these are not the "guidel
             [event.kind != EventKind.MESSAGE for event in interaction_history]
         ):
             builder.add_section(
-                name="utterance-selector-initial-message-instructions",
+                name="utterance-selector-draft-initial-message-instructions",
                 template="""
 The interaction with the user has just began, and no messages were sent by either party.
 If told so by a guideline or some other contextual condition, send the first message. Otherwise, do not produce a reply (utterance is null).
@@ -693,7 +632,7 @@ If you decide not to emit a message, output the following:
     "last_message_of_user": "<user's last message>",
     "guidelines": [<list of strings- a re-statement of all guidelines>],
     "insights": [<list of strings- up to 3 original insights>],
-    "utterance_choice": null
+    "message": null
 }}
 Otherwise, follow the rest of this prompt to choose the content of your response.
         """,
@@ -702,44 +641,32 @@ Otherwise, follow the rest of this prompt to choose the content of your response
 
         else:
             builder.add_section(
-                name="utterance-selector-ongoing-interaction-instructions",
+                name="utterance-selector-draft-ongoing-interaction-instructions",
                 template="""
 Since the interaction with the user is already ongoing, always produce a reply to the user's last message.
-The only exception where you may not produce a reply (i.e., setting utterance_choice = null) is if the user explicitly asked you not to respond to their message.
+The only exception where you may not produce a reply (i.e., setting message = null) is if the user explicitly asked you not to respond to their message.
 In all other cases, even if the user is indicating that the conversation is over, you must produce a reply.
                 """,
                 props={},
             )
 
-        if can_suggest_utterances:
-            utterance_instruction = """
-Prefer to use an utterance from the bank in generating the revision's content.
-If no viable utterances exist in the bank, you may suggest a new utterance.
-For new suggested utterances, use the special ID "<auto>".
-"""
-        else:
-            utterance_instruction = "You can ONLY USE UTTERANCES FROM THE UTTERANCE BANK when choosing an utterance to respond with."
-
         builder.add_section(
-            name="utterance-selector-revision-mechanism",
+            name="utterance-selector-draft-revision-mechanism",
             template="""
-REVISION MECHANISM
------------------
+RESPONSE MECHANISM
+------------------
 To craft an optimal response, ensure alignment with all provided guidelines based on the latest interaction state.
-Choose an utterance based on which one complies to the largest degree with the outlined guidelines and the instructions in this prompt.
 
-Before choosing an utterance, identify up to three key insights based on this prompt and the ongoing conversation.
+Before choosing your response, identify up to three key insights based on this prompt and the ongoing conversation.
 These insights should include relevant user requests, applicable principles from this prompt, or conclusions drawn from the interaction.
 Ensure to include any user request as an insight, whether it's explicit or implicit.
 Do not add insights unless you believe that they are absolutely necessary. Prefer suggesting fewer insights, if at all.
-
-How to use utterances: {utterance_instruction}
 
 The final output must be a JSON document detailing the message development process, including insights to abide by,
 
 
 PRIORITIZING INSTRUCTIONS (GUIDELINES VS. INSIGHTS)
------------------
+---------------------------------------------------
 Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization, based on:
     - Conflicts with a higher-priority guideline (according to their priority scores).
     - Contradictions with a user request.
@@ -758,10 +685,9 @@ For instance, if a guideline explicitly prohibits a specific action (e.g., "neve
 In cases of conflict, prioritize the business's values and ensure your decisions align with their overarching goals.
 
 """,
-            props={"utterance_instruction": utterance_instruction},
         )
         builder.add_section(
-            name="utterance-selector-examples",
+            name="utterance-selector-draft-examples",
             template="""
 EXAMPLES
 -----------------
@@ -773,18 +699,7 @@ EXAMPLES
             },
         )
         builder.add_context_variables(context_variables)
-        builder.add_glossary(terms)
-        utterance_bank_template, utterance_bank_rendered_utterances = self._get_utterance_bank_text(
-            utterances
-        )
-        builder.add_section(
-            name="utterance-selector-utterance-bank",
-            template=utterance_bank_template,
-            props={
-                "utterances": utterances,
-                "rendered_utterances": utterance_bank_rendered_utterances,
-            },
-        )
+
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._get_guideline_matches_text(
@@ -804,7 +719,7 @@ EXAMPLES
 
         if tool_insights.missing_data:
             builder.add_section(
-                name="utterance-selector-missing-data-for-tools",
+                name="utterance-selector-draft-missing-data-for-tools",
                 template="""
 MISSING REQUIRED DATA FOR TOOL CALLS:
 -------------------------------------
@@ -838,26 +753,23 @@ Produce a valid JSON object in the following format: ###
 {formatted_output_format}
 """,
             props={
-                "formatted_output_format": self._get_output_format(
+                "formatted_output_format": self._get_draft_output_format(
                     interaction_history,
                     list(chain(ordinary_guideline_matches, tool_enabled_guideline_matches)),
-                    can_suggest_utterances,
                 ),
                 "interaction_history": interaction_history,
                 "guidelines": list(
                     chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
                 ),
-                "can_suggest_utterances": can_suggest_utterances,
             },
         )
 
         return builder
 
-    def _get_output_format(
+    def _get_draft_output_format(
         self,
         interaction_history: Sequence[Event],
         guidelines: Sequence[GuidelineMatch],
-        allow_suggestions: bool,
     ) -> str:
         last_user_message = next(
             (
@@ -878,35 +790,123 @@ Produce a valid JSON object in the following format: ###
     "last_message_of_user": "{last_user_message}",
     "guidelines": [{guidelines_list_text}],
     "insights": [<Up to 3 original insights to adhere to>],
-    "utterance_choice": {{
-        "insights_about_the_user": "<insights based on your utterance selection and what you know about the user>",
-        "utterance_choice_reasoning": "<reason about the user, current state of the conversation, guidelines given, insights generated, including specific details on the user's situation and request, and find the best most suitable, most specialized utterance to utilize at this point as a response>",
-        "chosen_utterance": <chosen utterance text or null if no matching utterance is found>,
-        "chosen_utterance_id": <id of chosen utterance or null if no matching utterance is found>
-    }}
+    "message": "<message text>"
 }}
 ###"""
 
+    def _build_selection_prompt(
+        self,
+        context: UtteranceContext,
+        draft_message: str,
+        utterances: Sequence[Utterance],
+    ) -> PromptBuilder:
+        builder = PromptBuilder(
+            on_build=lambda prompt: self._logger.debug(f"Utterance Selection Prompt:\n{prompt}")
+        )
+
+        formatted_utterances = [f'Template ID: {u.id} """\n{u.value}\n"""\n' for u in utterances]
+
+        customer_messages = [
+            e
+            for e in context.interaction_history
+            if e.source == EventSource.CUSTOMER and e.kind == EventKind.MESSAGE
+        ]
+
+        if customer_messages:
+            last_customer_message = cast(MessageEventData, customer_messages[-1].data)["message"]
+            last_customer_message_text = f"Please note that the user's last message to which you'd be replying is: ###\n{last_customer_message}\n###\n"
+        else:
+            last_customer_message_text = ""
+
+        builder.add_section(
+            name="utterance-selector-selection",
+            template="""
+1. You are an AI agent who is part of a system that interacts with a user.
+2. A draft reply to the user has been generated by a human operator.
+3. You are presented with a number of Jinja2 reply templates to choose from. These templates have been pre-approved by business stakeholders for producing fluent customer-facing AI conversations.
+4. Your role is to choose (classify) the pre-approved reply template that MOST faithfully captures the human operator's draft reply.
+5. Note that there may be multiple relevant choices. Out of those, you must choose the MOST suitable one that is MOST LIKE the human operator's draft reply.
+6. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procederal instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.
+
+{last_customer_message_text}
+
+Pre-approved reply templates: ###
+{formatted_utterances}
+###
+
+Draft message: ###
+{draft_message}
+###
+
+Output a JSON object with a two properties:
+1. "chosen_template_id" containing the selected template ID.
+2. "match_quality": which can be ONLY ONE OF "low", "partial", "high".
+    a. "low": You couldn't find a template that even comes close
+    b. "partial": You found a template that conveys at least some of the draft message's content
+    c. "high": You found a template that captures the draft message in both form and function
+
+If you've had to fall back to a can't-help template because you couldn't find a good template to use, in that case "match_quality" should be "partial" and you should output a third property "rationale" explaining why and whether any of the other templates came close.
+""",
+            props={
+                "draft_message": draft_message,
+                "utterances": utterances,
+                "formatted_utterances": formatted_utterances,
+                "composition_mode": context.agent.composition_mode,
+                "last_customer_message_text": last_customer_message_text,
+            },
+        )
+
+        return builder
+
     async def _generate_utterance(
         self,
-        prompt: PromptBuilder,
         context: UtteranceContext,
         utterances: Sequence[Utterance],
         composition_mode: CompositionMode,
         temperature: float,
-    ) -> tuple[GenerationInfo, Optional[_UtteranceSelectionResult]]:
-        message_event_response = await self._utterance_selection_generator.generate(
-            prompt=prompt,
+    ) -> tuple[Mapping[str, GenerationInfo], Optional[_UtteranceSelectionResult]]:
+        draft_prompt = self._build_draft_prompt(
+            agent=context.agent,
+            context_variables=context.context_variables,
+            customer=context.customer,
+            interaction_history=context.interaction_history,
+            terms=context.terms,
+            ordinary_guideline_matches=context.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=context.tool_enabled_guideline_matches,
+            staged_events=context.staged_events,
+            tool_insights=context.tool_insights,
+            utterances=utterances,
+            shots=await self.shots(context.agent.composition_mode),
+        )
+
+        draft_response = await self._utterance_draft_generator.generate(
+            prompt=draft_prompt,
             hints={"temperature": temperature},
         )
 
         self._logger.debug(
-            f"Utterance Choice Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
+            f"Utterance Draft Completion:\n{draft_response.content.model_dump_json(indent=2)}"
+        )
+
+        if not draft_response.content.message:
+            return {"draft": draft_response.info}, None
+
+        selection_response = await self._utterance_selection_generator.generate(
+            prompt=self._build_selection_prompt(
+                context=context,
+                draft_message=draft_response.content.message,
+                utterances=utterances,
+            ),
+            hints={"temperature": 0.1},
+        )
+
+        self._logger.debug(
+            f"Utterance Selection Completion:\n{selection_response.content.model_dump_json(indent=2)}"
         )
 
         if (
-            not message_event_response.content.utterance_choice
-            or not message_event_response.content.utterance_choice.chosen_utterance_id
+            selection_response.content.match_quality not in ["partial", "high"]
+            or not selection_response.content.chosen_template_id
         ):
             if composition_mode in [
                 CompositionMode.STRICT_UTTERANCE,
@@ -916,39 +916,49 @@ Produce a valid JSON object in the following format: ###
                     "Failed to find relevant utterances. Please review utterance selection prompt and completion."
                 )
 
-                return message_event_response.info, _UtteranceSelectionResult.no_match()
+                return {
+                    "draft": draft_response.info,
+                    "selection": selection_response.info,
+                }, _UtteranceSelectionResult.no_match()
             else:
                 raise FluidUtteranceFallback()
 
-        utterance_id = UtteranceId(
-            message_event_response.content.utterance_choice.chosen_utterance_id
-        )
+        utterance_id = UtteranceId(selection_response.content.chosen_template_id)
 
-        if utterance_id == "<auto>":
-            utterance_id = Utterance.TRANSIENT_ID
-            utterance = message_event_response.content.utterance_choice.chosen_utterance
-        else:
-            utterance = next((u.value for u in utterances if u.id == utterance_id), None)
+        utterance = next((u.value for u in utterances if u.id == utterance_id), None)
 
         if not utterance:
             self._logger.error(
                 "Invalid utterance ID choice. Please review utterance selection prompt and completion."
             )
 
-            return message_event_response.info, _UtteranceSelectionResult.no_match()
+            return {
+                "draft": draft_response.info,
+                "selection": selection_response.info,
+            }, _UtteranceSelectionResult.no_match()
 
         rendered_utterance = await self._render_utterance(context, utterance)
 
         match composition_mode:
             case CompositionMode.COMPOSITED_UTTERANCE:
-                recomposed_utterance = await self._recompose(context, rendered_utterance)
+                recomposition_generation_info, recomposed_utterance = await self._recompose(
+                    context,
+                    rendered_utterance,
+                )
 
-                return message_event_response.info, _UtteranceSelectionResult(
+                return {
+                    "draft": draft_response.info,
+                    "selection": selection_response.info,
+                    "composition": recomposition_generation_info,
+                }, _UtteranceSelectionResult(
                     message=recomposed_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
             case CompositionMode.STRICT_UTTERANCE | CompositionMode.FLUID_UTTERANCE:
-                return message_event_response.info, _UtteranceSelectionResult(
+                return {
+                    "draft": draft_response.info,
+                    "selection": selection_response.info,
+                }, _UtteranceSelectionResult(
                     message=rendered_utterance,
                     utterances=[(utterance_id, utterance)],
                 )
@@ -981,7 +991,9 @@ Produce a valid JSON object in the following format: ###
             self._logger.error(f"Utterance rendering failed: {traceback.format_exception(exc)}")
             return DEFAULT_NO_MATCH_UTTERANCE
 
-    async def _recompose(self, context: UtteranceContext, raw_message: str) -> str:
+    async def _recompose(
+        self, context: UtteranceContext, raw_message: str
+    ) -> tuple[GenerationInfo, str]:
         builder = PromptBuilder(
             on_build=lambda prompt: self._logger.debug(f"Composition Prompt:\n{prompt}")
         )
@@ -1010,7 +1022,7 @@ Respond with a JSON object {{ "revised_utterance": "<message>" }}
 
         self._logger.debug(f"Composition Completion:\n{result.content.model_dump_json(indent=2)}")
 
-        return result.content.revised_utterance
+        return result.info, result.content.revised_utterance
 
 
 def shot_utterance_id(number: int) -> str:
@@ -1018,136 +1030,91 @@ def shot_utterance_id(number: int) -> str:
 
 
 example_1_expected = UtteranceSelectionSchema(
-    last_message_of_user="Hi, I'd like to know the schedule for the next trains to Boston, please.",
-    guidelines=["When the user asks for train schedules, provide them accurately and concisely."],
-    insights=[
-        "Use markdown format when applicable.",
-        "Provide the train schedule without specifying which trains are *next*.",
-    ],
-    utterance_choice=UtteranceChoice(
-        insights_about_the_user="User is looking for the next trains to Boston",
-        utterance_choice_reasoning="The guidelines tell me to provide train schedules in response to the user's request. There is indeed a specific utterance with a looping template that I can use to list the train schedule",
-        chosen_utterance="""\
-Here's the relevant train schedule:
-
-| Train | Departure | Arrival |
-|-------|-----------|---------|
-{% for train in trains %}
-| {{train.number}}   | {{train.departure}} | {{train.arrival}} |
-{% endfor %}
-""",
-        chosen_utterance_id=shot_utterance_id(4),
-    ),
-)
-
-example_1_shot = UtteranceSelectorShot(
-    composition_modes=[
-        CompositionMode.STRICT_UTTERANCE,
-        CompositionMode.COMPOSITED_UTTERANCE,
-        CompositionMode.FLUID_UTTERANCE,
-    ],
-    description="When needed to respond with a list, prefer an utterance that contains a looping template",
-    expected_result=example_1_expected,
-)
-
-
-example_2_expected = UtteranceSelectionSchema(
     last_message_of_user="Hi, I'd like an onion cheeseburger please.",
     guidelines=[
         "When the user chooses and orders a burger, then provide it",
         "When the user chooses specific ingredients on the burger, only provide those ingredients if we have them fresh in stock; otherwise, reject the order",
     ],
-    insights=["All of our cheese has expired and is currently out of stock"],
-    utterance_choice=UtteranceChoice(
-        insights_about_the_user="The user is a long-time user and we should treat him with extra respect",
-        utterance_choice_reasoning="There are multiple utterances that help me guide to conversation to provide the burger. However, I can't provide the cheeseburger since cheese is out of stock, so I should instead use the utterance that says we're out of an ingredient. At the same time, I should try to choose something to say that approaches the long-term user with respect and grace.",
-        chosen_utterance="Unfortunately we're out of {{ingredient}}. Would you like anything else instead?",
-        chosen_utterance_id="<auto>",
-    ),
+    insights=[
+        "All of our cheese has expired and is currently out of stock",
+        "The user is a long-time user and we should treat him with extra respect",
+    ],
+    message="Unfortunately we're out of cheese. Would you like anything else instead?",
 )
 
-example_2_shot = UtteranceSelectorShot(
+example_1_shot = UtteranceSelectorDraftShot(
     composition_modes=[CompositionMode.FLUID_UTTERANCE],
     description="A reply where one instruction was prioritized over another",
-    expected_result=example_2_expected,
+    expected_result=example_1_expected,
 )
 
 
-example_3_expected = UtteranceSelectionSchema(
+example_2_expected = UtteranceSelectionSchema(
     last_message_of_user="Hi there, can I get something to drink? What do you have on tap?",
     guidelines=["When the user asks for a drink, check the menu and offer what's on it"],
-    insights=["There's no menu information in my context"],
-    utterance_choice=UtteranceChoice(
-        insights_about_the_user="According to contextual information about the user, this is their first time here",
-        utterance_choice_reasoning="The user wants a drink, and I was told to check the menu and offer what's on it. While there are utterances for communicating that, I see that menu information was not given to my in the context. I should therefore choose the utterance that says I can't access the menu.",
-        chosen_utterance="I'm sorry, but I'm having trouble accessing our menu at the moment. Can I help you with anything else?",
-        chosen_utterance_id=shot_utterance_id(2),
-    ),
+    insights=[
+        "According to contextual information about the user, this is their first time here",
+        "There's no menu information in my context",
+    ],
+    message="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
 )
 
-example_3_shot = UtteranceSelectorShot(
+example_2_shot = UtteranceSelectorDraftShot(
     composition_modes=[
         CompositionMode.STRICT_UTTERANCE,
         CompositionMode.COMPOSITED_UTTERANCE,
         CompositionMode.FLUID_UTTERANCE,
     ],
     description="Non-adherence to guideline due to missing data",
-    expected_result=example_3_expected,
+    expected_result=example_2_expected,
 )
 
 
-example_4_expected = UtteranceSelectionSchema(
+example_3_expected = UtteranceSelectionSchema(
     last_message_of_user="This is not what I was asking for!",
     guidelines=[],
-    insights=["I should not keep repeating myself as it makes me sound robotic"],
-    utterance_choice=UtteranceChoice(
-        utterance_choice_reasoning="I've been repeating myself asking for clarifications from the user regarding their request. To avoid repeating myself further as per the insights, I shouldn't choose the utterance that asks for clarification again. I should instead choose the utterance that apologizes for not being able to assist.",
-        chosen_utterance="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
-        chosen_utterance_id=shot_utterance_id(4),
-    ),
+    insights=[
+        "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
+    ],
+    message="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
 )
 
-example_4_shot = UtteranceSelectorShot(
+example_3_shot = UtteranceSelectorDraftShot(
     composition_modes=[
         CompositionMode.STRICT_UTTERANCE,
         CompositionMode.COMPOSITED_UTTERANCE,
         CompositionMode.FLUID_UTTERANCE,
     ],
     description="Avoiding repetitive responses—in this case, given that the previous response by the agent was 'I am sorry, could you please clarify your request?'",
-    expected_result=example_4_expected,
+    expected_result=example_3_expected,
 )
 
 
-example_5_expected = UtteranceSelectionSchema(
+example_4_expected = UtteranceSelectionSchema(
     last_message_of_user=("Hey, how can I contact customer support?"),
     guidelines=[],
     insights=[
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
-    utterance_choice=UtteranceChoice(
-        utterance_choice_reasoning="I don't have any information or utterances about customer support, so I can't help the user with this. A good utterance for this would be the one that explains I cannot help with a topic and asks if there are other ways I could help. However, there's a more specialized utterance I can choose here, which deals specifically with not being able to help with respect to customer support, so I should choose that one as it's the most suitable for this particular scenario.",
-        chosen_utterance="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
-        chosen_utterance_id=shot_utterance_id(9),
-    ),
+    message="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
 )
 
-example_5_shot = UtteranceSelectorShot(
+example_4_shot = UtteranceSelectorDraftShot(
     composition_modes=[
         CompositionMode.STRICT_UTTERANCE,
         CompositionMode.COMPOSITED_UTTERANCE,
         CompositionMode.FLUID_UTTERANCE,
     ],
     description="An insight is derived and followed on not offering to help with something you don't know about",
-    expected_result=example_5_expected,
+    expected_result=example_4_expected,
 )
 
 
-_baseline_shots: Sequence[UtteranceSelectorShot] = [
+_baseline_shots: Sequence[UtteranceSelectorDraftShot] = [
     example_1_shot,
     example_2_shot,
     example_3_shot,
     example_4_shot,
-    example_5_shot,
 ]
 
-shot_collection = ShotCollection[UtteranceSelectorShot](_baseline_shots)
+shot_collection = ShotCollection[UtteranceSelectorDraftShot](_baseline_shots)

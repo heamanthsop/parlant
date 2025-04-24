@@ -181,7 +181,7 @@ class ContextVariable(TypedDict):
 
 @dataclass(frozen=True)
 class MessageGenerationInspection:
-    generation: GenerationInfo
+    generations: Mapping[str, GenerationInfo]
     messages: Sequence[Optional[str]]
 
 
@@ -382,8 +382,14 @@ class _MessageGenerationInspectionDocument_V_0_1_0(TypedDict):
     messages: Sequence[Optional[MessageEventData]]
 
 
-class _MessageGenerationInspectionDocument(TypedDict):
+class _MessageGenerationInspectionDocument_V_0_2_0(TypedDict):
     generation: _GenerationInfoDocument
+    messages: Sequence[Optional[str]]
+
+
+class _MessageGenerationInspectionDocument(TypedDict):
+    generations: Sequence[_GenerationInfoDocument]
+    generation_names: Sequence[str]
     messages: Sequence[Optional[str]]
 
 
@@ -420,8 +426,17 @@ class _InspectionDocument_V_0_2_0(TypedDict, total=False):
     version: Version.String
     session_id: SessionId
     correlation_id: str
-    message_generations: Sequence[_MessageGenerationInspectionDocument]
+    message_generations: Sequence[_MessageGenerationInspectionDocument_V_0_2_0]
     preparation_iterations: Sequence[_PreparationIterationDocument_V_0_2_0]
+
+
+class _InspectionDocument_V_0_3_0(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    session_id: SessionId
+    correlation_id: str
+    message_generations: Sequence[_MessageGenerationInspectionDocument_V_0_2_0]
+    preparation_iterations: Sequence[_PreparationIterationDocument]
 
 
 class _InspectionDocument(TypedDict, total=False):
@@ -434,7 +449,7 @@ class _InspectionDocument(TypedDict, total=False):
 
 
 class SessionDocumentStore(SessionStore):
-    VERSION = Version.from_string("0.3.0")
+    VERSION = Version.from_string("0.4.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False):
         self._database = database
@@ -446,11 +461,11 @@ class SessionDocumentStore(SessionStore):
         self._lock = ReaderWriterLock()
 
     async def _session_document_loader(self, doc: BaseDocument) -> Optional[_SessionDocument]:
-        if doc["version"] in ["0.1.0", "0.2.0"]:
+        if doc["version"] in ["0.1.0", "0.2.0", "0.3.0"]:
             doc = cast(_SessionDocument, doc)
             return _SessionDocument(
                 id=doc["id"],
-                version=Version.String("0.3.0"),
+                version=Version.String("0.4.0"),
                 creation_utc=doc["creation_utc"],
                 customer_id=doc["customer_id"],
                 agent_id=doc["agent_id"],
@@ -458,16 +473,16 @@ class SessionDocumentStore(SessionStore):
                 title=doc["title"],
                 consumption_offsets=doc["consumption_offsets"],
             )
-        if doc["version"] == "0.3.0":
+        if doc["version"] == "0.4.0":
             return cast(_SessionDocument, doc)
         return None
 
     async def _event_document_loader(self, doc: BaseDocument) -> Optional[_EventDocument]:
-        if doc["version"] in ["0.1.0", "0.2.0"]:
+        if doc["version"] in ["0.1.0", "0.2.0", "0.3.0"]:
             doc = cast(_EventDocument, doc)
             return _EventDocument(
                 id=doc["id"],
-                version=Version.String("0.3.0"),
+                version=Version.String("0.4.0"),
                 creation_utc=doc["creation_utc"],
                 session_id=doc["session_id"],
                 source=doc["source"],
@@ -477,7 +492,7 @@ class SessionDocumentStore(SessionStore):
                 data=doc["data"],
                 deleted=doc["deleted"],
             )
-        if doc["version"] == "0.3.0":
+        if doc["version"] == "0.4.0":
             return cast(_EventDocument, doc)
         return None
 
@@ -490,7 +505,7 @@ class SessionDocumentStore(SessionStore):
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=[
-                    _MessageGenerationInspectionDocument(
+                    _MessageGenerationInspectionDocument_V_0_2_0(
                         generation=mg["generation"],
                         messages=[
                             m if isinstance(m, str) else m["message"] if m else None
@@ -504,13 +519,13 @@ class SessionDocumentStore(SessionStore):
 
         async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_InspectionDocument_V_0_2_0, doc)
-            return _InspectionDocument(
+            return _InspectionDocument_V_0_3_0(
                 id=doc["id"],
                 version=Version.String("0.3.0"),
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=[
-                    _MessageGenerationInspectionDocument(
+                    _MessageGenerationInspectionDocument_V_0_2_0(
                         generation=mg["generation"],
                         messages=[
                             m if isinstance(m, str) else m["message"] if m else None
@@ -554,11 +569,35 @@ class SessionDocumentStore(SessionStore):
                 ],
             )
 
+        async def v0_3_0_to_v_0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_InspectionDocument_V_0_3_0, doc)
+
+            return _InspectionDocument(
+                id=doc["id"],
+                version=Version.String("0.4.0"),
+                session_id=doc["session_id"],
+                correlation_id=doc["correlation_id"],
+                message_generations=[
+                    _MessageGenerationInspectionDocument(
+                        generations=[mg["generation"]],
+                        generation_names=[
+                            "selection"
+                            if mg["generation"]["schema_name"]
+                            in ["UtteranceCompositionSchema", "UtteranceSelectionSchema"]
+                            else "message_generation"
+                        ],
+                        messages=mg["messages"],
+                    )
+                    for mg in doc["message_generations"]
+                ],
+            )
+
         return await DocumentMigrationHelper[_InspectionDocument](
             self,
             {
                 "0.1.0": v0_1_0_to_v_0_2_0,
                 "0.2.0": v0_2_0_to_v_0_3_0,
+                "0.3.0": v0_3_0_to_v_0_4_0,
             },
         ).migrate(doc)
 
@@ -681,7 +720,11 @@ class SessionDocumentStore(SessionStore):
             correlation_id=correlation_id,
             message_generations=[
                 _MessageGenerationInspectionDocument(
-                    generation=serialize_generation_info(m.generation),
+                    generations=[
+                        serialize_generation_info(generation_info)
+                        for generation_info in m.generations.values()
+                    ],
+                    generation_names=list(m.generations.keys()),
                     messages=m.messages,
                 )
                 for m in inspection.message_generations
@@ -728,7 +771,10 @@ class SessionDocumentStore(SessionStore):
         return Inspection(
             message_generations=[
                 MessageGenerationInspection(
-                    generation=deserialize_generation_info(m["generation"]),
+                    generations={
+                        m["generation_names"][i]: deserialize_generation_info(m["generations"][i])
+                        for i in range(len(m["generation_names"]))
+                    },
                     messages=m["messages"],
                 )
                 for m in inspection_document["message_generations"]
