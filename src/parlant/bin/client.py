@@ -2505,6 +2505,7 @@ class Interface:
                 rich.print(f"[{level}] [{correlation_id}] {message}")
         except Exception as e:
             Interface.write_error(f"Error while streaming logs: {e}")
+            set_exit_status(1)
 
 
 def tag_option(
@@ -2943,6 +2944,7 @@ async def async_main() -> None:
     ) -> None:
         if not (condition or action):
             Interface.write_error("At least one of --condition or --action must be specified")
+            set_exit_status(1)
             raise FastExit()
 
         Interface.update_guideline(
@@ -3237,10 +3239,12 @@ async def async_main() -> None:
     ) -> None:
         if guideline_id and tag:
             Interface.write_error("Either --guideline-id or --tag must be provided, not both")
+            set_exit_status(1)
             raise FastExit()
 
         if not guideline_id and not tag:
             Interface.write_error("Either --guideline-id or --tag must be provided")
+            set_exit_status(1)
             raise FastExit()
 
         Interface.list_relationships(ctx, guideline_id, tag, kind, indirect)
@@ -3743,7 +3747,7 @@ async def async_main() -> None:
         else:
             transform_and_exec_help(" ".join(command))
 
-    cli()
+    cli(standalone_mode=False)
 
 
 def main() -> None:
@@ -3758,10 +3762,13 @@ def main() -> None:
             set_exit_status(1)
         except FastExit:
             pass
+        except BaseException:
+            set_exit_status(1)
+
+        sys.exit(get_exit_status())
 
     asyncio.run(wrapped_main())
 
 
 if __name__ == "__main__":
     main()
-    sys.exit(get_exit_status())
