@@ -580,7 +580,12 @@ class SessionDocumentStore(SessionStore):
                 message_generations=[
                     _MessageGenerationInspectionDocument(
                         generations=[mg["generation"]],
-                        generation_names=["composition"],
+                        generation_names=[
+                            "selection"
+                            if mg["generation"]["schema_name"]
+                            in ["UtteranceCompositionSchema", "UtteranceSelectionSchema"]
+                            else "message_generation"
+                        ],
                         messages=mg["messages"],
                     )
                     for mg in doc["message_generations"]
