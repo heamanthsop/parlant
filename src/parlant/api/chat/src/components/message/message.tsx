@@ -41,12 +41,12 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 
 	const isCustomer = event.source === 'customer' || event.source === 'customer_ui';
 	const serverStatus = event.serverStatus;
-	const isGuest = customer?.name === '<guest>';
+	const isGuest = customer?.id === 'guest';
 	const customerName = isGuest ? 'G' : customer?.name?.[0]?.toUpperCase();
 	const isViewingCurrentMessage = showLogsForMessage && showLogsForMessage.id === event.id;
 	const colorPallete = getAvatarColor((isCustomer ? customer?.id : agent?.id) || '', isCustomer ? 'customer' : 'agent');
 	const name = isCustomer ? customer?.name : agent?.name;
-	const formattedName = name === '<guest>' ? 'Guest' : name;
+	const formattedName = (isCustomer && isGuest) ? 'Guest' : name;
 
 	return (
 		<>
