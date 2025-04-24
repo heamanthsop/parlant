@@ -3646,7 +3646,7 @@ async def async_main() -> None:
                     "value": "Hello, {{std.customer.name}}!",
                 },
                 {
-                    "value": "Your balance is {{balance}}",
+                    "value": "My name is {{std.agent.name}}",
                 },
             ]
         }
