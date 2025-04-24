@@ -20,7 +20,7 @@ from typing import NewType, Optional, Sequence, cast
 from typing_extensions import override, TypedDict, Self
 
 from parlant.core.async_utils import ReaderWriterLock
-from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
+from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id, to_json_dict
 from parlant.core.persistence.common import (
     ObjectId,
 )
@@ -309,7 +309,7 @@ class AgentDocumentStore(AgentStore):
 
             result = await self._agents_collection.update_one(
                 filters={"id": {"$eq": agent_id}},
-                params=cast(_AgentDocument, params),
+                params=cast(_AgentDocument, to_json_dict(params)),
             )
 
         assert result.updated_document
