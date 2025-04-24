@@ -3643,7 +3643,7 @@ async def async_main() -> None:
         sample_data = {
             "utterances": [
                 {
-                    "value": "Hello, {{username}}!",
+                    "value": "Hello, {{std.customer.name}}!",
                 },
                 {
                     "value": "Your balance is {{balance}}",
