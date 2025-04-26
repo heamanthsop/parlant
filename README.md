@@ -38,7 +38,7 @@
 pip install parlant
 ```
 
-2. Start the server and start interacting with a vanilla agent
+2. Start the server and start interact with the default agent
 ```bash
 parlant-server run
 # Now visit http://localhost:8800
