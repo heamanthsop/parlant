@@ -33,16 +33,18 @@
 ## YouTube Video Intro
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
 
-
+1. Install
 ```bash
 pip install parlant
 ```
 
+2. Start the server and start interacting with a vanilla agent
 ```bash
 parlant-server run
 # Now visit http://localhost:8800
 ```
 
+3. Add behavioral guidelines and let Parlant do the rest
 ```bash
 parlant guideline create \
     --condition "the user greets you" \
