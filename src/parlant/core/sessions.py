@@ -115,6 +115,7 @@ class MessageEventData(TypedDict):
     participant: Participant
     flagged: NotRequired[bool]
     tags: NotRequired[Sequence[str]]
+    draft: NotRequired[str]
     utterances: NotRequired[Sequence[tuple[UtteranceId, str]]]
 
 

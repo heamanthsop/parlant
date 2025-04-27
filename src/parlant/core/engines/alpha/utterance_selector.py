@@ -82,7 +82,7 @@ class UtteranceRevisionSchema(DefaultBaseModel):
 @dataclass
 class UtteranceSelectorDraftShot(Shot):
     composition_modes: list[CompositionMode]
-    expected_result: UtteranceSelectionSchema
+    expected_result: UtteranceDraftSchema
 
 
 @dataclass(frozen=True)
@@ -91,10 +91,12 @@ class _UtteranceSelectionResult:
     def no_match() -> _UtteranceSelectionResult:
         return _UtteranceSelectionResult(
             message=DEFAULT_NO_MATCH_UTTERANCE,
+            draft="N/A",
             utterances=[],
         )
 
     message: str
+    draft: str
     utterances: list[tuple[UtteranceId, str]]
 
 
@@ -478,20 +480,21 @@ class UtteranceSelector(MessageEventComposer):
 
         for generation_attempt in range(3):
             try:
-                generation_info, assembly_result = await self._generate_utterance(
+                generation_info, result = await self._generate_utterance(
                     context,
                     utterances,
                     agent.composition_mode,
                     temperature=generation_attempt_temperatures[generation_attempt],
                 )
 
-                if assembly_result is not None:
+                if result is not None:
                     event = await event_emitter.emit_message_event(
                         correlation_id=self._correlator.correlation_id,
                         data=MessageEventData(
-                            message=assembly_result.message,
+                            message=result.message,
                             participant=Participant(id=agent.id, display_name=agent.name),
-                            utterances=assembly_result.utterances,
+                            draft=result.draft,
+                            utterances=result.utterances,
                         ),
                     )
 
@@ -804,7 +807,9 @@ Produce a valid JSON object in the following format: ###
             on_build=lambda prompt: self._logger.debug(f"Utterance Selection Prompt:\n{prompt}")
         )
 
-        formatted_utterances = [f'Template ID: {u.id} """\n{u.value}\n"""\n' for u in utterances]
+        formatted_utterances = "\n".join(
+            [f'Template ID: {u.id} """\n{u.value}\n"""\n' for u in utterances]
+        )
 
         customer_messages = [
             e
@@ -952,6 +957,7 @@ If you've had to fall back to a can't-help template because you couldn't find a 
                     "composition": recomposition_generation_info,
                 }, _UtteranceSelectionResult(
                     message=recomposed_utterance,
+                    draft=draft_response.content.message,
                     utterances=[(utterance_id, utterance)],
                 )
             case CompositionMode.STRICT_UTTERANCE | CompositionMode.FLUID_UTTERANCE:
@@ -960,6 +966,7 @@ If you've had to fall back to a can't-help template because you couldn't find a 
                     "selection": selection_response.info,
                 }, _UtteranceSelectionResult(
                     message=rendered_utterance,
+                    draft=draft_response.content.message,
                     utterances=[(utterance_id, utterance)],
                 )
 
@@ -1029,7 +1036,7 @@ def shot_utterance_id(number: int) -> str:
     return f"<example-only-utterance--{number}--do-not-use-in-your-completion>"
 
 
-example_1_expected = UtteranceSelectionSchema(
+example_1_expected = UtteranceDraftSchema(
     last_message_of_user="Hi, I'd like an onion cheeseburger please.",
     guidelines=[
         "When the user chooses and orders a burger, then provide it",
@@ -1049,7 +1056,7 @@ example_1_shot = UtteranceSelectorDraftShot(
 )
 
 
-example_2_expected = UtteranceSelectionSchema(
+example_2_expected = UtteranceDraftSchema(
     last_message_of_user="Hi there, can I get something to drink? What do you have on tap?",
     guidelines=["When the user asks for a drink, check the menu and offer what's on it"],
     insights=[
@@ -1070,7 +1077,7 @@ example_2_shot = UtteranceSelectorDraftShot(
 )
 
 
-example_3_expected = UtteranceSelectionSchema(
+example_3_expected = UtteranceDraftSchema(
     last_message_of_user="This is not what I was asking for!",
     guidelines=[],
     insights=[
@@ -1090,7 +1097,7 @@ example_3_shot = UtteranceSelectorDraftShot(
 )
 
 
-example_4_expected = UtteranceSelectionSchema(
+example_4_expected = UtteranceDraftSchema(
     last_message_of_user=("Hey, how can I contact customer support?"),
     guidelines=[],
     insights=[
