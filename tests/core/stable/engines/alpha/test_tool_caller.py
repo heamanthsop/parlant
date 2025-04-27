@@ -166,7 +166,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
             tags=[Tag.for_agent_id(agent.id)],
@@ -235,7 +235,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
             tags=[Tag.for_agent_id(agent.id)],
@@ -321,7 +321,7 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer asks a question about appointments",
             tags=[Tag.for_agent_id(agent.id)],
@@ -395,7 +395,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
             tags=[Tag.for_agent_id(agent.id)],
@@ -474,7 +474,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
             tags=[Tag.for_agent_id(agent.id)],
@@ -579,7 +579,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer ask a question of what available keyboard do we have",
             tags=[Tag.for_agent_id(agent.id)],
@@ -687,7 +687,7 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer wishes to be registered for a sweepstake",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer is interested in registering for the sweepstake",
             tags=[Tag.for_agent_id(agent.id)],
@@ -701,12 +701,12 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
             score=9,
             rationale="customer wants to register for the sweepstake and provides all the relevant information",
             tags=[Tag.for_agent_id(agent.id)],
-        ): [ToolId(service_name="my_scharlatan_service", tool_name="register_sweepstake")]
+        ): [ToolId(service_name="my_charlatan_service", tool_name="register_sweepstake")]
     }
 
     async with run_service_server([register_sweepstake]) as server:
         await service_registry.update_tool_service(
-            name="my_scharlatan_service",
+            name="my_charlatan_service",
             kind="sdk",
             url=server.url,
         )
@@ -761,7 +761,7 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer asks a question and wants to get an answer",
             tags=[Tag.for_agent_id(agent.id)],
@@ -837,7 +837,7 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
     ordinary_guideline_matches = [
         create_guideline_match(
             condition="customer asking a question",
-            action="response in concise and breif answer",
+            action="response in concise and brief answer",
             score=9,
             rationale="customer asks a question and wants to get an answer",
             tags=[Tag.for_agent_id(agent.id)],
