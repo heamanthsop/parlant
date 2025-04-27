@@ -545,16 +545,16 @@ async def _get_guideline_relationships_by_kind(
             target_id=entity_id,
         ),
     ):
-        assert type(r.source.id) is GuidelineId or type(r.source.id) is TagId
-        assert type(r.target.id) is GuidelineId or type(r.target.id) is TagId
+        assert r.source.type in (EntityType.GUIDELINE, EntityType.TAG)
+        assert r.target.type in (EntityType.GUIDELINE, EntityType.TAG)
         assert type(r.kind) is GuidelineRelationshipKind
 
         relationships.append(
             _GuidelineRelationship(
                 id=r.id,
-                source=await _get_entity(r.source.id, r.source.type),
+                source=await _get_entity(cast(GuidelineId | TagId, r.source.id), r.source.type),
                 source_type=r.source.type,
-                target=await _get_entity(r.target.id, r.target.type),
+                target=await _get_entity(cast(GuidelineId | TagId, r.target.id), r.target.type),
                 target_type=r.target.type,
                 kind=r.kind,
             )
