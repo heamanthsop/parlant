@@ -88,10 +88,10 @@ class UtteranceSelectorDraftShot(Shot):
 @dataclass(frozen=True)
 class _UtteranceSelectionResult:
     @staticmethod
-    def no_match() -> _UtteranceSelectionResult:
+    def no_match(draft: Optional[str] = None) -> _UtteranceSelectionResult:
         return _UtteranceSelectionResult(
             message=DEFAULT_NO_MATCH_UTTERANCE,
-            draft="N/A",
+            draft=draft or "N/A",
             utterances=[],
         )
 
@@ -924,7 +924,7 @@ If you've had to fall back to a can't-help template because you couldn't find a 
                 return {
                     "draft": draft_response.info,
                     "selection": selection_response.info,
-                }, _UtteranceSelectionResult.no_match()
+                }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
             else:
                 raise FluidUtteranceFallback()
 
@@ -940,7 +940,7 @@ If you've had to fall back to a can't-help template because you couldn't find a 
             return {
                 "draft": draft_response.info,
                 "selection": selection_response.info,
-            }, _UtteranceSelectionResult.no_match()
+            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
 
         rendered_utterance = await self._render_utterance(context, utterance)
 
