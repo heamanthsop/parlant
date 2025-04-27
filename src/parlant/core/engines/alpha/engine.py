@@ -33,11 +33,11 @@ from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
+from parlant.core.engines.alpha.tool_calling.tool_caller import MissingToolData, ToolInsights
 from parlant.core.engines.alpha.utterance_selector import UtteranceSelector
 from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
 )
-from parlant.core.engines.alpha.tool_caller import ToolInsights, MissingToolData
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.glossary import Term
 from parlant.core.sessions import (

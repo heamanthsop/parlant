@@ -27,7 +27,7 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
     MessageEventComposition,
 )
-from parlant.core.engines.alpha.tool_caller import MissingToolData, ToolInsights
+from parlant.core.engines.alpha.tool_calling.tool_caller import MissingToolData, ToolInsights
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch

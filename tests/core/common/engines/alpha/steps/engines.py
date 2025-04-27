@@ -26,7 +26,7 @@ from parlant.core.engines.alpha.utterance_selector import (
     UtteranceSelector,
 )
 from parlant.core.engines.alpha.message_event_composer import MessageEventComposer
-from parlant.core.engines.alpha.tool_caller import ToolInsights
+from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.engines.types import Context, UtteranceReason, UtteranceRequest
 from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.sessions import SessionId, SessionStore

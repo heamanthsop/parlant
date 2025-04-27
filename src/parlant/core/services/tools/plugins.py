@@ -61,6 +61,7 @@ from parlant.core.tools import (
     ToolResultError,
     normalize_tool_arguments,
     validate_tool_arguments,
+    ToolOverlap,
 )
 from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSerializable, UniqueId
 from parlant.core.contextual_correlator import ContextualCorrelator
@@ -123,6 +124,7 @@ class _ToolDecoratorParams(TypedDict, total=False):
     name: str
     consequential: bool
     metadata: Mapping[str, JSONSerializable]
+    overlap: ToolOverlap
 
 
 _ToolParameterType = Union[str, int, float, bool, list[Any], None]
@@ -292,6 +294,7 @@ async def _recompute_and_marshal_tool(
         parameters=new_parameters,
         required=tool.required,
         consequential=tool.consequential,
+        overlap=tool.overlap,
     )
 
 
@@ -408,6 +411,7 @@ def _tool_decorator_impl(
                 parameters=_describe_parameters(func),
                 required=_find_required_params(func),
                 consequential=kwargs.get("consequential", False),
+                overlap=kwargs.get("overlap", ToolOverlap.AUTO),
             ),
             function=func,
         )
@@ -764,6 +768,7 @@ class PluginClient(ToolService):
                 parameters=self._translate_parameters(t["parameters"]),
                 required=t["required"],
                 consequential=t["consequential"],
+                overlap=t["overlap"],
             )
             for t in content["tools"]
         ]
@@ -787,6 +792,7 @@ class PluginClient(ToolService):
             parameters=self._translate_parameters(t["parameters"]),
             required=t["required"],
             consequential=t["consequential"],
+            overlap=t["overlap"],
         )
 
     @override
@@ -819,6 +825,7 @@ class PluginClient(ToolService):
             parameters=self._translate_parameters(t["parameters"]),
             required=t["required"],
             consequential=t["consequential"],
+            overlap=t["overlap"],
         )
 
     @override

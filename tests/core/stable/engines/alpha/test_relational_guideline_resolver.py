@@ -16,7 +16,12 @@ from lagom import Container
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
-from parlant.core.relationships import EntityType, GuidelineRelationshipKind, RelationshipStore
+from parlant.core.relationships import (
+    EntityType,
+    GuidelineRelationshipKind,
+    RelationshipEntity,
+    RelationshipStore,
+)
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.tags import TagStore
 
@@ -33,18 +38,26 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
     g3 = await guideline_store.create_guideline(condition="z", action="t")
 
     await relationship_store.create_relationship(
-        source=g1.id,
-        source_type=EntityType.GUIDELINE,
-        target=g2.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=g1.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=g2.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
-        source=g2.id,
-        source_type=EntityType.GUIDELINE,
-        target=g3.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=g2.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=g3.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -76,10 +89,14 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
     ]
 
     await relationship_store.create_relationship(
-        source=g1.id,
-        source_type=EntityType.GUIDELINE,
-        target=g2.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=g1.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=g2.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -103,22 +120,30 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
 
     t1 = await tag_store.create_tag(name="t1")
 
-    await guideline_store.upsert_tag(g2.id, t1.id)
-    await guideline_store.upsert_tag(g3.id, t1.id)
+    await guideline_store.upsert_tag(guideline_id=g2.id, tag_id=t1.id)
+    await guideline_store.upsert_tag(guideline_id=g3.id, tag_id=t1.id)
 
     await relationship_store.create_relationship(
-        source=g1.id,
-        source_type=EntityType.GUIDELINE,
-        target=t1.id,
-        target_type=EntityType.TAG,
+        source=RelationshipEntity(
+            id=g1.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
-        source=t1.id,
-        source_type=EntityType.TAG,
-        target=g4.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
+        target=RelationshipEntity(
+            id=g4.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
@@ -152,18 +177,26 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_ta
     await guideline_store.upsert_tag(g2.id, t1.id)
 
     await relationship_store.create_relationship(
-        source=g1.id,
-        source_type=EntityType.GUIDELINE,
-        target=t1.id,
-        target_type=EntityType.TAG,
+        source=RelationshipEntity(
+            id=g1.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
-        source=t1.id,
-        source_type=EntityType.TAG,
-        target=g2.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
+        target=RelationshipEntity(
+            id=g2.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -196,18 +229,26 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
     await guideline_store.upsert_tag(g2.id, t1.id)
 
     await relationship_store.create_relationship(
-        source=g1.id,
-        source_type=EntityType.GUIDELINE,
-        target=t1.id,
-        target_type=EntityType.TAG,
+        source=RelationshipEntity(
+            id=g1.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
     await relationship_store.create_relationship(
-        source=t1.id,
-        source_type=EntityType.TAG,
-        target=g3.id,
-        target_type=EntityType.GUIDELINE,
+        source=RelationshipEntity(
+            id=t1.id,
+            type=EntityType.TAG,
+        ),
+        target=RelationshipEntity(
+            id=g3.id,
+            type=EntityType.GUIDELINE,
+        ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -221,3 +262,83 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
 
     assert len(result) == 1
     assert result[0].guideline.id == g1.id
+
+
+async def test_that_relational_guideline_resolver_filters_out_guidelines_with_unmet_dependencies(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    resolver = container[RelationalGuidelineResolver]
+
+    source_guideline = await guideline_store.create_guideline(
+        condition="Customer has not specified if it's a repeat transaction or a new one",
+        action="Ask them which it is",
+    )
+    target_guideline = await guideline_store.create_guideline(
+        condition="Customer wants to make a transaction", action="Help them"
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=source_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=target_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    result = await resolver.resolve(
+        [source_guideline, target_guideline],
+        [
+            GuidelineMatch(guideline=source_guideline, score=8, rationale=""),
+        ],
+    )
+
+    assert result == []
+
+
+async def test_that_relational_guideline_resolver_filters_out_guidelines_with_unmet_dependencies_connected_through_tag(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
+    resolver = container[RelationalGuidelineResolver]
+
+    source_guideline = await guideline_store.create_guideline(condition="a", action="b")
+
+    tagged_guideline_1 = await guideline_store.create_guideline(condition="c", action="d")
+    tagged_guideline_2 = await guideline_store.create_guideline(condition="e", action="f")
+
+    target_tag = await tag_store.create_tag(name="t1")
+
+    await guideline_store.upsert_tag(tagged_guideline_1.id, target_tag.id)
+    await guideline_store.upsert_tag(tagged_guideline_2.id, target_tag.id)
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=source_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=target_tag.id,
+            type=EntityType.TAG,
+        ),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    result = await resolver.resolve(
+        [source_guideline, tagged_guideline_1, tagged_guideline_2],
+        [
+            GuidelineMatch(guideline=source_guideline, score=8, rationale=""),
+            GuidelineMatch(guideline=tagged_guideline_1, score=10, rationale=""),
+            # Missing match for tagged_guideline_2
+        ],
+    )
+
+    assert len(result) == 1
+    assert result[0].guideline.id == tagged_guideline_1.id
