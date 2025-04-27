@@ -594,7 +594,7 @@ Feature: Tools
         And a guideline "calculate your salary" to calculate the salary of a person when the customer wants to know their salary
         And the tool "calculate_salary"
         And an association between "calculate your salary" and "calculate_salary"
-        And a customer message, "Hi, My name is Chris Pikrim, I work in Mike Andike's team. My mistress KittyKat and my friend Shuki asked me for my salary, so I would like you to calculate my salary. Please provide me with all details."
+        And a customer message, "Hi, My name is Chris Pikrim, I work in Mike Andike's team. My mistress KittyKat and my friend Shuki asked me for my salary, so I would like you to calculate my salary. Please provide me with all details regarding missing or invalid data."
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted

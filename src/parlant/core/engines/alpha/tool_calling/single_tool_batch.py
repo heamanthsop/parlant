@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from itertools import chain
+import ast
 import json
 from typing import Any, Literal, Optional, Sequence, TypeAlias
 from typing_extensions import override
@@ -40,6 +41,7 @@ class SingleToolBatchArgumentEvaluation(DefaultBaseModel):
     has_default_value_if_not_provided_by_acceptable_source: Optional[bool] = None
     is_missing: bool
     value_as_string: Optional[str] = None
+    invalid_value: Optional[str] = None
 
 
 class SingleToolBatchToolCallEvaluation(DefaultBaseModel):
@@ -131,7 +133,7 @@ class SingleToolBatch(ToolCallBatch):
             if descriptor["type"] == "string":
                 return value in descriptor["enum"]
             if descriptor["type"] == "array":
-                return all(v in descriptor["enum"] for v in json.loads(value))
+                return all(v in descriptor["enum"] for v in ast.literal_eval(value))
         return True
 
     async def _infer_calls_for_single_tool(
@@ -186,9 +188,11 @@ class SingleToolBatch(ToolCallBatch):
             for evaluation in tc.argument_evaluations or []:
                 descriptor, options = tool.parameters[evaluation.parameter_name]
 
-                if evaluation.value_as_string and not await self._validate_argument_value(
+                if (
+                    evaluation.value_as_string or evaluation.invalid_value
+                ) and not await self._validate_argument_value(
                     tool.parameters[evaluation.parameter_name],
-                    evaluation.value_as_string,
+                    evaluation.value_as_string or evaluation.invalid_value,
                 ):
                     all_values_valid = False
                     if not options.hidden:
@@ -251,11 +255,8 @@ class SingleToolBatch(ToolCallBatch):
                             and not evaluation.is_optional
                             and not tool_options.hidden
                         ):
-                            # Note that a parameter may have an invalid value and it is also marked as missing
                             disp = tool_options.display_name or evaluation.parameter_name
-                            if not evaluation.value_as_string or disp not in [
-                                p.parameter for p in invalid_data
-                            ]:
+                            if disp not in [p.parameter for p in invalid_data]:
                                 missing_data.append(
                                     MissingToolData(
                                         parameter=disp,
@@ -512,7 +513,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
             "argument_evaluations": [
                 {
                     "parameter_name": "<PARAMETER NAME>",
-                    "acceptable_source_for_this_argument_according_to_its_tool_definition": "<REAPET THE ACCEPTABLE SOURCE FOR THE ARGUMENT FROM TOOL DEFINITION>",
+                    "acceptable_source_for_this_argument_according_to_its_tool_definition": "<REPEAT THE ACCEPTABLE SOURCE FOR THE ARGUMENT FROM TOOL DEFINITION>",
                     "evaluate_is_it_provided_by_an_acceptable_source": "<BRIEFLY EVALUATE IF THE SOURCE FOR THE VALUE MATCHES THE ACCEPTABLE SOURCE>",
                     "evaluate_was_it_already_provided_and_should_it_be_provided_again": "<BRIEFLY EVALUATE IF THE PARAMERWE VALUE WAS PROVIDED AND SHOULD BE PROVIDED AGAIN>",
                     "evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided": "<BRIEFLY EVALUATE IF IT'S A PROBLEM TO GUESS THE VALUE>","""
@@ -523,6 +524,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
         result += """
                     "is_missing": <BOOL>,
                     "value_as_string": "<PARAMETER VALUE>"
+                    "invalid_value": "<IF THE VALUE IS INVALID, THIS IS THE INVALID VALUE>"
                 }
             ],"""
 
@@ -1234,8 +1236,63 @@ example_11_shot = SingleToolBatchShot(
     ),
 )
 
+<<<<<<< HEAD:src/parlant/core/engines/alpha/tool_calling/single_tool_batch.py
 
 _baseline_shots: Sequence[SingleToolBatchShot] = [
+=======
+example_12_shot = ToolCallerInferenceShot(
+    description=(
+        "the candidate tool is book_flight(origin:str, destination: str) and there are no better reference tools, origin and destination are enum that can get only these values: 'New York', 'London', 'Paris'."
+        "the customer wants to book a flight from Tel-Aviv to Singapore."
+    ),
+    feature_set=[],
+    expected_result=ToolCallInferenceSchema(
+        last_customer_message="I want to book a flight from Tel-Aviv to Singapore",
+        most_recent_customer_inquiry_or_need="The customer want to book a flight",
+        most_recent_customer_inquiry_or_need_was_already_resolved=False,
+        name="book_flight",
+        subtleties_to_be_aware_of="The customer specified a flight origin and destination that may be invalid in the schema's enum, but their values are still important and should be filled in the output",
+        tool_calls_for_candidate_tool=[
+            ToolCallEvaluation(
+                applicability_rationale="The customer specifically wants to book a flight and provided the origin and destination, and there are no better reference tools",
+                is_applicable=True,
+                argument_evaluations=[
+                    ArgumentEvaluation(
+                        parameter_name="origin",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer has explicitly provided an origin, which is an acceptable source, so regardless of validity considerations its value is extracted into the relevant field",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, the customer has explicitly provided an origin, so it should be extracted and filled into the matching output field even if not a valid enum value",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to guess the origin the customer wants to fly from",
+                        is_missing=False,
+                        is_optional=False,
+                        value_as_string="Tel-Aviv",
+                    ),
+                    ArgumentEvaluation(
+                        parameter_name="destination",
+                        acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
+                        evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer has explicitly provided a destination, which is an acceptable source, so regardless of validity considerations its value is extracted into the relevant field",
+                        evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, the customer has explicitly provided a destination, so it should be extracted and filled into the matching output field even if not a valid enum value",
+                        evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to guess the destination the customer wants to fly to",
+                        is_missing=False,
+                        is_optional=False,
+                        value_as_string="Singapore",
+                    ),
+                ],
+                same_call_is_already_staged=False,
+                relevant_subtleties="This is the right tool to run although a parameter may be invalid. This parameter value, however, still needs to be extracted from the customer's message and provided in the output",
+                comparison_with_rejected_tools_including_references_to_subtleties="There are no tools in the list of rejected tools",
+                a_rejected_tool_would_have_been_a_better_fit_if_it_werent_already_rejected=False,
+                are_optional_arguments_missing=False,
+                are_non_optional_arguments_missing=False,
+                allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
+            )
+        ],
+    ),
+)
+
+
+_baseline_shots: Sequence[ToolCallerInferenceShot] = [
+>>>>>>> bdacd2ce (last changes for invalid fields):src/parlant/core/engines/alpha/tool_caller.py
     example_1_shot,
     example_2_shot,
     example_3_shot,
@@ -1246,6 +1303,8 @@ _baseline_shots: Sequence[SingleToolBatchShot] = [
     example_8_shot,
     example_9_shot,
     example_10_shot,
+    example_11_shot,
+    example_12_shot,
 ]
 
 
