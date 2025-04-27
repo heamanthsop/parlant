@@ -38,7 +38,7 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposition,
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
-from parlant.core.engines.alpha.tool_caller import ToolInsights
+from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
