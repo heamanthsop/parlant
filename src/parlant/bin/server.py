@@ -35,7 +35,6 @@ from parlant.bin.prepare_migration import detect_required_migrations
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import guideline_matcher
-from parlant.core.engines.alpha import tool_caller
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
@@ -95,13 +94,14 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
     GuidelineToolAssociationStore,
 )
-from parlant.core.engines.alpha.tool_caller import (
-    DefaultToolCallBatcher,
+from parlant.core.engines.alpha.tool_calling import single_tool_batch
+from parlant.core.engines.alpha.tool_calling.default_tool_call_batcher import DefaultToolCallBatcher
+from parlant.core.engines.alpha.tool_calling.single_tool_batch import (
     SingleToolBatchSchema,
     SingleToolBatchShot,
-    ToolCallBatcher,
-    ToolCaller,
 )
+from parlant.core.engines.alpha.tool_calling.tool_caller import ToolCallBatcher, ToolCaller
+
 from parlant.core.engines.alpha.guideline_matcher import (
     GenericGuidelineMatching,
     GuidelineMatcher,
@@ -295,7 +295,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
     c[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
-    c[ShotCollection[SingleToolBatchShot]] = tool_caller.shot_collection
+    c[ShotCollection[SingleToolBatchShot]] = single_tool_batch.shot_collection
     c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
     c[EngineHooks] = EngineHooks()

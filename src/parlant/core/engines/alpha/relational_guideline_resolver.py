@@ -281,16 +281,18 @@ class RelationalGuidelineResolver:
                     )
 
                     for g in guidelines_associated_to_tag:
-                        if g.id in itarated_guidelines or g.id in match_guideline_ids:
-                            continue
+                        if g.id not in match_guideline_ids:
+                            dependent = True
+                            break
 
-                        dependencies.extend(
-                            await self._relationship_store.list_relationships(
-                                kind=GuidelineRelationshipKind.DEPENDENCY,
-                                indirect=True,
-                                source_id=g.id,
+                        if g.id not in itarated_guidelines:
+                            dependencies.extend(
+                                await self._relationship_store.list_relationships(
+                                    kind=GuidelineRelationshipKind.DEPENDENCY,
+                                    indirect=True,
+                                    source_id=g.id,
+                                )
                             )
-                        )
 
                     itarated_guidelines.update(g.id for g in guidelines_associated_to_tag)
 

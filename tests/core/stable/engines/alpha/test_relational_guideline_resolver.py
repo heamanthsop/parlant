@@ -120,8 +120,8 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
 
     t1 = await tag_store.create_tag(name="t1")
 
-    await guideline_store.upsert_tag(guideline_id=g1.id, tag_id=t1.id)
     await guideline_store.upsert_tag(guideline_id=g2.id, tag_id=t1.id)
+    await guideline_store.upsert_tag(guideline_id=g3.id, tag_id=t1.id)
 
     await relationship_store.create_relationship(
         source=RelationshipEntity(
