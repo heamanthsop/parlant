@@ -1,302 +1,35 @@
-# Copyright 2025 Emcie Co Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-from abc import ABC, abstractmethod
-from collections import defaultdict
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from itertools import chain
 import json
-import time
-import traceback
-from typing import Any, Literal, Mapping, NewType, Optional, Sequence, TypeAlias
+from typing import Any, Literal, Optional, Sequence, TypeAlias
 from typing_extensions import override
 
-from parlant.core import async_utils
 from parlant.core.agents import Agent
-from parlant.core.common import JSONSerializable, generate_id, DefaultBaseModel
+from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
+from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
+from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    MissingToolData,
+    ToolCall,
+    ToolCallBatch,
+    ToolCallBatchResult,
+    ToolCallContext,
+    ToolCallId,
+    ToolInsights,
+)
 from parlant.core.glossary import Term
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
-from parlant.core.relationships import RelationshipStore
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.sessions import Event, ToolResult
+from parlant.core.sessions import Event, EventKind
 from parlant.core.shots import Shot, ShotCollection
-from parlant.core.tools import (
-    Tool,
-    ToolContext,
-    ToolOverlap,
-    ToolParameterDescriptor,
-    ToolParameterOptions,
-    ToolId,
-    ToolService,
-    DEFAULT_PARAMETER_PRECEDENCE,
-)
-from parlant.core.sessions import EventKind
-
-ToolCallId = NewType("ToolCallId", str)
-ToolResultId = NewType("ToolResultId", str)
+from parlant.core.tools import Tool, ToolId, ToolParameterDescriptor, ToolParameterOptions
 
 
-@dataclass(frozen=True)
-class ToolCall:
-    id: ToolCallId
-    tool_id: ToolId
-    arguments: Mapping[str, JSONSerializable]
-
-    def __eq__(self, value: object) -> bool:
-        if isinstance(value, ToolCall):
-            return bool(self.tool_id == value.tool_id and self.arguments == value.arguments)
-        return False
-
-
-@dataclass(frozen=True)
-class ToolCallResult:
-    id: ToolResultId
-    tool_call: ToolCall
-    result: ToolResult
-
-
-@dataclass(frozen=True)
-class MissingToolData:
-    parameter: str
-    significance: Optional[str] = field(default=None)
-    description: Optional[str] = field(default=None)
-    examples: Optional[Sequence[str]] = field(default=None)
-    precedence: Optional[int] = field(default=DEFAULT_PARAMETER_PRECEDENCE)
-
-
-@dataclass(frozen=True)
-class ToolInsights:
-    missing_data: Sequence[MissingToolData] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class ToolCallInferenceResult:
-    total_duration: float
-    batch_count: int
-    batch_generations: Sequence[GenerationInfo]
-    batches: Sequence[Sequence[ToolCall]]
-    insights: ToolInsights
-
-
-@dataclass(frozen=True)
-class ToolCallContext:
-    agent: Agent
-    services: dict[str, ToolService]
-    context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
-    interaction_history: Sequence[Event]
-    terms: Sequence[Term]
-    ordinary_guideline_matches: Sequence[GuidelineMatch]
-    tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
-    staged_events: Sequence[EmittedEvent]
-
-
-@dataclass(frozen=True)
-class ToolCallBatchResult:
-    tool_calls: Sequence[ToolCall]
-    generation_info: GenerationInfo
-    insights: ToolInsights
-
-
-class ToolCallBatch(ABC):
-    @abstractmethod
-    async def process(self) -> ToolCallBatchResult: ...
-
-
-class ToolCallStrategyResolver(ABC):
-    @abstractmethod
-    async def create_batches(
-        self,
-        tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]],
-        context: ToolCallContext,
-    ) -> Sequence[ToolCallBatch]: ...
-
-
-class ToolCaller:
-    def __init__(
-        self,
-        logger: Logger,
-        service_registry: ServiceRegistry,
-        strategy_resolver: ToolCallStrategyResolver,
-    ) -> None:
-        self._logger = logger
-        self._service_registry = service_registry
-        self.strategy_resolver = strategy_resolver
-
-    async def infer_tool_calls(
-        self,
-        agent: Agent,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EmittedEvent],
-        tool_context: ToolContext,
-    ) -> ToolCallInferenceResult:
-        with self._logger.scope("ToolCaller"):
-            if not tool_enabled_guideline_matches:
-                return ToolCallInferenceResult(
-                    total_duration=0.0,
-                    batch_count=0,
-                    batch_generations=[],
-                    batches=[],
-                    insights=ToolInsights(),
-                )
-
-            t_start = time.time()
-
-            tools: dict[tuple[ToolId, Tool], list[GuidelineMatch]] = defaultdict(list)
-            services: dict[str, ToolService] = {}
-
-            for guideline_match, tool_ids in tool_enabled_guideline_matches.items():
-                for tool_id in tool_ids:
-                    if tool_id.service_name not in services:
-                        services[
-                            tool_id.service_name
-                        ] = await self._service_registry.read_tool_service(tool_id.service_name)
-
-                    tool = await services[tool_id.service_name].resolve_tool(
-                        tool_id.tool_name, tool_context
-                    )
-
-                    tools[(tool_id, tool)].append(guideline_match)
-
-            with self._logger.scope("ToolCaller"):
-                with self._logger.operation("Creating batches"):
-                    batches = await self.strategy_resolver.create_batches(
-                        tools=tools,
-                        context=ToolCallContext(
-                            agent=agent,
-                            services=services,
-                            context_variables=context_variables,
-                            interaction_history=interaction_history,
-                            terms=terms,
-                            ordinary_guideline_matches=ordinary_guideline_matches,
-                            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                            staged_events=staged_events,
-                        ),
-                    )
-
-                with self._logger.operation("Processing batches"):
-                    batch_tasks = [batch.process() for batch in batches]
-                    batch_results = await async_utils.safe_gather(*batch_tasks)
-
-            t_end = time.time()
-
-            # Aggregate insights from all batch results (e.g., missing data across strategies)
-            aggregated_missing_data: list[MissingToolData] = []
-            for result in batch_results:
-                if result.insights and result.insights.missing_data:
-                    aggregated_missing_data.extend(result.insights.missing_data)
-
-            return ToolCallInferenceResult(
-                total_duration=t_end - t_start,
-                batch_count=len(batches),
-                batch_generations=[result.generation_info for result in batch_results],
-                batches=[result.tool_calls for result in batch_results],
-                insights=ToolInsights(missing_data=aggregated_missing_data),
-            )
-
-    async def _run_tool(
-        self,
-        context: ToolContext,
-        tool_call: ToolCall,
-        tool_id: ToolId,
-    ) -> ToolCallResult:
-        try:
-            self._logger.debug(
-                f"Execution::Invocation: ({tool_call.tool_id.to_string()}/{tool_call.id})"
-                + (f"\n{json.dumps(tool_call.arguments, indent=2)}" if tool_call.arguments else "")
-            )
-
-            try:
-                service = await self._service_registry.read_tool_service(tool_id.service_name)
-
-                result = await service.call_tool(
-                    tool_id.tool_name,
-                    context,
-                    tool_call.arguments,
-                )
-
-                self._logger.debug(
-                    f"Execution::Result: Tool call succeeded ({tool_call.tool_id.to_string()}/{tool_call.id})\n{json.dumps(asdict(result), indent=2, default=str)}"
-                )
-            except Exception as exc:
-                self._logger.error(
-                    f"Execution::Result: Tool call failed ({tool_id.to_string()}/{tool_call.id})\n{traceback.format_exception(exc)}"
-                )
-                raise
-
-            return ToolCallResult(
-                id=ToolResultId(generate_id()),
-                tool_call=tool_call,
-                result={
-                    "data": result.data,
-                    "metadata": result.metadata,
-                    "control": result.control,
-                    "utterances": result.utterances,
-                    "utterance_fields": result.utterance_fields,
-                },
-            )
-        except Exception as e:
-            self._logger.error(
-                f"Execution::Error: ToolId: {tool_call.tool_id.to_string()}', "
-                f"Arguments:\n{json.dumps(tool_call.arguments, indent=2)}"
-                + "\nTraceback:\n"
-                + "\n".join(traceback.format_exception(e)),
-            )
-
-            return ToolCallResult(
-                id=ToolResultId(generate_id()),
-                tool_call=tool_call,
-                result={
-                    "data": "Tool call error",
-                    "metadata": {"error_details": str(e)},
-                    "control": {},
-                    "utterances": [],
-                    "utterance_fields": {},
-                },
-            )
-
-    async def execute_tool_calls(
-        self,
-        context: ToolContext,
-        tool_calls: Sequence[ToolCall],
-    ) -> Sequence[ToolCallResult]:
-        with self._logger.scope("ToolCaller"):
-            with self._logger.operation("Execution"):
-                tool_results = await async_utils.safe_gather(
-                    *(
-                        self._run_tool(
-                            context=context,
-                            tool_call=tool_call,
-                            tool_id=tool_call.tool_id,
-                        )
-                        for tool_call in tool_calls
-                    )
-                )
-
-                return tool_results
-
-
-class SingleStrategyArgumentEvaluation(DefaultBaseModel):
+class SingleToolBatchArgumentEvaluation(DefaultBaseModel):
     parameter_name: str
     acceptable_source_for_this_argument_according_to_its_tool_definition: str
     evaluate_is_it_provided_by_an_acceptable_source: str
@@ -308,10 +41,10 @@ class SingleStrategyArgumentEvaluation(DefaultBaseModel):
     value_as_string: Optional[str] = None
 
 
-class SingleStrategyToolCallEvaluation(DefaultBaseModel):
+class SingleToolBatchToolCallEvaluation(DefaultBaseModel):
     applicability_rationale: str
     is_applicable: bool
-    argument_evaluations: Optional[list[SingleStrategyArgumentEvaluation]] = None
+    argument_evaluations: Optional[list[SingleToolBatchArgumentEvaluation]] = None
     same_call_is_already_staged: bool
     comparison_with_rejected_tools_including_references_to_subtleties: Optional[str] = None
     relevant_subtleties: str
@@ -330,30 +63,30 @@ class SingleStrategyToolCallEvaluation(DefaultBaseModel):
     allowed_to_run_without_optional_arguments_even_if_they_are_missing: Optional[bool] = None
 
 
-class SingleStrategyToolCallInferenceSchema(DefaultBaseModel):
+class SingleToolBatchSchema(DefaultBaseModel):
     last_customer_message: Optional[str] = None
     most_recent_customer_inquiry_or_need: Optional[str] = None
     most_recent_customer_inquiry_or_need_was_already_resolved: Optional[bool] = None
     name: str
     subtleties_to_be_aware_of: str
-    tool_calls_for_candidate_tool: list[SingleStrategyToolCallEvaluation]
+    tool_calls_for_candidate_tool: list[SingleToolBatchToolCallEvaluation]
 
 
 SingleToolCallFeature: TypeAlias = Literal["has_reference_tools", "has_optional_arguments"]
 
 
 @dataclass
-class SingleStrategyToolCallerInferenceShot(Shot):
+class SingleToolBatchShot(Shot):
     feature_set: list[SingleToolCallFeature]
-    expected_result: SingleStrategyToolCallInferenceSchema
+    expected_result: SingleToolBatchSchema
 
 
-class SingleToolCallerBatch(ToolCallBatch):
+class SingleToolBatch(ToolCallBatch):
     def __init__(
         self,
         logger: Logger,
         service_registry: ServiceRegistry,
-        schematic_generator: SchematicGenerator[SingleStrategyToolCallInferenceSchema],
+        schematic_generator: SchematicGenerator[SingleToolBatchSchema],
         candidate_tool: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> None:
@@ -425,7 +158,7 @@ class SingleToolCallerBatch(ToolCallBatch):
 
     async def _evaluate_tool_calls_parameters(
         self,
-        inference_output: Sequence[SingleStrategyToolCallEvaluation],
+        inference_output: Sequence[SingleToolBatchToolCallEvaluation],
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
     ) -> tuple[list[ToolCall], list[MissingToolData]]:
         tool_calls = []
@@ -500,9 +233,9 @@ class SingleToolCallerBatch(ToolCallBatch):
         return tool_calls, missing_data
 
     def _get_shot_collection_for_tools(
-        self, shots: Sequence[SingleStrategyToolCallerInferenceShot], has_reference_tools: bool
-    ) -> Sequence[SingleStrategyToolCallerInferenceShot]:
-        shot_collection: Sequence[SingleStrategyToolCallerInferenceShot] = [
+        self, shots: Sequence[SingleToolBatchShot], has_reference_tools: bool
+    ) -> Sequence[SingleToolBatchShot]:
+        shot_collection: Sequence[SingleToolBatchShot] = [
             shot
             for shot in shots
             if not shot.feature_set
@@ -525,12 +258,12 @@ Please be tolerant of possible typos by the user with regards to these terms,and
 ###
 """  # noqa
 
-    async def shots(self) -> Sequence[SingleStrategyToolCallerInferenceShot]:
+    async def shots(self) -> Sequence[SingleToolBatchShot]:
         return await shot_collection.list()
 
     def _format_shots(
         self,
-        shots: Sequence[SingleStrategyToolCallerInferenceShot],
+        shots: Sequence[SingleToolBatchShot],
     ) -> str:
         return "\n".join(
             f"""
@@ -543,7 +276,7 @@ Example #{i}: ###
 
     def _format_shot(
         self,
-        shot: SingleStrategyToolCallerInferenceShot,
+        shot: SingleToolBatchShot,
     ) -> str:
         return f"""
 - **Context**:
@@ -564,7 +297,7 @@ Example #{i}: ###
         batch: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
-        shots: Sequence[SingleStrategyToolCallerInferenceShot],
+        shots: Sequence[SingleToolBatchShot],
     ) -> PromptBuilder:
         staged_calls = self._get_staged_calls(staged_events)
 
@@ -922,7 +655,7 @@ Guidelines:
     async def _run_inference(
         self,
         prompt: PromptBuilder,
-    ) -> tuple[GenerationInfo, Sequence[SingleStrategyToolCallEvaluation]]:
+    ) -> tuple[GenerationInfo, Sequence[SingleToolBatchToolCallEvaluation]]:
         inference = await self._schematic_generator.generate(
             prompt=prompt,
             hints={"temperature": 0.05},
@@ -933,83 +666,10 @@ Guidelines:
         return inference.info, inference.content.tool_calls_for_candidate_tool
 
 
-class DefaultToolCallStrategyResolver(ToolCallStrategyResolver):
-    def __init__(
-        self,
-        logger: Logger,
-        service_registry: ServiceRegistry,
-        schematic_generator: SchematicGenerator[SingleStrategyToolCallInferenceSchema],
-        relationship_store: RelationshipStore,
-    ):
-        self._logger = logger
-        self._service_registry = service_registry
-        self._schematic_generator = schematic_generator
-        self._relationship_store = relationship_store
-
-    async def create_batches(
-        self,
-        tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]],
-        context: ToolCallContext,
-    ) -> Sequence[ToolCallBatch]:
-        result: list[ToolCallBatch] = []
-
-        independent_tools = {}
-        dependent_tools = {}
-
-        for tool_id, _tool in tools:
-            if _tool.overlap == ToolOverlap.NONE:
-                independent_tools[(tool_id, _tool)] = tools[(tool_id, _tool)]
-            else:
-                dependent_tools[(tool_id, _tool)] = tools[(tool_id, _tool)]
-
-        if independent_tools:
-            context_without_reference_tools = ToolCallContext(
-                agent=context.agent,
-                services=context.services,
-                context_variables=context.context_variables,
-                interaction_history=context.interaction_history,
-                terms=context.terms,
-                ordinary_guideline_matches=list(
-                    chain(
-                        context.ordinary_guideline_matches,
-                        context.tool_enabled_guideline_matches.keys(),
-                    )
-                ),
-                tool_enabled_guideline_matches={},
-                staged_events=context.staged_events,
-            )
-            result.extend(
-                self._create_single_strategy_batch(
-                    candidate_tool=(k[0], k[1], v), context=context_without_reference_tools
-                )
-                for k, v in independent_tools.items()
-            )
-        if dependent_tools:
-            result.extend(
-                self._create_single_strategy_batch(candidate_tool=(k[0], k[1], v), context=context)
-                for k, v in dependent_tools.items()
-            )
-
-        return result
-
-    def _create_single_strategy_batch(
-        self,
-        candidate_tool: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
-        context: ToolCallContext,
-    ) -> ToolCallBatch:
-        return SingleToolCallerBatch(
-            logger=self._logger,
-            service_registry=self._service_registry,
-            schematic_generator=self._schematic_generator,
-            candidate_tool=candidate_tool,
-            context=context,
-        )
-
-
-example_1_shot = SingleStrategyToolCallerInferenceShot(
+example_1_shot = SingleToolBatchShot(
     description="the id of the customer is 12345, and check_balance(12345) is already listed as a staged tool call",
     feature_set=[],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Do I have enough money in my account to get a taxi from New York to Newark?",
         most_recent_customer_inquiry_or_need=(
             "Checking customer's balance, comparing it to the price of a taxi from New York to Newark, "
@@ -1019,11 +679,11 @@ example_1_shot = SingleStrategyToolCallerInferenceShot(
         name="check_balance",
         subtleties_to_be_aware_of="check_balance(12345) is already staged",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="We need the client's current balance to respond to their question",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="customer_id",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="The customer ID is given by a context variable",
@@ -1044,10 +704,10 @@ example_1_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_2_shot = SingleStrategyToolCallerInferenceShot(
+example_2_shot = SingleToolBatchShot(
     description="the id of the customer is 12345, and check_balance(12345) is listed as the only staged tool call",
     feature_set=[],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Do I have enough money in my account to get a taxi from New York to Newark?",
         most_recent_customer_inquiry_or_need=(
             "Checking customer's balance, comparing it to the price of a taxi from New York to Newark, "
@@ -1057,7 +717,7 @@ example_2_shot = SingleStrategyToolCallerInferenceShot(
         name="ping_supervisor",
         subtleties_to_be_aware_of="no subtleties were detected",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="There is no reason to notify the supervisor of anything",
                 is_applicable=False,
                 same_call_is_already_staged=False,
@@ -1070,13 +730,13 @@ example_2_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_3_shot = SingleStrategyToolCallerInferenceShot(
+example_3_shot = SingleToolBatchShot(
     description=(
         "the id of the customer is 12345, and check_balance(12345) is the only staged tool call; "
         "some irrelevant reference tools exist"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Do I have enough money in my account to get a taxi from New York to Newark?",
         most_recent_customer_inquiry_or_need=(
             "Checking customer's balance, comparing it to the price of a taxi from New York to Newark, "
@@ -1086,11 +746,11 @@ example_3_shot = SingleStrategyToolCallerInferenceShot(
         name="check_ride_price",
         subtleties_to_be_aware_of="no subtleties were detected",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="We need to know the price of a ride from New York to Newark to respond to the customer",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="origin",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned New York as the origin for their ride",
@@ -1100,7 +760,7 @@ example_3_shot = SingleStrategyToolCallerInferenceShot(
                         is_optional=False,
                         value_as_string="New York",
                     ),
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="destination",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer mentioned Newark as the destination for their ride",
@@ -1125,13 +785,13 @@ example_3_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_4_shot = SingleStrategyToolCallerInferenceShot(
+example_4_shot = SingleToolBatchShot(
     description=(
         "the candidate tool is check_calories(<product_name>): returns the number of calories in a product; "
         "one reference tool is check_stock()"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Which pizza has more calories, the classic margherita or the deep dish?",
         most_recent_customer_inquiry_or_need=(
             "Checking the number of calories in two types of pizza and replying with which one has more"
@@ -1140,11 +800,11 @@ example_4_shot = SingleStrategyToolCallerInferenceShot(
         name="check_calories",
         subtleties_to_be_aware_of="two products need to be checked for calories - margherita and deep dish",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="We need to check how many calories are in the margherita pizza",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="product_name",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="The first product the customer specified is a margherita",
@@ -1165,11 +825,11 @@ example_4_shot = SingleStrategyToolCallerInferenceShot(
                 are_non_optional_arguments_missing=False,
                 allowed_to_run_without_optional_arguments_even_if_they_are_missing=True,
             ),
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="We need to check how many calories are in the deep dish pizza",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="product_name",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="The second product the customer specified is the deep dish",
@@ -1194,23 +854,23 @@ example_4_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_5_shot = SingleStrategyToolCallerInferenceShot(
+example_5_shot = SingleToolBatchShot(
     description=(
         "the candidate tool is check_vehicle_price(model: str), and reference tool is check_motorcycle_price(model: str)"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="What's your price for a Harley-Davidson Street Glide?",
         most_recent_customer_inquiry_or_need="Checking the price of a Harley-Davidson Street Glide motorcycle",
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="check_motorcycle_price",
         subtleties_to_be_aware_of="Both the candidate and referenc tool could apply - we need to choose the one that applies best",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="we need to check for the price of a specific motorcycle model",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="model",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
@@ -1242,23 +902,23 @@ example_5_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_6_shot = SingleStrategyToolCallerInferenceShot(
+example_6_shot = SingleToolBatchShot(
     description=(
         "the candidate tool is check_motorcycle_price(model: str), and one reference tool is check_vehicle_price(model: str)"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="What's your price for a Harley-Davidson Street Glide?",
         most_recent_customer_inquiry_or_need="Checking the price of a Harley-Davidson Street Glide motorcycle",
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="check_vehicle_price",
         subtleties_to_be_aware_of="no subtleties were detected",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="we need to check for the price of a specific vehicle - a Harley-Davidson Street Glide",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="model",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
@@ -1287,23 +947,23 @@ example_6_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_7_shot = SingleStrategyToolCallerInferenceShot(
+example_7_shot = SingleToolBatchShot(
     description=(
         "the candidate tool is check_temperature(location: str), and reference tool is check_indoor_temperature(room: str)"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="What's the temperature in the living room right now?",
         most_recent_customer_inquiry_or_need="Checking the current temperature in the living room",
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="check_temperature",
         subtleties_to_be_aware_of="no subtleties were detected",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="need to check the current temperature in the living room",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="location",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about the living room",
@@ -1333,24 +993,24 @@ example_7_shot = SingleStrategyToolCallerInferenceShot(
 )
 
 
-example_8_shot = SingleStrategyToolCallerInferenceShot(
+example_8_shot = SingleToolBatchShot(
     description=(
         "the candidate tool is search_product(query: str), and reference tool is "
         "search_electronics(query: str, specifications: dict)"
     ),
     feature_set=["has_reference_tools"],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="I'm looking for a gaming laptop with at least 16GB RAM and an RTX 3080",
         most_recent_customer_inquiry_or_need="Searching for a gaming laptop with specific technical requirements",
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="search_product",
         subtleties_to_be_aware_of="A gaming laptop is strictly speaking a product, but more specifically it's an electronic product",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="need to search for a product with specific technical requirements",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="query",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer mentioned their specific requirements",
@@ -1381,21 +1041,21 @@ example_8_shot = SingleStrategyToolCallerInferenceShot(
 )
 
 
-example_9_shot = SingleStrategyToolCallerInferenceShot(
+example_9_shot = SingleToolBatchShot(
     description=("the candidate tool is schedule_appointment(date: str)"),
     feature_set=[],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="I want to schedule an appointment please",
         most_recent_customer_inquiry_or_need="The customer wishes to schedule an appointment",
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="schedule_appointment",
         subtleties_to_be_aware_of="The candidate tool has a date argument",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="The customer specifically wants to schedule an appointment, and there are no better reference tools",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="date",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="No; the customer hasn't provided a date, and I cannot guess it or infer when they'd be available",
@@ -1416,10 +1076,10 @@ example_9_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_10_shot = SingleStrategyToolCallerInferenceShot(
+example_10_shot = SingleToolBatchShot(
     description="the candidate tool is check_products_availability(products: list[str])",
     feature_set=[],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Hey can I buy a laptop and a mouse please?",
         most_recent_customer_inquiry_or_need=(
             "The customer wants to purchase a laptop and a mouse and we need to check if those products are available"
@@ -1428,11 +1088,11 @@ example_10_shot = SingleStrategyToolCallerInferenceShot(
         name="check_products_availability",
         subtleties_to_be_aware_of="Before the customer can make a purchase, we need to check the availability of laptops and mice. The 'products' parameter is a list, so the tool should be called once with both products in the list.",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="The tool is applicable because the customer is inquiring about purchasing specific products and the tool checks the availability of a list of products.",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="products",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes, the product names 'laptop' and 'mouse' were provided in the customer's message so should be passed as list.",
@@ -1455,21 +1115,21 @@ example_10_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-example_11_shot = SingleStrategyToolCallerInferenceShot(
+example_11_shot = SingleToolBatchShot(
     description="the candidate tool is book_flight(passenger_name: str, origin: str, destination: str, departure_date: str, return_date:str)",
     feature_set=[],
-    expected_result=SingleStrategyToolCallInferenceSchema(
+    expected_result=SingleToolBatchSchema(
         last_customer_message="Hey can I book a flight to Bangkok?",
         most_recent_customer_inquiry_or_need=("The customer wants to book a flight to Bangkok"),
         most_recent_customer_inquiry_or_need_was_already_resolved=False,
         name="book_flight",
         subtleties_to_be_aware_of="The customer clearly wants to book a flight but has not provided many of the required details for booking like origin anf departure date.",
         tool_calls_for_candidate_tool=[
-            SingleStrategyToolCallEvaluation(
+            SingleToolBatchToolCallEvaluation(
                 applicability_rationale="The customer explicitly asked to book a flight and mentioned the destination. Although multiple required details are missing, the customer's intent is clear, so this tool should be applied.",
                 is_applicable=True,
                 argument_evaluations=[
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="passenger_name",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="No, the customer has not provided a name and there is no prior context.",
@@ -1479,7 +1139,7 @@ example_11_shot = SingleStrategyToolCallerInferenceShot(
                         is_optional=False,
                         value_as_string=None,
                     ),
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="origin",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention the departure location.",
@@ -1489,7 +1149,7 @@ example_11_shot = SingleStrategyToolCallerInferenceShot(
                         is_optional=False,
                         value_as_string=None,
                     ),
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="destination",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="Yes, the customer specifically mentioned Bangkok.",
@@ -1499,7 +1159,7 @@ example_11_shot = SingleStrategyToolCallerInferenceShot(
                         is_optional=False,
                         value_as_string="Bangkok",
                     ),
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="departure_date",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a departure date.",
@@ -1509,7 +1169,7 @@ example_11_shot = SingleStrategyToolCallerInferenceShot(
                         is_optional=False,
                         value_as_string=None,
                     ),
-                    SingleStrategyArgumentEvaluation(
+                    SingleToolBatchArgumentEvaluation(
                         parameter_name="return_date",
                         acceptable_source_for_this_argument_according_to_its_tool_definition="<INFER THIS BASED ON TOOL DEFINITION>",
                         evaluate_is_it_provided_by_an_acceptable_source="No, the customer did not mention a return date.",
@@ -1530,7 +1190,8 @@ example_11_shot = SingleStrategyToolCallerInferenceShot(
     ),
 )
 
-_baseline_shots: Sequence[SingleStrategyToolCallerInferenceShot] = [
+
+_baseline_shots: Sequence[SingleToolBatchShot] = [
     example_1_shot,
     example_2_shot,
     example_3_shot,
@@ -1544,4 +1205,4 @@ _baseline_shots: Sequence[SingleStrategyToolCallerInferenceShot] = [
 ]
 
 
-shot_collection = ShotCollection[SingleStrategyToolCallerInferenceShot](_baseline_shots)
+shot_collection = ShotCollection[SingleToolBatchShot](_baseline_shots)

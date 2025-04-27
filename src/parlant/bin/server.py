@@ -96,10 +96,10 @@ from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationStore,
 )
 from parlant.core.engines.alpha.tool_caller import (
-    DefaultToolCallStrategyResolver,
-    SingleStrategyToolCallInferenceSchema,
-    SingleStrategyToolCallerInferenceShot,
-    ToolCallStrategyResolver,
+    DefaultToolCallBatcher,
+    SingleToolBatchSchema,
+    SingleToolBatchShot,
+    ToolCallBatcher,
     ToolCaller,
 )
 from parlant.core.engines.alpha.guideline_matcher import (
@@ -295,7 +295,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
     c[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
-    c[ShotCollection[SingleStrategyToolCallerInferenceShot]] = tool_caller.shot_collection
+    c[ShotCollection[SingleToolBatchShot]] = tool_caller.shot_collection
     c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
     c[EngineHooks] = EngineHooks()
@@ -471,9 +471,9 @@ async def initialize_container(
     c[
         SchematicGenerator[UtteranceFieldExtractionSchema]
     ] = await nlp_service.get_schematic_generator(UtteranceFieldExtractionSchema)
-    c[
-        SchematicGenerator[SingleStrategyToolCallInferenceSchema]
-    ] = await nlp_service.get_schematic_generator(SingleStrategyToolCallInferenceSchema)
+    c[SchematicGenerator[SingleToolBatchSchema]] = await nlp_service.get_schematic_generator(
+        SingleToolBatchSchema
+    )
     c[
         SchematicGenerator[ConditionsEntailmentTestsSchema]
     ] = await nlp_service.get_schematic_generator(ConditionsEntailmentTestsSchema)
@@ -494,8 +494,8 @@ async def initialize_container(
     ]
     c[GuidelineMatcher] = Singleton(GuidelineMatcher)
 
-    c[DefaultToolCallStrategyResolver] = Singleton(DefaultToolCallStrategyResolver)
-    c[ToolCallStrategyResolver] = lambda c: c[DefaultToolCallStrategyResolver]
+    c[DefaultToolCallBatcher] = Singleton(DefaultToolCallBatcher)
+    c[ToolCallBatcher] = lambda c: c[DefaultToolCallBatcher]
     c[ToolCaller] = Singleton(ToolCaller)
 
     c[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)

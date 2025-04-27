@@ -88,10 +88,10 @@ from parlant.core.engines.alpha.message_generator import (
     MessageSchema,
 )
 from parlant.core.engines.alpha.tool_caller import (
-    DefaultToolCallStrategyResolver,
-    SingleStrategyToolCallInferenceSchema,
-    SingleStrategyToolCallerInferenceShot,
-    ToolCallStrategyResolver,
+    DefaultToolCallBatcher,
+    SingleToolBatchSchema,
+    SingleToolBatchShot,
+    ToolCallBatcher,
     ToolCaller,
 )
 from parlant.core.engines.alpha.tool_event_generator import ToolEventGenerator
@@ -289,7 +289,7 @@ async def container(
             UtteranceSelectionSchema,
             UtteranceRevisionSchema,
             UtteranceFieldExtractionSchema,
-            SingleStrategyToolCallInferenceSchema,
+            SingleToolBatchSchema,
             ConditionsEntailmentTestsSchema,
             ActionsContradictionTestsSchema,
             GuidelineConnectionPropositionsSchema,
@@ -301,9 +301,7 @@ async def container(
             )
 
         container[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
-        container[ShotCollection[SingleStrategyToolCallerInferenceShot]] = (
-            tool_caller.shot_collection
-        )
+        container[ShotCollection[SingleToolBatchShot]] = tool_caller.shot_collection
         container[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
         container[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
@@ -324,10 +322,8 @@ async def container(
         container[GenericGuidelineMatching] = Singleton(GenericGuidelineMatching)
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
 
-        container[DefaultToolCallStrategyResolver] = Singleton(DefaultToolCallStrategyResolver)
-        container[ToolCallStrategyResolver] = lambda container: container[
-            DefaultToolCallStrategyResolver
-        ]
+        container[DefaultToolCallBatcher] = Singleton(DefaultToolCallBatcher)
+        container[ToolCallBatcher] = lambda container: container[DefaultToolCallBatcher]
         container[ToolCaller] = Singleton(ToolCaller)
         container[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
         container[UtteranceSelector] = Singleton(UtteranceSelector)
@@ -423,12 +419,12 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[SingleStrategyToolCallInferenceSchema]],
+        container[SchematicGenerator[SingleToolBatchSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[SingleStrategyToolCallInferenceSchema],
-            container[SchematicGenerator[SingleStrategyToolCallInferenceSchema]],
+            CachedSchematicGenerator[SingleToolBatchSchema],
+            container[SchematicGenerator[SingleToolBatchSchema]],
         ).use_cache = False
 
     if isinstance(

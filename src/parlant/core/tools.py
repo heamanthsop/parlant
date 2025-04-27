@@ -170,7 +170,7 @@ class ToolOverlap(Enum):
     """Check relationship store. If no relationships, then assume no overlap. This is the default value for overlap."""
 
     ALWAYS = auto()
-    """The tool always overlaps with other tools in context (this is today's behavior)."""
+    """The tool always overlaps with other tools in context."""
 
 
 @dataclass(frozen=True)

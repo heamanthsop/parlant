@@ -24,13 +24,13 @@ from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer, CustomerStore, CustomerId
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.tool_caller import (
+from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolCall,
-    ToolCallId,
     ToolCallBatch,
     ToolCallBatchResult,
+    ToolCallBatcher,
     ToolCallContext,
-    ToolCallStrategyResolver,
+    ToolCallId,
     ToolCaller,
     ToolInsights,
 )
@@ -732,7 +732,7 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
     assert missing_parameters == {"full_name", "city", "street", "house_number"}
 
 
-async def test_that_tool_calling_strategies_can_be_overridden(
+async def test_that_tool_calling_batchers_can_be_overridden(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -791,7 +791,7 @@ async def test_that_tool_calling_strategies_can_be_overridden(
                 ),
             )
 
-    class ActivateOnlyPingToolStrategyResolver(ToolCallStrategyResolver):
+    class ActivateOnlyPingToolBatcher(ToolCallBatcher):
         @override
         async def create_batches(
             self,
@@ -821,7 +821,7 @@ async def test_that_tool_calling_strategies_can_be_overridden(
     echo_tool_id = ToolId(service_name="local", tool_name="echo")
     ping_tool_id = ToolId(service_name="local", tool_name="ping")
 
-    container[ToolCaller].strategy_resolver = ActivateOnlyPingToolStrategyResolver()
+    container[ToolCaller].batcher = ActivateOnlyPingToolBatcher()
 
     interaction_history = [
         create_event_message(

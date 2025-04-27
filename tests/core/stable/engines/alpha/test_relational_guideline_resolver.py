@@ -264,7 +264,7 @@ async def test_that_relational_guideline_resolver_handles_indirect_guidelines_fr
     assert result[0].guideline.id == g1.id
 
 
-async def test_that_relational_guideline_resolver_filters_out_unmet_dependencies_between_matched_guidelines(
+async def test_that_relational_guideline_resolver_filters_out_guidelines_with_unmet_dependencies(
     container: Container,
 ) -> None:
     relationship_store = container[RelationshipStore]
@@ -301,39 +301,7 @@ async def test_that_relational_guideline_resolver_filters_out_unmet_dependencies
     assert result == []
 
 
-async def test_that_relational_guideline_resolver_filters_out_unmet_dependencies(
-    container: Container,
-) -> None:
-    relationship_store = container[RelationshipStore]
-    guideline_store = container[GuidelineStore]
-    resolver = container[RelationalGuidelineResolver]
-
-    g1 = await guideline_store.create_guideline(condition="x", action="y")
-    g2 = await guideline_store.create_guideline(condition="y", action="z")
-
-    await relationship_store.create_relationship(
-        source=RelationshipEntity(
-            id=g1.id,
-            type=EntityType.GUIDELINE,
-        ),
-        target=RelationshipEntity(
-            id=g2.id,
-            type=EntityType.GUIDELINE,
-        ),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
-    )
-
-    result = await resolver.resolve(
-        [g1, g2],
-        [
-            GuidelineMatch(guideline=g1, score=8, rationale=""),
-        ],
-    )
-
-    assert result == []
-
-
-async def test_that_relational_guideline_resolver_filters_out_unmet_dependencies_connected_through_tag(
+async def test_that_relational_guideline_resolver_filters_out_guidelines_with_unmet_dependencies_connected_through_tag(
     container: Container,
 ) -> None:
     relationship_store = container[RelationshipStore]
@@ -341,47 +309,36 @@ async def test_that_relational_guideline_resolver_filters_out_unmet_dependencies
     tag_store = container[TagStore]
     resolver = container[RelationalGuidelineResolver]
 
-    g1 = await guideline_store.create_guideline(condition="x", action="y")
-    g2 = await guideline_store.create_guideline(condition="y", action="z")
-    g3 = await guideline_store.create_guideline(condition="z", action="t")
-    t1 = await tag_store.create_tag(name="t1")
+    source_guideline = await guideline_store.create_guideline(condition="a", action="b")
 
-    await guideline_store.upsert_tag(g1.id, t1.id)
+    tagged_guideline_1 = await guideline_store.create_guideline(condition="c", action="d")
+    tagged_guideline_2 = await guideline_store.create_guideline(condition="e", action="f")
 
-    await relationship_store.create_relationship(
-        source=RelationshipEntity(
-            id=g2.id,
-            type=EntityType.GUIDELINE,
-        ),
-        target=RelationshipEntity(
-            id=t1.id,
-            type=EntityType.TAG,
-        ),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
-    )
+    target_tag = await tag_store.create_tag(name="t1")
+
+    await guideline_store.upsert_tag(tagged_guideline_1.id, target_tag.id)
+    await guideline_store.upsert_tag(tagged_guideline_2.id, target_tag.id)
 
     await relationship_store.create_relationship(
         source=RelationshipEntity(
-            id=t1.id,
-            type=EntityType.TAG,
+            id=source_guideline.id,
+            type=EntityType.GUIDELINE,
         ),
         target=RelationshipEntity(
-            id=g3.id,
-            type=EntityType.GUIDELINE,
+            id=target_tag.id,
+            type=EntityType.TAG,
         ),
         kind=GuidelineRelationshipKind.DEPENDENCY,
     )
 
     result = await resolver.resolve(
-        [g1, g2, g3],
+        [source_guideline, tagged_guideline_1, tagged_guideline_2],
         [
-            GuidelineMatch(guideline=g1, score=8, rationale=""),
-            GuidelineMatch(guideline=g2, score=5, rationale=""),
-            GuidelineMatch(guideline=g3, score=9, rationale=""),
+            GuidelineMatch(guideline=source_guideline, score=8, rationale=""),
+            GuidelineMatch(guideline=tagged_guideline_1, score=10, rationale=""),
+            # Missing match for tagged_guideline_2
         ],
     )
 
-    assert len(result) == 3
-    assert any(m.guideline.id == g1.id for m in result)
-    assert any(m.guideline.id == g2.id for m in result)
-    assert any(m.guideline.id == g3.id for m in result)
+    assert len(result) == 1
+    assert result[0].guideline.id == tagged_guideline_1.id
