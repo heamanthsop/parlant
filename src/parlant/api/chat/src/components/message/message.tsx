@@ -31,16 +31,14 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 	const [customer] = useAtom(customerAtom);
 	const markdownRef = useRef<HTMLSpanElement>(null);
 	const [showUtterance, setShowUtterance] = useState(true);
-	const [rowCount, setRowCount] = useState(1);
+	const [, setRowCount] = useState(1);
 
 	useEffect(() => {
 		if (!markdownRef?.current) return;
 		const rowCount = Math.floor(markdownRef.current.offsetHeight / 24);
-		console.log(`Setting row count ${rowCount + 1}`);
 		setRowCount(rowCount + 1);
 	}, [markdownRef, showUtterance]);
 
-	console.log(`Row count is ${rowCount}`);
 	// FIXME:
 	// rowCount SHOULD in fact be automatically calculated to
 	// benefit from nice, smaller one-line message boxes.
