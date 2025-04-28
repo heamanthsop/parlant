@@ -738,19 +738,6 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         preexecution_state: ToolPreexecutionState,
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
-        preexecution_guidelines = set(
-            match.guideline
-            for match in [
-                *preexecution_state.ordinary_guideline_matches,
-                *preexecution_state.tool_enabled_guideline_matches,
-            ]
-        )
-
-        if not preexecution_guidelines.symmetric_difference(context.state.guidelines):
-            # The only case where we need to run tools is if a new reason to run a tool
-            # has been detected. If guidelines haven't changed, there's no new reason.
-            return None
-
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
             event_emitter=context.event_emitter,
