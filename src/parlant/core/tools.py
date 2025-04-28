@@ -115,11 +115,11 @@ class ToolResult:
 
     def __init__(
         self,
-        data: JSONSerializable,
-        metadata: Optional[Mapping[str, JSONSerializable]] = None,
+        data: Any,
+        metadata: Optional[Mapping[str, Any]] = None,
         control: Optional[ControlOptions] = None,
         utterances: Optional[Sequence[Utterance]] = None,
-        utterance_fields: Optional[Mapping[str, JSONSerializable]] = None,
+        utterance_fields: Optional[Mapping[str, Any]] = None,
     ) -> None:
         object.__setattr__(self, "data", data)
         object.__setattr__(self, "metadata", metadata or {})
