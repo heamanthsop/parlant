@@ -114,7 +114,7 @@ class UtteranceContext:
 
     @property
     def guidelines(self) -> Sequence[GuidelineMatch]:
-        return self.ordinary_guideline_matches + list(self.tool_enabled_guideline_matches.keys())
+        return [*self.ordinary_guideline_matches, *self.tool_enabled_guideline_matches.keys()]
 
 
 class UtteranceFieldExtractionMethod(ABC):
