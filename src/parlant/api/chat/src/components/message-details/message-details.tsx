@@ -25,6 +25,7 @@ interface DefInterface {
 
 interface Filter {
 	id: number;
+	selected?: boolean;
 	name: string;
 	def: DefInterface | null;
 }
@@ -44,6 +45,10 @@ const MessageError = ({event}: {event: EventInterface}) => {
 	);
 };
 
+const getDefaultSelectedActiveTab = (filterTabs: Filter[]) => {
+	return filterTabs.find((t) => t.selected)?.id || filterTabs[0]?.id || null;
+};
+
 const MessageDetails = ({
 	event,
 	closeLogs,
@@ -57,11 +62,21 @@ const MessageDetails = ({
 }): ReactNode => {
 	const [filters, setFilters] = useState<Record<string, any> | null>(null);
 	const [filterTabs, setFilterTabs] = useLocalStorage<Filter[]>('filters', []);
-	const [currFilterTabs, setCurrFilterTabs] = useState<number | null>((filterTabs as Filter[])[0]?.id || null);
+	const [currFilterTabs, setCurrFilterTabs] = useState<number | null>(getDefaultSelectedActiveTab(filterTabs as Filter[]));
 	const [logs, setLogs] = useState<Log[] | null>(null);
 	const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
 	const messagesRef = useRef<HTMLDivElement | null>(null);
 	const resizableRef = useRef<ImperativePanelHandle | null>(null);
+
+	useEffect(() => {
+		(setFilterTabs as React.Dispatch<React.SetStateAction<Filter[]>>)((prev) => {
+			const newTabs = prev.map((tab: Filter) => {
+				tab.selected = tab.id === currFilterTabs;
+				return tab;
+			});
+			return newTabs;
+		});
+	}, [currFilterTabs]);
 
 	useEffect(() => {
 		if (event?.id) resizableRef.current?.resize(50);
