@@ -3,7 +3,24 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
-TBD
+
+### Added
+- ToolParameterOptions.choice_provider can now access ToolContext
+- Added utterance/draft toggle in the integrated UI
+- Added new guideline relationship: Dependency
+- Added tool relationships and the OVERLAP relationship
+- Added the 'overlap' property to tools. By default, tools will be assumed not to overlap with each other, simplifying their evaluation at runtime.
+
+### Changed
+- Improved tool calling efficiency by adjusting the prompt to the tool at hand
+- Revised completion schema (ARQs) for tool calling
+- Utterances now follow a 2-stage process: draft + select
+- Changed guest customer name to Guest
+
+### Fixed
+- Fixed agent creation with tags
+- Fixed client CLI exit status when encountering an error
+- Fixed agent update
 
 ## [2.0.0] - 2025-04-09
 
