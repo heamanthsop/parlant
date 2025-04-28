@@ -112,6 +112,10 @@ class UtteranceContext:
     tool_insights: ToolInsights
     staged_events: Sequence[EmittedEvent]
 
+    @property
+    def guidelines(self) -> Sequence[GuidelineMatch]:
+        return self.ordinary_guideline_matches + list(self.tool_enabled_guideline_matches.keys())
+
 
 class UtteranceFieldExtractionMethod(ABC):
     @abstractmethod
@@ -442,10 +446,6 @@ class UtteranceSelector(MessageEventComposer):
             return []
 
         utterances = await self._get_utterances(staged_events)
-
-        if not utterances and agent.composition_mode != CompositionMode.FLUID_UTTERANCE:
-            self._logger.warning("No utterances found; skipping response")
-            return []
 
         last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
 
@@ -807,6 +807,20 @@ Produce a valid JSON object in the following format: ###
             on_build=lambda prompt: self._logger.debug(f"Utterance Selection Prompt:\n{prompt}")
         )
 
+        if context.guidelines:
+            formatted_guidelines = (
+                "In choosing the template, try to abide by the following general guidelines: ###\n"
+            )
+
+            for g in context.guidelines:
+                formatted_guidelines += (
+                    f"\n- When {g.guideline.content.condition}, then {g.guideline.content.action}."
+                )
+
+            formatted_guidelines = "###"
+        else:
+            formatted_guidelines = ""
+
         formatted_utterances = "\n".join(
             [f'Template ID: {u.id} """\n{u.value}\n"""\n' for u in utterances]
         )
@@ -833,6 +847,8 @@ Produce a valid JSON object in the following format: ###
 5. Note that there may be multiple relevant choices. Out of those, you must choose the MOST suitable one that is MOST LIKE the human operator's draft reply.
 6. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procederal instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.
 
+{formatted_guidelines}
+
 {last_customer_message_text}
 
 Pre-approved reply templates: ###
@@ -856,6 +872,8 @@ If you've had to fall back to a can't-help template because you couldn't find a 
                 "draft_message": draft_message,
                 "utterances": utterances,
                 "formatted_utterances": formatted_utterances,
+                "guidelines": context.guidelines,
+                "formatted_guidelines": formatted_guidelines,
                 "composition_mode": context.agent.composition_mode,
                 "last_customer_message_text": last_customer_message_text,
             },
