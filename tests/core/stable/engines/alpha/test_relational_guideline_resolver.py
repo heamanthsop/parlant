@@ -73,6 +73,37 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
     assert result == [GuidelineMatch(guideline=g1, score=8, rationale="")]
 
 
+async def test_that_relational_guideline_resolver_does_not_ignore_a_deprioritized_guideline_when_its_prioritized_counterpart_is_not_active(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    resolver = container[RelationalGuidelineResolver]
+
+    prioritized_guideline = await guideline_store.create_guideline(condition="x", action="y")
+    deprioritized_guideline = await guideline_store.create_guideline(condition="y", action="z")
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=prioritized_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=deprioritized_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        kind=GuidelineRelationshipKind.PRIORITY,
+    )
+
+    matches: list[GuidelineMatch] = [
+        GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale=""),
+    ]
+
+    result = await resolver.resolve([prioritized_guideline, deprioritized_guideline], matches)
+
+    assert result == [GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale="")]
+
+
 async def test_that_relational_guideline_resolver_prioritizes_guidelines(
     container: Container,
 ) -> None:
@@ -80,29 +111,29 @@ async def test_that_relational_guideline_resolver_prioritizes_guidelines(
     guideline_store = container[GuidelineStore]
     resolver = container[RelationalGuidelineResolver]
 
-    g1 = await guideline_store.create_guideline(condition="x", action="y")
-    g2 = await guideline_store.create_guideline(condition="y", action="z")
-
-    matches: list[GuidelineMatch] = [
-        GuidelineMatch(guideline=g1, score=8, rationale=""),
-        GuidelineMatch(guideline=g2, score=5, rationale=""),
-    ]
+    prioritized_guideline = await guideline_store.create_guideline(condition="x", action="y")
+    deprioritized_guideline = await guideline_store.create_guideline(condition="y", action="z")
 
     await relationship_store.create_relationship(
         source=RelationshipEntity(
-            id=g1.id,
+            id=prioritized_guideline.id,
             type=EntityType.GUIDELINE,
         ),
         target=RelationshipEntity(
-            id=g2.id,
+            id=deprioritized_guideline.id,
             type=EntityType.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
-    result = await resolver.resolve([g1, g2], matches)
+    matches: list[GuidelineMatch] = [
+        GuidelineMatch(guideline=prioritized_guideline, score=8, rationale=""),
+        GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale=""),
+    ]
 
-    assert result == [GuidelineMatch(guideline=g1, score=8, rationale="")]
+    result = await resolver.resolve([prioritized_guideline, deprioritized_guideline], matches)
+
+    assert result == [GuidelineMatch(guideline=prioritized_guideline, score=8, rationale="")]
 
 
 async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
@@ -159,6 +190,56 @@ async def test_that_relational_guideline_resolver_infers_guidelines_from_tags(
     assert any(m.guideline.id == g2.id for m in result)
     assert any(m.guideline.id == g3.id for m in result)
     assert any(m.guideline.id == g4.id for m in result)
+
+
+async def test_that_relational_guideline_resolver_does_not_ignore_a_deprioritized_tag_when_its_prioritized_counterpart_is_not_active(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    tag_store = container[TagStore]
+    resolver = container[RelationalGuidelineResolver]
+
+    prioritized_guideline = await guideline_store.create_guideline(condition="x", action="y")
+    deprioritized_guideline = await guideline_store.create_guideline(condition="y", action="z")
+
+    deprioritized_tag = await tag_store.create_tag(name="t1")
+
+    await guideline_store.upsert_tag(deprioritized_guideline.id, deprioritized_tag.id)
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=prioritized_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=deprioritized_tag.id,
+            type=EntityType.TAG,
+        ),
+        kind=GuidelineRelationshipKind.PRIORITY,
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=deprioritized_tag.id,
+            type=EntityType.TAG,
+        ),
+        target=RelationshipEntity(
+            id=deprioritized_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        kind=GuidelineRelationshipKind.PRIORITY,
+    )
+
+    result = await resolver.resolve(
+        [prioritized_guideline, deprioritized_guideline],
+        [
+            GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale=""),
+        ],
+    )
+
+    assert len(result) == 1
+    assert result[0].guideline.id == deprioritized_guideline.id
 
 
 async def test_that_relational_guideline_resolver_prioritizes_guidelines_from_tags(

@@ -18,6 +18,7 @@ All notable changes to Parlant will be documented here.
 - Changed guest customer name to Guest
 
 ### Fixed
+- Fixed deprioritized guidelines always being skipped
 - Fixed agent creation with tags
 - Fixed client CLI exit status when encountering an error
 - Fixed agent update

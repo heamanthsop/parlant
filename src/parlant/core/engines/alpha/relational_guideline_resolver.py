@@ -17,6 +17,7 @@ from itertools import chain
 from typing import Sequence, cast
 
 from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+from parlant.core.loggers import Logger
 from parlant.core.relationships import (
     EntityType,
     GuidelineRelationshipKind,
@@ -31,30 +32,35 @@ class RelationalGuidelineResolver:
         self,
         relationship_store: RelationshipStore,
         guideline_store: GuidelineStore,
+        logger: Logger,
     ) -> None:
         self._relationship_store = relationship_store
         self._guideline_store = guideline_store
+        self._logger = logger
 
     async def resolve(
         self,
         usable_guidelines: Sequence[Guideline],
         matches: Sequence[GuidelineMatch],
     ) -> Sequence[GuidelineMatch]:
-        result = await self.filter_unmet_dependencies(
-            usable_guidelines=usable_guidelines,
-            matches=matches,
-        )
-        result = await self.replace_with_prioritized(result)
-
-        return list(
-            chain(
-                result,
-                await self.get_entailed(
+        # Use the guideline matcher scope to associate logs with it
+        with self._logger.scope("GuidelineMatcher"):
+            with self._logger.scope("RelationalGuidelineResolver"):
+                result = await self.filter_unmet_dependencies(
                     usable_guidelines=usable_guidelines,
-                    matches=result,
-                ),
-            )
-        )
+                    matches=matches,
+                )
+                result = await self.replace_with_prioritized(result)
+
+                return list(
+                    chain(
+                        result,
+                        await self.get_entailed(
+                            usable_guidelines=usable_guidelines,
+                            matches=result,
+                        ),
+                    )
+                )
 
     async def replace_with_prioritized(
         self,
@@ -68,11 +74,12 @@ class RelationalGuidelineResolver:
         # and those are the ones we are loading here.
         match_guideline_ids = {m.guideline.id for m in matches}
 
-        itarated_guidelines: set[GuidelineId] = set()
+        iterated_guidelines: set[GuidelineId] = set()
 
         result = []
+
         for match in matches:
-            relationships = list(
+            priority_relationships = list(
                 await self._relationship_store.list_relationships(
                     kind=GuidelineRelationshipKind.PRIORITY,
                     indirect=True,
@@ -80,45 +87,57 @@ class RelationalGuidelineResolver:
                 )
             )
 
-            if not relationships:
+            if not priority_relationships:
                 result.append(match)
                 continue
 
-            prioritized = True
-            while relationships:
-                relationship = relationships.pop()
+            deprioritized = False
+            prioritized_guideline_id: GuidelineId | None = None
+
+            while priority_relationships:
+                relationship = priority_relationships.pop()
+
+                prioritized_entity = relationship.source
+
                 if (
-                    relationship.target.type == EntityType.GUIDELINE
-                    and relationship.target.id in match_guideline_ids
+                    prioritized_entity.type == EntityType.GUIDELINE
+                    and prioritized_entity.id in match_guideline_ids
                 ):
-                    prioritized = False
+                    deprioritized = True
+                    prioritized_guideline_id = cast(GuidelineId, prioritized_entity.id)
                     break
 
-                elif relationship.target.type == EntityType.TAG:
-                    # In case target is a tag, we need to find all guidelines
+                elif prioritized_entity.type == EntityType.TAG:
+                    # In case source is a tag, we need to find all guidelines
                     # that are associated with this tag.
                     #
                     # We then need to check if any of those guidelines have a priority relationship
                     #
                     # If not, we need to iterate over all those guidelines and add their priority relationships
-                    guideline_associated_to_tag = await self._guideline_store.list_guidelines(
-                        tags=[cast(TagId, relationship.target.id)]
+                    guideline_associated_with_prioritized_tag = (
+                        await self._guideline_store.list_guidelines(
+                            tags=[cast(TagId, prioritized_entity.id)]
+                        )
                     )
 
-                    if any(
-                        g.id in match_guideline_ids and g.id != match.guideline.id
-                        for g in guideline_associated_to_tag
+                    if prioritized_guideline_id := next(
+                        (
+                            g.id
+                            for g in guideline_associated_with_prioritized_tag
+                            if g.id in match_guideline_ids and g.id != match.guideline.id
+                        ),
+                        None,
                     ):
-                        prioritized = False
+                        deprioritized = True
                         break
 
-                    for g in guideline_associated_to_tag:
+                    for g in guideline_associated_with_prioritized_tag:
                         # In case we already iterated over this guideline,
                         # we don't need to iterate over it again.
-                        if g.id in itarated_guidelines or g.id in match_guideline_ids:
+                        if g.id in iterated_guidelines or g.id in match_guideline_ids:
                             continue
 
-                        relationships.extend(
+                        priority_relationships.extend(
                             await self._relationship_store.list_relationships(
                                 kind=GuidelineRelationshipKind.PRIORITY,
                                 indirect=True,
@@ -126,14 +145,24 @@ class RelationalGuidelineResolver:
                             )
                         )
 
-                    itarated_guidelines.update(
-                        g.id for g in guideline_associated_to_tag if g.id not in match_guideline_ids
+                    iterated_guidelines.update(
+                        g.id
+                        for g in guideline_associated_with_prioritized_tag
+                        if g.id not in match_guideline_ids
                     )
 
-            itarated_guidelines.add(match.guideline.id)
+            iterated_guidelines.add(match.guideline.id)
 
-            if prioritized:
+            if not deprioritized:
                 result.append(match)
+            else:
+                prioritized_guideline = next(
+                    m.guideline for m in matches if m.guideline.id == prioritized_guideline_id
+                )
+
+                self._logger.info(
+                    f"Skipped: Guideline {match.guideline.id} ({match.guideline.content.action}) deactivated due to contextual prioritization by {prioritized_guideline_id} ({prioritized_guideline.content.action})"
+                )
 
         return result
 
@@ -227,7 +256,7 @@ class RelationalGuidelineResolver:
                     (match, related_guideline),
                 )
 
-        return [
+        entailed_matches = [
             GuidelineMatch(
                 guideline=inferred_guideline,
                 score=match.score,
@@ -235,6 +264,11 @@ class RelationalGuidelineResolver:
             )
             for match, inferred_guideline in match_and_inferred_guideline_pairs
         ]
+
+        for m in entailed_matches:
+            self._logger.info(f"Activated: Entailed guideline {m.guideline.id}")
+
+        return entailed_matches
 
     async def filter_unmet_dependencies(
         self,
@@ -245,7 +279,7 @@ class RelationalGuidelineResolver:
         #
         # For example, if we matched guidelines "When X, Then Y" (S) and "When Y, Then Z" (T),
         # and S is dependes on T, then S should not be activated unless T is activated.
-        match_guideline_ids = {m.guideline.id for m in matches}
+        matched_guideline_ids = {m.guideline.id for m in matches}
 
         result: list[GuidelineMatch] = []
 
@@ -262,17 +296,18 @@ class RelationalGuidelineResolver:
                 result.append(match)
                 continue
 
-            itarated_guidelines: set[GuidelineId] = set()
+            iterated_guidelines: set[GuidelineId] = set()
 
-            dependent = False
+            dependent_on_inactive_guidelines = False
+
             while dependencies:
                 dependency = dependencies.pop()
 
                 if (
                     dependency.target.type == EntityType.GUIDELINE
-                    and dependency.target.id not in match_guideline_ids
+                    and dependency.target.id not in matched_guideline_ids
                 ):
-                    dependent = True
+                    dependent_on_inactive_guidelines = True
                     break
 
                 if dependency.target.type == EntityType.TAG:
@@ -281,11 +316,11 @@ class RelationalGuidelineResolver:
                     )
 
                     for g in guidelines_associated_to_tag:
-                        if g.id not in match_guideline_ids:
-                            dependent = True
+                        if g.id not in matched_guideline_ids:
+                            dependent_on_inactive_guidelines = True
                             break
 
-                        if g.id not in itarated_guidelines:
+                        if g.id not in iterated_guidelines:
                             dependencies.extend(
                                 await self._relationship_store.list_relationships(
                                     kind=GuidelineRelationshipKind.DEPENDENCY,
@@ -294,9 +329,13 @@ class RelationalGuidelineResolver:
                                 )
                             )
 
-                    itarated_guidelines.update(g.id for g in guidelines_associated_to_tag)
+                    iterated_guidelines.update(g.id for g in guidelines_associated_to_tag)
 
-            if not dependent:
+            if not dependent_on_inactive_guidelines:
                 result.append(match)
+            else:
+                self._logger.info(
+                    f"Skipped: Guideline {match.guideline.id} deactivated due to unmet dependencies"
+                )
 
         return result

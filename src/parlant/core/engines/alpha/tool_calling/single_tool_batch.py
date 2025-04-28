@@ -98,21 +98,20 @@ class SingleToolBatch(ToolCallBatch):
 
     @override
     async def process(self) -> ToolCallBatchResult:
-        with self._logger.operation(f"Evaluation: {self._candidate_tool[0]}"):
-            (
-                generation_info,
-                inference_output,
-                missing_data,
-            ) = await self._infer_calls_for_single_tool(
-                agent=self._context.agent,
-                context_variables=self._context.context_variables,
-                interaction_history=self._context.interaction_history,
-                terms=self._context.terms,
-                ordinary_guideline_matches=self._context.ordinary_guideline_matches,
-                candidate_descriptor=self._candidate_tool,
-                reference_tools=[],
-                staged_events=self._context.staged_events,
-            )
+        (
+            generation_info,
+            inference_output,
+            missing_data,
+        ) = await self._infer_calls_for_single_tool(
+            agent=self._context.agent,
+            context_variables=self._context.context_variables,
+            interaction_history=self._context.interaction_history,
+            terms=self._context.terms,
+            ordinary_guideline_matches=self._context.ordinary_guideline_matches,
+            candidate_descriptor=self._candidate_tool,
+            reference_tools=[],
+            staged_events=self._context.staged_events,
+        )
 
         return ToolCallBatchResult(
             generation_info=generation_info,
@@ -150,13 +149,13 @@ class SingleToolBatch(ToolCallBatch):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
         # Evaluate the tool calls
-        tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
+        tool_calls, missing_data = await self._evaluate_tool_calls(
             inference_output, candidate_descriptor
         )
 
         return generation_info, tool_calls, missing_data
 
-    async def _evaluate_tool_calls_parameters(
+    async def _evaluate_tool_calls(
         self,
         inference_output: Sequence[SingleToolBatchToolCallEvaluation],
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
@@ -180,7 +179,7 @@ class SingleToolBatch(ToolCallBatch):
                     if evaluation.parameter_name in candidate_descriptor[1].required
                 ):
                     self._logger.debug(
-                        f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
+                        f"Inference::Completion::Activated: {tool.name}:\n{tc.model_dump_json(indent=2)}"
                     )
 
                     arguments = {}
@@ -225,9 +224,13 @@ class SingleToolBatch(ToolCallBatch):
                                 )
                             )
 
+                    self._logger.debug(
+                        f"Inference::Completion::Skipped: Missing arguments for {tool.name}\n{tc.model_dump_json(indent=2)}"
+                    )
+
             else:
                 self._logger.debug(
-                    f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
+                    f"Inference::Completion::Skipped: {tool.name}\n{tc.model_dump_json(indent=2)}"
                 )
 
         return tool_calls, missing_data
@@ -533,15 +536,15 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
             match options.source:
                 case "any":
                     result["acceptable_source"] = (
-                        "This argument can be extracted in the best way you think"
+                        "This argument can be extracted in the best way you think (context, tool results, customer input, etc.)"
                     )
                 case "context":
                     result["acceptable_source"] = (
-                        "This argument can be extracted only from the context given in this prompt"
+                        "This argument can be extracted only from the context given in this prompt (tool results, interaction, variables, etc.)"
                     )
                 case "customer":
                     result["acceptable_source"] = (
-                        "This argument must be provided by the customer, and NEVER automatically guessed by you"
+                        "This argument must be provided by the customer in the interaction itself, and NEVER automatically guessed by you"
                     )
 
             return json.dumps(result)

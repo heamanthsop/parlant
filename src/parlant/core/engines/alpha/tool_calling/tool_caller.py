@@ -168,25 +168,24 @@ class ToolCaller:
 
                     tools[(tool_id, tool)].append(guideline_match)
 
-            with self._logger.scope("ToolCaller"):
-                with self._logger.operation("Creating batches"):
-                    batches = await self.batcher.create_batches(
-                        tools=tools,
-                        context=ToolCallContext(
-                            agent=agent,
-                            services=services,
-                            context_variables=context_variables,
-                            interaction_history=interaction_history,
-                            terms=terms,
-                            ordinary_guideline_matches=ordinary_guideline_matches,
-                            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                            staged_events=staged_events,
-                        ),
-                    )
+            with self._logger.operation("Creating batches"):
+                batches = await self.batcher.create_batches(
+                    tools=tools,
+                    context=ToolCallContext(
+                        agent=agent,
+                        services=services,
+                        context_variables=context_variables,
+                        interaction_history=interaction_history,
+                        terms=terms,
+                        ordinary_guideline_matches=ordinary_guideline_matches,
+                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+                        staged_events=staged_events,
+                    ),
+                )
 
-                with self._logger.operation("Processing batches"):
-                    batch_tasks = [batch.process() for batch in batches]
-                    batch_results = await async_utils.safe_gather(*batch_tasks)
+            with self._logger.operation("Processing batches"):
+                batch_tasks = [batch.process() for batch in batches]
+                batch_results = await async_utils.safe_gather(*batch_tasks)
 
             t_end = time.time()
 

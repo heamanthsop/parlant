@@ -125,7 +125,7 @@ class Actions:
         raise Exception(f"Tag ({tag}) not found")
 
     @staticmethod
-    def _parse_relationship_entity(
+    def _parse_relationship_side(
         ctx: click.Context,
         entity_id: str,
     ) -> tuple[str, str]:
@@ -443,8 +443,8 @@ class Actions:
     ) -> Relationship:
         client = cast(ParlantClient, ctx.obj.client)
 
-        source_id, source_type = Actions._parse_relationship_entity(ctx, source)
-        target_id, target_type = Actions._parse_relationship_entity(ctx, target)
+        source_id, source_type = Actions._parse_relationship_side(ctx, source)
+        target_id, target_type = Actions._parse_relationship_side(ctx, target)
 
         return client.relationships.create(
             source_guideline=source_id if source_type == "guideline" else None,
@@ -457,13 +457,20 @@ class Actions:
     @staticmethod
     def remove_relationship(
         ctx: click.Context,
-        source_id: str,
-        target_id: str,
-        kind: GuidelineRelationshipKindDto,
+        id: Optional[str],
+        source_id: Optional[str],
+        target_id: Optional[str],
+        kind: Optional[GuidelineRelationshipKindDto],
     ) -> str:
         client = cast(ParlantClient, ctx.obj.client)
 
-        source_id, source_type = Actions._parse_relationship_entity(ctx, source_id)
+        if id:
+            client.relationships.delete(id)
+            return id
+
+        assert source_id and target_id and kind
+
+        source_id, source_type = Actions._parse_relationship_side(ctx, source_id)
 
         if relationship := next(
             (
@@ -1584,7 +1591,6 @@ class Interface:
             ]
 
             if rel.source_guideline:
-                rich.print(f"source_guideline: {rel.source_guideline}")
                 result.extend(
                     [
                         ("Source Condition", rel.source_guideline.condition),
@@ -1777,13 +1783,15 @@ class Interface:
     @staticmethod
     def remove_relationship(
         ctx: click.Context,
-        source_id: str,
-        target_id: str,
-        kind: GuidelineRelationshipKindDto,
+        id: Optional[str],
+        source_id: Optional[str],
+        target_id: Optional[str],
+        kind: Optional[GuidelineRelationshipKindDto],
     ) -> None:
         try:
             relationship_id = Actions.remove_relationship(
                 ctx,
+                id,
                 source_id,
                 target_id,
                 kind,
@@ -3168,19 +3176,18 @@ async def async_main() -> None:
         )
 
     @relationship.command("delete", help="Delete a relationship between two guidelines")
+    @click.option("--id", type=str, metavar="ID", help="Relationship ID")
     @click.option(
         "--source",
         type=str,
         metavar="GUIDELINE_ID",
         help="Source of the relationship",
-        required=True,
     )
     @click.option(
         "--target",
         type=str,
         metavar="TAG_NAME | TAG_ID | GUIDELINE_ID",
         help="Target tag or guideline ID",
-        required=True,
     )
     @click.option(
         "--kind",
@@ -3192,17 +3199,29 @@ async def async_main() -> None:
             ]
         ),
         help="Relationship kind",
-        required=True,
     )
     @click.pass_context
     def relationship_delete(
         ctx: click.Context,
-        source: str,
-        target: str,
-        kind: GuidelineRelationshipKindDto,
+        id: Optional[str],
+        source: Optional[str],
+        target: Optional[str],
+        kind: Optional[GuidelineRelationshipKindDto],
     ) -> None:
+        if id:
+            if source or target or kind:
+                Interface.write_error("When --id is used, other identifiers must not be used")
+                set_exit_status(1)
+                raise FastExit()
+        if source or target or kind:
+            if id:
+                Interface.write_error("When specifying source and target, ID must not be specified")
+            if not (source and target and kind):
+                Interface.write_error("Please specify --source, --target, and --kind")
+
         Interface.remove_relationship(
             ctx=ctx,
+            id=id,
             source_id=source,
             target_id=target,
             kind=kind,
@@ -3764,7 +3783,8 @@ def main() -> None:
             set_exit_status(1)
         except FastExit:
             pass
-        except BaseException:
+        except BaseException as exc:
+            print(exc, file=sys.stderr)
             set_exit_status(1)
 
         sys.exit(get_exit_status())
