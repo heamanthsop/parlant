@@ -160,8 +160,11 @@ class StandardFieldExtraction(UtteranceFieldExtractionMethod):
     def _extract_invalid_params(
         self,
         tool_insights: ToolInsights,
-    ) -> list[str]:
-        return [invalid_data.parameter for invalid_data in tool_insights.invalid_data]
+    ) -> dict[str, str]:
+        return {
+            invalid_data.parameter: invalid_data.invalid_value
+            for invalid_data in tool_insights.invalid_data
+        }
 
 
 class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):

@@ -373,7 +373,7 @@ class AlphaEngine(Engine):
             context.state.tool_enabled_guideline_matches,
         ) = await self._load_matched_guidelines(context)
 
-        # Matched guidelines may use glossasry terms, so we need to ground our
+        # Matched guidelines may use glossary terms, so we need to ground our
         # response by reevaluating the relevant terms given these new guidelines.
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
