@@ -53,7 +53,6 @@ const Avatar = ({agent, customer, tooltip = true}: Props): ReactNode => {
 	const isAgentUnavailable = agent?.name === 'N/A';
 	const isCustomerUnavailable = customer?.name === 'N/A';
 	const agentFirstLetter = agent.name.replaceAll(/>|</g, '')[0].toUpperCase();
-	if (!customer) console.log(agent, customer);
 	const isGuest = customer?.id === 'guest' || agent?.id === 'guest';
 	const customerFirstLetter = isGuest ? 'G' : customer?.name?.[0]?.toUpperCase();
 	const style: React.CSSProperties = {transform: 'translateY(17px)', fontSize: '13px !important', fontWeight: 400, fontFamily: 'inter'};

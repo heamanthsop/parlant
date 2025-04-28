@@ -88,7 +88,9 @@ const MessageDetails = ({
 					});
 				}
 			}
-			if (!filters && logs?.length) setFilters({});
+			if (!filters && logs?.length) {
+				setFilters({});
+			}
 		};
 		setLogsFn();
 	}, [logs, filters]);
@@ -149,7 +151,9 @@ const MessageDetails = ({
 								showDropdown
 								filterId={currFilterTabs || undefined}
 								def={structuredClone((filterTabs as Filter[]).find((t: Filter) => currFilterTabs === t.id)?.def || null)}
-								applyFn={(types, level, content) => setFilters({types, level, content})}
+								applyFn={(types, level, content) => {
+									setTimeout(() => setFilters({types, level, content}), 0);
+								}}
 							/>
 						)}
 					</div>
@@ -162,7 +166,9 @@ const MessageDetails = ({
 							className={twMerge(!filteredLogs?.length && '', !logs?.length && 'absolute')}
 							filterId={currFilterTabs || undefined}
 							def={structuredClone((filterTabs as Filter[]).find((t: Filter) => currFilterTabs === t.id)?.def || null)}
-							applyFn={(types, level, content) => setFilters({types, level, content})}
+							applyFn={(types, level, content) => {
+								setTimeout(() => setFilters({types, level, content}), 0);
+							}}
 						/>
 					)}
 					{!event && <EmptyState title='Feeling curious?' subTitle='Select a message for additional actions and information about its process.' />}
