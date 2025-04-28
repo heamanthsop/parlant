@@ -15,7 +15,7 @@
 from typing import Any, cast
 from pytest_bdd import given, parsers
 
-from parlant.core.tools import ToolParameterOptions
+from parlant.core.tools import ToolOverlap, ToolParameterOptions
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -118,6 +118,30 @@ def given_the_tool_from_service(
 
     tool = context.sync_await(
         local_tool_service.create_tool(**service_tools[service_name][tool_name])
+    )
+
+    context.tools[tool_name] = tool
+
+
+@step(given, parsers.parse('the tool "{tool_name}" with always as overlap'))
+def given_the_tool_with_always_as_overlap(
+    context: ContextOfTest,
+    tool_name: str,
+) -> None:
+    local_tool_service = context.container[LocalToolService]
+
+    tools: dict[str, dict[str, Any]] = {
+        "get_terrys_offering": {
+            "name": "get_terrys_offering",
+            "description": "Explain Terry's offering",
+            "module_path": "tests.tool_utilities",
+            "parameters": {},
+            "required": [],
+        }
+    }
+
+    tool = context.sync_await(
+        local_tool_service.create_tool(**tools[tool_name], overlap=ToolOverlap.ALWAYS)
     )
 
     context.tools[tool_name] = tool
