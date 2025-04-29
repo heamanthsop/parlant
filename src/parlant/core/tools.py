@@ -149,7 +149,7 @@ class ToolParameterOptions(DefaultBaseModel):
     adapter: Optional[Callable[[Any], Awaitable[Any]]] = Field(default=None, exclude=True)
     """A custom adapter function to convert the inferred value to a type."""
 
-    choice_provider: Optional[Callable[..., Awaitable[list[str]]]] = Field(
+    choice_provider: Optional[Callable[..., Awaitable[Sequence[str]]]] = Field(
         default=None, exclude=True
     )
     """A custom function to provide valid choices for the parameter's argument."""
