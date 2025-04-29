@@ -23,6 +23,9 @@ All notable changes to Parlant will be documented here.
 - Fixed client CLI exit status when encountering an error
 - Fixed agent update
 
+### Known Issues
+- OpenAPI tool services sometimes run into issues due to a version update in aiopenapi3
+
 ## [2.0.0] - 2025-04-09
 
 ### Added
