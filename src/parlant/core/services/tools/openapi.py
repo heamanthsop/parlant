@@ -161,7 +161,7 @@ class OpenAPIClient(ToolService):
                     },
                     required=parameter_spec.required,
                     consequential=False,
-                    overlap=ToolOverlap.AUTO,
+                    overlap=ToolOverlap.ALWAYS,
                 )
 
                 async def tool_func(

@@ -167,7 +167,7 @@ class ToolOverlap(Enum):
     """The tool never overlaps with any other tool. No need to check relationships."""
 
     AUTO = auto()
-    """Check relationship store. If no relationships, then assume no overlap. This is the default value for overlap."""
+    """(TODO: WIP feature): Check relationship store. If no relationships, then assume no overlap. This is the default value for overlap."""
 
     ALWAYS = auto()
     """The tool always overlaps with other tools in context."""
@@ -286,7 +286,7 @@ class LocalToolService(ToolService):
             parameters=local_tool.parameters,
             required=local_tool.required,
             consequential=local_tool.consequential,
-            overlap=ToolOverlap.AUTO,
+            overlap=ToolOverlap.ALWAYS,
         )
 
     # Note that in this function's arguments ToolParameterOptions is optional (initialized to default if not given)

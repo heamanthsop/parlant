@@ -801,17 +801,17 @@ async def test_that_a_plugin_tool_can_return_utterances(
             assert utterances[1] in result.utterances
 
 
-async def test_that_tool_decorator_has_default_overlap_auto() -> None:
+async def test_that_tool_decorator_has_default_overlap_always() -> None:
     @tool
     def my_tool(context: ToolContext) -> ToolResult:
         return ToolResult({})
 
-    assert my_tool.tool.overlap == ToolOverlap.AUTO
+    assert my_tool.tool.overlap == ToolOverlap.ALWAYS
 
 
 async def test_that_tool_decorator_can_set_overlap() -> None:
-    @tool(overlap=ToolOverlap.ALWAYS)
+    @tool(overlap=ToolOverlap.NONE)
     def my_tool(context: ToolContext) -> ToolResult:
         return ToolResult({})
 
-    assert my_tool.tool.overlap == ToolOverlap.ALWAYS
+    assert my_tool.tool.overlap == ToolOverlap.NONE
