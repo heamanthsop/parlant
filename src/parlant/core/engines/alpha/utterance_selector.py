@@ -447,6 +447,10 @@ class UtteranceSelector(MessageEventComposer):
 
         utterances = await self._get_utterances(staged_events)
 
+        if not utterances and agent.composition_mode == CompositionMode.FLUID_UTTERANCE:
+            self._logger.warning("No utterances found; falling back to fluid generation")
+            raise FluidUtteranceFallback()
+
         last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
 
         await event_emitter.emit_status_event(
@@ -866,7 +870,7 @@ Output a JSON object with a two properties:
     b. "partial": You found a template that conveys at least some of the draft message's content
     c. "high": You found a template that captures the draft message in both form and function
 
-If you've had to fall back to a can't-help template because you couldn't find a good template to use, in that case "match_quality" should be "partial" and you should output a third property "rationale" explaining why and whether any of the other templates came close.
+If you've had to fall back to a "partial" match template because you couldn't find a good template to use, in that case you should output a third property "rationale" explaining why none of the templates had high quality match.
 """,
             props={
                 "draft_message": draft_message,
