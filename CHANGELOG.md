@@ -3,6 +3,9 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
+TBD
+
+## [2.1.0] - 2025-04-29
 
 ### Added
 - ToolParameterOptions.choice_provider can now access ToolContext
