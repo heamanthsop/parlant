@@ -1633,8 +1633,10 @@ class Interface:
             return OrderedDict(result)
 
         if relationships:
-            direct = [r for r in relationships if not r.indirect]
-            indirect = [r for r in relationships if r.indirect]
+            direct = [
+                r for r in relationships if entity in (r.source_guideline, r.target_guideline)
+            ]
+            indirect = [r for r in relationships if entity not in (r.source_tag, r.target_tag)]
 
             if direct:
                 rich.print("\nDirect Relationships:")
