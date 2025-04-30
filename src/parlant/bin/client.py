@@ -1634,9 +1634,16 @@ class Interface:
 
         if relationships:
             direct = [
-                r for r in relationships if entity in (r.source_guideline, r.target_guideline)
+                r
+                for r in relationships
+                if entity in (r.source_guideline, r.target_guideline, r.source_tag, r.target_tag)
             ]
-            indirect = [r for r in relationships if entity not in (r.source_tag, r.target_tag)]
+            indirect = [
+                r
+                for r in relationships
+                if entity
+                not in (r.source_guideline, r.target_guideline, r.source_tag, r.target_tag)
+            ]
 
             if direct:
                 rich.print("\nDirect Relationships:")
