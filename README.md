@@ -6,7 +6,7 @@
 <h1>Parlant</h1>
   <h3>The Conversation Modeling Engine</h3>
 
-**Stop fighting with prompts and take charge of GenAI interactions!**
+**Stop fighting with prompts and take control of GenAI interactions!**
 
   <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
