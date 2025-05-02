@@ -3,7 +3,7 @@
 <!--<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />-->
 
 
-<h2>Parlant</h2>
+<h1>Parlant</h1>
   <h3>The Conversation Modeling Engine</h3>
 
 **Stop fighting with prompts and take charge of GenAI interactions!**
