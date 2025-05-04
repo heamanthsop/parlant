@@ -166,7 +166,7 @@ class SingleToolBatch(ToolCallBatch):
             generation_info, inference_output = await self._run_inference(inference_prompt)
 
         # Evaluate the tool calls
-        tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls_parameters(
+        tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls(
             inference_output, candidate_descriptor
         )
 
