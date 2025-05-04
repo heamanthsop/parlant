@@ -32,7 +32,7 @@ async def tool_id(container: Container) -> ToolId:
         module_path="test.module.path",
         parameters={"test_parameter": {"type": "string"}},
         required=["test_parameter"],
-        overlap=ToolOverlap.ALWAYS,
+        overlap=ToolOverlap.NONE,
     )
 
     return ToolId("local", "test_tool")
