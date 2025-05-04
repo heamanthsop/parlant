@@ -44,3 +44,24 @@ Feature: Tools
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains SSD as keyword and Samsung as Vendor 
+    
+    Scenario: Tool caller chooses the right tool when two are activated 
+        Given a customer named "Harry"
+        And an empty session with "Harry"
+        And a guideline "to_schedule_meeting" to schedule a meeting when customer asks to schedule a meeting
+        And a guideline "to_schedule_appointment" to schedule an appointment with a doctor when user asks to make an appointment
+        And a guideline "to_send_email" to send an email to them when customer asks to reach out with someone
+        And the tool "send_email"
+        And an association between "to_send_email" and "send_email"
+        And the tool "schedule_meeting"
+        And an association between "to_schedule_meeting" and "schedule_meeting"
+        And the tool "schedule_appointment"
+        And an association between "to_schedule_appointment" and "schedule_appointment"
+        And a tool relationship whereby "schedule_meeting" overlaps with "schedule_appointment"
+        # And a tool relationship whereby "schedule_meeting" overlaps with "send_email"
+        And a context variable "Current Date" set to "April 9th, 2025" for "Harry"
+        And a customer message, "Can you reach out to Morgan and see if she’s free to meet tommorow at 10:30 about the hiring freeze?"
+        When processing is triggered
+        Then a single tool calls event is emitted
+        And the tool calls event contains 1 tool call(s)
+        And the tool calls event contains a call to "local:send_email" to morgan with subject of a meeting tommorow and doesn't contains a call to "local:schedule_meeting"
