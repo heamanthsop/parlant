@@ -37,7 +37,7 @@ class SingleToolBatchArgumentEvaluation(DefaultBaseModel):
     evaluate_is_it_provided_by_an_acceptable_source: str
     evaluate_was_it_already_provided_and_should_it_be_provided_again: str
     evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided: str
-    is_optional: Optional[bool] = None
+    is_optional: Optional[bool] = False
     has_default_value_if_not_provided_by_acceptable_source: Optional[bool] = None
     valid_invalid_or_missing: str
     value_as_string: Optional[str] = None
