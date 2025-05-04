@@ -2,10 +2,11 @@ Feature: Tools
     Background:
         Given the alpha engine
         And an agent
+        And an empty session
+
 
     Scenario: Guideline matcher and tool caller understand that a Q&A tool needs to be called multiple times to answer different questions
-        Given an empty session
-        And a guideline "answer_questions" to look up the answer and, if found, when the customer has a question related to the bank's services
+        Given a guideline "answer_questions" to look up the answer and, if found, when the customer has a question related to the bank's services
         And the tool "find_answer"
         And an association between "answer_questions" and "find_answer"
         And a customer message, "How do I pay my credit card bill?"
@@ -27,8 +28,7 @@ Feature: Tools
         And the message contains an apology for missing data
     
     Scenario: No tool call emitted when data is ambiguios (transfer_coins)
-        Given an empty session
-        And a guideline "make_transfer" to make a transfer when asked to transfer money from one account to another
+        Given a guideline "make_transfer" to make a transfer when asked to transfer money from one account to another
         And the tool "transfer_coins"
         And an association between "make_transfer" and "transfer_coins"
         And a customer message, "My name is Mark Corrigan and I want to transfer about 200-300 dollars from my account to Sophie Chapman account. My pincode is 1234"
@@ -43,6 +43,7 @@ Feature: Tools
         And the tool "check_vegetable_price"
         And an association between "check_prices" and "check_fruit_price"
         And an association between "check_prices" and "check_vegetable_price"
+        And a tool relationship whereby "check_fruit_price" overlaps with "check_vegetable_price"
         And a customer message, "What's the price of 1 kg of carrots?"
         When processing is triggered
         Then a single tool calls event is emitted
@@ -54,7 +55,7 @@ Feature: Tools
     Scenario: Tool caller correctly infers arguments values with optional (3)
         Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
         And the tool "search_electronic_products"
-        And an association between "filter_electronic_products" and "search_electronic_products"
+        And an association bsetween "filter_electronic_products" and "search_electronic_products"
         And a customer message, "Hey, how much does a SSD of Samsung cost?"
         When processing is triggered
         Then a single tool calls event is emitted
