@@ -798,3 +798,20 @@ Feature: Tools
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains a call to "search_electronic_products" with laptop as keyword and max price of 5 
+
+    Scenario: The agent correctly chooses to call the right tool
+        Given an agent whose job is to sell groceries
+        And the term "carrot" defined as a kind of fruit
+        And a guideline "check_prices" to reply with the price of the item when a customer asks about an items price
+        And the tool "check_fruit_price"
+        And the tool "check_vegetable_price"
+        And an association between "check_prices" and "check_fruit_price"
+        And an association between "check_prices" and "check_vegetable_price"
+        And a tool relationship whereby "check_fruit_price" overlaps with "check_vegetable_price"
+        And a customer message, "What's the price of 1 kg of carrots?"
+        When processing is triggered
+        Then a single tool calls event is emitted
+        And the tool calls event contains 1 tool call(s)
+        And the tool calls event contains a call with tool_id of "local:check_fruit_price"
+        And a single message event is emitted
+        And the message contains that the price of 1 kg of carrots is 10 dollars
