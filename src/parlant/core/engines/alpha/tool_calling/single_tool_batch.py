@@ -521,7 +521,7 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                     "is_optional": <BOOL>,"""
 
         result += """
-                    "valid_invalid_or_missing": <STR: EITHER 'missing', 'invalid' OR 'valid' DEPENDING IF THE VALUE IS MISSING, PROVIDED BUT NOT FOUND IN ENUM LIST, OR PROVIDED AND FOUND IN ENUM LIST (OR DOESN'T HAVE ENUM LIST)>",
+                    "valid_invalid_or_missing": "<STR: EITHER 'missing', 'invalid' OR 'valid' DEPENDING IF THE VALUE IS MISSING, PROVIDED BUT NOT FOUND IN ENUM LIST, OR PROVIDED AND FOUND IN ENUM LIST (OR DOESN'T HAVE ENUM LIST)>",
                     "value_as_string": "<PARAMETER VALUE>,"
                 }
             ],"""
