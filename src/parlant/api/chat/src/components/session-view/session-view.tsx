@@ -184,6 +184,9 @@ const SessionView = (): ReactElement => {
 	useEffect(scrollToLastMessage, [messages?.length, pendingMessage, isFirstScroll]);
 	useEffect(resetSession, [session?.id]);
 	useEffect(() => {
+		if (showThinking) lastMessageRef?.current?.scrollIntoView({behavior: 'smooth'});
+	}, [showThinking]);
+	useEffect(() => {
 		if (agents && agent?.id) setIsMissingAgent(!agents?.find((a) => a.id === agent?.id));
 	}, [agents, agent?.id]);
 
@@ -260,6 +263,13 @@ const SessionView = (): ReactElement => {
 										</div>
 									</React.Fragment>
 								))}
+								{(showTyping || showThinking) && (
+									<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
+										<div className='bubblesWrapper snap-end' aria-hidden="true">
+											<div className='bubbles' />
+										</div>
+									</div>
+								)}
 							</div>
 							<div className={twMerge('w-full flex justify-between', isMissingAgent && 'hidden')}>
 								<Spacer />
