@@ -1028,14 +1028,13 @@ If you've had to fall back to a "partial" match template because you couldn't fi
         )
 
         builder.add_agent_identity(context.agent)
-        builder.add_interaction_history(context.interaction_history)
 
         builder.add_section(
             name="utterance-selector-composition",
             template="""\
-Please revise this message's style as you see fit, trying to make it continue the above conversation more naturally.
+Please revise this message's style as you see fit.
 Make sure NOT to add, remove, or hallucinate information nor add or remove key words (nouns, verbs) to the message.
-Just make it flow more with the conversation (if that's even needed—otherwise you can leave it as-is if it's already perfect): ###
+Message: ###
 {raw_message}
 ###
 
@@ -1046,7 +1045,7 @@ Respond with a JSON object {{ "revised_utterance": "<message>" }}
 
         result = await self._utterance_composition_generator.generate(
             builder,
-            hints={"temperature": 0.25},
+            hints={"temperature": 1},
         )
 
         self._logger.debug(f"Composition Completion:\n{result.content.model_dump_json(indent=2)}")
