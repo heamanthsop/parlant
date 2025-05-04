@@ -16,6 +16,12 @@ from typing import Any, cast
 from pytest_bdd import given, parsers
 
 from parlant.core.tools import ToolOverlap, ToolParameterOptions
+from parlant.core.relationships import (
+    EntityType,
+    RelationshipEntity,
+    RelationshipStore,
+    ToolRelationshipKind,
+)
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociation,
@@ -262,16 +268,17 @@ def given_a_tool(
             "description": "Transfer money from one account to another",
             "module_path": "tests.tool_utilities",
             "parameters": {
+                "amount": {"type": "integer", "description": "The number of coins to transfer"},
                 "from_account": {
                     "type": "string",
-                    "description": "The account from which money will be transferred",
+                    "description": "The name of the account from which money will be transferred",
                 },
                 "to_account": {
                     "type": "string",
-                    "description": "The account to which money will be transferred",
+                    "description": "The name of the account to which money will be transferred",
                 },
             },
-            "required": ["from_account", "to_account"],
+            "required": ["amount", "from_account", "to_account"],
         },
         "check_fruit_price": {
             "name": "check_fruit_price",
@@ -605,7 +612,7 @@ def given_a_tool(
         },
         "search_electronic_products": {
             "name": "search_electronic_products",
-            "description": "Search for products in the inventory based on various criteria",
+            "description": "Search for electronic products in the inventory based on various criteria",
             "module_path": "tests.tool_utilities",
             "parameters": {
                 "keyword": {
@@ -630,6 +637,197 @@ def given_a_tool(
             },
             "required": ["keyword"],
         },
+        "search_products": {
+            "name": "search_products",
+            "description": "Search for products in the inventory based on various criteria",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "keyword": {
+                    "type": "string",
+                    "description": "Search term to match against product names and descriptions",
+                },
+                "product_type": {
+                    "type": "string",
+                    "description": "Filter by product category",
+                    "enum": [
+                        "Electronics",
+                        "Clothing",
+                        "Home",
+                        "Beauty",
+                        "Toys",
+                        "Sports",
+                        "Automotive",
+                        "Other",
+                    ],
+                },
+                "min_price": {"type": "integer", "description": "Minimum price filter"},
+                "max_price": {"type": "integer", "description": "Maximum price filter"},
+                "in_stock_only": {
+                    "type": "boolean",
+                    "description": "Only show products that are currently in stock",
+                },
+                "brand": {"type": "string", "description": "Brand or manufacturer name"},
+            },
+            "required": ["keyword"],
+        },
+        "book_flight": {
+            "name": "book_flight",
+            "description": "Books a flight with the provided details",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "departure_city": {
+                    "type": "string",
+                    "description": "The name of the city the user flighting from",
+                },
+                "destination_city": {
+                    "type": "string",
+                    "description": "The name of the city the user is flighting to",
+                },
+                "departure_date": {
+                    "type": "string",
+                    "description": "The departure date given in format DD-MM-YYYY",
+                },
+                "return_date": {
+                    "type": "string",
+                    "description": "The return date given in format DD-MM-YYYY",
+                },
+                "passenger_name": {
+                    "type": "string",
+                    "description": "The name of the passenger",
+                },
+            },
+            "required": ["departure_city", "destination_city", "departure_date"],
+        },
+        "send_email": {
+            "name": "send_email",
+            "description": "Sends an email to the specified recipient.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "to": {
+                    "type": "string",
+                    "description": "the name of the person to send the email to",
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "The subject of the mail",
+                },
+                "body": {
+                    "type": "string",
+                    "description": "The body of the mail",
+                },
+            },
+            "required": ["to", "subject"],
+        },
+        "schedule_meeting": {
+            "name": "schedule_meeting",
+            "description": "Schedules a meeting with the given participant.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "participant": {
+                    "type": "string",
+                    "description": "The participant name to include in the meeting",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "The meeting date given in format DD-MM-YYYY",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "The meeting hour given in 24-hour format HH:MM",
+                },
+                "agenda": {
+                    "type": "string",
+                    "description": "The meeting agenda",
+                },
+            },
+            "required": ["participant", "date", "time"],
+        },
+        "schedule_appointment": {
+            "name": "schedule_appointment",
+            "description": "Schedules a new appointment for a patient with a specific doctor.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "patient": {
+                    "type": "string",
+                    "description": "The name of the patient for whom the appointment is being scheduled. Will be the user name if specified and the appointment is for the user.",
+                },
+                "doctor_name": {
+                    "type": "string",
+                    "description": "The name of the doctor the appointment is with.",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "The appointment date in format DD-MM-YYYY.",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "The appointment time in 24-hour format HH:MM.",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "The reason for the appointment (optional).",
+                },
+            },
+            "required": ["patient", "doctor_name", "date", "time"],
+        },
+        "reschedule_appointment": {
+            "name": "reschedule_appointment",
+            "description": "Reschedules an existing appointment for a patient with a specific doctor.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "patient": {
+                    "type": "string",
+                    "description": "The name of the patient whose appointment is being rescheduled. Will be the user name if specified and the appointment is for the user.",
+                },
+                "doctor_name": {
+                    "type": "string",
+                    "description": "The name of the doctor the appointment is with.",
+                },
+                "new_date": {
+                    "type": "string",
+                    "description": "The new date for the appointment in format DD-MM-YYYY.",
+                },
+                "new_time": {
+                    "type": "string",
+                    "description": "The new time for the appointment in 24-hour format HH:MM.",
+                },
+            },
+            "required": ["patient", "doctor_name", "new_date", "new_time"],
+        },
+        "transfer_shekels": {
+            "name": "transfer_shekels",
+            "description": "Transfers a specified amount in shekels from one account to another.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "amount": {"type": "integer", "description": "The amount of shekels to transfer"},
+                "from_account": {
+                    "type": "string",
+                    "description": "The name of the account sending the shekels",
+                },
+                "to_account": {
+                    "type": "string",
+                    "description": "The name of the account receiving the shekels",
+                },
+            },
+            "required": ["amount", "from_account", "to_account"],
+        },
+        "transfer_dollars": {
+            "name": "transfer_dollars",
+            "description": "Transfers a specified amount in shekels from one account to another.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {
+                "amount": {"type": "integer", "description": "The amount of dollars to transfer"},
+                "from_account": {
+                    "type": "string",
+                    "description": "The name of the account sending the dollars",
+                },
+                "to_account": {
+                    "type": "string",
+                    "description": "The name of the account receiving the dollars",
+                },
+            },
+            "required": ["amount", "from_account", "to_account"],
+        },
     }
 
     tool = context.sync_await(local_tool_service.create_tool(**tools[tool_name]))
@@ -649,5 +847,33 @@ def given_max_engine_iteration(
         agent_store.update_agent(
             agent_id=agent_id,
             params={"max_engine_iterations": int(max_engine_iterations)},
+        )
+    )
+
+
+@step(
+    given,
+    parsers.parse('a tool relationship whereby "{tool_a}" overlaps with "{tool_b}"'),
+)
+def given_an_overlaping_tools_relationship(
+    context: ContextOfTest,
+    tool_a: str,
+    tool_b: str,
+) -> None:
+    store = context.container[RelationshipStore]
+    tool_a_id = ToolId(service_name="local", tool_name=tool_a)
+    tool_b_id = ToolId(service_name="local", tool_name=tool_b)
+
+    context.sync_await(
+        store.create_relationship(
+            source=RelationshipEntity(
+                id=tool_a_id,
+                type=EntityType.TOOL,
+            ),
+            target=RelationshipEntity(
+                id=tool_b_id,
+                type=EntityType.TOOL,
+            ),
+            kind=ToolRelationshipKind.OVERLAP,
         )
     )
