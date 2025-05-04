@@ -3,7 +3,7 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
-TBD
+- Remove interaction history from utterance recomposition prompt
 
 ## [2.1.1] - 2025-04-30
 
