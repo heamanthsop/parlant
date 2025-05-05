@@ -326,8 +326,8 @@ TASK DESCRIPTION
 -----------------
 Your task is to review a batch of provided tools and, based on your most recent interaction with the customer, decide whether to use them.
 The provided tools have been grouped together due to overlapping functionality or shared parameters.
-You should prefer to run the tool that is the best fit for the current contex. Specifically, the one that is most relevant and tailored to the user's inquiry or need.
-For each tool in the batch, indicate the tool applicability with a boolean value: true if the tool is usefull at this point, or false if it is not. 
+You should prefer to run the tool that is the best fit for the current context. Specifically, the one that is most relevant and tailored to the user's inquiry or need.
+For each tool in the batch, indicate the tool applicability with a boolean value: true if the tool is useful at this point, or false if it is not. 
 For any tool marked as true, include the available arguments for activation.
 Note that a tool may be considered applicable even if not all of its required arguments are available. In such cases, provide the parameters that are currently available, 
 following the format specified in its description.
@@ -433,7 +433,7 @@ Given the tool, your output should adhere to the following format:
     "tools_evaluation": [
         {{
             "name": "<TOOL NAME>",
-            "subtleties_to_be_aware_of": "<NOTE ANY SIGNIFICANT SUBTLETIES TO BE AWARE OF WHEN RUNNING THIS TOOL IN OUR AGENT'S CONTEX>",
+            "subtleties_to_be_aware_of": "<NOTE ANY SIGNIFICANT SUBTLETIES TO BE AWARE OF WHEN RUNNING THIS TOOL IN OUR AGENT'S CONTEXT>",
             "applicability_rationale": "<A FEW WORDS THAT EXPLAIN WHETHER, HOW, AND TO WHAT EXTENT THE TOOL NEEDS TO BE CALLED AT THIS POINT>",
             "potentially_alternative_tools": "<NAME(S) OF THE TOOL(S) IF ANY THAT CAN ALTERNATIVELY BE RUN INSTEAD OF THIS TOOL>",
             "comparison_with_alternative_tools_including_references_to_subtleties": "<A VERY BRIEF OVERVIEW OF HOW THIS CALL FARES AGAINST THE ALTERNATIVE TOOLS IN APPLICABILITY>",
@@ -444,9 +444,9 @@ Given the tool, your output should adhere to the following format:
                     "argument_evaluations": [
                         {{
                             "parameter_name": "<PARAMETER NAME>",
-                            "acceptable_source_for_this_argument_according_to_its_tool_definition": "<REAPET THE ACCEPTABLE SOURCE FOR THE ARGUMENT FROM TOOL DEFINITION>",
+                            "acceptable_source_for_this_argument_according_to_its_tool_definition": "<REPEAT THE ACCEPTABLE SOURCE FOR THE ARGUMENT FROM TOOL DEFINITION>",
                             "evaluate_is_it_provided_by_an_acceptable_source": "<BRIEFLY EVALUATE IF THE SOURCE FOR THE VALUE MATCHES THE ACCEPTABLE SOURCE>",
-                            "evaluate_was_it_already_provided_and_should_it_be_provided_again": "<BRIEFLY EVALUATE IF THE PARAMERWE VALUE WAS PROVIDED AND SHOULD BE PROVIDED AGAIN>",
+                            "evaluate_was_it_already_provided_and_should_it_be_provided_again": "<BRIEFLY EVALUATE IF THE PARAMETER VALUE WAS PROVIDED AND SHOULD BE PROVIDED AGAIN>",
                             "evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided": "<BRIEFLY EVALUATE IF IT'S A PROBLEM TO GUESS THE VALUE>",
                             "is_optional": <BOOL>,
                             "is_missing": <BOOL>,
