@@ -428,7 +428,7 @@ Given the tool, your output should adhere to the following format:
 ```json
 {{
     "last_customer_message": "<REPEAT THE LAST USER MESSAGE IN THE INTERACTION>",
-    "most_recent_customer_inquiry_or_need": "<CUSTOMER"S INQUIRY OR NEED>",
+    "most_recent_customer_inquiry_or_need": "<CUSTOMER'S INQUIRY OR NEED>",
     "most_recent_customer_inquiry_or_need_was_already_resolved": <BOOL>,
     "tools_evaluation": [
         {{
