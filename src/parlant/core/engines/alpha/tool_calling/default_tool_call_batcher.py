@@ -77,6 +77,11 @@ class DefaultToolCallBatcher(ToolCallBatcher):
                         else cast(ToolId, r.source.id)
                     )
                     if neighbor in tool_id_to_tool and neighbor not in visited:
+                        if tool_id_to_tool[neighbor][0].overlap == ToolOverlap.NONE:
+                            self._logger.warning(
+                                f"Overlap relationship ignored because: {tool_id_to_tool[neighbor][0].name} has ToolOverlap.NONE"
+                            )
+                            continue
                         overlapped_tools.append(
                             (
                                 neighbor,
