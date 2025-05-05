@@ -424,7 +424,7 @@ There are no staged tool calls at this time.
             template="""
 OUTPUT FORMAT
 -----------------
-Given the tool, your output should adhere to the following format:
+Given these tools, your output should adhere to the following format:
 ```json
 {{
     "last_customer_message": "<REPEAT THE LAST USER MESSAGE IN THE INTERACTION>",

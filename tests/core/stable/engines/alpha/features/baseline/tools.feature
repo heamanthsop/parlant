@@ -852,21 +852,21 @@ Feature: Tools
         And the tool "transfer_money"
         And an association between "do_transaction" and "transfer_shekels"
         And an association between "do_transaction" and "transfer_money"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels? my name is Fredric"
+        And a customer message, "Hey, can I transfer to my friend Alisse 200 shekels? my name is Fredric"
         And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains a call to "transfer_shekels" with 200 as amount from Fredric to Alisse
 
-    Scenario:Tool caller chooses the more suitable tool for transfer when two overlap and there are missing parameters (1)
+    Scenario: Tool caller chooses the more suitable tool for transfer when two overlap and there are missing parameters (1)
         Given a guideline "do_transaction" to transfer money for the customer when customer asks to transfer money
         And the tool "transfer_shekels"
         And the tool "transfer_money"
         And an association between "do_transaction" and "transfer_shekels"
         And an association between "do_transaction" and "transfer_money"
         And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels?"
+        And a customer message, "Hey, can I transfer to my friend Alisse 200 shekels?"
         When processing is triggered
         Then no tool calls event is emitted
 
