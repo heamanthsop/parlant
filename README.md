@@ -69,9 +69,9 @@ A conversation model is a structured, domain-specific set of principles, actions
 
 The problem of getting your AI agent to say what _you_ want it to say is a hard one, experienced by virtually anyone building customer-facing agents. Here's how Conversation Modeling compares to other approaches to solving this problem.
 
-- **Flow engines** (such as [Rasa](https://github.com/RasaHQ/rasa), [Botpress](https://github.com/botpress/botpress) or [LangFlow](https://github.com/langflow-ai/langflow)) _force_ the user to interact according to predefined flows. In contrast, a **CM engine** dynamically _adapts_ to a user's natural interaction patterns while conforming to your rules.
+- **Flow engines** _force_ the user to interact according to predefined flows. In contrast, a **CM engine** dynamically _adapts_ to a user's natural interaction patterns while conforming to your rules.
 
-- **Free-form prompt engineering** (such as with [LangGraph](https://www.langchain.com/langgraph) or [LlamaIndex](https://docs.llamaindex.ai/)) leads to _inconsistency_, frequently failing to uphold requirements. Conversely, a **CM engine** leverages structure to _enforce_ conformance to a Conversation Model.
+- **Free-form prompt engineering** leads to _inconsistency_, frequently failing to uphold requirements. Conversely, a **CM engine** leverages structure to _enforce_ conformance to a Conversation Model.
 
 
 ## Who uses Parlant?
