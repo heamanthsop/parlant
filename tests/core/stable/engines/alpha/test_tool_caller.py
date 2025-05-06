@@ -163,16 +163,6 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer ask a question of what available keyboard do we have",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="get all products by a specific category",
@@ -188,7 +178,7 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
-        ordinary_guideline_matches=ordinary_guideline_matches,
+        ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
         staged_events=[],
         tool_context=await tool_context(container, agent),
@@ -232,16 +222,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer ask a question of what available keyboard do we have",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="get all products by a specific category",
@@ -264,7 +244,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -318,16 +298,6 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer asks a question about appointments",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="customer asks to schedule an appointment",
@@ -350,7 +320,7 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -392,16 +362,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer ask a question of what available keyboard do we have",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="get all products by a specific category",
@@ -424,7 +384,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -471,16 +431,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer ask a question of what available keyboard do we have",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="get all products by a specific category",
@@ -503,7 +453,7 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -576,16 +526,6 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
     interaction_history_larry = create_interaction_history(conversation_context_laptops)
     interaction_history_harry = create_interaction_history(conversation_context_cakes)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer ask a question of what available keyboard do we have",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="get all products by a category or categories",
@@ -609,7 +549,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
             context_variables=[],
             interaction_history=interaction_history_larry,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=tool_context_larry,
@@ -620,7 +560,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
             context_variables=[],
             interaction_history=interaction_history_harry,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=tool_context_harry,
@@ -632,7 +572,7 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
             context_variables=[],
             interaction_history=interaction_history_larry,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=tool_context_harry,
@@ -684,16 +624,6 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer wishes to be registered for a sweepstake",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer is interested in registering for the sweepstake",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="customer explicitly asks to be registered for a sweepstake",
@@ -716,7 +646,7 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -758,16 +688,6 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer asks a question and wants to get an answer",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="customer wants to book a flight",
@@ -790,7 +710,7 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
@@ -834,16 +754,6 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
 
     interaction_history = create_interaction_history(conversation_context)
 
-    ordinary_guideline_matches = [
-        create_guideline_match(
-            condition="customer asking a question",
-            action="response in concise and brief answer",
-            score=9,
-            rationale="customer asks a question and wants to get an answer",
-            tags=[Tag.for_agent_id(agent.id)],
-        )
-    ]
-
     tool_enabled_guideline_matches = {
         create_guideline_match(
             condition="customer wants to book a flight",
@@ -866,7 +776,7 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            ordinary_guideline_matches=ordinary_guideline_matches,
+            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             staged_events=[],
             tool_context=await tool_context(container, agent),
