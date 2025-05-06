@@ -1782,7 +1782,9 @@ class Interface:
                 guideline_with_relationships_and_associations.relationships,
                 include_indirect=False,
             )
-            Interface._render_guideline_tool_associations(guideline.tool_associations)
+            Interface._render_guideline_tool_associations(
+                guideline_with_relationships_and_associations.tool_associations
+            )
 
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
@@ -1818,7 +1820,7 @@ class Interface:
                 include_indirect=True,
             )
             Interface._render_guideline_tool_associations(
-                guideline_with_relationships_and_associations.guideline.tool_associations
+                guideline_with_relationships_and_associations.tool_associations
             )
 
         except Exception as e:
@@ -1907,10 +1909,14 @@ class Interface:
                 rich.print(Text("No data available", style="bold yellow"))
                 return
 
+            entity: Guideline | Tag | None = None
+            if guideline_id:
+                entity = Actions.view_guideline(ctx, guideline_id).guideline
+            else:
+                entity = Actions.view_tag(ctx, cast(str, tag))
+
             Interface._render_relationships(
-                relationships[0].source_guideline
-                if relationships[0].source_guideline
-                else cast(Tag, relationships[0].source_tag),
+                entity,
                 relationships,
                 include_indirect=indirect,
             )
