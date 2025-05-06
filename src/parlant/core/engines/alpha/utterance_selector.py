@@ -988,6 +988,12 @@ If you've had to fall back to a "partial" match template because you couldn't fi
             else:
                 raise FluidUtteranceFallback()
 
+        if (
+            selection_response.content.match_quality == "partial"
+            and composition_mode == CompositionMode.FLUID_UTTERANCE
+        ):
+            raise FluidUtteranceFallback()
+
         utterance_id = UtteranceId(selection_response.content.chosen_template_id)
 
         utterance = next((u.value for u in utterances if u.id == utterance_id), None)
