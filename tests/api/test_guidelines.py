@@ -29,7 +29,7 @@ from parlant.core.guideline_tool_associations import GuidelineToolAssociationSto
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.tags import Tag, TagId, TagStore
-from parlant.core.tools import LocalToolService, ToolId
+from parlant.core.tools import LocalToolService, ToolId, ToolOverlap
 
 from tests.test_utilities import (
     OPENAPI_SERVER_URL,
@@ -653,6 +653,7 @@ async def test_legacy_that_a_tool_association_can_be_added(
         description="",
         parameters={},
         required=[],
+        overlap=ToolOverlap.NONE,
     )
 
     guideline = await guideline_store.create_guideline(
@@ -735,6 +736,7 @@ async def test_legacy_that_a_tool_association_can_be_removed(
         description="",
         parameters={},
         required=[],
+        overlap=ToolOverlap.NONE,
     )
 
     guideline = await guideline_store.create_guideline(
@@ -808,6 +810,7 @@ async def test_legacy_that_guideline_deletion_removes_tool_associations(
         description="",
         parameters={},
         required=[],
+        overlap=ToolOverlap.NONE,
     )
 
     guideline = await guideline_store.create_guideline(
@@ -1709,6 +1712,7 @@ async def test_that_a_tool_association_can_be_added_to_a_guideline(
         description="",
         parameters={},
         required=[],
+        overlap=ToolOverlap.NONE,
     )
 
     guideline = await guideline_store.create_guideline(

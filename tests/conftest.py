@@ -33,7 +33,7 @@ from parlant.core.emission.event_publisher import EventPublisherFactory
 from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.engines.alpha import guideline_matcher
-from parlant.core.engines.alpha.tool_calling import single_tool_batch
+from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
@@ -288,6 +288,7 @@ async def container(
             UtteranceRevisionSchema,
             UtteranceFieldExtractionSchema,
             single_tool_batch.SingleToolBatchSchema,
+            overlapping_tools_batch.OverlappingToolsBatchSchema,
             ConditionsEntailmentTestsSchema,
             ActionsContradictionTestsSchema,
             GuidelineConnectionPropositionsSchema,
@@ -301,6 +302,9 @@ async def container(
         container[ShotCollection[GenericGuidelineMatchingShot]] = guideline_matcher.shot_collection
         container[ShotCollection[single_tool_batch.SingleToolBatchShot]] = (
             single_tool_batch.shot_collection
+        )
+        container[ShotCollection[overlapping_tools_batch.OverlappingToolsBatchShot]] = (
+            overlapping_tools_batch.shot_collection
         )
         container[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 

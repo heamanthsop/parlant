@@ -410,7 +410,7 @@ def _tool_decorator_impl(
                 parameters=_describe_parameters(func),
                 required=_find_required_params(func),
                 consequential=kwargs.get("consequential", False),
-                overlap=kwargs.get("overlap", ToolOverlap.ALWAYS),
+                overlap=kwargs.get("overlap", ToolOverlap.AUTO),
             ),
             function=func,
         )

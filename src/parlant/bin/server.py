@@ -38,6 +38,9 @@ from parlant.core.engines.alpha import guideline_matcher
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
+from parlant.core.engines.alpha.tool_calling.overlapping_tools_batch import (
+    OverlappingToolsBatchSchema,
+)
 from parlant.core.engines.alpha.utterance_selector import (
     UtteranceDraftSchema,
     UtteranceFieldExtractionSchema,
@@ -501,6 +504,7 @@ async def initialize_container(
         ConditionsEntailmentTestsSchema,
         ActionsContradictionTestsSchema,
         GuidelineConnectionPropositionsSchema,
+        OverlappingToolsBatchSchema,
     ):
         try_define(SchematicGenerator[schema], await nlp_service.get_schematic_generator(schema))  # type: ignore
 

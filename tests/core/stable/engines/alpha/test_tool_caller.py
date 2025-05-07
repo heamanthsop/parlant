@@ -36,6 +36,12 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
 )
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
+from parlant.core.relationships import (
+    EntityType,
+    RelationshipEntity,
+    RelationshipStore,
+    ToolRelationshipKind,
+)
 from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.sessions import Event, EventSource, SessionStore
@@ -45,6 +51,7 @@ from parlant.core.tools import (
     Tool,
     ToolContext,
     ToolId,
+    ToolOverlap,
     ToolParameterOptions,
     ToolResult,
 )
@@ -919,3 +926,193 @@ async def test_that_tool_calling_batchers_can_be_overridden(
     all_tool_ids = {tc.tool_id.to_string() for tc in chain.from_iterable(res.batches)}
     assert ping_tool_id.to_string() in all_tool_ids
     assert echo_tool_id.to_string() not in all_tool_ids
+
+
+async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_they_are_all_considered_in_the_same_evaluation_batch(
+    container: Container,
+    agent: Agent,
+) -> None:
+    tool_caller = container[ToolCaller]
+    relationship_store = container[RelationshipStore]
+
+    interaction_history = [
+        create_event_message(
+            offset=0,
+            source=EventSource.CUSTOMER,
+            message="hello",
+        )
+    ]
+    _tool = Tool(
+        name="test_tool",
+        creation_utc=datetime.now(),
+        description="",
+        metadata={},
+        parameters={},
+        required=[],
+        consequential=True,
+        overlap=ToolOverlap.AUTO,
+    )
+
+    a_tool_id = ToolId(service_name="local", tool_name="aa")
+    b_tool_id = ToolId(service_name="local", tool_name="bb")
+    c_tool_id = ToolId(service_name="local", tool_name="cc")
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer asks to a",
+            action="do a",
+            score=9,
+            rationale="customer wants to a",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [a_tool_id],
+        create_guideline_match(
+            condition="customer asks to b",
+            action="do b",
+            score=9,
+            rationale="customer wants to b",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [b_tool_id],
+        create_guideline_match(
+            condition="customer asks to c",
+            action="do c",
+            score=9,
+            rationale="customer wants to c",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [c_tool_id],
+    }
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=a_tool_id,
+            type=EntityType.TOOL,
+        ),
+        target=RelationshipEntity(
+            id=b_tool_id,
+            type=EntityType.TOOL,
+        ),
+        kind=ToolRelationshipKind.OVERLAP,
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=b_tool_id,
+            type=EntityType.TOOL,
+        ),
+        target=RelationshipEntity(
+            id=c_tool_id,
+            type=EntityType.TOOL,
+        ),
+        kind=ToolRelationshipKind.OVERLAP,
+    )
+
+    tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]] = {
+        (a_tool_id, _tool): [],
+        (b_tool_id, _tool): [],
+        (c_tool_id, _tool): [],
+    }
+    tool_call_context = ToolCallContext(
+        agent=agent,
+        services={},
+        context_variables=[],
+        interaction_history=interaction_history,
+        terms=[],
+        ordinary_guideline_matches=[],
+        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        staged_events=[],
+    )
+    batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
+        tools, context=tool_call_context
+    )
+
+    assert len(batches) == 1
+
+
+async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evaluation_batch_when_its_overlapped_tools_are_with_a_matched_guideline_and_does_not_indirectly_cause_overlap_between_those_tools(
+    container: Container,
+    agent: Agent,
+) -> None:
+    tool_caller = container[ToolCaller]
+    relationship_store = container[RelationshipStore]
+
+    interaction_history = [
+        create_event_message(
+            offset=0,
+            source=EventSource.CUSTOMER,
+            message="hello",
+        )
+    ]
+    _tool = Tool(
+        name="test_tool",
+        creation_utc=datetime.now(),
+        description="",
+        metadata={},
+        parameters={},
+        required=[],
+        consequential=True,
+        overlap=ToolOverlap.AUTO,
+    )
+
+    a_tool_id = ToolId(service_name="local", tool_name="aa")
+    b_tool_id = ToolId(service_name="local", tool_name="bb")
+    c_tool_id = ToolId(service_name="local", tool_name="cc")
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="customer asks to a",
+            action="do a",
+            score=9,
+            rationale="customer wants to a",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [a_tool_id],
+        create_guideline_match(
+            condition="customer asks to c",
+            action="do c",
+            score=9,
+            rationale="customer wants to c",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [c_tool_id],
+    }
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=a_tool_id,
+            type=EntityType.TOOL,
+        ),
+        target=RelationshipEntity(
+            id=b_tool_id,
+            type=EntityType.TOOL,
+        ),
+        kind=ToolRelationshipKind.OVERLAP,
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=b_tool_id,
+            type=EntityType.TOOL,
+        ),
+        target=RelationshipEntity(
+            id=c_tool_id,
+            type=EntityType.TOOL,
+        ),
+        kind=ToolRelationshipKind.OVERLAP,
+    )
+
+    tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]] = {
+        (a_tool_id, _tool): [],
+        (c_tool_id, _tool): [],
+    }
+    tool_call_context = ToolCallContext(
+        agent=agent,
+        services={},
+        context_variables=[],
+        interaction_history=interaction_history,
+        terms=[],
+        ordinary_guideline_matches=[],
+        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        staged_events=[],
+    )
+    batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
+        tools, context=tool_call_context
+    )
+
+    assert len(batches) == 2
