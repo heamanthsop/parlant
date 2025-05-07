@@ -5,14 +5,14 @@ All notable changes to Parlant will be documented here.
 ## [Unreleased]
 - Remove interaction history from utterance recomposition prompt
 - Use tool calls from the entire interaction for utterance field substitution
+- Always reason about utterance selection
+- Improve error handling and reporting with utterance rendering failures
 
 ## [2.1.1] - 2025-04-30
 
 ### Fixed
 - Fixed rendering relationships in CLI
 - Fixed parlant client using old imports from python client SDK
-- Always reason about utterance selection
-- Improve error handling and reporting with utterance rendering failures
 
 ## [2.1.0] - 2025-04-29
 
