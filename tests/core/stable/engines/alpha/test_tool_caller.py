@@ -928,7 +928,7 @@ async def test_that_tool_calling_batchers_can_be_overridden(
     assert echo_tool_id.to_string() not in all_tool_ids
 
 
-async def test_one_batch_creation_for_overlapping_tools(
+async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_they_are_all_considered_in_the_same_evaluation_batch(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -1027,7 +1027,7 @@ async def test_one_batch_creation_for_overlapping_tools(
     assert len(batches) == 1
 
 
-async def test_multiple_batches_creation_for_overlapping_tools(
+async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evaluation_batch_when_its_overlapped_tools_are_with_a_matched_guideline_and_does_not_indirectly_cause_overlap_between_those_tools(
     container: Container,
     agent: Agent,
 ) -> None:

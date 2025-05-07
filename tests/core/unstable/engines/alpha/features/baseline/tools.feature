@@ -27,7 +27,7 @@ Feature: Tools
         Then a single message event is emitted
         And the message contains an apology for missing data
     
-    Scenario: No tool call emitted when data is ambiguios (transfer_coins)
+    Scenario: No tool call emitted when data is ambiguous (transfer_coins)
         Given a guideline "make_transfer" to make a transfer when asked to transfer money from one account to another
         And the tool "transfer_coins"
         And an association between "make_transfer" and "transfer_coins"
@@ -38,7 +38,7 @@ Feature: Tools
     Scenario: Tool caller correctly infers arguments values with optional (3)
         Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
         And the tool "search_electronic_products"
-        And an association bsetween "filter_electronic_products" and "search_electronic_products"
+        And an association between "filter_electronic_products" and "search_electronic_products"
         And a customer message, "Hey, how much does a SSD of Samsung cost?"
         When processing is triggered
         Then a single tool calls event is emitted
@@ -60,8 +60,8 @@ Feature: Tools
         And a tool relationship whereby "schedule_meeting" overlaps with "schedule_appointment"
         # And a tool relationship whereby "schedule_meeting" overlaps with "send_email"
         And a context variable "Current Date" set to "April 9th, 2025" for "Harry"
-        And a customer message, "Can you reach out to Morgan and see if she’s free to meet tommorow at 10:30 about the hiring freeze?"
+        And a customer message, "Can you reach out to Morgan and see if she’s free to meet tomorrow at 10:30 about the hiring freeze?"
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains a call to "local:send_email" to morgan with subject of a meeting tommorow and doesn't contains a call to "local:schedule_meeting"
+        And the tool calls event contains a call to "local:send_email" to morgan with subject of a meeting tomorrow and doesn't contains a call to "local:schedule_meeting"
