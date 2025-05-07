@@ -603,6 +603,7 @@ Produce a valid JSON object in the following format: ###
                     **({"description": d.description} if d.description else {}),
                     **({"significance": d.significance} if d.significance else {}),
                     **({"examples": d.examples} if d.examples else {}),
+                    **({"choices": d.choices} if d.choices else {}),
                 }
                 for d in missing_data
             ]
@@ -613,9 +614,11 @@ Produce a valid JSON object in the following format: ###
             [
                 {
                     "datum_name": d.parameter,
+                    "invalid_value": d.invalid_value,
                     **({"description": d.description} if d.description else {}),
                     **({"significance": d.significance} if d.significance else {}),
                     **({"examples": d.examples} if d.examples else {}),
+                    **({"choices": d.choices} if d.choices else {}),
                 }
                 for d in invalid_data
             ]
