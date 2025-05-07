@@ -52,6 +52,7 @@ from parlant.core.sessions import (
     EventSource,
     MessageEventData,
     Participant,
+    ToolCall,
     ToolEventData,
 )
 from parlant.core.common import DefaultBaseModel, JSONSerializable
@@ -175,15 +176,25 @@ class ToolBasedFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> tuple[bool, JSONSerializable]:
-        if not context.staged_events:
-            return False, None
+        tool_calls_in_order_of_importance: list[ToolCall] = []
 
-        for tool_event in [e for e in context.staged_events if e.kind == EventKind.TOOL]:
-            data = cast(ToolEventData, tool_event.data)
+        tool_calls_in_order_of_importance.extend(
+            tc
+            for e in context.staged_events
+            if e.kind == EventKind.TOOL
+            for tc in cast(ToolEventData, e.data)["tool_calls"]
+        )
 
-            for tool_call in data["tool_calls"]:
-                if value := tool_call["result"]["utterance_fields"].get(field_name, None):
-                    return True, value
+        tool_calls_in_order_of_importance.extend(
+            tc
+            for e in reversed(context.interaction_history)
+            if e.kind == EventKind.TOOL
+            for tc in cast(ToolEventData, e.data)["tool_calls"]
+        )
+
+        for tool_call in tool_calls_in_order_of_importance:
+            if value := tool_call["result"]["utterance_fields"].get(field_name, None):
+                return True, value
 
         return False, None
 

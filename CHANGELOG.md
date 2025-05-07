@@ -4,6 +4,7 @@ All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
 - Remove interaction history from utterance recomposition prompt
+- Use tool calls from the entire interaction for utterance field substitution
 
 ## [2.1.1] - 2025-04-30
 
