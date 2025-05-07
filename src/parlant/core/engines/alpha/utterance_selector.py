@@ -1009,7 +1009,16 @@ Output a JSON object with a two properties:
                 "selection": selection_response.info,
             }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
 
-        rendered_utterance = await self._render_utterance(context, utterance)
+        try:
+            rendered_utterance = await self._render_utterance(context, utterance)
+        except Exception as exc:
+            self._logger.error(f"Failed to render utterance '{utterance_id}' ('{utterance}')")
+            self._logger.error(f"Utterance rendering failed: {traceback.format_exception(exc)}")
+
+            return {
+                "draft": draft_response.info,
+                "selection": selection_response.info,
+            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
 
         match composition_mode:
             case CompositionMode.COMPOSITED_UTTERANCE:
@@ -1057,13 +1066,9 @@ Output a JSON object with a two properties:
                 args[field_name] = value
             else:
                 self._logger.error(f"Utterance field extraction: missing '{field_name}'")
-                return DEFAULT_NO_MATCH_UTTERANCE
+                raise KeyError(f"Missing field '{field_name}' in utterance")
 
-        try:
-            return jinja2.Template(utterance).render(**args)
-        except Exception as exc:
-            self._logger.error(f"Utterance rendering failed: {traceback.format_exception(exc)}")
-            return DEFAULT_NO_MATCH_UTTERANCE
+        return jinja2.Template(utterance).render(**args)
 
     async def _recompose(
         self, context: UtteranceContext, raw_message: str
