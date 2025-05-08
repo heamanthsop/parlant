@@ -3,7 +3,7 @@
 <!--<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />-->
 
 
-<h1>Parlant</h1>
+  <img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />
   <h3>Say Hello to Conversation Modeling</h3>
 
 Parlant is the open-source engine for controlled, compliant, and purposeful generative AI conversations.  
