@@ -105,6 +105,7 @@ class ToolCallContext:
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
+    journeys: Sequence[Journey]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     staged_events: Sequence[EmittedEvent]
 
@@ -191,6 +192,7 @@ class ToolCaller:
                         interaction_history=interaction_history,
                         terms=terms,
                         ordinary_guideline_matches=ordinary_guideline_matches,
+                        journeys=journeys,
                         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
                         staged_events=staged_events,
                     ),

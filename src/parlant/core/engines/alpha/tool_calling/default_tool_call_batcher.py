@@ -119,6 +119,7 @@ class DefaultToolCallBatcher(ToolCallBatcher):
                         context.tool_enabled_guideline_matches.keys(),
                     )
                 ),
+                journeys=context.journeys,
                 tool_enabled_guideline_matches={},
                 staged_events=context.staged_events,
             )
