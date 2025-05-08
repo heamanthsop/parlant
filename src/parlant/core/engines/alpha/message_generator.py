@@ -264,7 +264,9 @@ class MessageGenerator(MessageEventComposer):
         ordinary: Sequence[GuidelineMatch],
         tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
     ) -> tuple[str, dict[str, Any]]:
-        all_matches = list(chain(ordinary, tool_enabled))
+        all_matches = [
+            match for match in chain(ordinary, tool_enabled) if match.guideline.content.action
+        ]
 
         if not all_matches:
             return (
@@ -561,6 +563,11 @@ You should inform the user about this invalid data: ###
                 },
             )
 
+        actionable_guidelines = [
+            g
+            for g in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
+            if g.guideline.content.action
+        ]
         builder.add_section(
             name="message-generator-output-format",
             template="""
@@ -575,12 +582,10 @@ Produce a valid JSON object in the following format: ###
             props={
                 "default_output_format": self._get_output_format(
                     interaction_history,
-                    list(chain(ordinary_guideline_matches, tool_enabled_guideline_matches)),
+                    actionable_guidelines,
                 ),
                 "interaction_history": interaction_history,
-                "guidelines": list(
-                    chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
-                ),
+                "guidelines": actionable_guidelines,
             },
         )
 
