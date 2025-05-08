@@ -6,7 +6,8 @@
 <h1>Parlant</h1>
   <h3>The Conversation Modeling Engine</h3>
 
-Parlant is the open-source framework for safe, compliant, and purposeful generative AI conversations. It gives you the power of LLMs without the unpredictability.
+Parlant is the open-source framework for safe, compliant, and purposeful generative AI conversations.  
+It gives you the power of LLMs without the unpredictability.
 
   <a href="https://trendshift.io/repositories/12768" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12768" alt="emcie-co%2Fparlant | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -15,7 +16,8 @@ Parlant is the open-source framework for safe, compliant, and purposeful generat
     <a href="https://www.parlant.io/" target="_blank">Website</a> —
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
     <a href="https://www.parlant.io/docs/tutorial/getting-started" target="_blank">Tutorial</a> —
-    <a href="https://www.parlant.io/docs/about" target="_blank">About</a>
+    <a href="https://www.parlant.io/docs/about" target="_blank">About</a> —
+    <a href="https://www.reddit.com/r/parlant_official/" target="_blank">Reddit</a>
   </p>
 
 
