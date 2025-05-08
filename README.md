@@ -4,7 +4,7 @@
 
 
 <h1>Parlant</h1>
-  <h3>The Conversation Modeling Engine</h3>
+  <h3>Say Hello to Conversation Modeling</h3>
 
 Parlant is the open-source framework for safe, compliant, and purposeful generative AI conversations.  
 It gives you the power of LLMs without the unpredictability.
