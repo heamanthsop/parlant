@@ -41,7 +41,7 @@ from parlant.core.persistence.document_database import (
 )
 
 
-ToolServiceKind = Literal["openapi", "sdk", "local"]
+ToolServiceKind = Literal["openapi", "sdk", "local", "mcp"]
 
 
 class ServiceRegistry(ABC):
