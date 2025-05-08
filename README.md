@@ -33,7 +33,7 @@ Parlant is the open-source engine for controlled, compliant, and purposeful gene
 
 </div>
 
-## YouTube Video Intro
+## Introduction Video
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
 
 1. Install
