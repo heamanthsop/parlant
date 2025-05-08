@@ -1030,6 +1030,7 @@ async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_
         terms=[],
         ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        journeys=[],
         staged_events=[],
     )
     batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
@@ -1121,6 +1122,7 @@ async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evalu
         terms=[],
         ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        journeys=[],
         staged_events=[],
     )
     batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
