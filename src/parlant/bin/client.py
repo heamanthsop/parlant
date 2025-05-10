@@ -1138,6 +1138,21 @@ class Actions:
         return tag_id
 
     @staticmethod
+    def view_tool(
+        ctx: click.Context,
+        tool_id: str,
+    ) -> Tool:
+        client = cast(ParlantClient, ctx.obj.client)
+        tool_id_obj = Actions._fetch_tool_id(ctx, tool_id)
+        service = client.services.retrieve(tool_id_obj.service_name)
+        if tool := next((t for t in service.tools or [] if t.name == tool_id_obj.tool_name), None):
+            return tool
+        else:
+            raise Exception(
+                f"Tool ({tool_id_obj.tool_name}) not found in service ({tool_id_obj.service_name})"
+            )
+
+    @staticmethod
     def list_utterances(ctx: click.Context) -> list[Utterance]:
         client = cast(ParlantClient, ctx.obj.client)
         return client.utterances.list()
@@ -1911,6 +1926,7 @@ class Interface:
             Interface._render_guideline_tool_associations(
                 guideline_with_relationships_and_associations.tool_associations
             )
+
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2072,11 +2088,13 @@ class Interface:
                 rich.print(Text("No data available", style="bold yellow"))
                 return
 
-            entity: Guideline | Tag | None = None
+            entity: Guideline | Tag | Tool | None = None
             if guideline_id:
                 entity = Actions.view_guideline(ctx, guideline_id).guideline
-            else:
-                entity = Actions.view_tag(ctx, cast(str, tag))
+            elif tag:
+                entity = Actions.view_tag(ctx, tag)
+            elif tool_id:
+                entity = Actions.view_tool(ctx, tool_id).tool
 
             Interface._render_relationships(
                 entity,
