@@ -3,7 +3,10 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
-TBD
+Introduce journey
+Introduction of guideline properties evaluation
+Make guideline action optional
+Introduction of guideline action proposer
 
 ## [2.1.2] - 2025-05-07
 
