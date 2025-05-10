@@ -136,7 +136,11 @@ class Actions:
         tool_id: ToolId,
     ) -> ToolId:
         client = cast(ParlantClient, ctx.obj.client)
-        service = client.services.retrieve(tool_id.service_name)
+        try:
+            service = client.services.retrieve(tool_id.service_name)
+        except Exception:
+            raise Exception(f"Service ({tool_id.service_name}) not found")
+
         if next((t for t in service.tools or [] if t.name == tool_id.tool_name), None):
             return tool_id
 
@@ -420,18 +424,17 @@ class Actions:
         tags = list(set([Actions._fetch_tag_id(ctx, t) for t in tags]))
 
         if tool_id and action is None:
+            tool_id_obj = Actions._fetch_tool_id(
+                ctx, ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1])
+            )
+
             evaluation = client.evaluations.create(
                 payloads=[
                     Payload(
                         kind="guideline",
                         guideline=GuidelinePayload(
                             content=GuidelineContent(condition=condition),
-                            tool_ids=[
-                                ToolId(
-                                    service_name=tool_id.split(":")[0],
-                                    tool_name=tool_id.split(":")[1],
-                                )
-                            ],
+                            tool_ids=[tool_id_obj],
                             operation="add",
                             action_proposition=True,
                             properties_proposition=True,
