@@ -419,7 +419,7 @@ class Actions:
         action: Optional[str],
         tool_id: Optional[str],
         tags: list[str],
-    ) -> Guideline:
+    ) -> GuidelineWithRelationshipsAndToolAssociations:
         client = cast(ParlantClient, ctx.obj.client)
         tags = list(set([Actions._fetch_tag_id(ctx, t) for t in tags]))
 
@@ -472,12 +472,21 @@ class Actions:
                         assert invoice.data.guideline
                         assert invoice.payload.guideline
 
-                        return client.guidelines.create(
+                        guideline = client.guidelines.create(
                             condition=condition,
                             action=invoice.data.guideline.action_proposition,
                             tags=tags,
                             metadata=invoice.data.guideline.properties_proposition or {},
                         )
+
+                        guideline_with_relationships_and_associations = client.guidelines.update(
+                            guideline.id,
+                            tool_associations=GuidelineToolAssociationUpdateParams(
+                                add=[tool_id_obj],
+                            ),
+                        )
+
+                        return guideline_with_relationships_and_associations
 
                     elif evaluation_result.status == "failed":
                         raise ValueError(evaluation_result.error)
@@ -490,20 +499,24 @@ class Actions:
             )
 
         if tool_id:
-            service_name, tool_name = tool_id.split(":")
-            client.guidelines.update(
+            tool_id_obj = Actions._fetch_tool_id(
+                ctx, ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1])
+            )
+
+            guideline_with_relationships_and_associations = client.guidelines.update(
                 guideline_id=guideline.id,
                 tool_associations=GuidelineToolAssociationUpdateParams(
-                    add=[
-                        ToolId(
-                            service_name=service_name,
-                            tool_name=tool_name,
-                        ),
-                    ]
+                    add=[tool_id_obj],
                 ),
             )
 
-        return guideline
+            return guideline_with_relationships_and_associations
+
+        return GuidelineWithRelationshipsAndToolAssociations(
+            guideline=guideline,
+            relationships=[],
+            tool_associations=[],
+        )
 
     @staticmethod
     def update_guideline(
@@ -1878,7 +1891,7 @@ class Interface:
         tags: tuple[str],
     ) -> None:
         try:
-            guideline = Actions.create_guideline(
+            guideline_with_relationships_and_associations = Actions.create_guideline(
                 ctx,
                 condition,
                 action,
@@ -1886,9 +1899,18 @@ class Interface:
                 tags=list(tags),
             )
 
-            Interface._write_success(f"Added guideline (id: {guideline.id})")
-            Interface._render_guidelines([guideline])
-
+            Interface._write_success(
+                f"Added guideline (id: {guideline_with_relationships_and_associations.guideline.id})"
+            )
+            Interface._render_guidelines([guideline_with_relationships_and_associations.guideline])
+            Interface._render_relationships(
+                guideline_with_relationships_and_associations.guideline,
+                guideline_with_relationships_and_associations.relationships,
+                include_indirect=False,
+            )
+            Interface._render_guideline_tool_associations(
+                guideline_with_relationships_and_associations.tool_associations
+            )
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -3165,6 +3187,11 @@ async def async_main() -> None:
         tool_id: Optional[str],
         tag: tuple[str],
     ) -> None:
+        if not action and not tool_id:
+            Interface.write_error("At least one of --action or --tool-id must be specified")
+            set_exit_status(1)
+            raise FastExit()
+
         Interface.create_guideline(
             ctx=ctx,
             condition=condition,
