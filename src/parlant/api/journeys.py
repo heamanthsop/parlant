@@ -76,9 +76,13 @@ JourneyTagsField: TypeAlias = Annotated[
 journey_example: ExampleJson = {
     "id": "IUCGT-lvpS",
     "title": "Customer Onboarding",
-    "description": "A journey to guide new customers through our product features",
-    "condition": "customer needs help with onboarding",
-    "condition_id": "guid_123xz",
+    "description": """1. Customer wants to lock their card
+2. Customer reports that their card doesn't work
+3. Customer suspects their card has been stolen""",
+    "conditions": [
+        "customer needs unlocking their card",
+        "customer needs help with card",
+    ],
     "tags": ["tag1", "tag2"],
 }
 
