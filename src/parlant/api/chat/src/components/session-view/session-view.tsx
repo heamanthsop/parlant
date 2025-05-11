@@ -314,7 +314,7 @@ const SessionView = (): ReactElement => {
 										className='box-shadow-none placeholder:text-[#282828] resize-none border-none h-full rounded-none min-h-[unset] p-0 whitespace-nowrap no-scrollbar font-inter font-light text-[16px] leading-[18px] bg-white'
 									/>
 									<p className={twMerge('absolute invisible left-[0.25em] -bottom-[28px] font-normal text-[#A9AFB7] text-[14px] font-inter', (showTyping || showThinking) && 'visible')}>
-										{showTyping ? 'typing...' : 'thinking...'}
+										{showTyping ? 'Typing...' : 'Thinking...'}
 									</p>
 									<Button variant='ghost' data-testid='submit-button' className='max-w-[60px] rounded-full hover:bg-white' ref={submitButtonRef} disabled={!message?.trim() || !agent?.id} onClick={() => postMessage(message)}>
 										<img src='icons/send.svg' alt='Send' height={19.64} width={21.52} className='h-10' />
