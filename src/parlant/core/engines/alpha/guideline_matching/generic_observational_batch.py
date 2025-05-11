@@ -252,9 +252,6 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
-
-        with open("observational guideline matcher prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
 

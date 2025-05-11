@@ -828,8 +828,6 @@ Produce a valid JSON object in the following format: ###
                 ),
             },
         )
-        with open("utterance selector prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
     def _get_draft_output_format(
