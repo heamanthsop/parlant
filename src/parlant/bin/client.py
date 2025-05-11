@@ -1143,7 +1143,7 @@ class Actions:
         tool_id: str,
     ) -> Tool:
         client = cast(ParlantClient, ctx.obj.client)
-        tool_id_obj = Actions._fetch_tool_id(ctx, tool_id)
+        tool_id_obj = Actions._fetch_tool_id(ctx, ToolId(service_name=tool_id, tool_name=tool_id))
         service = client.services.retrieve(tool_id_obj.service_name)
         if tool := next((t for t in service.tools or [] if t.name == tool_id_obj.tool_name), None):
             return tool
@@ -1195,6 +1195,76 @@ class Actions:
             utterances.append(utterance)
 
         return utterances
+
+    # @staticmethod
+    # def list_journeys(
+    #     ctx: click.Context,
+    #     tag: Optional[str] = None,
+    # ) -> list[Journey]:
+    #     client = cast(ParlantClient, ctx.obj.client)
+    #     if tag:
+    #         return client.journeys.list(tag_id=Actions._fetch_tag_id(ctx, tag))
+    #     else:
+    #         return client.journeys.list()
+
+    # @staticmethod
+    # def create_journey(
+    #     ctx: click.Context,
+    #     title: str,
+    #     description: str,
+    #     conditions: list[str],
+    #     tags: list[str],
+    # ) -> Journey:
+    #     client = cast(ParlantClient, ctx.obj.client)
+
+    #     condition_ids = [
+    #         Actions.create_guideline(
+    #             ctx=ctx,
+    #             condition=condition,
+    #             action=None,
+    #             tool_id=None,
+    #             tags=tags,
+    #         ).guideline.id
+    #         for condition in conditions
+    #     ]
+
+    #     return client.journeys.create(
+    #         title=title,
+    #         description=description,
+    #         conditions=condition_ids,
+    #         tags=tags,
+    #     )
+
+    # @staticmethod
+    # def view_journey(
+    #     ctx: click.Context,
+    #     journey_id: str,
+    # ) -> Journey:
+    #     client = cast(ParlantClient, ctx.obj.client)
+    #     return client.journeys.retrieve(journey_id=journey_id)
+
+    # @staticmethod
+    # def update_journey(
+    #     ctx: click.Context,
+    #     journey_id: str,
+    #     name: str,
+    # ) -> Journey:
+    #     client = cast(ParlantClient, ctx.obj.client)
+    #     return client.journeys.update(
+    #         journey_id=journey_id, name=name
+    #     )
+
+    # @staticmethod
+    # def delete_journey(
+    #     ctx: click.Context,
+    #     journey_id: str,
+    # ) -> str:
+    #     client = cast(ParlantClient, ctx.obj.client)
+
+    #     journey_id = Actions._fetch_journey_id(ctx, journey_id)
+    #     client.journeys.delete(journey_id=journey_id)
+
+    #     return journey_id
 
     @staticmethod
     def stream_logs(
@@ -2094,7 +2164,7 @@ class Interface:
             elif tag:
                 entity = Actions.view_tag(ctx, tag)
             elif tool_id:
-                entity = Actions.view_tool(ctx, tool_id).tool
+                entity = Actions.view_tool(ctx, tool_id)
 
             Interface._render_relationships(
                 entity,
