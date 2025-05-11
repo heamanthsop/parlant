@@ -475,7 +475,7 @@ You need to have tools_evaluation for each tool in the tools batch. Also, note t
             props={},
         )
 
-        with open("overlapping tools prompt.txt", 'w') as f:
+        with open("overlapping tools prompt.txt", "w") as f:
             f.write(builder.build())
         return builder
 
