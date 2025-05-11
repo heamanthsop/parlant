@@ -560,10 +560,10 @@ However, in this case, no special behavioral guidelines were provided.
         guidelines = []
 
         for i, p in enumerate(all_matches, start=1):
-            guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
-
-            guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
-            guidelines.append(guideline)
+            if p.guideline.content.action:
+                guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
+                guidelines.append(guideline)
 
         guideline_list = "\n".join(guidelines)
 
@@ -828,7 +828,8 @@ Produce a valid JSON object in the following format: ###
                 ),
             },
         )
-
+        with open("utterance selector prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _get_draft_output_format(

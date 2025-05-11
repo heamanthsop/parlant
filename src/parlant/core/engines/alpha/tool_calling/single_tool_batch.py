@@ -501,6 +501,8 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                 ),
             },
         )
+        with open("single tool batch prompt.txt", "w") as f:
+            f.write(builder.build())
 
         return builder
 
@@ -663,7 +665,11 @@ Candidate tool: ###
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_id_propositions: tuple[ToolId, Sequence[GuidelineMatch]],
     ) -> str:
-        all_matches = list(chain(ordinary_guideline_matches, tool_id_propositions[1]))
+        all_matches = [
+            match
+            for match in chain(ordinary_guideline_matches, tool_id_propositions[1])
+            if match.guideline.content.action
+        ]
 
         if all_matches:
             guidelines = []
