@@ -124,15 +124,15 @@ class ToolEventGenerator:
         )
 
         inference_result = await self._tool_caller.infer_tool_calls(
-            agent,
-            context_variables,
-            interaction_history,
-            terms,
-            ordinary_guideline_matches,
-            tool_enabled_guideline_matches,
-            journeys,
-            staged_events,
-            tool_context,
+            agent=agent,
+            context_variables=context_variables,
+            interaction_history=interaction_history,
+            terms=terms,
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            journeys=journeys,
+            staged_events=staged_events,
+            tool_context=tool_context,
         )
 
         tool_calls = list(chain.from_iterable(inference_result.batches))
