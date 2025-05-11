@@ -90,7 +90,7 @@ Feature: Journeys
         And a customer message, "Rajon, have we spoken before? I want one large pie but I'm not sure which topping to get, what do you recommend?"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains recommendations for either mushrooms or tomatoes, but not pepperoni0
+        And the message contains recommendations for either mushrooms or tomatoes, but not pepperoni
     
     Scenario: Journey information is followed
         Given a journey titled Change Credit Limits to remember that credit limits can be decreased through this chat, using the decrease_limits tool, but that to increase credit limits you must visit a physical branch when credit limits are discussed

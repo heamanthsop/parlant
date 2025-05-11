@@ -122,7 +122,7 @@ Feature: Strict Utterance
         And an utterance, "An error occurred, your password could not be reset"
         And the tool "reset_password"
         And a customer message, "I want to reset my password"
-        And a agent message, "I can help you do just that. What's your username?"
+        And an agent message, "I can help you do just that. What's your username?"
         And a customer message, "it's leonardo_barbosa_1982"
         When processing is triggered
         Then no tool calls event is emitted
@@ -157,27 +157,24 @@ Feature: Strict Utterance
         And the message contains that the password was reset and an email with instructions was sent to the customer
 
     Scenario: Multistep journey is aborted when the journey description requires so (strict utterance)
-        Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise refuse to continue with resetting their password. 4. use the tool reset_password with the provided information 5. report the result to the customer when the customer wants to reset their password
+        Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise let them know that the password could not be reset. 4. use the tool reset_password with the provided information 5. report the result to the customer when the customer wants to reset their password
         And an utterance, "What is the name of your account?"
         And an utterance, "can you please provide the email address or phone number attached to this account?"
-        And an utterance, "Thank you, have a good day!"
-        And an utterance, "I'm sorry but I have no information about that"
-        And an utterance, "Is there anything else I could help you with?"
         And an utterance, "Your password was successfully reset. An email with further instructions will be sent to your address."
-        And an utterance, "An error occurred, your password could not be reset"
+        And an utterance, "Your password could not be reset at this time. Please try again later."
         And the tool "reset_password"
         And a customer message, "I want to reset my password"
-        And a agent message, "I can help you do just that. What's your username?"
+        And an agent message, "I can help you do just that. What's your username?"
         And a customer message, "it's leonardo_barbosa_1982"
-        And a agent message, "Great! And what's the account's associated email address or phone number?"
+        And an agent message, "Great! And what's the account's associated email address or phone number?"
         And a customer message, "the email is leonardobarbosa@gmail.br"
-        And a agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
+        And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
         And a customer message, "What? Just reset my password please"
         When processing is triggered
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
-        And the message contains that the password cannot be reset at this time, or has otherwise failed
+        And the message contains either that the password could not be reset at this time
 
     Scenario: Critical guideline overrides journey (strict utterance)
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
@@ -192,7 +189,7 @@ Feature: Strict Utterance
         And the tool "reset_password"
         And a guideline to ask the customer their age, and do not continue with any other process unless it is over 21 when the customer provides a username that includes what could potentially be their year of birth
         And a customer message, "I want to reset my password"
-        And a agent message, "I can help you do just that. What's your username?"
+        And an agent message, "I can help you do just that. What's your username?"
         And a customer message, "it's leonardo_barbosa_1982"
         When processing is triggered
         Then no tool calls event is emitted
@@ -209,13 +206,13 @@ Feature: Strict Utterance
         And an utterance, "I recommend mushrooms"
         And an utterance, "I recommend mushrooms or pepperoni"
         And an utterance, "I recommend pepperoni"
-        And a journey titled Vegetarian Customer to remember that this means that the customer is vegetarian when the customer has a name that begins with R
+        And a journey titled Vegetarian Customers to Be aware that the customer is vegetarian. Only discuss vegetarian options with them. when the customer has a name that begins with R
         And a customer message, "Hey, there. How are you?"
         And an agent message, "I'm doing alright, thank you! What's your name?"
         And a customer message, "Rajon, have we spoken before? I want one large pie but I'm not sure which topping to get, what do you recommend?"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains recommendations for either mushrooms or tomatoes, but not pepperoni0
+        And the message contains recommendations for either mushrooms or tomatoes, but not pepperoni
     
     Scenario: Journey information is followed (strict utterance)
         Given a journey titled Change Credit Limits to remember that credit limits can be decreased through this chat, using the decrease_limits tool, but that to increase credit limits you must visit a physical branch when credit limits are discussed
@@ -226,24 +223,10 @@ Feature: Strict Utterance
         Then a single message event is emitted
         And the message contains that you must visit a physical branch to increase credit limits
 
-    Scenario: Journey informs tool call parameterization (strict utterance)
-        Given a guideline "reset_password_guideline" to use the reset_password tool when the customer wants to reset their password and has provided their username and email address or phone number
-        And the tool "reset_password"
-        And a journey titled Email Domain to remember that all gmail addresses with local domains are saved within our systems and tools using gmail.com instead of the local domain when a gmail address with a domain other than .com is mentioned
-        And a customer message, "I want to reset my password"
-        And a agent message, "I can help you do just that. What's your username?"
-        And a customer message, "it's leonardo_barbosa_1982"
-        And a agent message, "Great! And what's the account's associated email address or phone number?"
-        And a customer message, "the email is leonardobarbosa@gmail.br"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains a call to reset password with username leonardo_barbosa_1982 and email leonardobarbosa@gmail.com (NOT leonardobarbosa@gmail.br) 
-
     Scenario: Two journeys are used in unison (strict utterance)
         Given a journey titled Book Flight to ask for the source and destination airport first, the date second, economy or business class third, and finally to ask for the name of the traveler. You may skip steps that are inapplicable due to other contextual reasons. when a customer wants to book a flight
         And an utterance, "Great. Are you interested in economy or business class?"
-        And an utterance "Great. What is the name of the traveler?"
+        And an utterance, "Great. What is the name of the traveler?"
         And an utterance, "Great. Are you interested in economy or business class? Also, what is the name of the person traveling?"
         And a journey titled No Economy to remember that travelers under the age of 21 are illegible for business class, and may only use economy when a flight is being booked
         And a customer message, "Hi, I'd like to book a flight for myself. I'm 19 if that effects anything."

@@ -23,11 +23,13 @@ load_steps(
     "engines",
     "events",
     "guidelines",
+    "utterances",
     "sessions",
     "terms",
     "tools",
     "customers",
     "tags",
+    "journeys",
 )
 
 scenarios(
@@ -37,6 +39,7 @@ scenarios(
             "supervision",
             "glossary",
             "tools",
+            "fluid_utterances"
         )
     )
 )
