@@ -425,7 +425,7 @@ class RelationshipDocumentStore(RelationshipStore):
                         [
                             self._deserialize(d)
                             for d in await self._collection.find(
-                                filters={"source": {"$eq": str(source_id)}}
+                                filters={"source": {"$eq":  source_id.to_string() if isinstance(source_id, ToolId) else str(source_id)}}
                             )
                         ]
                     )
@@ -434,7 +434,7 @@ class RelationshipDocumentStore(RelationshipStore):
                         [
                             self._deserialize(d)
                             for d in await self._collection.find(
-                                filters={"target": {"$eq": str(target_id)}}
+                                filters={"target": {"$eq": target_id.to_string() if isinstance(target_id, ToolId) else str(target_id)}}
                             )
                         ]
                     )
