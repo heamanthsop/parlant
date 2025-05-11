@@ -32,9 +32,10 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolInsights,
     InvalidToolData,
 )
+from parlant.core.journeys import Journey
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
-from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
@@ -135,6 +136,7 @@ class MessageGenerator(MessageEventComposer):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
@@ -150,6 +152,7 @@ class MessageGenerator(MessageEventComposer):
                         interaction_history,
                         terms,
                         ordinary_guideline_matches,
+                        journeys,
                         tool_enabled_guideline_matches,
                         tool_insights,
                         staged_events,
@@ -178,6 +181,7 @@ class MessageGenerator(MessageEventComposer):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
@@ -200,6 +204,7 @@ class MessageGenerator(MessageEventComposer):
             terms=terms,
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            journeys=journeys,
             staged_events=staged_events,
             tool_insights=tool_insights,
             shots=await self.shots(),
@@ -257,7 +262,9 @@ class MessageGenerator(MessageEventComposer):
         ordinary: Sequence[GuidelineMatch],
         tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
     ) -> tuple[str, dict[str, Any]]:
-        all_matches = list(chain(ordinary, tool_enabled))
+        all_matches = [
+            match for match in chain(ordinary, tool_enabled) if match.guideline.content.action
+        ]
 
         if not all_matches:
             return (
@@ -326,6 +333,7 @@ Do not disregard a guideline because you believe its 'when' condition or rationa
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        journeys: Sequence[Journey],
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
@@ -410,7 +418,9 @@ To generate an optimal response that aligns with all guidelines and the current 
 1. INSIGHT GATHERING (Pre-Revision)
    - Before starting revisions, identify up to three key insights from:
      * Explicit or implicit customer requests
+     * Relevant parts of an active journey
      * Relevant principles from this prompt
+     * Observations that you find particularly important
      * Notable patterns or conclusions from the interaction
    - Each insight should be actionable and directly relevant to crafting the response
    - Only include absolutely necessary insights; fewer is better
@@ -419,7 +429,7 @@ To generate an optimal response that aligns with all guidelines and the current 
 2. INITIAL RESPONSE
    - Draft an initial response based on:
      * Primary customer needs
-     * Applicable guidelines
+     * Applicable guidelines, journeys and observations
      * Gathered insights
    - Focus on addressing the core request first
 
@@ -468,6 +478,9 @@ For instance, if a guideline explicitly prohibits a specific action (e.g., "neve
 
 In cases of conflict, prioritize the business's values and ensure your decisions align with their overarching goals.
 
+Journeys are unlike guidelines and insights - you may only follow them if you find it useful, unless they explicitly dictate an action you must take at this moment.
+Prioritize guidelines over journeys, in cases of conflict.
+
 """,  # noqa
         )
         builder.add_section(
@@ -492,6 +505,7 @@ INTERACTION CONTEXT
         )
         builder.add_context_variables(context_variables)
         builder.add_glossary(terms)
+        builder.add_journeys(journeys)
         builder.add_section(
             name="message-generator-guideline-descriptions",
             template=self.get_guideline_matches_text(
@@ -547,6 +561,11 @@ You should inform the user about this invalid data: ###
                 },
             )
 
+        actionable_guidelines = [
+            g
+            for g in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
+            if g.guideline.content.action
+        ]
         builder.add_section(
             name="message-generator-output-format",
             template="""
@@ -561,15 +580,12 @@ Produce a valid JSON object in the following format: ###
             props={
                 "default_output_format": self._get_output_format(
                     interaction_history,
-                    list(chain(ordinary_guideline_matches, tool_enabled_guideline_matches)),
+                    actionable_guidelines,
                 ),
                 "interaction_history": interaction_history,
-                "guidelines": list(
-                    chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
-                ),
+                "guidelines": actionable_guidelines,
             },
         )
-
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:

@@ -39,10 +39,11 @@ from parlant.core.engines.alpha.message_event_composer import (
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
+from parlant.core.journeys import Journey
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
-from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
@@ -109,6 +110,7 @@ class UtteranceContext:
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
+    journeys: Sequence[Journey]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     tool_insights: ToolInsights
     staged_events: Sequence[EmittedEvent]
@@ -259,6 +261,7 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
 
         builder.add_agent_identity(context.agent)
         builder.add_context_variables(context.context_variables)
+        builder.add_journeys(context.journeys)
         builder.add_interaction_history(context.interaction_history)
         builder.add_glossary(context.terms)
         builder.add_staged_events(context.staged_events)
@@ -383,6 +386,7 @@ class UtteranceSelector(MessageEventComposer):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
@@ -392,16 +396,17 @@ class UtteranceSelector(MessageEventComposer):
                 with self._logger.scope("UtteranceSelector"):
                     with self._logger.operation("Utterance selection and rendering"):
                         return await self._do_generate_events(
-                            event_emitter,
-                            agent,
-                            customer,
-                            context_variables,
-                            interaction_history,
-                            terms,
-                            ordinary_guideline_matches,
-                            tool_enabled_guideline_matches,
-                            tool_insights,
-                            staged_events,
+                            event_emitter=event_emitter,
+                            agent=agent,
+                            customer=customer,
+                            context_variables=context_variables,
+                            interaction_history=interaction_history,
+                            terms=terms,
+                            ordinary_guideline_matches=ordinary_guideline_matches,
+                            journeys=journeys,
+                            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+                            tool_insights=tool_insights,
+                            staged_events=staged_events,
                         )
             except FluidUtteranceFallback:
                 return await self._message_generator.generate_events(
@@ -412,6 +417,7 @@ class UtteranceSelector(MessageEventComposer):
                     interaction_history,
                     terms,
                     ordinary_guideline_matches,
+                    journeys,
                     tool_enabled_guideline_matches,
                     tool_insights,
                     staged_events,
@@ -453,6 +459,7 @@ class UtteranceSelector(MessageEventComposer):
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        journeys: Sequence[Journey],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[MessageEventComposition]:
@@ -498,6 +505,7 @@ class UtteranceSelector(MessageEventComposer):
             interaction_history=interaction_history,
             terms=terms,
             ordinary_guideline_matches=ordinary_guideline_matches,
+            journeys=journeys,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             tool_insights=tool_insights,
             staged_events=staged_events,
@@ -552,10 +560,10 @@ However, in this case, no special behavioral guidelines were provided.
         guidelines = []
 
         for i, p in enumerate(all_matches, start=1):
-            guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
-
-            guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
-            guidelines.append(guideline)
+            if p.guideline.content.action:
+                guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
+                guidelines.append(guideline)
 
         guideline_list = "\n".join(guidelines)
 
@@ -606,6 +614,7 @@ Example {i} - {shot.description}: ###
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
@@ -727,7 +736,7 @@ EXAMPLES
             },
         )
         builder.add_context_variables(context_variables)
-
+        builder.add_journeys(journeys)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._get_guideline_matches_text(
@@ -819,7 +828,6 @@ Produce a valid JSON object in the following format: ###
                 ),
             },
         )
-
         return builder
 
     def _get_draft_output_format(
@@ -938,6 +946,7 @@ Output a JSON object with a two properties:
             interaction_history=context.interaction_history,
             terms=context.terms,
             ordinary_guideline_matches=context.ordinary_guideline_matches,
+            journeys=context.journeys,
             tool_enabled_guideline_matches=context.tool_enabled_guideline_matches,
             staged_events=context.staged_events,
             tool_insights=context.tool_insights,

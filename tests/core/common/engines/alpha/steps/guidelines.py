@@ -15,7 +15,7 @@
 from pytest_bdd import given, parsers
 
 from parlant.core.agents import AgentId
-from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.relationships import (
     EntityType,
     GuidelineRelationshipKind,
@@ -34,21 +34,13 @@ def given_a_guideline_to_when(
     context: ContextOfTest,
     do_something: str,
     a_condition_holds: str,
-    agent_id: AgentId,
 ) -> None:
     guideline_store = context.container[GuidelineStore]
 
-    guideline = context.sync_await(
+    context.sync_await(
         guideline_store.create_guideline(
             condition=a_condition_holds,
             action=do_something,
-        )
-    )
-
-    _ = context.sync_await(
-        guideline_store.upsert_tag(
-            guideline.id,
-            Tag.for_agent_id(agent_id),
         )
     )
 

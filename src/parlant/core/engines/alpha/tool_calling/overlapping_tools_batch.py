@@ -18,9 +18,10 @@ from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
+from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
@@ -107,6 +108,7 @@ class OverlappingToolsBatch(ToolCallBatch):
                 interaction_history=self._context.interaction_history,
                 terms=self._context.terms,
                 ordinary_guideline_matches=self._context.ordinary_guideline_matches,
+                journeys=self._context.journeys,
                 overlapping_tools_batch=self._overlapping_tools_batch,
                 staged_events=self._context.staged_events,
             )
@@ -123,6 +125,7 @@ class OverlappingToolsBatch(ToolCallBatch):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         overlapping_tools_batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
         staged_events: Sequence[EmittedEvent],
     ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
@@ -132,6 +135,7 @@ class OverlappingToolsBatch(ToolCallBatch):
             interaction_history,
             terms,
             ordinary_guideline_matches,
+            journeys,
             overlapping_tools_batch,
             staged_events,
             await self.shots(),
@@ -291,6 +295,7 @@ Example #{i}: ###
         interaction_event_list: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
         batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
         staged_events: Sequence[EmittedEvent],
         shots: Sequence[OverlappingToolsBatchShot],
@@ -368,7 +373,7 @@ EXAMPLES
                 status=SectionStatus.ACTIVE,
             )
         builder.add_interaction_history(interaction_event_list)
-
+        builder.add_journeys(journeys=journeys)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._add_guideline_matches_section(
@@ -556,23 +561,25 @@ Tools: ###
     ) -> str:
         ordinary_guidelines_list = ""
         if ordinary_guideline_matches:
-            ordinary_guidelines = []
-            for i, p in enumerate(ordinary_guideline_matches, start=1):
-                guideline = (
+            ordinary_guidelines_list = "\n".join(
+                [
                     f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
-                )
-                ordinary_guidelines.append(guideline)
-            ordinary_guidelines_list = "\n".join(ordinary_guidelines)
+                    for i, p in enumerate(ordinary_guideline_matches, start=1)
+                    if p.guideline.content.action
+                ]
+            )
 
         if tools_propositions:
             tools_guidelines: list[str] = []
             for id, _, guidelines in tools_propositions:
                 tool_guidelines: list[str] = []
                 for i, p in enumerate(guidelines, start=1):
-                    guideline = f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
-                    tool_guidelines.append(guideline)
-                tools_guidelines.append("\n".join(tool_guidelines))
-                tools_guidelines.append(f"Associated Tool: {id.service_name}:{id.tool_name}")
+                    if p.guideline.content.action:
+                        guideline = f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                        tool_guidelines.append(guideline)
+                if tool_guidelines:
+                    tools_guidelines.append("\n".join(tool_guidelines))
+                    tools_guidelines.append(f"Associated Tool: {id.service_name}:{id.tool_name}")
             tools_guidelines_list = "\n".join(tools_guidelines)
         guidelines_list = ordinary_guidelines_list + tools_guidelines_list
         return f"""

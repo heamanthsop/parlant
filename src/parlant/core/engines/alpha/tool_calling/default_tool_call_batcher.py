@@ -1,7 +1,8 @@
 from collections import deque
 from itertools import chain
 from typing import Mapping, Sequence, cast
-from parlant.core.engines.alpha.guideline_match import GuidelineMatch
+
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.tool_calling.overlapping_tools_batch import (
     OverlappingToolsBatch,
     OverlappingToolsBatchSchema,
@@ -118,6 +119,7 @@ class DefaultToolCallBatcher(ToolCallBatcher):
                         context.tool_enabled_guideline_matches.keys(),
                     )
                 ),
+                journeys=context.journeys,
                 tool_enabled_guideline_matches={},
                 staged_events=context.staged_events,
             )
