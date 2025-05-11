@@ -35,11 +35,6 @@ load_steps(
 scenarios(
     *(
         f"core/unstable/engines/alpha/features/baseline/{feature}.feature"
-        for feature in (
-            "supervision",
-            "glossary",
-            "tools",
-            "fluid_utterances"
-        )
+        for feature in ("supervision", "glossary", "tools", "fluid_utterances")
     )
 )

@@ -474,6 +474,9 @@ You need to have tools_evaluation for each tool in the tools batch. Also, note t
 """,
             props={},
         )
+
+        with open("overlapping tools prompt.txt", 'w') as f:
+            f.write(builder.build())
         return builder
 
     def _add_tool_definitions_section(
