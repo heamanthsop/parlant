@@ -19,6 +19,7 @@ from pytest import raises
 
 from parlant.core.agents import AgentId
 from parlant.core.common import ItemNotFoundError
+from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
     EntityType,
     GuidelineRelationshipKind,
@@ -1890,3 +1891,27 @@ async def test_that_metadata_can_be_updated_for_a_guideline(
 
     assert updated_guideline["id"] == guideline.id
     assert updated_guideline["metadata"] == {"key1": "value1", "key2": "value2"}
+
+
+async def test_that_condition_association_is_deleted_when_a_guideline_is_deleted(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+    )
+
+    journey = await journey_store.create_journey(
+        title="test_journey",
+        description="test_description",
+        conditions=[guideline.id],
+    )
+
+    response = await async_client.delete(f"/guidelines/{guideline.id}")
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    updated_journey = await journey_store.read_journey(journey.id)
+    assert updated_journey.conditions == []

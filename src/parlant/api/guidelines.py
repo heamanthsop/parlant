@@ -59,6 +59,7 @@ from parlant.core.evaluations import (
     InvoiceGuidelineData,
     PayloadKind,
 )
+from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
     EntityType,
     RelationshipEntity,
@@ -1397,6 +1398,7 @@ def create_router(
     guideline_tool_association_store: GuidelineToolAssociationStore,
     agent_store: AgentStore,
     tag_store: TagStore,
+    journey_store: JourneyStore,
 ) -> APIRouter:
     """Creates a router for the guidelines API with tag-based paths."""
     router = APIRouter()
@@ -1751,5 +1753,14 @@ def create_router(
         for associastion in await guideline_tool_association_store.list_associations():
             if associastion.guideline_id == guideline_id:
                 await guideline_tool_association_store.delete_association(associastion.id)
+
+        journeys = await journey_store.list_journeys()
+        for journey in journeys:
+            for condition in journey.conditions:
+                if condition == guideline_id:
+                    await journey_store.remove_condition(
+                        journey_id=journey.id,
+                        condition=condition,
+                    )
 
     return router
