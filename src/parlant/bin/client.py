@@ -1231,12 +1231,20 @@ class Actions:
             for condition in conditions
         ]
 
-        return client.journeys.create(
+        journey = client.journeys.create(
             title=title,
             description=description,
             conditions=condition_ids,
             tags=tags,
         )
+
+        for condition_id in condition_ids:
+            client.guidelines.update(
+                guideline_id=condition_id,
+                metadata=GuidelineMetadataUpdateParams(add={"journeys": [journey.id]}),
+            )
+
+        return journey
 
     @staticmethod
     def view_journey(
@@ -1273,14 +1281,29 @@ class Actions:
     def add_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition: str,
+        condition_id: Optional[str],
+        condition: Optional[str],
     ) -> Journey:
         client = cast(ParlantClient, ctx.obj.client)
 
-        guideline = Actions.create_guideline(ctx, condition, None, None, [])
+        if condition_id:
+            guideline = client.guidelines.retrieve(guideline_id=condition_id).guideline
+
+            journeys_metadata = (guideline.metadata.get("journeys", []) or []) + [journey_id]
+
+            client.guidelines.update(
+                guideline_id=condition_id,
+                metadata=GuidelineMetadataUpdateParams(add={"journeys": journeys_metadata}),
+            ).guideline
+        else:
+            guideline = client.guidelines.create(
+                condition=cast(str, condition),
+                metadata={"journeys": [journey_id]},
+            )
+
         return client.journeys.update(
             journey_id=journey_id,
-            conditions=JourneyConditionUpdateParams(add=[guideline.guideline.id]),
+            conditions=JourneyConditionUpdateParams(add=[guideline.id]),
         )
 
     @staticmethod
@@ -1828,10 +1851,18 @@ class Interface:
             {
                 "ID": guideline.id,
                 "Condition": guideline.condition,
-                "Action": guideline.action,
+                "Action": (
+                    guideline.action
+                    if guideline.action
+                    else f"Activate journey(s): {', '.join(cast(list[str], guideline.metadata.get('journeys', [])))}"
+                    if guideline.metadata and "journeys" in guideline.metadata
+                    else "None"
+                ),
                 "Enabled": guideline.enabled,
                 "Tags": ", ".join(guideline.tags),
-                "Metadata": ", ".join([f"{k}: {v}" for k, v in guideline.metadata.items()])
+                "Metadata": ", ".join(
+                    [f"{k}: {v}" for k, v in guideline.metadata.items() if k != "journeys"]
+                )
                 if guideline.metadata
                 else "",
             }
@@ -2973,10 +3004,11 @@ class Interface:
     def add_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition: str,
+        condition_id: Optional[str],
+        condition: Optional[str],
     ) -> None:
         try:
-            journey = Actions.add_journey_condition(ctx, journey_id, condition)
+            journey = Actions.add_journey_condition(ctx, journey_id, condition_id, condition)
             Interface._write_success(f"Added condition to journey (id: {journey.id})")
             Interface._render_journeys([journey])
         except Exception as e:
@@ -4304,7 +4336,7 @@ async def async_main() -> None:
         required=True,
     )
     @click.option(
-        "--conditions",
+        "--condition",
         type=str,
         metavar="CONDITION",
         help="Journey conditions",
@@ -4317,19 +4349,14 @@ async def async_main() -> None:
         ctx: click.Context,
         title: str,
         description: str,
-        conditions: tuple[str],
+        condition: tuple[str],
         tag: tuple[str],
     ) -> None:
-        if len(conditions) == 0:
-            Interface.write_error("Error: At least one condition is required")
-            set_exit_status(1)
-            raise FastExit()
-
         Interface.create_journey(
             ctx=ctx,
             title=title,
             description=description,
-            conditions=list(conditions),
+            conditions=list(condition),
             tags=list(tag),
         )
 
@@ -4343,12 +4370,33 @@ async def async_main() -> None:
     def journey_update(ctx: click.Context, id: str, title: str, description: str) -> None:
         Interface.update_journey(ctx, id, title, description)
 
-    @journey.command("add-condition", help="Add a condition to a journey")
+    @journey.command(
+        "add-condition",
+        help="Add a condition to a journey, either by condition ID or by condition text",
+    )
     @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
-    @click.option("--condition", type=str, metavar="CONDITION", help="Condition", required=True)
+    @click.option(
+        "--condition-id", type=str, metavar="CONDITION_ID", help="Condition ID", required=False
+    )
+    @click.option("--condition", type=str, metavar="CONDITION", help="Condition", required=False)
     @click.pass_context
-    def journey_add_condition(ctx: click.Context, id: str, condition: str) -> None:
-        Interface.add_journey_condition(ctx, id, condition)
+    def journey_add_condition(
+        ctx: click.Context,
+        id: str,
+        condition: Optional[str],
+        condition_id: Optional[str],
+    ) -> None:
+        if not condition_id and not condition:
+            Interface.write_error("Either --condition-id or --condition must be provided")
+            set_exit_status(1)
+            raise FastExit()
+
+        if condition_id and condition:
+            Interface.write_error("Only one of --condition-id or --condition can be provided")
+            set_exit_status(1)
+            raise FastExit()
+
+        Interface.add_journey_condition(ctx, id, condition_id, condition)
 
     @journey.command("remove-condition", help="Remove a condition from a journey")
     @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
