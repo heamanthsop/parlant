@@ -1815,6 +1815,14 @@ class Interface:
                         "Source Name": rel.source_tag.name,
                     }
                 )
+            elif rel.source_tool:
+                assert rel.source_tool is not None
+                result.update(
+                    {
+                        "Source Type": "Tool",
+                        "Source Name": rel.source_tool.name,
+                    }
+                )
             if rel.target_guideline:
                 result.update(
                     {
