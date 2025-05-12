@@ -501,8 +501,6 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                 ),
             },
         )
-        with open("single tool batch prompt.txt", "w") as f:
-            f.write(builder.build())
 
         return builder
 
