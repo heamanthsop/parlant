@@ -667,7 +667,7 @@ class Actions:
         return tag_id
 
     @staticmethod
-    def add_guideline_metadata(
+    def set_guideline_metadata(
         ctx: click.Context,
         guideline_id: str,
         key: str,
@@ -680,7 +680,7 @@ class Actions:
         )
 
     @staticmethod
-    def remove_guideline_metadata(
+    def unset_guideline_metadata(
         ctx: click.Context,
         guideline_id: str,
         key: str,
@@ -2293,14 +2293,14 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def add_guideline_metadata(
+    def set_guideline_metadata(
         ctx: click.Context,
         guideline_id: str,
         key: str,
         value: str,
     ) -> None:
         try:
-            Actions.add_guideline_metadata(ctx, guideline_id, key, value)
+            Actions.set_guideline_metadata(ctx, guideline_id, key, value)
             Interface._write_success(
                 f"Added metadata (key: {key}, value: {value}) to guideline (id: {guideline_id})"
             )
@@ -2309,13 +2309,13 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def remove_guideline_metadata(
+    def unset_guideline_metadata(
         ctx: click.Context,
         guideline_id: str,
         key: str,
     ) -> None:
         try:
-            Actions.remove_guideline_metadata(ctx, guideline_id, key)
+            Actions.unset_guideline_metadata(ctx, guideline_id, key)
             Interface._write_success(
                 f"Removed metadata (key: {key}) from guideline (id: {guideline_id})"
             )
@@ -3719,14 +3719,14 @@ async def async_main() -> None:
     @click.option("--value", type=str, metavar="VALUE", help="Value", required=True)
     @click.pass_context
     def guideline_set(ctx: click.Context, id: str, key: str, value: str) -> None:
-        Interface.add_guideline_metadata(ctx, id, key, value)
+        Interface.set_guideline_metadata(ctx, id, key, value)
 
     @guideline.command("unset", help="Remove metadata for a guideline using a key")
     @click.option("--id", type=str, metavar="ID", help="Guideline ID", required=True)
     @click.option("--key", type=str, metavar="KEY", help="Key", required=True)
     @click.pass_context
     def guideline_unset(ctx: click.Context, id: str, key: str) -> None:
-        Interface.remove_guideline_metadata(ctx, id, key)
+        Interface.unset_guideline_metadata(ctx, id, key)
 
     @cli.group(help="Manage relationships")
     def relationship() -> None:
