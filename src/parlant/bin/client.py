@@ -46,6 +46,9 @@ from parlant.client.types import (
     ContextVariableTagsUpdateParams,
     Event,
     EventInspectionResult,
+    Journey,
+    JourneyTagUpdateParams,
+    JourneyConditionUpdateParams,
     Guideline,
     Relationship,
     RelationshipKindDto,
@@ -557,106 +560,6 @@ class Actions:
             return client.guidelines.list()
 
     @staticmethod
-    def create_relationship(
-        ctx: click.Context,
-        source: str,
-        target: str,
-        kind: RelationshipKindDto,
-    ) -> Relationship:
-        client = cast(ParlantClient, ctx.obj.client)
-
-        source_id, source_type = Actions._parse_relationship_side(ctx, source)
-        target_id, target_type = Actions._parse_relationship_side(ctx, target)
-
-        return client.relationships.create(
-            source_guideline=cast(str, source_id) if source_type == "guideline" else None,
-            source_tag=cast(str, source_id) if source_type == "tag" else None,
-            source_tool=cast(ToolId, source_id) if source_type == "tool" else None,
-            target_guideline=cast(str, target_id) if target_type == "guideline" else None,
-            target_tag=cast(str, target_id) if target_type == "tag" else None,
-            target_tool=cast(ToolId, target_id) if target_type == "tool" else None,
-            kind=kind,
-        )
-
-    @staticmethod
-    def remove_relationship(
-        ctx: click.Context,
-        id: Optional[str],
-        source_id: Optional[str],
-        target_id: Optional[str],
-        kind: Optional[RelationshipKindDto],
-    ) -> str:
-        client = cast(ParlantClient, ctx.obj.client)
-
-        if id:
-            client.relationships.delete(id)
-            return id
-
-        assert source_id and target_id and kind
-
-        _, source_type = Actions._parse_relationship_side(ctx, source_id)
-
-        if relationship := next(
-            (
-                r
-                for r in client.relationships.list(
-                    guideline_id=source_id if source_type == "guideline" else None,
-                    tag_id=source_id if source_type == "tag" else None,
-                    tool_id=source_id if source_type == "tool" else None,
-                    kind=kind,
-                    indirect=False,
-                )
-                if (
-                    (r.source_guideline and source_id == r.source_guideline.id)
-                    or (r.source_tag and source_id == r.source_tag.id)
-                    or (r.source_tool and source_id.split(":")[1] == r.source_tool.name)
-                )
-                and (
-                    (r.target_guideline and target_id == r.target_guideline.id)
-                    or (r.target_tag and target_id == r.target_tag.id)
-                    or (r.target_tool and target_id.split(":")[1] == r.target_tool.name)
-                )
-                and r.kind == kind
-            ),
-            None,
-        ):
-            client.relationships.delete(relationship.id)
-
-            return relationship.id
-
-        raise ValueError(
-            f"A relationship between {source_id} and {target_id} with kind {kind} was not found"
-        )
-
-    @staticmethod
-    def list_relationships(
-        ctx: click.Context,
-        guideline_id: Optional[str],
-        tag: Optional[str],
-        tool_id: Optional[str],
-        kind: Optional[RelationshipKindDto],
-        indirect: Optional[bool],
-    ) -> list[Relationship]:
-        client = cast(ParlantClient, ctx.obj.client)
-
-        tag_id = Actions._fetch_tag_id(ctx, tag) if tag else None
-        _ = (
-            Actions._fetch_tool_id(
-                ctx, ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1])
-            )
-            if tool_id
-            else None
-        )
-
-        return client.relationships.list(
-            guideline_id=guideline_id,
-            tag_id=tag_id,
-            tool_id=tool_id,
-            kind=kind,
-            indirect=indirect,
-        )
-
-    @staticmethod
     def add_guideline_tool_association(
         ctx: click.Context,
         guideline_id: str,
@@ -786,6 +689,106 @@ class Actions:
         client.guidelines.update(
             guideline_id,
             metadata=GuidelineMetadataUpdateParams(remove=[key]),
+        )
+
+    @staticmethod
+    def create_relationship(
+        ctx: click.Context,
+        source: str,
+        target: str,
+        kind: RelationshipKindDto,
+    ) -> Relationship:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        source_id, source_type = Actions._parse_relationship_side(ctx, source)
+        target_id, target_type = Actions._parse_relationship_side(ctx, target)
+
+        return client.relationships.create(
+            source_guideline=cast(str, source_id) if source_type == "guideline" else None,
+            source_tag=cast(str, source_id) if source_type == "tag" else None,
+            source_tool=cast(ToolId, source_id) if source_type == "tool" else None,
+            target_guideline=cast(str, target_id) if target_type == "guideline" else None,
+            target_tag=cast(str, target_id) if target_type == "tag" else None,
+            target_tool=cast(ToolId, target_id) if target_type == "tool" else None,
+            kind=kind,
+        )
+
+    @staticmethod
+    def remove_relationship(
+        ctx: click.Context,
+        id: Optional[str],
+        source_id: Optional[str],
+        target_id: Optional[str],
+        kind: Optional[RelationshipKindDto],
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        if id:
+            client.relationships.delete(id)
+            return id
+
+        assert source_id and target_id and kind
+
+        _, source_type = Actions._parse_relationship_side(ctx, source_id)
+
+        if relationship := next(
+            (
+                r
+                for r in client.relationships.list(
+                    guideline_id=source_id if source_type == "guideline" else None,
+                    tag_id=source_id if source_type == "tag" else None,
+                    tool_id=source_id if source_type == "tool" else None,
+                    kind=kind,
+                    indirect=False,
+                )
+                if (
+                    (r.source_guideline and source_id == r.source_guideline.id)
+                    or (r.source_tag and source_id == r.source_tag.id)
+                    or (r.source_tool and source_id.split(":")[1] == r.source_tool.name)
+                )
+                and (
+                    (r.target_guideline and target_id == r.target_guideline.id)
+                    or (r.target_tag and target_id == r.target_tag.id)
+                    or (r.target_tool and target_id.split(":")[1] == r.target_tool.name)
+                )
+                and r.kind == kind
+            ),
+            None,
+        ):
+            client.relationships.delete(relationship.id)
+
+            return relationship.id
+
+        raise ValueError(
+            f"A relationship between {source_id} and {target_id} with kind {kind} was not found"
+        )
+
+    @staticmethod
+    def list_relationships(
+        ctx: click.Context,
+        guideline_id: Optional[str],
+        tag: Optional[str],
+        tool_id: Optional[str],
+        kind: Optional[RelationshipKindDto],
+        indirect: Optional[bool],
+    ) -> list[Relationship]:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tag_id = Actions._fetch_tag_id(ctx, tag) if tag else None
+        _ = (
+            Actions._fetch_tool_id(
+                ctx, ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1])
+            )
+            if tool_id
+            else None
+        )
+
+        return client.relationships.list(
+            guideline_id=guideline_id,
+            tag_id=tag_id,
+            tool_id=tool_id,
+            kind=kind,
+            indirect=indirect,
         )
 
     @staticmethod
@@ -1196,75 +1199,127 @@ class Actions:
 
         return utterances
 
-    # @staticmethod
-    # def list_journeys(
-    #     ctx: click.Context,
-    #     tag: Optional[str] = None,
-    # ) -> list[Journey]:
-    #     client = cast(ParlantClient, ctx.obj.client)
-    #     if tag:
-    #         return client.journeys.list(tag_id=Actions._fetch_tag_id(ctx, tag))
-    #     else:
-    #         return client.journeys.list()
+    @staticmethod
+    def list_journeys(
+        ctx: click.Context,
+        tag: Optional[str] = None,
+    ) -> list[Journey]:
+        client = cast(ParlantClient, ctx.obj.client)
+        if tag:
+            return client.journeys.list(tag_id=Actions._fetch_tag_id(ctx, tag))
+        else:
+            return client.journeys.list()
 
-    # @staticmethod
-    # def create_journey(
-    #     ctx: click.Context,
-    #     title: str,
-    #     description: str,
-    #     conditions: list[str],
-    #     tags: list[str],
-    # ) -> Journey:
-    #     client = cast(ParlantClient, ctx.obj.client)
+    @staticmethod
+    def create_journey(
+        ctx: click.Context,
+        title: str,
+        description: str,
+        conditions: list[str],
+        tags: list[str],
+    ) -> Journey:
+        client = cast(ParlantClient, ctx.obj.client)
 
-    #     condition_ids = [
-    #         Actions.create_guideline(
-    #             ctx=ctx,
-    #             condition=condition,
-    #             action=None,
-    #             tool_id=None,
-    #             tags=tags,
-    #         ).guideline.id
-    #         for condition in conditions
-    #     ]
+        condition_ids = [
+            Actions.create_guideline(
+                ctx=ctx,
+                condition=condition,
+                action=None,
+                tool_id=None,
+                tags=tags,
+            ).guideline.id
+            for condition in conditions
+        ]
 
-    #     return client.journeys.create(
-    #         title=title,
-    #         description=description,
-    #         conditions=condition_ids,
-    #         tags=tags,
-    #     )
+        return client.journeys.create(
+            title=title,
+            description=description,
+            conditions=condition_ids,
+            tags=tags,
+        )
 
-    # @staticmethod
-    # def view_journey(
-    #     ctx: click.Context,
-    #     journey_id: str,
-    # ) -> Journey:
-    #     client = cast(ParlantClient, ctx.obj.client)
-    #     return client.journeys.retrieve(journey_id=journey_id)
+    @staticmethod
+    def view_journey(
+        ctx: click.Context,
+        journey_id: str,
+    ) -> Journey:
+        client = cast(ParlantClient, ctx.obj.client)
+        return client.journeys.retrieve(journey_id=journey_id)
 
-    # @staticmethod
-    # def update_journey(
-    #     ctx: click.Context,
-    #     journey_id: str,
-    #     name: str,
-    # ) -> Journey:
-    #     client = cast(ParlantClient, ctx.obj.client)
-    #     return client.journeys.update(
-    #         journey_id=journey_id, name=name
-    #     )
+    @staticmethod
+    def update_journey(
+        ctx: click.Context,
+        journey_id: str,
+        title: str,
+        description: str,
+    ) -> Journey:
+        client = cast(ParlantClient, ctx.obj.client)
 
-    # @staticmethod
-    # def delete_journey(
-    #     ctx: click.Context,
-    #     journey_id: str,
-    # ) -> str:
-    #     client = cast(ParlantClient, ctx.obj.client)
+        return client.journeys.update(
+            journey_id=journey_id,
+            title=title,
+            description=description,
+        )
 
-    #     journey_id = Actions._fetch_journey_id(ctx, journey_id)
-    #     client.journeys.delete(journey_id=journey_id)
+    @staticmethod
+    def delete_journey(
+        ctx: click.Context,
+        journey_id: str,
+    ) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+        client.journeys.delete(journey_id=journey_id)
 
-    #     return journey_id
+    @staticmethod
+    def add_journey_condition(
+        ctx: click.Context,
+        journey_id: str,
+        condition: str,
+    ) -> Journey:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        guideline = Actions.create_guideline(ctx, condition, None, None, [])
+        return client.journeys.update(
+            journey_id=journey_id,
+            conditions=JourneyConditionUpdateParams(add=[guideline.guideline.id]),
+        )
+
+    @staticmethod
+    def remove_journey_condition(
+        ctx: click.Context,
+        journey_id: str,
+        condition_id: str,
+    ) -> Journey:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        return client.journeys.update(
+            journey_id=journey_id,
+            conditions=JourneyConditionUpdateParams(remove=[condition_id]),
+        )
+
+    @staticmethod
+    def add_journey_tag(
+        ctx: click.Context,
+        journey_id: str,
+        tag: str,
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tag_id = Actions._fetch_tag_id(ctx, tag)
+        client.journeys.update(journey_id=journey_id, tags=JourneyTagUpdateParams(add=[tag_id]))
+
+        return tag_id
+
+    @staticmethod
+    def remove_journey_tag(
+        ctx: click.Context,
+        journey_id: str,
+        tag: str,
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+        tag_id = Actions._fetch_tag_id(ctx, tag)
+        client.journeys.update(journey_id=journey_id, tags=JourneyTagUpdateParams(remove=[tag_id]))
+
+        return tag_id
 
     @staticmethod
     def stream_logs(
@@ -2102,89 +2157,6 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
-    def create_relationship(
-        ctx: click.Context,
-        source_id: str,
-        target_id: str,
-        kind: RelationshipKindDto,
-    ) -> None:
-        try:
-            relationship = Actions.create_relationship(
-                ctx,
-                source_id,
-                target_id,
-                kind,
-            )
-
-            Interface._write_success(f"Added relationship (id: {relationship.id})")
-        except Exception as e:
-            Interface.write_error(f"Error: {type(e).__name__}: {e}")
-            set_exit_status(1)
-
-    @staticmethod
-    def remove_relationship(
-        ctx: click.Context,
-        id: Optional[str],
-        source_id: Optional[str],
-        target_id: Optional[str],
-        kind: Optional[RelationshipKindDto],
-    ) -> None:
-        try:
-            relationship_id = Actions.remove_relationship(
-                ctx,
-                id,
-                source_id,
-                target_id,
-                kind,
-            )
-
-            Interface._write_success(f"Removed relationship (id: {relationship_id})")
-        except Exception as e:
-            Interface.write_error(f"Error: {type(e).__name__}: {e}")
-            set_exit_status(1)
-
-    @staticmethod
-    def list_relationships(
-        ctx: click.Context,
-        guideline_id: Optional[str],
-        tag: Optional[str],
-        tool_id: Optional[str],
-        kind: Optional[RelationshipKindDto],
-        indirect: Optional[bool],
-    ) -> None:
-        try:
-            relationships = Actions.list_relationships(
-                ctx,
-                guideline_id=guideline_id,
-                tag=tag,
-                tool_id=tool_id,
-                kind=kind,
-                indirect=indirect,
-            )
-
-            if not relationships:
-                rich.print(Text("No data available", style="bold yellow"))
-                return
-
-            entity: Guideline | Tag | Tool | None = None
-            if guideline_id:
-                entity = Actions.view_guideline(ctx, guideline_id).guideline
-            elif tag:
-                entity = Actions.view_tag(ctx, tag)
-            elif tool_id:
-                entity = Actions.view_tool(ctx, tool_id)
-
-            Interface._render_relationships(
-                entity,
-                relationships,
-                include_indirect=indirect or True,
-            )
-
-        except Exception as e:
-            Interface.write_error(f"Error: {type(e).__name__}: {e}")
-            set_exit_status(1)
-
-    @staticmethod
     def _render_guideline_tool_associations(
         associations: list[GuidelineToolAssociation],
     ) -> None:
@@ -2323,6 +2295,89 @@ class Interface:
             Interface._write_success(
                 f"Removed metadata (key: {key}) from guideline (id: {guideline_id})"
             )
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def create_relationship(
+        ctx: click.Context,
+        source_id: str,
+        target_id: str,
+        kind: RelationshipKindDto,
+    ) -> None:
+        try:
+            relationship = Actions.create_relationship(
+                ctx,
+                source_id,
+                target_id,
+                kind,
+            )
+
+            Interface._write_success(f"Added relationship (id: {relationship.id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_relationship(
+        ctx: click.Context,
+        id: Optional[str],
+        source_id: Optional[str],
+        target_id: Optional[str],
+        kind: Optional[RelationshipKindDto],
+    ) -> None:
+        try:
+            relationship_id = Actions.remove_relationship(
+                ctx,
+                id,
+                source_id,
+                target_id,
+                kind,
+            )
+
+            Interface._write_success(f"Removed relationship (id: {relationship_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def list_relationships(
+        ctx: click.Context,
+        guideline_id: Optional[str],
+        tag: Optional[str],
+        tool_id: Optional[str],
+        kind: Optional[RelationshipKindDto],
+        indirect: Optional[bool],
+    ) -> None:
+        try:
+            relationships = Actions.list_relationships(
+                ctx,
+                guideline_id=guideline_id,
+                tag=tag,
+                tool_id=tool_id,
+                kind=kind,
+                indirect=indirect,
+            )
+
+            if not relationships:
+                rich.print(Text("No data available", style="bold yellow"))
+                return
+
+            entity: Guideline | Tag | Tool | None = None
+            if guideline_id:
+                entity = Actions.view_guideline(ctx, guideline_id).guideline
+            elif tag:
+                entity = Actions.view_tag(ctx, tag)
+            elif tool_id:
+                entity = Actions.view_tool(ctx, tool_id)
+
+            Interface._render_relationships(
+                entity,
+                relationships,
+                include_indirect=indirect or True,
+            )
+
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -2849,6 +2904,129 @@ class Interface:
         try:
             utterance = Actions.view_utterance(ctx, utterance_id=utterance_id)
             Interface._render_utterances([utterance])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def _render_journeys(journeys: list[Journey]) -> None:
+        journey_items: list[dict[str, Any]] = [
+            {
+                "ID": journey.id,
+                "Title": journey.title,
+                "Description": journey.description,
+                "Conditions": ", ".join(journey.conditions),
+                "Tags": ", ".join(journey.tags or []),
+            }
+            for journey in journeys
+        ]
+
+        Interface._print_table(journey_items)
+
+    @staticmethod
+    def list_journeys(
+        ctx: click.Context,
+        tag: Optional[str],
+    ) -> None:
+        try:
+            journeys = Actions.list_journeys(ctx, tag)
+
+            Interface._render_journeys(journeys)
+
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def create_journey(
+        ctx: click.Context,
+        title: str,
+        description: str,
+        conditions: list[str],
+        tags: list[str],
+    ) -> None:
+        try:
+            journey = Actions.create_journey(ctx, title, description, conditions, tags)
+            Interface._write_success(f"Created journey (id: {journey.id})")
+            Interface._render_journeys([journey])
+
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def update_journey(
+        ctx: click.Context,
+        journey_id: str,
+        title: str,
+        description: str,
+    ) -> None:
+        try:
+            journey = Actions.update_journey(ctx, journey_id, title, description)
+            Interface._write_success(f"Updated journey (id: {journey.id})")
+            Interface._render_journeys([journey])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def add_journey_condition(
+        ctx: click.Context,
+        journey_id: str,
+        condition: str,
+    ) -> None:
+        try:
+            journey = Actions.add_journey_condition(ctx, journey_id, condition)
+            Interface._write_success(f"Added condition to journey (id: {journey.id})")
+            Interface._render_journeys([journey])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_journey_condition(
+        ctx: click.Context,
+        journey_id: str,
+        condition_id: str,
+    ) -> None:
+        try:
+            journey = Actions.remove_journey_condition(ctx, journey_id, condition_id)
+            Interface._write_success(f"Removed condition from journey (id: {journey.id})")
+            Interface._render_journeys([journey])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def add_journey_tag(
+        ctx: click.Context,
+        journey_id: str,
+        tag: str,
+    ) -> None:
+        try:
+            tag_id = Actions.add_journey_tag(ctx, journey_id, tag)
+            Interface._write_success(f"Added tag (id: {tag_id}) to journey (id: {journey_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_journey_tag(
+        ctx: click.Context,
+        journey_id: str,
+        tag: str,
+    ) -> None:
+        try:
+            tag_id = Actions.remove_journey_tag(ctx, journey_id, tag)
+            Interface._write_success(f"Removed tag (id: {tag_id}) from journey (id: {journey_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    def delete_journey(ctx: click.Context, journey_id: str) -> None:
+        try:
+            Actions.delete_journey(ctx, journey_id)
+            Interface._write_success(f"Deleted journey (id: {journey_id})")
         except Exception as e:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
@@ -4101,6 +4279,114 @@ async def async_main() -> None:
     @click.pass_context
     def utterance_view(ctx: click.Context, id: str) -> None:
         Interface.view_utterance(ctx, id)
+
+    @cli.group(help="Manage journeys")
+    def journey() -> None:
+        pass
+
+    @journey.command("list", help="List journeys")
+    @tag_option(multiple=True)
+    @click.pass_context
+    def journey_list(
+        ctx: click.Context,
+        tag: Optional[str],
+    ) -> None:
+        Interface.list_journeys(ctx, tag)
+
+    @journey.command("create", help="Create a journey")
+    @click.option("--title", type=str, metavar="TITLE", help="Journey title", required=True)
+    @click.option(
+        "--description",
+        type=str,
+        metavar="DESCRIPTION",
+        help="Journey description. can be multiple lines",
+        required=True,
+    )
+    @click.option(
+        "--conditions",
+        type=str,
+        metavar="CONDITION",
+        help="Journey conditions",
+        multiple=True,
+        required=True,
+    )
+    @tag_option(multiple=True)
+    @click.pass_context
+    def journey_create(
+        ctx: click.Context,
+        title: str,
+        description: str,
+        conditions: tuple[str],
+        tag: tuple[str],
+    ) -> None:
+        if len(conditions) == 0:
+            Interface.write_error("Error: At least one condition is required")
+            set_exit_status(1)
+            raise FastExit()
+
+        Interface.create_journey(
+            ctx=ctx,
+            title=title,
+            description=description,
+            conditions=list(conditions),
+            tags=list(tag),
+        )
+
+    @journey.command("update", help="Update a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @click.option("--title", type=str, metavar="TITLE", help="Journey title", required=True)
+    @click.option(
+        "--description", type=str, metavar="DESCRIPTION", help="Journey description", required=True
+    )
+    @click.pass_context
+    def journey_update(ctx: click.Context, id: str, title: str, description: str) -> None:
+        Interface.update_journey(ctx, id, title, description)
+
+    @journey.command("add-condition", help="Add a condition to a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @click.option("--condition", type=str, metavar="CONDITION", help="Condition", required=True)
+    @click.pass_context
+    def journey_add_condition(ctx: click.Context, id: str, condition: str) -> None:
+        Interface.add_journey_condition(ctx, id, condition)
+
+    @journey.command("remove-condition", help="Remove a condition from a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @click.option("--condition", type=str, metavar="CONDITION", help="Condition", required=True)
+    @click.pass_context
+    def journey_remove_condition(ctx: click.Context, id: str, condition: str) -> None:
+        Interface.remove_journey_condition(ctx, id, condition)
+
+    @journey.command("tag", help="Tag a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @tag_option(required=True)
+    @click.pass_context
+    def journey_add_tag(
+        ctx: click.Context,
+        id: str,
+        tag: str,
+    ) -> None:
+        Interface.add_journey_tag(
+            ctx=ctx,
+            journey_id=id,
+            tag=tag,
+        )
+
+    @journey.command("untag", help="Untag from a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @tag_option(required=True)
+    @click.pass_context
+    def journey_untag(ctx: click.Context, id: str, tag: str) -> None:
+        Interface.remove_journey_tag(
+            ctx=ctx,
+            journey_id=id,
+            tag=tag,
+        )
+
+    @journey.command("delete", help="Delete a journey")
+    @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
+    @click.pass_context
+    def journey_delete(ctx: click.Context, id: str) -> None:
+        Interface.delete_journey(ctx, id)
 
     @cli.command(
         "log",
