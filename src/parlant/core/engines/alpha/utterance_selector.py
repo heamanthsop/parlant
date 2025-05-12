@@ -110,8 +110,8 @@ class UtteranceContext:
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
-    journeys: Sequence[Journey]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
+    journeys: Sequence[Journey]
     tool_insights: ToolInsights
     staged_events: Sequence[EmittedEvent]
 
@@ -348,6 +348,12 @@ class FluidUtteranceFallback(Exception):
         pass
 
 
+def _get_utterance_template_fields(template: str) -> set[str]:
+    env = jinja2.Environment()
+    parse_result = env.parse(template)
+    return jinja2.meta.find_undeclared_variables(parse_result)
+
+
 class UtteranceSelector(MessageEventComposer):
     def __init__(
         self,
@@ -368,6 +374,7 @@ class UtteranceSelector(MessageEventComposer):
         self._utterance_store = utterance_store
         self._field_extractor = field_extractor
         self._message_generator = message_generator
+        self._cached_utterance_fields: dict[UtteranceId, set[str]] = {}
 
     async def shots(
         self, composition_mode: CompositionMode
@@ -423,15 +430,15 @@ class UtteranceSelector(MessageEventComposer):
                     staged_events,
                 )
 
-    async def _get_utterances(
+    async def _get_relevant_utterances(
         self,
-        staged_events: Sequence[EmittedEvent],
+        context: UtteranceContext,
     ) -> list[Utterance]:
-        utterances = list(await self._utterance_store.list_utterances())
+        stored_utterances = list(await self._utterance_store.list_utterances())
 
         utterances_by_staged_event: list[Utterance] = []
 
-        for event in staged_events:
+        for event in context.staged_events:
             if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
@@ -447,7 +454,38 @@ class UtteranceSelector(MessageEventComposer):
                         for f in tool_call["result"].get("utterances", [])
                     )
 
-        return utterances + utterances_by_staged_event
+        all_candidates = [*stored_utterances, *utterances_by_staged_event]
+
+        # Filter out utterances that contain references to tool-based data
+        # if that data does not exist in the session's context.
+        all_tool_calls = chain.from_iterable(
+            [
+                *(
+                    cast(ToolEventData, e.data)["tool_calls"]
+                    for e in context.staged_events
+                    if e.kind == EventKind.TOOL
+                ),
+                *(
+                    cast(ToolEventData, e.data)["tool_calls"]
+                    for e in context.interaction_history
+                    if e.kind == EventKind.TOOL
+                ),
+            ]
+        )
+        all_available_fields = chain.from_iterable(
+            tc["result"]["utterance_fields"] for tc in all_tool_calls
+        )
+
+        relevant_utterances = []
+
+        for u in all_candidates:
+            if u.id not in self._cached_utterance_fields:
+                self._cached_utterance_fields[u.id] = _get_utterance_template_fields(u.value)
+
+            if all(field in all_available_fields for field in self._cached_utterance_fields[u.id]):
+                relevant_utterances.append(u)
+
+        return relevant_utterances
 
     async def _do_generate_events(
         self,
@@ -473,7 +511,20 @@ class UtteranceSelector(MessageEventComposer):
             self._logger.info("Skipping response; interaction is empty and there are no guidelines")
             return []
 
-        utterances = await self._get_utterances(staged_events)
+        context = UtteranceContext(
+            agent=agent,
+            customer=customer,
+            context_variables=context_variables,
+            interaction_history=interaction_history,
+            terms=terms,
+            ordinary_guideline_matches=ordinary_guideline_matches,
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            journeys=journeys,
+            tool_insights=tool_insights,
+            staged_events=staged_events,
+        )
+
+        utterances = await self._get_relevant_utterances(context)
 
         if not utterances and agent.composition_mode == CompositionMode.FLUID_UTTERANCE:
             self._logger.warning("No utterances found; falling back to fluid generation")
@@ -498,19 +549,6 @@ class UtteranceSelector(MessageEventComposer):
 
         last_generation_exception: Exception | None = None
 
-        context = UtteranceContext(
-            agent=agent,
-            customer=customer,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            terms=terms,
-            ordinary_guideline_matches=ordinary_guideline_matches,
-            journeys=journeys,
-            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            tool_insights=tool_insights,
-            staged_events=staged_events,
-        )
-
         for generation_attempt in range(3):
             try:
                 generation_info, result = await self._generate_utterance(
@@ -521,17 +559,26 @@ class UtteranceSelector(MessageEventComposer):
                 )
 
                 if result is not None:
-                    event = await event_emitter.emit_message_event(
-                        correlation_id=self._correlator.correlation_id,
-                        data=MessageEventData(
-                            message=result.message,
-                            participant=Participant(id=agent.id, display_name=agent.name),
-                            draft=result.draft,
-                            utterances=result.utterances,
-                        ),
-                    )
+                    sub_messages = result.message.split("\n\n")
+                    events = []
 
-                    return [MessageEventComposition(generation_info, [event])]
+                    for m in sub_messages:
+                        event = await event_emitter.emit_message_event(
+                            correlation_id=self._correlator.correlation_id,
+                            data=MessageEventData(
+                                message=m,
+                                participant=Participant(id=agent.id, display_name=agent.name),
+                                draft=result.draft,
+                                utterances=result.utterances,
+                            ),
+                        )
+
+                        events.append(event)
+
+                        if len(events) != len(sub_messages):
+                            await asyncio.sleep(2)
+
+                    return [MessageEventComposition(generation_info, events)]
                 else:
                     self._logger.debug("Skipping response; no response deemed necessary")
                     return [MessageEventComposition(generation_info, [])]
@@ -1033,6 +1080,7 @@ Output a JSON object with a two properties:
             case CompositionMode.COMPOSITED_UTTERANCE:
                 recomposition_generation_info, recomposed_utterance = await self._recompose(
                     context,
+                    draft_response.content.message,
                     rendered_utterance,
                 )
 
@@ -1058,13 +1106,9 @@ Output a JSON object with a two properties:
         raise Exception("Unsupported composition mode")
 
     async def _render_utterance(self, context: UtteranceContext, utterance: str) -> str:
-        env = jinja2.Environment()
-        parse_result = env.parse(utterance)
-        field_names = jinja2.meta.find_undeclared_variables(parse_result)
-
         args = {}
 
-        for field_name in field_names:
+        for field_name in _get_utterance_template_fields(utterance):
             success, value = await self._field_extractor.extract(
                 utterance,
                 field_name,
@@ -1080,7 +1124,10 @@ Output a JSON object with a two properties:
         return jinja2.Template(utterance).render(**args)
 
     async def _recompose(
-        self, context: UtteranceContext, raw_message: str
+        self,
+        context: UtteranceContext,
+        draft_message: str,
+        reference_message: str,
     ) -> tuple[GenerationInfo, str]:
         builder = PromptBuilder(
             on_build=lambda prompt: self._logger.debug(f"Composition Prompt:\n{prompt}")
@@ -1091,15 +1138,38 @@ Output a JSON object with a two properties:
         builder.add_section(
             name="utterance-selector-composition",
             template="""\
-Please revise this message's style as you see fit.
+Task Description
+----------------
+You are given two messages:
+1. Draft message
+2. Style reference message
+
+The draft message contains what should be said right now.
+The style reference message teaches you what communication style to try to copy.
+
+You must say what the draft message says, but capture the tone and style of the style reference message precisely.
+
 Make sure NOT to add, remove, or hallucinate information nor add or remove key words (nouns, verbs) to the message.
-Message: ###
-{raw_message}
+
+IMPORTANT NOTE: Always try to separate points in your message by 2 newlines (\\n\\n) — even if the reference message doesn't do so. You may do this zero or multiple times in the message, as needed. Pay extra attention to this requirement. For example, here's what you should separate:
+1. Answering one thing and then another thing -- Put two newlines in between
+2. Answering one thing and then asking a follow-up question (e.g., Should I... / Can I... / Want me to... / etc.) -- Put two newlines in between
+3. An initial acknowledgement (Sure... / Sorry... / Thanks...) or greeting (Hey... / Good day...) and actual follow-up statements -- Put two newlines in between
+
+Draft message: ###
+{draft_message}
 ###
 
-Respond with a JSON object {{ "revised_utterance": "<message>" }}
+Style reference message: ###
+{reference_message}
+###
+
+Respond with a JSON object {{ "revised_utterance": "<message_with_points_separated_by_double_newlines>" }}
 """,
-            props={"raw_message": raw_message},
+            props={
+                "draft_message": draft_message,
+                "reference_message": reference_message,
+            },
         )
 
         result = await self._utterance_composition_generator.generate(
