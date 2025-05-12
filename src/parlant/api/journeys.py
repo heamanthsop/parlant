@@ -14,13 +14,13 @@
 
 from fastapi import APIRouter, Path, Query, status
 from pydantic import Field
-from typing import Annotated, Optional, Sequence, TypeAlias
+from typing import Annotated, Optional, Sequence, TypeAlias, cast
 
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.journeys import JourneyId, JourneyStore, JourneyUpdateParams
 from parlant.core.guidelines import GuidelineId, GuidelineStore
-from parlant.core.tags import TagId, TagStore
+from parlant.core.tags import TagId
 
 API_GROUP = "journeys"
 
@@ -122,7 +122,7 @@ JourneyConditionUpdateAddField: TypeAlias = Annotated[
     list[GuidelineId],
     Field(
         default=None,
-        description="List of condition IDs to add to the journey",
+        description="List of conditi    on IDs to add to the journey",
         examples=[["guid_123xz", "guid_456abc"]],
     ),
 ]
@@ -131,7 +131,7 @@ JourneyConditionUpdateRemoveField: TypeAlias = Annotated[
     list[GuidelineId],
     Field(
         default=None,
-        description="List of condition IDs to remove from the journey",
+        description="List of guideline IDs to remove from the journey",
         examples=[["guid_123xz", "guid_456abc"]],
     ),
 ]
@@ -229,7 +229,6 @@ TagIdQuery: TypeAlias = Annotated[
 def create_router(
     journey_store: JourneyStore,
     guideline_store: GuidelineStore,
-    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -273,6 +272,16 @@ def create_router(
             conditions=[g.id for g in guidelines],
             tags=params.tags,
         )
+
+        for guideline in guidelines:
+            await guideline_store.set_metadata(
+                guideline_id=guideline.id,
+                key="journeys",
+                value=[
+                    *cast(Sequence[str], guideline.metadata.get("journeys", [])),
+                    journey.id,
+                ],
+            )
 
         return JourneyDTO(
             id=journey.id,
@@ -389,6 +398,17 @@ def create_router(
                         condition=condition,
                     )
 
+                    guideline = await guideline_store.read_guideline(guideline_id=condition)
+
+                    await guideline_store.set_metadata(
+                        guideline_id=condition,
+                        key="journeys",
+                        value=[
+                            *cast(Sequence[str], guideline.metadata.get("journeys", [])),
+                            journey_id,
+                        ],
+                    )
+
             if params.conditions.remove:
                 for condition in params.conditions.remove:
                     await journey_store.remove_condition(
@@ -396,8 +416,20 @@ def create_router(
                         condition=condition,
                     )
 
-                if not await journey_store.list_journeys(condition=condition):
-                    await guideline_store.delete_guideline(guideline_id=condition)
+                    guideline = await guideline_store.read_guideline(guideline_id=condition)
+
+                    if guideline.metadata.get("journeys", []):
+                        await guideline_store.set_metadata(
+                            guideline_id=condition,
+                            key="journeys",
+                            value=[
+                                j
+                                for j in cast(Sequence[str], guideline.metadata.get("journeys", []))
+                                if j != journey_id
+                            ],
+                        )
+                    else:
+                        await guideline_store.delete_guideline(guideline_id=condition)
 
         update_params: JourneyUpdateParams = {}
         if params.title:
@@ -457,8 +489,21 @@ def create_router(
         journey = await journey_store.read_journey(journey_id=journey_id)
 
         await journey_store.delete_journey(journey_id=journey_id)
+
         for condition in journey.conditions:
             if not await journey_store.list_journeys(condition=condition):
                 await guideline_store.delete_guideline(guideline_id=condition)
+            else:
+                guideline = await guideline_store.read_guideline(guideline_id=condition)
+
+                await guideline_store.set_metadata(
+                    guideline_id=condition,
+                    key="journeys",
+                    value=[
+                        j
+                        for j in cast(Sequence[str], guideline.metadata.get("journeys", []))
+                        if j != journey_id
+                    ],
+                )
 
     return router

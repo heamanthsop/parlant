@@ -299,7 +299,6 @@ async def create_api_app(container: Container) -> ASGIApplication:
         router=journeys.create_router(
             journey_store=journey_store,
             guideline_store=guideline_store,
-            tag_store=tag_store,
         ),
     )
 

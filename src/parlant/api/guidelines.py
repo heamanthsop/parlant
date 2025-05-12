@@ -1612,16 +1612,19 @@ def create_router(
 
         if params.metadata:
             if params.metadata.add:
-                await guideline_store.add_metadata(
-                    guideline_id=guideline_id,
-                    metadata=params.metadata.add,
-                )
+                for key, value in params.metadata.add.items():
+                    await guideline_store.set_metadata(
+                        guideline_id=guideline_id,
+                        key=key,
+                        value=value,
+                    )
 
             if params.metadata.remove:
-                await guideline_store.remove_metadata(
-                    guideline_id=guideline_id,
-                    keys=params.metadata.remove,
-                )
+                for key in params.metadata.remove:
+                    await guideline_store.unset_metadata(
+                        guideline_id=guideline_id,
+                        key=key,
+                    )
 
         if params.tool_associations and params.tool_associations.add:
             for tool_id_dto in params.tool_associations.add:

@@ -123,17 +123,18 @@ class GuidelineStore(ABC):
     ) -> None: ...
 
     @abstractmethod
-    async def add_metadata(
+    async def set_metadata(
         self,
         guideline_id: GuidelineId,
-        metadata: Mapping[str, JSONSerializable],
+        key: str,
+        value: JSONSerializable,
     ) -> Guideline: ...
 
     @abstractmethod
-    async def remove_metadata(
+    async def unset_metadata(
         self,
         guideline_id: GuidelineId,
-        keys: Sequence[str],
+        key: str,
     ) -> Guideline: ...
 
 
@@ -539,10 +540,11 @@ class GuidelineDocumentStore(GuidelineStore):
             raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
     @override
-    async def add_metadata(
+    async def set_metadata(
         self,
         guideline_id: GuidelineId,
-        metadata: Mapping[str, JSONSerializable],
+        key: str,
+        value: JSONSerializable,
     ) -> Guideline:
         async with self._lock.writer_lock:
             guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
@@ -550,7 +552,7 @@ class GuidelineDocumentStore(GuidelineStore):
             if not guideline_document:
                 raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
-            updated_metadata = {**guideline_document["metadata"], **metadata}
+            updated_metadata = {**guideline_document["metadata"], key: value}
 
             result = await self._collection.update_one(
                 filters={"id": {"$eq": guideline_id}},
@@ -564,10 +566,10 @@ class GuidelineDocumentStore(GuidelineStore):
         return await self._deserialize(guideline_document=result.updated_document)
 
     @override
-    async def remove_metadata(
+    async def unset_metadata(
         self,
         guideline_id: GuidelineId,
-        keys: Sequence[str],
+        key: str,
     ) -> Guideline:
         async with self._lock.writer_lock:
             guideline_document = await self._collection.find_one({"id": {"$eq": guideline_id}})
@@ -575,9 +577,7 @@ class GuidelineDocumentStore(GuidelineStore):
             if not guideline_document:
                 raise ItemNotFoundError(item_id=UniqueId(guideline_id))
 
-            updated_metadata = {
-                k: v for k, v in guideline_document["metadata"].items() if k not in keys
-            }
+            updated_metadata = {k: v for k, v in guideline_document["metadata"].items() if k != key}
 
             result = await self._collection.update_one(
                 filters={"id": {"$eq": guideline_id}},

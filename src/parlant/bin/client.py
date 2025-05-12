@@ -1238,9 +1238,9 @@ class Actions:
             tags=tags,
         )
 
-        for condition_id in condition_ids:
+        for guideline_id in condition_ids:
             client.guidelines.update(
-                guideline_id=condition_id,
+                guideline_id=guideline_id,
                 metadata=GuidelineMetadataUpdateParams(add={"journeys": [journey.id]}),
             )
 
@@ -1281,42 +1281,35 @@ class Actions:
     def add_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition_id: Optional[str],
+        guideline_id: Optional[str],
         condition: Optional[str],
     ) -> Journey:
         client = cast(ParlantClient, ctx.obj.client)
 
-        if condition_id:
-            guideline = client.guidelines.retrieve(guideline_id=condition_id).guideline
-
-            journeys_metadata = (guideline.metadata.get("journeys", []) or []) + [journey_id]
-
-            client.guidelines.update(
-                guideline_id=condition_id,
-                metadata=GuidelineMetadataUpdateParams(add={"journeys": journeys_metadata}),
-            ).guideline
-        else:
-            guideline = client.guidelines.create(
+        guideline_id = (
+            guideline_id
+            or client.guidelines.create(
                 condition=cast(str, condition),
                 metadata={"journeys": [journey_id]},
-            )
+            ).id
+        )
 
         return client.journeys.update(
             journey_id=journey_id,
-            conditions=JourneyConditionUpdateParams(add=[guideline.id]),
+            conditions=JourneyConditionUpdateParams(add=[guideline_id]),
         )
 
     @staticmethod
     def remove_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition_id: str,
+        guideline_id: str,
     ) -> Journey:
         client = cast(ParlantClient, ctx.obj.client)
 
         return client.journeys.update(
             journey_id=journey_id,
-            conditions=JourneyConditionUpdateParams(remove=[condition_id]),
+            conditions=JourneyConditionUpdateParams(remove=[guideline_id]),
         )
 
     @staticmethod
@@ -3004,11 +2997,11 @@ class Interface:
     def add_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition_id: Optional[str],
+        guideline_id: Optional[str],
         condition: Optional[str],
     ) -> None:
         try:
-            journey = Actions.add_journey_condition(ctx, journey_id, condition_id, condition)
+            journey = Actions.add_journey_condition(ctx, journey_id, guideline_id, condition)
             Interface._write_success(f"Added condition to journey (id: {journey.id})")
             Interface._render_journeys([journey])
         except Exception as e:
@@ -3019,10 +3012,10 @@ class Interface:
     def remove_journey_condition(
         ctx: click.Context,
         journey_id: str,
-        condition_id: str,
+        guideline_id: str,
     ) -> None:
         try:
-            journey = Actions.remove_journey_condition(ctx, journey_id, condition_id)
+            journey = Actions.remove_journey_condition(ctx, journey_id, guideline_id)
             Interface._write_success(f"Removed condition from journey (id: {journey.id})")
             Interface._render_journeys([journey])
         except Exception as e:
@@ -4372,11 +4365,11 @@ async def async_main() -> None:
 
     @journey.command(
         "add-condition",
-        help="Add a condition to a journey, either by condition ID or by condition text",
+        help="Add a condition to a journey, either by Guideline ID or by condition text",
     )
     @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)
     @click.option(
-        "--condition-id", type=str, metavar="CONDITION_ID", help="Condition ID", required=False
+        "--guideline-id", type=str, metavar="GUIDELINE_ID", help="Guideline ID", required=False
     )
     @click.option("--condition", type=str, metavar="CONDITION", help="Condition", required=False)
     @click.pass_context
@@ -4384,19 +4377,19 @@ async def async_main() -> None:
         ctx: click.Context,
         id: str,
         condition: Optional[str],
-        condition_id: Optional[str],
+        guideline_id: Optional[str],
     ) -> None:
-        if not condition_id and not condition:
+        if not guideline_id and not condition:
             Interface.write_error("Either --condition-id or --condition must be provided")
             set_exit_status(1)
             raise FastExit()
 
-        if condition_id and condition:
+        if guideline_id and condition:
             Interface.write_error("Only one of --condition-id or --condition can be provided")
             set_exit_status(1)
             raise FastExit()
 
-        Interface.add_journey_condition(ctx, id, condition_id, condition)
+        Interface.add_journey_condition(ctx, id, guideline_id, condition)
 
     @journey.command("remove-condition", help="Remove a condition from a journey")
     @click.option("--id", type=str, metavar="ID", help="Journey ID", required=True)

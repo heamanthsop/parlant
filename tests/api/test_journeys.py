@@ -36,6 +36,9 @@ async def test_that_a_journey_can_be_created(
     guideline = await guideline_store.read_guideline(guideline_id=journey["conditions"][0])
     assert guideline.id == journey["conditions"][0]
 
+    guideline_after_update = await guideline_store.read_guideline(guideline.id)
+    assert guideline_after_update.metadata == {"journeys": [journey["id"]]}
+
 
 async def test_that_a_journey_can_be_created_with_multiple_conditions(
     async_client: httpx.AsyncClient,
@@ -294,6 +297,71 @@ async def test_that_a_journey_can_be_deleted(
         await journey_store.read_journey(journey.id)
 
 
+async def test_that_a_guideline_is_deleted_when_it_is_removed_from_all_journeys(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    journey_store = container[JourneyStore]
+    guideline_store = container[GuidelineStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="Customer asks for onboarding help",
+        action=None,
+    )
+
+    journey = await journey_store.create_journey(
+        title="Customer Onboarding",
+        description="Guide new customers",
+        conditions=[guideline.id],
+    )
+
+    delete_response = await async_client.delete(f"/journeys/{journey.id}")
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    with raises(ItemNotFoundError):
+        await guideline_store.read_guideline(guideline.id)
+
+
+async def test_that_a_guideline_is_not_deleted_when_it_is_used_in_multiple_journeys(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="Customer asks for onboarding help",
+        action=None,
+    )
+
+    journey_to_delete = await journey_store.create_journey(
+        title="Customer Onboarding",
+        description="Guide new customers",
+        conditions=[guideline.id],
+    )
+
+    journey_to_keep = await journey_store.create_journey(
+        title="Customer Signup",
+        description="Guide new customers to signup",
+        conditions=[guideline.id],
+    )
+
+    await guideline_store.set_metadata(
+        guideline.id,
+        "journeys",
+        [
+            journey_to_delete.id,
+            journey_to_keep.id,
+        ],
+    )
+
+    delete_response = await async_client.delete(f"/journeys/{journey_to_delete.id}")
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    guideline_after_update = await guideline_store.read_guideline(guideline.id)
+    assert guideline_after_update.metadata == {"journeys": [journey_to_keep.id]}
+
+
 async def test_that_a_tag_can_be_added_to_a_journey(
     async_client: httpx.AsyncClient,
     container: Container,
@@ -351,7 +419,7 @@ async def test_that_conditions_can_be_added_to_a_journey(
     guideline_store = container[GuidelineStore]
     journey_store = container[JourneyStore]
 
-    condition = await guideline_store.create_guideline(
+    guideline = await guideline_store.create_guideline(
         condition="New Condition",
         action=None,
     )
@@ -363,12 +431,15 @@ async def test_that_conditions_can_be_added_to_a_journey(
 
     response = await async_client.patch(
         f"/journeys/{journey.id}",
-        json={"conditions": {"add": [condition.id]}},
+        json={"conditions": {"add": [guideline.id]}},
     )
     response.raise_for_status()
     updated_journey = response.json()
 
-    assert condition.id in updated_journey["conditions"]
+    assert guideline.id in updated_journey["conditions"]
+
+    guideline_after_update = await guideline_store.read_guideline(guideline.id)
+    assert guideline_after_update.metadata == {"journeys": [journey.id]}
 
 
 async def test_that_conditions_can_be_removed_from_a_journey(
@@ -378,24 +449,74 @@ async def test_that_conditions_can_be_removed_from_a_journey(
     guideline_store = container[GuidelineStore]
     journey_store = container[JourneyStore]
 
-    condition = await guideline_store.create_guideline(
+    guideline = await guideline_store.create_guideline(
         condition="Removable Condition",
         action=None,
     )
-    journey = await journey_store.create_journey(
+
+    journey_to_delete = await journey_store.create_journey(
         title="Customer Onboarding",
         description="Guide new customers",
-        conditions=[condition.id],
+        conditions=[guideline.id],
+    )
+
+    journey_to_keep = await journey_store.create_journey(
+        title="Customer Signup",
+        description="Guide new customers to signup",
+        conditions=[guideline.id],
+    )
+
+    await guideline_store.set_metadata(
+        guideline.id,
+        "journeys",
+        [journey_to_delete.id, journey_to_keep.id],
     )
 
     response = await async_client.patch(
-        f"/journeys/{journey.id}",
-        json={"conditions": {"remove": [condition.id]}},
+        f"/journeys/{journey_to_delete.id}",
+        json={"conditions": {"remove": [guideline.id]}},
     )
     response.raise_for_status()
     updated_journey = response.json()
 
-    assert condition.id not in updated_journey["conditions"]
+    assert guideline.id not in updated_journey["conditions"]
+
+    guideline_after_update = await guideline_store.read_guideline(guideline.id)
+    assert guideline_after_update.metadata == {"journeys": [journey_to_keep.id]}
+
+
+async def test_that_a_guideline_is_deleted_when_conditions_are_removed_from_all_journeys(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="Removable Condition",
+        action=None,
+    )
+
+    journey = await journey_store.create_journey(
+        title="Customer Onboarding",
+        description="Guide new customers",
+        conditions=[guideline.id],
+    )
+
+    await journey_store.create_journey(
+        title="Customer Signup",
+        description="Guide new customers to signup",
+        conditions=[guideline.id],
+    )
+
+    response = await async_client.patch(
+        f"/journeys/{journey.id}",
+        json={"conditions": {"remove": [guideline.id]}},
+    )
+    response.raise_for_status()
+
+    with raises(ItemNotFoundError):
+        await guideline_store.read_guideline(guideline.id)
 
 
 async def test_that_journeys_can_be_filtered_by_tag(
