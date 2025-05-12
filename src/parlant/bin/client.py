@@ -3023,6 +3023,7 @@ class Interface:
             Interface.write_error(f"Error: {type(e).__name__}: {e}")
             set_exit_status(1)
 
+    @staticmethod
     def delete_journey(ctx: click.Context, journey_id: str) -> None:
         try:
             Actions.delete_journey(ctx, journey_id)
