@@ -386,8 +386,8 @@ class UtteranceSelector(MessageEventComposer):
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
-        journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        journeys: Sequence[Journey],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
     ) -> Sequence[MessageEventComposition]:
@@ -417,8 +417,8 @@ class UtteranceSelector(MessageEventComposer):
                     interaction_history,
                     terms,
                     ordinary_guideline_matches,
-                    journeys,
                     tool_enabled_guideline_matches,
+                    journeys,
                     tool_insights,
                     staged_events,
                 )
