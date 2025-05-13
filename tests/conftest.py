@@ -44,6 +44,9 @@ from parlant.core.engines.alpha.perceived_performance_policy import (
     PerceivedPerformancePolicy,
 )
 from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
+from parlant.core.engines.alpha.guideline_matching.guideline_previously_applied_detector import (
+    GenericGuidelinePreviouslyAppliedDetectorSchema,
+)
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
@@ -332,6 +335,7 @@ async def container(
             GuidelineConnectionPropositionsSchema,
             GuidelineActionPropositionSchema,
             GuidelineContinuousPropositionSchema,
+            GenericGuidelinePreviouslyAppliedDetectorSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
