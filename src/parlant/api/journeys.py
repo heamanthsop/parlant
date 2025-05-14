@@ -122,7 +122,7 @@ JourneyConditionUpdateAddField: TypeAlias = Annotated[
     list[GuidelineId],
     Field(
         default=None,
-        description="List of conditi    on IDs to add to the journey",
+        description="List of guideline IDs to add to the journey",
         examples=[["guid_123xz", "guid_456abc"]],
     ),
 ]
