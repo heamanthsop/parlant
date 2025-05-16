@@ -21,7 +21,7 @@ import importlib
 import os
 import traceback
 from lagom import Container, Singleton
-from typing import AsyncIterator, Awaitable, Callable, Iterable, Optional, Sequence, cast
+from typing import AsyncIterator, Awaitable, Callable, Iterable, Literal, Optional, Sequence, cast
 import rich
 import toml
 from typing_extensions import NoReturn
@@ -31,9 +31,7 @@ from pathlib import Path
 import sys
 import uvicorn
 
-from parlant.bin.prepare_migration import detect_required_migrations
 from parlant.adapters.loggers.websocket import WebSocketLogger
-from parlant.adapters.vector_db.chroma import ChromaDatabase
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
@@ -68,6 +66,7 @@ from parlant.core.engines.alpha.utterance_selector import (
     UtteranceSelector,
 )
 from parlant.core.journeys import JourneyDocumentStore, JourneyStore
+from parlant.core.persistence.vector_database import VectorDatabase
 from parlant.core.services.indexing.guideline_action_proposer import (
     GuidelineActionProposer,
     GuidelineActionPropositionSchema,
@@ -102,7 +101,7 @@ from parlant.core.guidelines import (
     GuidelineStore,
 )
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
-from parlant.core.nlp.embedding import EmbedderFactory
+from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.tools.service_registry import (
     ServiceRegistry,
@@ -183,13 +182,28 @@ class StartupError(Exception):
         super().__init__(message)
 
 
+NLPServiceName = Literal[
+    "anthropic",
+    "aws",
+    "azure",
+    "cerebras",
+    "deepseek",
+    "gemini",
+    "openai",
+    "together",
+    "litellm",
+]
+
+
 @dataclass
-class CLIParams:
+class StartupParameters:
     port: int
-    nlp_service: str
-    log_level: str
+    nlp_service: NLPServiceName | Callable[[Container], Awaitable[NLPService]]
+    log_level: str | LogLevel
     modules: list[str]
     migrate: bool
+    configure: Callable[[Container], Awaitable[Container]] | None = None
+    initialize: Callable[[Container], Awaitable[None]] | None = None
 
 
 def load_nlp_service(name: str, extra_name: str, class_name: str, module_path: str) -> NLPService:
@@ -255,6 +269,19 @@ def load_litellm() -> NLPService:
     return load_nlp_service(
         "LiteLLM", "litellm", "LiteLLMService", "parlant.adapters.nlp.litellm_service"
     )
+
+
+NLP_SERVICE_INITIALIZERS: dict[NLPServiceName, Callable[[], NLPService]] = {
+    "anthropic": load_anthropic,
+    "aws": load_aws,
+    "azure": load_azure,
+    "cerebras": load_cerebras,
+    "deepseek": load_deepseek,
+    "gemini": load_gemini,
+    "openai": load_openai,
+    "together": load_together,
+    "litellm": load_litellm,
+}
 
 
 async def create_agent_if_absent(agent_store: AgentStore) -> None:
@@ -350,18 +377,47 @@ async def setup_container() -> AsyncIterator[Container]:
 
 async def initialize_container(
     c: Container,
-    nlp_service_name: str,
-    log_level: str,
+    nlp_service_descriptor: NLPServiceName | Callable[[Container], Awaitable[NLPService]],
+    log_level: str | LogLevel,
     migrate: bool,
 ) -> None:
     def try_define(t: type, value: object) -> None:
         if t not in c.defined_types:
             c[t] = value
 
+    async def try_define_func(
+        t: type,
+        value_func: Callable[[], Awaitable[object]],
+    ) -> None:
+        if t not in c.defined_types:
+            c[t] = await value_func()
+
+    async def try_define_document_store(
+        store_type: type,
+        store_doc_type: type,
+        filename: str,
+    ) -> None:
+        if store_type not in c.defined_types:
+            db = await EXIT_STACK.enter_async_context(
+                JSONFileDocumentDatabase(
+                    c[Logger],
+                    PARLANT_HOME_DIR / filename,
+                )
+            )
+
+            c[store_type] = await EXIT_STACK.enter_async_context(
+                store_doc_type(
+                    db,
+                    migrate,
+                )
+            )
+
     await EXIT_STACK.enter_async_context(c[BackgroundTaskService])
 
     c[Logger].set_level(
-        {
+        log_level
+        if isinstance(log_level, LogLevel)
+        else {
             "info": LogLevel.INFO,
             "debug": LogLevel.DEBUG,
             "warning": LogLevel.WARNING,
@@ -372,149 +428,93 @@ async def initialize_container(
 
     await c[BackgroundTaskService].start(c[WebSocketLogger].start(), tag="websocket-logger")
 
-    agents_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "agents.json")
-    )
-    context_variables_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "context_variables.json")
-    )
-    tags_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "tags.json")
-    )
-    customers_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "customers.json")
-    )
-    sessions_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "sessions.json")
-    )
-    guidelines_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guidelines.json")
-    )
-    guideline_tool_associations_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "guideline_tool_associations.json")
-    )
-    relationships_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "relationships.json")
-    )
-    evaluations_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluations.json")
-    )
-    services_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "services.json")
-    )
-    utterance_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "utterances.json")
-    )
-    glossary_tags_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "glossary_tags.json")
-    )
-    journeys_db = await EXIT_STACK.enter_async_context(
-        JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "journeys.json")
-    )
+    try_define(SessionListener, PollingSessionListener)
+
+    nlp_service_name: str
+    nlp_service_instance: NLPService
+
+    if isinstance(nlp_service_descriptor, str):
+        nlp_service_name = nlp_service_descriptor
+        nlp_service_instance = NLP_SERVICE_INITIALIZERS[nlp_service_name]()
+    else:
+        nlp_service_instance = await nlp_service_descriptor(c)
+        nlp_service_name = nlp_service_instance.__class__.__name__
 
     try:
-        try_define(
-            AgentStore, await EXIT_STACK.enter_async_context(AgentDocumentStore(agents_db, migrate))
-        )
-
-        try_define(
-            ContextVariableStore,
-            await EXIT_STACK.enter_async_context(
-                ContextVariableDocumentStore(context_variables_db)
+        for interface, implementation, filename in [
+            (AgentStore, AgentDocumentStore, "agents.json"),
+            (ContextVariableStore, ContextVariableDocumentStore, "context_variables.json"),
+            (CustomerStore, CustomerDocumentStore, "customers.json"),
+            (EvaluationStore, EvaluationDocumentStore, "evaluations.json"),
+            (TagStore, TagDocumentStore, "tags.json"),
+            (UtteranceStore, UtteranceDocumentStore, "utterances.json"),
+            (GuidelineStore, GuidelineDocumentStore, "guidelines.json"),
+            (
+                GuidelineToolAssociationStore,
+                GuidelineToolAssociationDocumentStore,
+                "guideline_tool_associations.json",
             ),
-        )
+            (JourneyStore, JourneyDocumentStore, "journeys.json"),
+            (RelationshipStore, RelationshipDocumentStore, "relationships.json"),
+            (SessionStore, SessionDocumentStore, "sessions.json"),
+        ]:
+            await try_define_document_store(interface, implementation, filename)
 
-        try_define(
-            TagStore, await EXIT_STACK.enter_async_context(TagDocumentStore(tags_db, migrate))
-        )
+        async def make_service_document_registry() -> ServiceRegistry:
+            db = await EXIT_STACK.enter_async_context(
+                JSONFileDocumentDatabase(
+                    c[Logger],
+                    PARLANT_HOME_DIR / "services.json",
+                )
+            )
 
-        try_define(
-            CustomerStore,
-            await EXIT_STACK.enter_async_context(CustomerDocumentStore(customers_db, migrate)),
-        )
-
-        try_define(
-            UtteranceStore,
-            await EXIT_STACK.enter_async_context(UtteranceDocumentStore(utterance_db)),
-        )
-
-        try_define(
-            GuidelineStore,
-            await EXIT_STACK.enter_async_context(GuidelineDocumentStore(guidelines_db, migrate)),
-        )
-
-        try_define(
-            GuidelineToolAssociationStore,
-            await EXIT_STACK.enter_async_context(
-                GuidelineToolAssociationDocumentStore(guideline_tool_associations_db, migrate)
-            ),
-        )
-
-        try_define(
-            RelationshipStore,
-            await EXIT_STACK.enter_async_context(
-                RelationshipDocumentStore(relationships_db, migrate)
-            ),
-        )
-
-        try_define(
-            SessionStore,
-            await EXIT_STACK.enter_async_context(SessionDocumentStore(sessions_db, migrate)),
-        )
-
-        try_define(SessionListener, PollingSessionListener)
-
-        try_define(
-            EvaluationStore,
-            await EXIT_STACK.enter_async_context(EvaluationDocumentStore(evaluations_db, migrate)),
-        )
-        c[JourneyStore] = await EXIT_STACK.enter_async_context(
-            JourneyDocumentStore(journeys_db, migrate)
-        )
-
-        nlp_service_initializer: dict[str, Callable[[], NLPService]] = {
-            "anthropic": load_anthropic,
-            "aws": load_aws,
-            "azure": load_azure,
-            "cerebras": load_cerebras,
-            "deepseek": load_deepseek,
-            "gemini": load_gemini,
-            "openai": load_openai,
-            "together": load_together,
-            "litellm": load_litellm,
-        }
-
-        try_define(
-            ServiceRegistry,
-            await EXIT_STACK.enter_async_context(
+            return await EXIT_STACK.enter_async_context(
                 ServiceDocumentRegistry(
-                    database=services_db,
+                    database=db,
                     event_emitter_factory=c[EventEmitterFactory],
-                    correlator=c[ContextualCorrelator],
-                    nlp_services={nlp_service_name: nlp_service_initializer[nlp_service_name]()},
                     logger=c[Logger],
+                    correlator=c[ContextualCorrelator],
+                    nlp_services_provider=lambda: {nlp_service_name: nlp_service_instance},
                     allow_migration=migrate,
                 )
-            ),
-        )
+            )
 
-        nlp_service = await c[ServiceRegistry].read_nlp_service(nlp_service_name)
-        try_define(NLPService, nlp_service)
+        await try_define_func(ServiceRegistry, make_service_document_registry)
+
+        try_define(NLPService, nlp_service_instance)
 
         embedder_factory = EmbedderFactory(c)
-        try_define(
-            GlossaryStore,
-            await EXIT_STACK.enter_async_context(
+
+        async def get_shared_chroma_db() -> VectorDatabase:
+            from parlant.adapters.vector_db.chroma import ChromaDatabase
+
+            return await EXIT_STACK.enter_async_context(
+                ChromaDatabase(
+                    c[Logger],
+                    PARLANT_HOME_DIR,
+                    embedder_factory,
+                ),
+            )
+
+        async def get_embedder_type() -> type[Embedder]:
+            return type(await nlp_service_instance.get_embedder())
+
+        async def make_glossary_store() -> GlossaryStore:
+            return await EXIT_STACK.enter_async_context(
                 GlossaryVectorStore(
-                    vector_db=await EXIT_STACK.enter_async_context(
-                        ChromaDatabase(c[Logger], PARLANT_HOME_DIR, embedder_factory),
+                    vector_db=await get_shared_chroma_db(),
+                    document_db=await EXIT_STACK.enter_async_context(
+                        JSONFileDocumentDatabase(
+                            c[Logger],
+                            PARLANT_HOME_DIR / "glossary_tags.json",
+                        )
                     ),
-                    document_db=glossary_tags_db,
-                    embedder_type=type(await nlp_service.get_embedder()),
+                    embedder_type_provider=get_embedder_type,
                     embedder_factory=embedder_factory,
                 )
-            ),
-        )
+            )
+
+        await try_define_func(GlossaryStore, make_glossary_store)
     except MigrationRequired as e:
         c[Logger].critical(str(e))
         die("Please re-run with `--migrate` to migrate your data to the new version.")
@@ -539,7 +539,10 @@ async def initialize_container(
         OverlappingToolsBatchSchema,
         GuidelineActionPropositionSchema,
     ):
-        try_define(SchematicGenerator[schema], await nlp_service.get_schematic_generator(schema))  # type: ignore
+        try_define(
+            SchematicGenerator[schema],  # type: ignore
+            await nlp_service_instance.get_schematic_generator(schema),
+        )
 
     try_define(
         GenericObservationalGuidelineMatching,
@@ -583,6 +586,8 @@ async def recover_server_tasks(
 
 
 async def check_required_schema_migrations() -> None:
+    from parlant.bin.prepare_migration import detect_required_migrations
+
     if await detect_required_migrations():
         die(
             "You're running a particularly old version of Parlant.\n"
@@ -592,8 +597,10 @@ async def check_required_schema_migrations() -> None:
 
 
 @asynccontextmanager
-async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
-    await check_required_schema_migrations()
+async def load_app(params: StartupParameters) -> AsyncIterator[tuple[ASGIApplication, Container]]:
+    if not params.configure:
+        # Running in non-pico mode
+        await check_required_schema_migrations()
 
     global EXIT_STACK
 
@@ -614,6 +621,9 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
             actual_container, module_initializers = base_container, []
             LOGGER.info("No external modules selected")
 
+        if params.configure:
+            actual_container = await params.configure(actual_container.clone())
+
         await initialize_container(
             actual_container,
             params.nlp_service,
@@ -625,14 +635,19 @@ async def load_app(params: CLIParams) -> AsyncIterator[ASGIApplication]:
             LOGGER.info(f"Initializing module '{module_name}'")
             await initializer(actual_container)
 
+        if params.initialize:
+            await params.initialize(actual_container)
+
         await recover_server_tasks(
             evaluation_store=actual_container[EvaluationStore],
             evaluator=actual_container[LegacyBehavioralChangeEvaluator],
         )
 
-        await create_agent_if_absent(actual_container[AgentStore])
+        if not params.configure:
+            # Running in non-pico mode
+            await create_agent_if_absent(actual_container[AgentStore])
 
-        yield await create_api_app(actual_container)
+        yield await create_api_app(actual_container), actual_container
 
 
 async def serve_app(
@@ -673,9 +688,12 @@ def require_env_keys(keys: list[str]) -> None:
         die(f"The following environment variables are missing:\n{', '.join(missing_keys)}")
 
 
-async def start_server(params: CLIParams) -> None:
+@asynccontextmanager
+async def start_parlant(params: StartupParameters) -> AsyncIterator[Container]:
     LOGGER.set_level(
-        {
+        params.log_level
+        if isinstance(params.log_level, LogLevel)
+        else {
             "info": LogLevel.INFO,
             "debug": LogLevel.DEBUG,
             "warning": LogLevel.WARNING,
@@ -695,7 +713,9 @@ async def start_server(params: CLIParams) -> None:
             "Please rename 'runtime-data' to 'parlant-data' to avoid this warning in the future."
         )
 
-    async with load_app(params) as app:
+    async with load_app(params) as (app, container):
+        yield container
+
         await serve_app(
             app,
             params.port,
@@ -882,15 +902,19 @@ def main() -> None:
         else:
             assert False, "Should never get here"
 
-        ctx.obj = CLIParams(
+        ctx.obj = StartupParameters(
             port=port,
-            nlp_service=nlp_service,
+            nlp_service=cast(NLPServiceName, nlp_service),
             log_level=log_level,
             modules=list(module),
             migrate=migrate,
         )
 
-        asyncio.run(start_server(ctx.obj))
+        async def start() -> None:
+            async with start_parlant(ctx.obj):
+                pass
+
+        asyncio.run(start())
 
     @cli.group("module", help="Create and manage enabled modules")
     def module() -> None:

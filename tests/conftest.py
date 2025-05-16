@@ -68,7 +68,7 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousPropositionSchema,
 )
 from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
-from parlant.core.nlp.embedding import EmbedderFactory
+from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.nlp.generation import T, SchematicGenerator
 from parlant.core.relationships import (
     RelationshipDocumentStore,
@@ -283,22 +283,22 @@ async def container(
                 event_emitter_factory=container[EventEmitterFactory],
                 logger=container[Logger],
                 correlator=container[ContextualCorrelator],
-                nlp_services={"default": OpenAIService(container[Logger])},
+                nlp_services_provider=lambda: {"default": OpenAIService(container[Logger])},
             )
         )
 
         container[NLPService] = await container[ServiceRegistry].read_nlp_service("default")
 
-        embedder_type = type(await container[NLPService].get_embedder())
+        async def get_embedder_type() -> type[Embedder]:
+            return type(await container[NLPService].get_embedder())
+
         embedder_factory = EmbedderFactory(container)
         container[GlossaryStore] = await stack.enter_async_context(
             GlossaryVectorStore(
-                vector_db=await stack.enter_async_context(
-                    TransientVectorDatabase(container[Logger], embedder_factory)
-                ),
+                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
-                embedder_type=embedder_type,
+                embedder_type_provider=get_embedder_type,
             )
         )
 

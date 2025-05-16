@@ -59,9 +59,9 @@ class JourneyStore(ABC):
     @abstractmethod
     async def create_journey(
         self,
-        conditions: Sequence[GuidelineId],
         title: str,
         description: str,
+        conditions: Sequence[GuidelineId],
         tags: Optional[Sequence[TagId]] = None,
     ) -> Journey: ...
 
@@ -247,9 +247,9 @@ class JourneyDocumentStore(JourneyStore):
     @override
     async def create_journey(
         self,
-        conditions: Sequence[GuidelineId],
         title: str,
         description: str,
+        conditions: Sequence[GuidelineId],
         tags: Optional[Sequence[TagId]] = None,
     ) -> Journey:
         async with self._lock.writer_lock:

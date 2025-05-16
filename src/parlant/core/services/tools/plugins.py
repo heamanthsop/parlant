@@ -524,6 +524,9 @@ class PluginServer:
 
         return False
 
+    async def enable_tool(self, entry: ToolEntry) -> None:
+        self.tools[entry.tool.name] = entry
+
     async def serve(self) -> None:
         app = self._create_app()
 
