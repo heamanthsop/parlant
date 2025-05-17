@@ -14,8 +14,18 @@
 
 from lagom import Container
 
+from parlant.core.sessions import (
+    EventKind,
+    EventSource,
+    ToolEventData,
+    MessageEventData,
+    StatusEventData,
+)
+from parlant.core.emissions import EmittedEvent
 from parlant.core.agents import AgentId
 from parlant.core.journeys import JourneyId
+from parlant.core.engines.alpha.hooks import EngineHooks, EngineHook, EngineHookResult
+from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.guidelines import GuidelineId
 from parlant.core.sdk_server import ParlantServer
 from parlant.core.nlp.service import NLPService
@@ -49,17 +59,25 @@ from parlant.core.tools import (
 
 __all__ = [
     "AgentId",
-    "JourneyId",
-    "GuidelineId",
     "Container",
     "ControlOptions",
     "Embedder",
     "EmbedderFactory",
     "EmbeddingResult",
+    "EmittedEvent",
+    "EngineHook",
+    "EngineHookResult",
+    "EngineHooks",
     "EstimatingTokenizer",
+    "EventKind",
+    "EventSource",
     "FallbackSchematicGenerator",
+    "GuidelineId",
+    "JourneyId",
+    "LoadedContext",
     "LogLevel",
     "Logger",
+    "MessageEventData",
     "NLPService",
     "ParlantServer",
     "PluginServer",
@@ -68,9 +86,11 @@ __all__ = [
     "ServiceRegistry",
     "SessionMode",
     "SessionStatus",
+    "StatusEventData",
     "Tool",
     "ToolContext",
     "ToolEntry",
+    "ToolEventData",
     "ToolId",
     "ToolParameterDescriptor",
     "ToolParameterOptions",

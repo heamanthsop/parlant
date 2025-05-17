@@ -23,6 +23,7 @@ from parlant.core.context_variables import ContextVariableDocumentStore, Context
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.emissions import EventEmitterFactory
+from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
@@ -225,6 +226,7 @@ class ParlantServer:
         log_level: LogLevel = LogLevel.INFO,
         modules: list[str] = [],
         migrate: bool = False,
+        configure_hooks: Callable[[EngineHooks], Awaitable[EngineHooks]] | None = None,
         configure_container: Callable[[Container], Awaitable[Container]] | None = None,
         initialize: Callable[[Container], Awaitable[None]] | None = None,
     ) -> None:
@@ -236,6 +238,7 @@ class ParlantServer:
 
         self._nlp_service_func = nlp_service
         self._session_store = session_store
+        self._configure_hooks = configure_hooks
         self._configure_container = configure_container
         self._initialize = initialize
         self._exit_stack = AsyncExitStack()
@@ -376,6 +379,10 @@ class ParlantServer:
 
             if self._configure_container:
                 c = await self._configure_container(c.clone())
+
+            if self._configure_hooks:
+                hooks = await self._configure_hooks(c[EngineHooks])
+                c[EngineHooks] = hooks
 
             return c
 
