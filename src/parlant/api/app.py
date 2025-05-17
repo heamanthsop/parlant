@@ -57,7 +57,7 @@ from parlant.core.services.indexing.behavioral_change_evaluation import (
     BehavioralChangeEvaluator,
     LegacyBehavioralChangeEvaluator,
 )
-from parlant.core.loggers import Logger
+from parlant.core.loggers import LogLevel, Logger
 from parlant.core.application import Application
 from parlant.core.tags import TagStore
 
@@ -141,7 +141,10 @@ async def create_api_app(container: Container) -> ASGIApplication:
 
         request_id = generate_id()
         with correlator.correlation_scope(f"RID({request_id})"):
-            with logger.operation(f"HTTP Request: {request.method} {request.url.path}"):
+            with logger.operation(
+                f"HTTP Request: {request.method} {request.url.path}",
+                level=LogLevel.DEBUG,
+            ):
                 return await call_next(request)
 
     @api_app.exception_handler(ItemNotFoundError)
