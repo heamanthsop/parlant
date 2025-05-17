@@ -154,18 +154,18 @@ class CorrelationalLogger(Logger):
         t_start = time.time()
         try:
             if props:
-                self.info(f"{name} [{props}] started")
+                self.debug(f"{name} [{props}] started")
             else:
-                self.info(f"{name} started")
+                self.debug(f"{name} started")
 
             yield
 
             t_end = time.time()
 
             if props:
-                self.info(f"{name} [{props}] finished in {t_end - t_start}s")
+                self.debug(f"{name} [{props}] finished in {t_end - t_start}s")
             else:
-                self.info(f"{name} finished in {round(t_end - t_start, 3)} seconds")
+                self.debug(f"{name} finished in {round(t_end - t_start, 3)} seconds")
         except asyncio.CancelledError:
             self.warning(f"{name} cancelled after {round(time.time() - t_start, 3)} seconds")
             raise
