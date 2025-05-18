@@ -144,16 +144,19 @@ class Journey:
         action: str,
         tools: Iterable[ToolEntry] = [],
     ) -> GuidelineId:
-        tool_list = list(tools)
-
-        for t in tool_list:
-            await self._parlant._plugin_server.enable_tool(t)
-
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=action,
             tags=[Tag.for_journey_id(self.id)],
         )
+
+        for t in list(tools):
+            await self._parlant._plugin_server.enable_tool(t)
+
+            await self._container[GuidelineToolAssociationStore].create_association(
+                guideline_id=guideline.id,
+                tool_id=ToolId(service_name=_INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
+            )
 
         return guideline.id
 
@@ -217,16 +220,19 @@ class Agent:
         action: str,
         tools: Iterable[ToolEntry] = [],
     ) -> GuidelineId:
-        tool_list = list(tools)
-
-        for t in tool_list:
-            await self._parlant._plugin_server.enable_tool(t)
-
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=action,
             tags=[Tag.for_agent_id(self.id)],
         )
+
+        for t in list(tools):
+            await self._parlant._plugin_server.enable_tool(t)
+
+            await self._container[GuidelineToolAssociationStore].create_association(
+                guideline_id=guideline.id,
+                tool_id=ToolId(service_name=_INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
+            )
 
         return guideline.id
 
