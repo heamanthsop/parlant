@@ -176,7 +176,7 @@ class ParlantServer:
         _parlant: ParlantServer
         _container: Container
 
-        async def add_guideline(
+        async def create_guideline(
             self,
             condition: str,
             action: str,
