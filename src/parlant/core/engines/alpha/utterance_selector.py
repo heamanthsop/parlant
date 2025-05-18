@@ -384,7 +384,7 @@ class UtteranceSelector(MessageEventComposer):
         return supported_shots
 
     @override
-    async def generate_events(
+    async def generate_response_message_events(
         self,
         event_emitter: EventEmitter,
         agent: Agent,
@@ -418,7 +418,7 @@ class UtteranceSelector(MessageEventComposer):
                             latch=latch,
                         )
             except FluidUtteranceFallback:
-                return await self._message_generator.generate_events(
+                return await self._message_generator.generate_response_message_events(
                     event_emitter,
                     agent,
                     customer,

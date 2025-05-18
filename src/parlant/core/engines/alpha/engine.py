@@ -504,7 +504,7 @@ class AlphaEngine(Engine):
 
         for event_generation_result in await self._get_message_composer(
             context.agent
-        ).generate_events(
+        ).generate_response_message_events(
             event_emitter=context.event_emitter,
             agent=context.agent,
             customer=context.customer,

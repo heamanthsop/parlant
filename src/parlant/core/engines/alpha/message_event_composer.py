@@ -43,7 +43,7 @@ class MessageCompositionError(Exception):
 
 class MessageEventComposer:
     @abstractmethod
-    async def generate_events(
+    async def generate_response_message_events(
         self,
         event_emitter: EventEmitter,
         agent: Agent,
