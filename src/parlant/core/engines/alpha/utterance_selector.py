@@ -569,7 +569,9 @@ class UtteranceSelector(MessageEventComposer):
                     sub_messages = result.message.split("\n\n")
                     events = []
 
-                    for m in sub_messages:
+                    while sub_messages:
+                        m = sub_messages.pop(0)
+
                         event = await event_emitter.emit_message_event(
                             correlation_id=self._correlator.correlation_id,
                             data=MessageEventData(
@@ -582,8 +584,10 @@ class UtteranceSelector(MessageEventComposer):
 
                         events.append(event)
 
-                        if len(events) != len(sub_messages):
-                            await asyncio.sleep(2)
+                        if next_message := sub_messages[0] if sub_messages else None:
+                            typing_speed_in_words_per_minute = 100
+                            word_count = len(next_message.split())
+                            await asyncio.sleep(word_count / typing_speed_in_words_per_minute)
 
                     return [MessageEventComposition(generation_info, events)]
                 else:
