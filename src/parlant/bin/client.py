@@ -1220,29 +1220,12 @@ class Actions:
     ) -> Journey:
         client = cast(ParlantClient, ctx.obj.client)
 
-        condition_ids = [
-            Actions.create_guideline(
-                ctx=ctx,
-                condition=condition,
-                action=None,
-                tool_id=None,
-                tags=tags,
-            ).guideline.id
-            for condition in conditions
-        ]
-
         journey = client.journeys.create(
             title=title,
             description=description,
-            conditions=condition_ids,
+            conditions=conditions,
             tags=tags,
         )
-
-        for guideline_id in condition_ids:
-            client.guidelines.update(
-                guideline_id=guideline_id,
-                metadata=GuidelineMetadataUpdateParams(add={"journeys": [journey.id]}),
-            )
 
         return journey
 
@@ -2182,17 +2165,18 @@ class Interface:
     def _render_guideline_tool_associations(
         associations: list[GuidelineToolAssociation],
     ) -> None:
-        association_items = [
-            {
-                "Association ID": a.id,
-                "Guideline ID": a.guideline_id,
-                "Service Name": a.tool_id.service_name,
-                "Tool Name": a.tool_id.tool_name,
-            }
-            for a in associations
-        ]
+        if associations:
+            association_items = [
+                {
+                    "Association ID": a.id,
+                    "Guideline ID": a.guideline_id,
+                    "Service Name": a.tool_id.service_name,
+                    "Tool Name": a.tool_id.tool_name,
+                }
+                for a in associations
+            ]
 
-        Interface._print_table(association_items)
+            Interface._print_table(association_items)
 
     @staticmethod
     def add_guideline_tool_association(
@@ -2937,7 +2921,7 @@ class Interface:
                 "ID": journey.id,
                 "Title": journey.title,
                 "Description": journey.description,
-                "Conditions": ", ".join(journey.conditions),
+                "Condition Guideline IDs": ", ".join(journey.conditions),
                 "Tags": ", ".join(journey.tags or []),
             }
             for journey in journeys
