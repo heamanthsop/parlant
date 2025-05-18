@@ -518,7 +518,7 @@ class SessionDocumentStore(SessionStore):
         ).migrate(doc)
 
     async def _event_document_loader(self, doc: BaseDocument) -> Optional[_EventDocument]:
-        if doc["version"] in ["0.1.0", "0.2.0", "0.3.0", "0.4.0"]:
+        async def v0_1_0_to_v_0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_EventDocument, doc)
             return _EventDocument(
                 id=doc["id"],
@@ -532,9 +532,16 @@ class SessionDocumentStore(SessionStore):
                 data=doc["data"],
                 deleted=doc["deleted"],
             )
-        if doc["version"] == "0.4.0":
-            return cast(_EventDocument, doc)
-        return None
+
+        return await DocumentMigrationHelper[_EventDocument](
+            self,
+            {
+                "0.1.0": v0_1_0_to_v_0_5_0,
+                "0.2.0": v0_1_0_to_v_0_5_0,
+                "0.3.0": v0_1_0_to_v_0_5_0,
+                "0.4.0": v0_1_0_to_v_0_5_0,
+            },
+        ).migrate(doc)
 
     async def _inspection_document_loader(self, doc: BaseDocument) -> Optional[_InspectionDocument]:
         async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
