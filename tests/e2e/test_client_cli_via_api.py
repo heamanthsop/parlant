@@ -534,9 +534,12 @@ async def test_that_guidelines_can_be_entailed(
         assert process.returncode == os.EX_OK
 
         guideline = await context.api.read_guideline(guideline_id=first_guideline["id"])
-        assert "connections" in guideline and len(guideline["connections"]) == 1
-        connection = guideline["connections"][0]
-        assert connection["source"] == first_guideline and connection["target"] == second_guideline
+        assert "relationships" in guideline and len(guideline["relationships"]) == 1
+        connection = guideline["relationships"][0]
+        assert (
+            connection["source_guideline"] == first_guideline
+            and connection["target_guideline"] == second_guideline
+        )
 
 
 async def test_that_a_guideline_can_be_deleted(
