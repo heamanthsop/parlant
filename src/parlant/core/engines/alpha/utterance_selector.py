@@ -475,9 +475,12 @@ class UtteranceSelector(MessageEventComposer):
                 ),
             ]
         )
-        all_available_fields = chain.from_iterable(
-            tc["result"]["utterance_fields"] for tc in all_tool_calls
+
+        all_available_fields = list(
+            chain.from_iterable(tc["result"]["utterance_fields"] for tc in all_tool_calls)
         )
+
+        all_available_fields.extend(("std", "generative"))
 
         relevant_utterances = []
 
