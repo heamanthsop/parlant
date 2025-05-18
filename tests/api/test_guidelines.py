@@ -1104,7 +1104,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
         tag_id=Tag.for_agent_id(agent_id),
     )
 
-    new_aciton = "reply with 'Howdy!'"
+    new_action = "reply with 'Howdy!'"
 
     request_data = {
         "invoices": [
@@ -1114,7 +1114,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
                     "guideline": {
                         "content": {
                             "condition": "the customer greets you",
-                            "action": new_aciton,
+                            "action": new_action,
                         },
                         "operation": "update",
                         "coherence_check": True,
@@ -1132,7 +1132,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
                                 "check_kind": "connection_with_another_evaluated_guideline",
                                 "source": {
                                     "condition": "the customer greets you",
-                                    "action": new_aciton,
+                                    "action": new_action,
                                 },
                                 "target": {
                                     "condition": "replying to greeting message",
@@ -1167,7 +1167,7 @@ async def test_legacy_that_an_updated_guideline_can_entail_an_added_guideline(
                                 "check_kind": "connection_with_another_evaluated_guideline",
                                 "source": {
                                     "condition": "the customer greets you",
-                                    "action": new_aciton,
+                                    "action": new_action,
                                 },
                                 "target": {
                                     "condition": "replying to greeting message",

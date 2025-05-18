@@ -282,7 +282,7 @@ class RelationalGuidelineResolver:
         # Some guidelines have dependencies that dictate activation.
         #
         # For example, if we matched guidelines "When X, Then Y" (S) and "When Y, Then Z" (T),
-        # and S is dependes on T, then S should not be activated unless T is activated.
+        # and S is depends on T, then S should not be activated unless T is activated.
         matched_guideline_ids = {m.guideline.id for m in matches}
 
         result: list[GuidelineMatch] = []
