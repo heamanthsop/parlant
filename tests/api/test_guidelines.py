@@ -1915,3 +1915,43 @@ async def test_that_condition_association_is_deleted_when_a_guideline_is_deleted
 
     updated_journey = await journey_store.read_journey(journey.id)
     assert updated_journey.conditions == []
+
+
+async def test_that_guideline_relationships_can_be_read(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    relationship_store = container[RelationshipStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+        action="get meeting event information",
+    )
+
+    connected_guideline = await guideline_store.create_guideline(
+        condition="reply with 'Hello'",
+        action="finish with a smile",
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=connected_guideline.id,
+            type=EntityType.GUIDELINE,
+        ),
+        kind=GuidelineRelationshipKind.ENTAILMENT,
+    )
+
+    response = await async_client.get(f"/guidelines/{guideline.id}")
+
+    assert response.status_code == status.HTTP_200_OK
+    relationships = response.json()["relationships"]
+
+    assert len(relationships) == 1
+    assert relationships[0]["source_guideline"]["id"] == guideline.id
+    assert relationships[0]["target_guideline"]["id"] == connected_guideline.id
+    assert relationships[0]["kind"] == "entailment"

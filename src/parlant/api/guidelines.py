@@ -15,7 +15,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
-from typing import Annotated, Optional, Sequence, TypeAlias, cast, get_args
+from typing import Annotated, Optional, Sequence, TypeAlias, cast
 from fastapi import APIRouter, HTTPException, Path, status, Query
 from pydantic import Field
 
@@ -616,7 +616,7 @@ async def _get_relationships(
                     kind=kind,
                     include_indirect=include_indirect,
                 )
-                for kind in get_args(GuidelineRelationshipKind)
+                for kind in list(GuidelineRelationshipKind)
             ]
         )
     )
