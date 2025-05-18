@@ -271,6 +271,7 @@ Feature: Strict Utterance
 
     Scenario: The agent chooses the closest utterance when none completely apply (strict utterance)
         Given an agent whose job is to sell pizza
+        And that the agent uses the strict_utterance message composition mode
         And a customer message, "Hi"
         And a guideline to offer to sell them pizza when the customer says hello
         And an utterance, "Hello! Would you like to try our specialty pizzas today?"
@@ -316,6 +317,7 @@ Feature: Strict Utterance
 
     Scenario: The agent correctly applies greeting guidelines based on auxiliary data (strict utterance)
         Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
+        And that the agent uses the strict_utterance message composition mode
         And a customer named "Beef Wellington"
         And an empty session with "Beef Wellingotn"
         And the term "Bug" defined as The name of our tech retail store, specializing in gadgets, computers, and tech services.
@@ -341,6 +343,7 @@ Feature: Strict Utterance
 
     Scenario: Agent chooses utterance which uses glossary (strict utterance)
         Given an agent whose job is to assist customers with specialized banking products
+        And that the agent uses the strict_utterance message composition mode
         And the term "Velcron Account" defined as A high-security digital banking account with multi-layered authentication that offers enhanced privacy features
         And the term "Quandrex Protocol" defined as The security verification process used for high-value transactions that require additional identity confirmation
         And a guideline to recommend a Velcron Account and explain the Quandrex Protocol when customers ask about secure banking options
@@ -354,31 +357,89 @@ Feature: Strict Utterance
         Then a single message event is emitted
         And the message contains the terms 'Velcron Account' and 'Quandrex Protocol'
 
-Scenario: The agent selects response based on customer's subscription tier context variable (strict utterance)
-   Given an agent whose job is to provide technical support for cloud-based molecular modeling software
-   And a context variable "subscription_tier" set to "Enterprise"
-   And a context variable "api_access" set to "Unlimited" for the subscription tier "Enterprise"
-   And a context variable "api_access" set to "Basic" for the subscription tier "Standard"
-   And a guideline to mention dedicated support channels and unlimited API access when responding to Enterprise customers with technical issues
-   And a customer message, "I'm having trouble with the protein folding simulation API. Is there a limit to how many calls I can make?"
-   And an utterance, "There is a limit of 100 API calls per day on your current plan. Would you like to upgrade for more access?"
-   And an utterance, "As an Enterprise subscriber, you have Unlimited API access for your protein folding simulations. I can connect you with your dedicated support specialist to resolve any technical issues you're experiencing. Would you prefer a video call or screen sharing session?"
-   And an utterance, "Please try resetting your API key in the account settings and clearing your cache."
-   And an utterance, "We're experiencing some server issues at the moment. Please try again in an hour."
-   And an utterance, "The protein folding simulation has certain parameter limitations. Could you share more details about your specific configuration?"
-   When processing is triggered
-   Then a single message event is emitted
-   And the message contains information about unlimited API access and dedicated support options for Enterprise customers
+    Scenario: The agent selects response based on customer's subscription tier context variable (strict utterance)
+        Given an agent whose job is to provide technical support for cloud-based molecular modeling software
+        And that the agent uses the strict_utterance message composition mode
+        And a tag "Enterprise"
+        And a customer tagged as "Enterprise"
+        And a context variable "subscription_tier" set to "Enterprise"
+        And a context variable "api_access" set to "Unlimited" for the tag "Enterprise"
+        And a context variable "api_access" set to "Basic" for the tag "Standard"
+        And a guideline to mention dedicated support channels and unlimited API access when responding to Enterprise customers with technical issues
+        And a customer message, "I'm having trouble with the protein folding simulation API. Is there a limit to how many calls I can make?"
+        And an utterance, "There is a limit of 100 API calls per day on your current plan. Would you like to upgrade for more access?"
+        And an utterance, "As an Enterprise subscriber, you have Unlimited API access for your protein folding simulations. I can connect you with your dedicated support specialist to resolve any technical issues you're experiencing. Would you prefer a video call or screen sharing session?"
+        And an utterance, "Please try resetting your API key in the account settings and clearing your cache."
+        And an utterance, "We're experiencing some server issues at the moment. Please try again in an hour."
+        And an utterance, "The protein folding simulation has certain parameter limitations. Could you share more details about your specific configuration?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains information about unlimited API access and dedicated support options for Enterprise customers
 
-Scenario: The agent responds based on its description (strict utterance)
-    Given an agent named "Dr. Terra" whose job is to advise farmers on regenerative agriculture practices. You are scientifically rigorous but also pragmatic, understanding that farmers need practical and economically viable solutions. You avoid recommending synthetic chemicals and focus on natural systems that enhance soil health.
-    And a customer message, "My corn yields have been declining for the past three seasons. What should I do?"
-    And an utterance, "You should rotate your crops and consider leaving some fields fallow to restore natural soil nutrients. I'd recommend integrating cover crops like clover between growing seasons to fix nitrogen naturally. Soil health assessments would also help identify specific deficiencies affecting your corn yields."
-    And an utterance, "I recommend applying additional nitrogen fertilizer and pesticides to boost your yields quickly."
-    And an utterance, "Have you considered switching to a different crop that might be more profitable?"
-    And an utterance, "The declining yields are likely due to weather patterns. There's not much you can do."
-    And an utterance, "You should consult with your local agricultural extension office for specific advice."
+    Scenario: The agent responds based on its description (strict utterance)
+        Given an agent named "Dr. Terra" whose job is to advise farmers on regenerative agriculture practices. You are scientifically rigorous but also pragmatic, understanding that farmers need practical and economically viable solutions. You avoid recommending synthetic chemicals and focus on natural systems that enhance soil health.
+        And that the agent uses the strict_utterance message composition mode
+        And a customer message, "My corn yields have been declining for the past three seasons. What should I do?"
+        And an utterance, "You should rotate your crops and consider leaving some fields fallow to restore natural soil nutrients. I'd recommend integrating cover crops like clover between growing seasons to fix nitrogen naturally. Soil health assessments would also help identify specific deficiencies affecting your corn yields."
+        And an utterance, "I recommend applying additional nitrogen fertilizer and pesticides to boost your yields quickly."
+        And an utterance, "Have you considered switching to a different crop that might be more profitable?"
+        And an utterance, "The declining yields are likely due to weather patterns. There's not much you can do."
+        And an utterance, "You should consult with your local agricultural extension office for specific advice."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains recommendations for sustainable, chemical-free practices that focus on improving soil health
+
+    Scenario: The agent correctly fills in numeric field (strict utterance)
+        Given an agent whose job is to process orders for a specialty yarn and fabric shop
+        And that the agent uses the strict_utterance message composition mode
+        And a customer named "Joanna"
+        And a guideline to check stock levels in the context variables when a customer makes a specific order
+        And a context variable "Merino Wool Skein inventory count" set to "37" for "Joanna" 
+        And a context variable "Alpaca Blend Yarn inventory count" set to "12" for "Joanna"
+        And a guideline to include the current inventory count when confirming orders for yarn products
+        And a customer message, "I'd like to order 5 skeins of your Merino Wool, please."
+        And an utterance, "I've added {{quantity}} skeins of Merino Wool to your order. We currently have {{inventory_count}} in stock." 
+        And an utterance, "We're currently out of that item. Would you like to place a backorder?"
+        And an utterance, "Would you like to view our other yarn options instead?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains roughly the text "I've added 5 skeins of Merino Wool to your order. We currently have 37 in stock." 
+
+    Scenario: The agent correctly avoids utterance with fields that cannot be filled (strict utterance)
+        Given an agent whose job is to process orders for a specialty yarn and fabric shop
+        And that the agent uses the strict_utterance message composition mode
+        And a customer named "Joanna"
+        And a guideline to check stock levels in the context variables when a customer makes a specific order
+        And a context variable "Merino Wool Skein inventory count" set to "1" for "Joanna" 
+        And a context variable "Alpaca Blend Yarn inventory count" set to "1" for "Joanna"
+        And a guideline to include the current inventory count when confirming orders for yarn products
+        And a customer message, "I'd like to order 5 skeins of your Merino Wool, please."
+        And an utterance, "I've added {quantity} skeins of Merino Wool to your order. We currently have {inventory_count} in stock."
+        And an utterance, "We're don't have {quantity} of that item in stock. Would you like to place a backorder?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains that we do not have 5 of the item in stock.
+
+Scenario: The agent fills multiple fields in a veterinary appointment system (strict utterance)
+    Given an agent whose job is to schedule veterinary appointments and provide pet care information
+    And that the agent uses the strict_utterance message composition mode
+    And a customer named "Joanna"
+    And a context variable "next_available_date" set to "May 22" for "Joanna"
+    And a context variable "vet_name" set to "Dr. Happypaws" for "Joanna"
+    And a context variable "clinic_address" set to "155 Pawprint Lane" for "Joanna"
+    And a guideline to provide the next available appointment details when a customer requests a checkup for their pet
+    And a customer message, "I need to schedule a routine checkup for my dog Max. He's a 5-year-old golden retriever."
+    And an utterance, "I've scheduled a checkup appointment for {pet_name} with {vet_name} on {appointment_date} at our clinic located at {clinic_address}. For a {pet_age}-year-old {pet_breed}, we recommend {recommended_services}. Please arrive 15 minutes early to complete any necessary paperwork."
+    And an utterance, "We're fully booked at the moment. Please call back next week."
+    And an utterance, "What symptoms is your dog experiencing?"
+    And an utterance, "Would you prefer a morning or afternoon appointment?"
+    And an utterance, "Our next available appointment is next Tuesday. Does that work for you?"
     When processing is triggered
     Then a single message event is emitted
-    And the message contains recommendations for sustainable, chemical-free practices that focus on improving soil health
-
+    And the message contains "Max" in the {pet_name} field
+    And the message contains "Dr. Happypaws" in the {vet_name} field
+    And the message contains "May 22" in the {appointment_date} field
+    And the message contains "155 Pawprint Lane" in the {clinic_address} field
+    And the message contains "5" in the {pet_age} field
+    And the message contains "golden retriever" in the {pet_breed} field
+    And the message contains appropriate veterinary services for a middle-aged dog in the {recommended_services} field

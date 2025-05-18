@@ -796,6 +796,7 @@ EXAMPLES
                 "shots": shots,
             },
         )
+        builder.add_glossary(terms)
         builder.add_context_variables(context_variables)
         builder.add_journeys(journeys)
         builder.add_section(
@@ -889,6 +890,9 @@ Produce a valid JSON object in the following format: ###
                 ),
             },
         )
+
+        with open("draft prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _get_draft_output_format(
@@ -990,6 +994,8 @@ Output a JSON object with a two properties:
                 "composition_mode": context.agent.composition_mode,
             },
         )
+        with open("utterance selection prompt.txt", "w") as f:
+            f.write(builder.build())
 
         return builder
 
