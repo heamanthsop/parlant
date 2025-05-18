@@ -172,7 +172,7 @@ Feature: Fluid Utterance
         And the message contains either asking for the name of the person traveling, or informing them that they can only travel in economy class
 
 
-    Scenario: The agent greets the customer (strict utterance)
+    Scenario: The agent greets the customer (fluid utterance)
         Given a guideline to greet with 'Howdy' when the session starts
         And an utterance, "Hello there! How can I help you today?"
         And an utterance, "Howdy! How can I be of service to you today?"
@@ -186,7 +186,7 @@ Feature: Fluid Utterance
         And a single message event is emitted
         And the message contains a 'Howdy' greeting
 
-    Scenario: The agent offers a thirsty customer a drink (strict utterance)
+    Scenario: The agent offers a thirsty customer a drink (fluid utterance)
         Given a customer message, "I'm thirsty"
         And a guideline to offer thirsty customers a Pepsi when the customer is thirsty
         And an utterance, "Would you like a Pepsi? I can get one for you right away."
@@ -202,7 +202,7 @@ Feature: Fluid Utterance
         And the message contains an offering of a Pepsi
         And a status event is emitted, ready for further engagement after reacting to event 0
 
-    Scenario: The agent chooses the closest utterance when none completely apply (strict utterance)
+    Scenario: The agent chooses the closest utterance when none completely apply (fluid utterance)
         Given an agent whose job is to sell pizza
         And a customer message, "Hi"
         And a guideline to offer to sell them pizza when the customer says hello
