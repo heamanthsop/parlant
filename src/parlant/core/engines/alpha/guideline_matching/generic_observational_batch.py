@@ -404,12 +404,12 @@ example_2_events = [
         "Sounds good! Are you interested in just entrees or do you need help planning the entire meal and experience?",
     ),
     _make_event(
-        "34", EventSource.CUSTOMER, "I have the evening planned, just looking for enterees."
+        "34", EventSource.CUSTOMER, "I have the evening planned, just looking for entrees."
     ),
     _make_event(
         "56",
         EventSource.AI_AGENT,
-        "Great. Are there any dietery limitations I should be aware of?",
+        "Great. Are there any dietary limitations I should be aware of?",
     ),
     _make_event(
         "88",

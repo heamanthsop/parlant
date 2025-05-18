@@ -18,6 +18,8 @@ import httpx
 from lagom import Container
 from pytest import raises
 
+from parlant.core.agents import AgentStore
+from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
     EntityType,
     GuidelineRelationshipKind,
@@ -27,7 +29,7 @@ from parlant.core.relationships import (
 )
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import TagStore
+from parlant.core.tags import Tag, TagStore
 from parlant.core.common import ItemNotFoundError
 from parlant.core.tools import ToolId, ToolContext, ToolResult
 from parlant.core.services.tools.plugins import tool
@@ -685,3 +687,121 @@ async def test_that_relationships_can_be_listed_by_tool_id(
 
         assert rel1.id in returned_ids
         assert rel2.id in returned_ids
+
+
+async def test_that_relationships_of_guideline_and_a_journey_can_be_listed(
+    async_client: httpx.AsyncClient, container: Container
+) -> None:
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+    relationship_store = container[RelationshipStore]
+
+    g1 = await guideline_store.create_guideline(condition="A", action="B")
+
+    j1 = await journey_store.create_journey(
+        title="Journey 1",
+        description="Description of Journey 1",
+        conditions=[],
+    )
+
+    r1 = await relationship_store.create_relationship(
+        source=RelationshipEntity(id=g1.id, type=EntityType.GUIDELINE),
+        target=RelationshipEntity(id=Tag.for_journey_id(j1.id), type=EntityType.TAG),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    response = await async_client.get(f"/relationships?guideline_id={g1.id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    relationships = response.json()
+
+    returned_ids = {rel["id"] for rel in relationships}
+
+    assert r1.id in returned_ids
+
+
+async def test_that_relationships_of_a_journey_can_be_listed(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+    relationship_store = container[RelationshipStore]
+
+    g1 = await guideline_store.create_guideline(condition="A", action="B")
+
+    j1 = await journey_store.create_journey(
+        title="Journey 1",
+        description="Description of Journey 1",
+        conditions=[],
+    )
+
+    r1 = await relationship_store.create_relationship(
+        source=RelationshipEntity(id=g1.id, type=EntityType.GUIDELINE),
+        target=RelationshipEntity(id=Tag.for_journey_id(j1.id), type=EntityType.TAG),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    response = await async_client.get(f"/relationships?tag_id=journey:{j1.id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    relationships = response.json()
+
+    returned_ids = {rel["id"] for rel in relationships}
+
+    assert r1.id in returned_ids
+
+
+async def test_that_relationships_of_guideline_and_an_agent_can_be_listed(
+    async_client: httpx.AsyncClient, container: Container
+) -> None:
+    guideline_store = container[GuidelineStore]
+    agent_store = container[AgentStore]
+    relationship_store = container[RelationshipStore]
+
+    g1 = await guideline_store.create_guideline(condition="A", action="B")
+
+    a1 = await agent_store.create_agent(name="Agent 1", description="Description of Agent 1")
+
+    r1 = await relationship_store.create_relationship(
+        source=RelationshipEntity(id=g1.id, type=EntityType.GUIDELINE),
+        target=RelationshipEntity(id=Tag.for_agent_id(a1.id), type=EntityType.TAG),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    response = await async_client.get(f"/relationships?guideline_id={g1.id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    relationships = response.json()
+
+    returned_ids = {rel["id"] for rel in relationships}
+
+    assert r1.id in returned_ids
+
+
+async def test_that_relationships_of_an_agent_can_be_listed(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    agent_store = container[AgentStore]
+    relationship_store = container[RelationshipStore]
+
+    g1 = await guideline_store.create_guideline(condition="A", action="B")
+
+    a1 = await agent_store.create_agent(name="Agent 1", description="Description of Agent 1")
+
+    r1 = await relationship_store.create_relationship(
+        source=RelationshipEntity(id=g1.id, type=EntityType.GUIDELINE),
+        target=RelationshipEntity(id=Tag.for_agent_id(a1.id), type=EntityType.TAG),
+        kind=GuidelineRelationshipKind.DEPENDENCY,
+    )
+
+    response = await async_client.get(f"/relationships?tag_id=agent:{a1.id}")
+    assert response.status_code == status.HTTP_200_OK
+
+    relationships = response.json()
+
+    returned_ids = {rel["id"] for rel in relationships}
+
+    assert r1.id in returned_ids

@@ -41,6 +41,7 @@ JourneyId = NewType("JourneyId", str)
 @dataclass(frozen=True)
 class Journey:
     id: JourneyId
+    creation_utc: datetime
     conditions: Sequence[GuidelineId]
     title: str
     description: str
@@ -62,6 +63,7 @@ class JourneyStore(ABC):
         title: str,
         description: str,
         conditions: Sequence[GuidelineId],
+        creation_utc: Optional[datetime] = None,
         tags: Optional[Sequence[TagId]] = None,
     ) -> Journey: ...
 
@@ -216,7 +218,7 @@ class JourneyDocumentStore(JourneyStore):
         return _JourneyDocument(
             id=ObjectId(journey.id),
             version=self.VERSION.to_string(),
-            creation_utc=datetime.now(timezone.utc).isoformat(),
+            creation_utc=journey.creation_utc.isoformat(),
             title=journey.title,
             description=journey.description,
         )
@@ -238,6 +240,7 @@ class JourneyDocumentStore(JourneyStore):
 
         return Journey(
             id=JourneyId(journey_document["id"]),
+            creation_utc=datetime.fromisoformat(journey_document["creation_utc"]),
             conditions=conditions,
             title=journey_document["title"],
             description=journey_document["description"],
@@ -250,11 +253,15 @@ class JourneyDocumentStore(JourneyStore):
         title: str,
         description: str,
         conditions: Sequence[GuidelineId],
+        creation_utc: Optional[datetime] = None,
         tags: Optional[Sequence[TagId]] = None,
     ) -> Journey:
         async with self._lock.writer_lock:
+            creation_utc = creation_utc or datetime.now(timezone.utc)
+
             journey = Journey(
                 id=JourneyId(generate_id()),
+                creation_utc=creation_utc,
                 conditions=conditions,
                 title=title,
                 description=description,
@@ -276,7 +283,6 @@ class JourneyDocumentStore(JourneyStore):
                 document=self._serialize_journey(journey=journey)
             )
 
-            creation_utc = datetime.now(timezone.utc)
             for tag in tags or []:
                 await self._tag_association_collection.insert_one(
                     document={
