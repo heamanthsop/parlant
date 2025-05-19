@@ -76,7 +76,7 @@ class GenericGuidelinePreviouslyAppliedDetector:
         terms: Sequence[Term],
         staged_events: Sequence[EmittedEvent],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]],
     ) -> GuidelinePreviouslyAppliedDetectionResult:
         context = GuidelineMatchingContext(
             agent=agent,

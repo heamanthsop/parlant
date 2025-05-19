@@ -63,7 +63,6 @@ from parlant.core.sessions import (
     PreparationIteration,
     PreparationIterationGenerations,
     Session,
-    SessionId,
     SessionUpdateParams,
     Term as StoredTerm,
     ToolEventData,
@@ -300,7 +299,7 @@ class AlphaEngine(Engine):
 
                 await self._add_agent_state(
                     context=context,
-                    session_id=context.session.id,
+                    session=context.session,
                     ordinary_guidelines=context.state.ordinary_guideline_matches,
                     tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
                 )
@@ -970,7 +969,7 @@ class AlphaEngine(Engine):
     async def _add_agent_state(
         self,
         context: LoadedContext,
-        session_id: SessionId,
+        session: Session,
         ordinary_guidelines: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]],
     ) -> None:
@@ -979,6 +978,7 @@ class AlphaEngine(Engine):
             for g in (
                 await self._generic_guideline_previously_applied_detector.process(
                     agent=context.agent,
+                    session=session,
                     customer=context.customer,
                     context_variables=context.state.context_variables,
                     interaction_history=context.interaction.history,
@@ -991,7 +991,7 @@ class AlphaEngine(Engine):
         ]
 
         await self._entity_commands.update_session(
-            session_id=session_id,
+            session_id=session.id,
             params=SessionUpdateParams(
                 agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
             ),
