@@ -538,7 +538,8 @@ MISSING DATA FOR TOOL REQUIRED CALLS:
 -------------------------------------
 The following is a description of missing data that has been deemed necessary
 in order to run tools. The tools would have run, if they only had this data available and the rest of the data was valid.
-If it makes sense in the current state of the interaction, you may choose to inform the user about this missing data: ###
+If it makes sense in the current state of the interaction, you may choose to inform the user about this missing data.
+If you inform of missing data that contains choices then present all of of the choices to the user. Here is the missing data: ###
 {formatted_missing_data}
 ###
 
@@ -557,7 +558,7 @@ INVALID DATA FOR TOOL REQUIRED CALLS:
 -------------------------------------
 The following is a description of data that has been provided but are not valid values for their tool parameters in order to run tools.
 The tools would have run, if they only had this data available and there was no missing data.
-You should inform the user about this invalid data: ###
+You should inform the user about this invalid data and if it includes choices then present all of the choices to the user. Here is the invalid data: ###
 {formatted_invalid_data}
 ###
 
@@ -603,6 +604,7 @@ Produce a valid JSON object in the following format: ###
                     **({"description": d.description} if d.description else {}),
                     **({"significance": d.significance} if d.significance else {}),
                     **({"examples": d.examples} if d.examples else {}),
+                    **({"choices": d.choices} if d.choices else {}),
                 }
                 for d in missing_data
             ]
@@ -613,9 +615,11 @@ Produce a valid JSON object in the following format: ###
             [
                 {
                     "datum_name": d.parameter,
+                    "invalid_value": d.invalid_value,
                     **({"description": d.description} if d.description else {}),
                     **({"significance": d.significance} if d.significance else {}),
                     **({"examples": d.examples} if d.examples else {}),
+                    **({"choices": d.choices} if d.choices else {}),
                 }
                 for d in invalid_data
             ]
