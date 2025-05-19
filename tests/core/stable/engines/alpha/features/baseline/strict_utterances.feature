@@ -401,7 +401,7 @@ Feature: Strict Utterance
         And a context variable "Alpaca Blend Yarn inventory count" set to "12" for "Joanna"
         And a guideline to include the current inventory count when confirming orders for yarn products
         And a customer message, "I'd like to order 5 skeins of your Merino Wool, please."
-        And an utterance, "I've added {{quantity}} skeins of Merino Wool to your order. We currently have {{inventory_count}} in stock." 
+        And an utterance, "I've added {{generative.quantity}} skeins of Merino Wool to your order. We currently have {{generative.inventory_count}} in stock." 
         And an utterance, "We're currently out of that item. Would you like to place a backorder?"
         And an utterance, "Would you like to view our other yarn options instead?"
         When processing is triggered
@@ -418,11 +418,12 @@ Feature: Strict Utterance
         And an empty session with "Joanna"
         And a guideline to include the current inventory count when confirming orders for yarn products
         And a customer message, "I'd like to order 5 skeins of your Merino Wool, please."
-        And an utterance, "I've added {quantity} skeins of Merino Wool to your order. We currently have {inventory_count} in stock."
-        And an utterance, "We're don't have {quantity} of that item in stock. Would you like to place a backorder?"
+        And an utterance, "I've added {{generative.quantity}} skeins of Merino Wool to your order. We currently have {{generative.inventory_count}} in stock."
+        And an utterance, "We don't have {{generative.quantity}} of that item in stock. Would you like to place a backorder?"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains that we do not have 5 of the item in stock.
+        And the message contains roughly the text "We don't have 5 of that item in stock. Would you like to place a backorder?"
+
 
 Scenario: The agent fills multiple fields in a veterinary appointment system (strict utterance)
     Given an agent whose job is to schedule veterinary appointments and provide pet care information
@@ -434,7 +435,7 @@ Scenario: The agent fills multiple fields in a veterinary appointment system (st
     And an empty session with "Joanna"
     And a guideline to provide the next available appointment details when a customer requests a checkup for their pet
     And a customer message, "I need to schedule a routine checkup for my dog Max. He's a 5-year-old golden retriever."
-    And an utterance, "I've scheduled a checkup appointment for {pet_name} with {vet_name} on {appointment_date} at our clinic located at {clinic_address}. For a {pet_age}-year-old {pet_breed}, we recommend {recommended_services}. Please arrive 15 minutes early to complete any necessary paperwork."
+    And an utterance, "I've scheduled a checkup appointment for {{generative.pet_name}} with {{generative.vet_name}} on {{generative.appointment_date}} at our clinic located at {{generative.clinic_address}}. For a {{generative.pet_age}}-year-old {{generative.pet_breed}}, we recommend {{generative.recommended_services}}. Please arrive 15 minutes early to complete any necessary paperwork."
     And an utterance, "We're fully booked at the moment. Please call back next week."
     And an utterance, "What symptoms is your dog experiencing?"
     And an utterance, "Would you prefer a morning or afternoon appointment?"
