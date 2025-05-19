@@ -33,7 +33,7 @@ from parlant.core.evaluations import (
     Invoice,
 )
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     GuidelineRelationshipKind,
     RelationshipEntity,
     RelationshipStore,
@@ -196,11 +196,11 @@ class Application:
             await self._relationship_store.create_relationship(
                 source=RelationshipEntity(
                     id=source_guideline_id,
-                    type=EntityType.GUIDELINE,
+                    kind=RelationshipEntityKind.GUIDELINE,
                 ),
                 target=RelationshipEntity(
                     id=target_guideline_id,
-                    type=EntityType.GUIDELINE,
+                    kind=RelationshipEntityKind.GUIDELINE,
                 ),
                 kind=GuidelineRelationshipKind.ENTAILMENT,
             )
@@ -269,11 +269,11 @@ class Application:
                         await self._relationship_store.create_relationship(
                             source=RelationshipEntity(
                                 id=content_guidelines[source_key],
-                                type=EntityType.GUIDELINE,
+                                kind=RelationshipEntityKind.GUIDELINE,
                             ),
                             target=RelationshipEntity(
                                 id=content_guidelines[target_key],
-                                type=EntityType.GUIDELINE,
+                                kind=RelationshipEntityKind.GUIDELINE,
                             ),
                             kind=GuidelineRelationshipKind.ENTAILMENT,
                         )

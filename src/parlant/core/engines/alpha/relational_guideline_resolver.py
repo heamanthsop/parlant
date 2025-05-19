@@ -20,7 +20,7 @@ from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     GuidelineRelationshipKind,
     RelationshipStore,
 )
@@ -103,14 +103,14 @@ class RelationalGuidelineResolver:
                 prioritized_entity = relationship.source
 
                 if (
-                    prioritized_entity.type == EntityType.GUIDELINE
+                    prioritized_entity.kind == RelationshipEntityKind.GUIDELINE
                     and prioritized_entity.id in match_guideline_ids
                 ):
                     deprioritized = True
                     prioritized_guideline_id = cast(GuidelineId, prioritized_entity.id)
                     break
 
-                elif prioritized_entity.type == EntityType.TAG:
+                elif prioritized_entity.kind == RelationshipEntityKind.TAG:
                     # In case source is a tag, we need to find all guidelines
                     # that are associated with this tag.
                     #
@@ -197,7 +197,7 @@ class RelationalGuidelineResolver:
             while relationships:
                 relationship = relationships.pop()
 
-                if relationship.target.type == EntityType.GUIDELINE:
+                if relationship.target.kind == RelationshipEntityKind.GUIDELINE:
                     if any(relationship.target.id == m.guideline.id for m in matches):
                         # no need to add this related guideline as it's already an assumed match
                         continue
@@ -205,7 +205,7 @@ class RelationalGuidelineResolver:
                         next(g for g in usable_guidelines if g.id == relationship.target.id)
                     )
 
-                elif relationship.target.type == EntityType.TAG:
+                elif relationship.target.kind == RelationshipEntityKind.TAG:
                     # In case target is a tag, we need to find all guidelines
                     # that are associated with this tag.
                     guidelines_associated_to_tag = await self._guideline_store.list_guidelines(
@@ -308,13 +308,13 @@ class RelationalGuidelineResolver:
                 dependency = dependencies.pop()
 
                 if (
-                    dependency.target.type == EntityType.GUIDELINE
+                    dependency.target.kind == RelationshipEntityKind.GUIDELINE
                     and dependency.target.id not in matched_guideline_ids
                 ):
                     dependent_on_inactive_guidelines = True
                     break
 
-                if dependency.target.type == EntityType.TAG:
+                if dependency.target.kind == RelationshipEntityKind.TAG:
                     if journey_id := Tag.extract_journey_id(cast(TagId, dependency.target.id)):
                         if any(journey.id == journey_id for journey in journeys):
                             # If the tag is a journey tag and the journey is active,

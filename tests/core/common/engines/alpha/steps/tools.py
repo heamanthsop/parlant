@@ -17,7 +17,7 @@ from pytest_bdd import given, parsers
 
 from parlant.core.tools import ToolOverlap, ToolParameterOptions
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     RelationshipEntity,
     RelationshipStore,
     ToolRelationshipKind,
@@ -889,11 +889,11 @@ def given_an_overlaping_tools_relationship(
         store.create_relationship(
             source=RelationshipEntity(
                 id=tool_a_id,
-                type=EntityType.TOOL,
+                kind=RelationshipEntityKind.TOOL,
             ),
             target=RelationshipEntity(
                 id=tool_b_id,
-                type=EntityType.TOOL,
+                kind=RelationshipEntityKind.TOOL,
             ),
             kind=ToolRelationshipKind.OVERLAP,
         )

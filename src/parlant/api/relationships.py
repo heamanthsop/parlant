@@ -33,8 +33,8 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.core.journeys import JourneyId, JourneyStore
 from parlant.core.relationships import (
-    EntityIdType,
-    EntityType,
+    RelationshipEntityId,
+    RelationshipEntityKind,
     GuidelineRelationshipKind,
     Relationship,
     RelationshipEntity,
@@ -167,11 +167,11 @@ def _get_relationship_entity(
     tool_id: Optional[ToolId],
 ) -> RelationshipEntity:
     if guideline_id:
-        return RelationshipEntity(id=guideline_id, type=EntityType.GUIDELINE)
+        return RelationshipEntity(id=guideline_id, kind=RelationshipEntityKind.GUIDELINE)
     elif tag_id:
-        return RelationshipEntity(id=tag_id, type=EntityType.TAG)
+        return RelationshipEntity(id=tag_id, kind=RelationshipEntityKind.TAG)
     elif tool_id:
-        return RelationshipEntity(id=tool_id, type=EntityType.TOOL)
+        return RelationshipEntity(id=tool_id, kind=RelationshipEntityKind.TOOL)
     else:
         raise ValueError("No entity provided")
 
@@ -180,7 +180,7 @@ async def _entity_id_to_tag(
     tag_store: TagStore,
     agent_store: AgentStore,
     journey_store: JourneyStore,
-    tag_id: EntityIdType | TagId | GuidelineId | ToolId,
+    tag_id: RelationshipEntityId | TagId | GuidelineId | ToolId,
 ) -> Tag:
     tag_id = cast(TagId, tag_id)
 
@@ -217,7 +217,7 @@ def create_router(
             await guideline_store.read_guideline(
                 guideline_id=cast(GuidelineId, relationship.source.id)
             )
-            if relationship.source.type == EntityType.GUIDELINE
+            if relationship.source.kind == RelationshipEntityKind.GUIDELINE
             else None
         )
 
@@ -228,7 +228,7 @@ def create_router(
                 journey_store,
                 relationship.source.id,
             )
-            if relationship.source.type == EntityType.TAG
+            if relationship.source.kind == RelationshipEntityKind.TAG
             else None
         )
 
@@ -236,7 +236,7 @@ def create_router(
             await guideline_store.read_guideline(
                 guideline_id=cast(GuidelineId, relationship.target.id)
             )
-            if relationship.target.type == EntityType.GUIDELINE
+            if relationship.target.kind == RelationshipEntityKind.GUIDELINE
             else None
         )
 
@@ -247,7 +247,7 @@ def create_router(
                 journey_store,
                 relationship.target.id,
             )
-            if relationship.target.type == EntityType.TAG
+            if relationship.target.kind == RelationshipEntityKind.TAG
             else None
         )
 
@@ -257,7 +257,7 @@ def create_router(
                     name=cast(ToolId, relationship.source.id).service_name
                 )
             ).read_tool(name=cast(ToolId, relationship.source.id).tool_name)
-            if relationship.source.type == EntityType.TOOL
+            if relationship.source.kind == RelationshipEntityKind.TOOL
             else None
         )
 
@@ -267,7 +267,7 @@ def create_router(
                     name=cast(ToolId, relationship.target.id).service_name
                 )
             ).read_tool(name=cast(ToolId, relationship.target.id).tool_name)
-            if relationship.target.type == EntityType.TOOL
+            if relationship.target.kind == RelationshipEntityKind.TOOL
             else None
         )
 
@@ -281,13 +281,13 @@ def create_router(
                 tags=cast(Guideline, source_guideline).tags,
                 metadata=cast(Guideline, source_guideline).metadata,
             )
-            if relationship.source.type == EntityType.GUIDELINE
+            if relationship.source.kind == RelationshipEntityKind.GUIDELINE
             else None,
             source_tag=TagDTO(
                 id=cast(Tag, source_tag).id,
                 name=cast(Tag, source_tag).name,
             )
-            if relationship.source.type == EntityType.TAG
+            if relationship.source.kind == RelationshipEntityKind.TAG
             else None,
             target_guideline=GuidelineDTO(
                 id=cast(Guideline, target_guideline).id,
@@ -297,19 +297,19 @@ def create_router(
                 tags=cast(Guideline, target_guideline).tags,
                 metadata=cast(Guideline, target_guideline).metadata,
             )
-            if relationship.target.type == EntityType.GUIDELINE
+            if relationship.target.kind == RelationshipEntityKind.GUIDELINE
             else None,
             target_tag=TagDTO(
                 id=cast(Tag, target_tag).id,
                 name=cast(Tag, target_tag).name,
             )
-            if relationship.target.type == EntityType.TAG
+            if relationship.target.kind == RelationshipEntityKind.TAG
             else None,
             source_tool=tool_to_dto(cast(Tool, source_tool))
-            if relationship.source.type == EntityType.TOOL
+            if relationship.source.kind == RelationshipEntityKind.TOOL
             else None,
             target_tool=tool_to_dto(cast(Tool, target_tool))
-            if relationship.target.type == EntityType.TOOL
+            if relationship.target.kind == RelationshipEntityKind.TOOL
             else None,
             kind=_relationship_kind_to_dto(cast(GuidelineRelationshipKind, relationship.kind)),
         )

@@ -16,7 +16,7 @@ from typing import AsyncIterator, Sequence
 from pytest import fixture
 
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     GuidelineRelationshipKind,
     Relationship,
     RelationshipDocumentStore,
@@ -68,11 +68,11 @@ async def test_that_direct_guideline_relationships_can_be_listed(
         await relationship_store.create_relationship(
             source=RelationshipEntity(
                 id=source,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
                 id=target,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             kind=GuidelineRelationshipKind.ENTAILMENT,
         )
@@ -101,11 +101,11 @@ async def test_that_indirect_guideline_relationships_can_be_listed(
         await relationship_store.create_relationship(
             source=RelationshipEntity(
                 id=source,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
                 id=target,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             kind=GuidelineRelationshipKind.ENTAILMENT,
         )
@@ -136,11 +136,11 @@ async def test_that_db_data_is_loaded_correctly(
         await relationship_store.create_relationship(
             source=RelationshipEntity(
                 id=source,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
                 id=target,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             kind=GuidelineRelationshipKind.ENTAILMENT,
         )
@@ -168,22 +168,22 @@ async def test_that_relationships_are_returned_for_source_without_indirect_relat
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=c_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -209,22 +209,22 @@ async def test_that_connections_are_returned_for_source_with_indirect_connection
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=c_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -251,22 +251,22 @@ async def test_that_relationships_are_returned_for_target_without_indirect_conne
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=c_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -292,22 +292,22 @@ async def test_that_relationships_are_returned_for_target_with_indirect_connecti
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=c_id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -339,8 +339,8 @@ async def test_that_all_relationships_can_be_listed(
 
     for source, target, kind in relationships_data:
         await relationship_store.create_relationship(
-            source=RelationshipEntity(id=source, type=EntityType.GUIDELINE),
-            target=RelationshipEntity(id=target, type=EntityType.GUIDELINE),
+            source=RelationshipEntity(id=source, kind=RelationshipEntityKind.GUIDELINE),
+            target=RelationshipEntity(id=target, kind=RelationshipEntityKind.GUIDELINE),
             kind=kind,
         )
 
@@ -359,14 +359,14 @@ async def test_that_relationships_can_be_listed_by_kind_without_entity_filters(
     c_id = GuidelineId("c")
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=c_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=c_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -388,14 +388,14 @@ async def test_that_relationships_can_be_listed_by_source_id_without_kind_filter
     c_id = GuidelineId("c")
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=c_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=c_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -414,14 +414,14 @@ async def test_that_relationships_can_be_listed_by_target_id_without_kind_filter
     c_id = GuidelineId("c")
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=c_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=c_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 
@@ -440,14 +440,14 @@ async def test_that_relationships_can_be_listed_with_both_source_and_target_filt
     c_id = GuidelineId("c")
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=b_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=b_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
 
     await relationship_store.create_relationship(
-        source=RelationshipEntity(id=c_id, type=EntityType.GUIDELINE),
-        target=RelationshipEntity(id=a_id, type=EntityType.GUIDELINE),
+        source=RelationshipEntity(id=c_id, kind=RelationshipEntityKind.GUIDELINE),
+        target=RelationshipEntity(id=a_id, kind=RelationshipEntityKind.GUIDELINE),
         kind=GuidelineRelationshipKind.PRIORITY,
     )
 

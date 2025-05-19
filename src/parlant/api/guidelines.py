@@ -61,7 +61,7 @@ from parlant.core.evaluations import (
 )
 from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     RelationshipEntity,
     RelationshipId,
     GuidelineRelationshipKind,
@@ -387,9 +387,9 @@ class _GuidelineRelationship:
 
     id: RelationshipId
     source: Guideline | Tag
-    source_type: EntityType
+    source_type: RelationshipEntityKind
     target: Guideline | Tag
-    target_type: EntityType
+    target_type: RelationshipEntityKind
     kind: GuidelineRelationshipKind
 
 
@@ -529,11 +529,11 @@ async def _get_guideline_relationships_by_kind(
 ) -> Sequence[tuple[_GuidelineRelationship, bool]]:
     async def _get_entity(
         entity_id: GuidelineId | TagId,
-        entity_type: EntityType,
+        entity_type: RelationshipEntityKind,
     ) -> Guideline | Tag:
-        if entity_type == EntityType.GUIDELINE:
+        if entity_type == RelationshipEntityKind.GUIDELINE:
             return await guideline_store.read_guideline(guideline_id=cast(GuidelineId, entity_id))
-        elif entity_type == EntityType.TAG:
+        elif entity_type == RelationshipEntityKind.TAG:
             return await tag_store.read_tag(tag_id=cast(TagId, entity_id))
         else:
             raise ValueError(f"Unsupported entity type: {entity_type}")
@@ -552,17 +552,17 @@ async def _get_guideline_relationships_by_kind(
             target_id=entity_id,
         ),
     ):
-        assert r.source.type in (EntityType.GUIDELINE, EntityType.TAG)
-        assert r.target.type in (EntityType.GUIDELINE, EntityType.TAG)
+        assert r.source.kind in (RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG)
+        assert r.target.kind in (RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG)
         assert type(r.kind) is GuidelineRelationshipKind
 
         relationships.append(
             _GuidelineRelationship(
                 id=r.id,
-                source=await _get_entity(cast(GuidelineId | TagId, r.source.id), r.source.type),
-                source_type=r.source.type,
-                target=await _get_entity(cast(GuidelineId | TagId, r.target.id), r.target.type),
-                target_type=r.target.type,
+                source=await _get_entity(cast(GuidelineId | TagId, r.source.id), r.source.kind),
+                source_type=r.source.kind,
+                target=await _get_entity(cast(GuidelineId | TagId, r.target.id), r.target.kind),
+                target_type=r.target.kind,
                 kind=r.kind,
             )
         )
@@ -954,8 +954,8 @@ def create_legacy_router(
                     )
 
                 await relationship_store.create_relationship(
-                    source=RelationshipEntity(id=req.source, type=EntityType.GUIDELINE),
-                    target=RelationshipEntity(id=req.target, type=EntityType.GUIDELINE),
+                    source=RelationshipEntity(id=req.source, kind=RelationshipEntityKind.GUIDELINE),
+                    target=RelationshipEntity(id=req.target, kind=RelationshipEntityKind.GUIDELINE),
                     kind=GuidelineRelationshipKind.ENTAILMENT,
                 )
 
@@ -1340,12 +1340,12 @@ def _guideline_relationship_to_dto(
     relationship: _GuidelineRelationship,
     indirect: bool,
 ) -> RelationshipDTO:
-    if relationship.source_type == EntityType.GUIDELINE:
+    if relationship.source_type == RelationshipEntityKind.GUIDELINE:
         rel_source_guideline = cast(Guideline, relationship.source)
     else:
         rel_source_tag = cast(Tag, relationship.source)
 
-    if relationship.target_type == EntityType.GUIDELINE:
+    if relationship.target_type == RelationshipEntityKind.GUIDELINE:
         rel_target_guideline = cast(Guideline, relationship.target)
     else:
         rel_target_tag = cast(Tag, relationship.target)
@@ -1360,14 +1360,14 @@ def _guideline_relationship_to_dto(
             tags=rel_source_guideline.tags,
             metadata=rel_source_guideline.metadata,
         )
-        if relationship.source_type == EntityType.GUIDELINE
+        if relationship.source_type == RelationshipEntityKind.GUIDELINE
         else None,
         source_tag=TagDTO(
             id=rel_source_tag.id,
             creation_utc=rel_source_tag.creation_utc,
             name=rel_source_tag.name,
         )
-        if relationship.source_type == EntityType.TAG
+        if relationship.source_type == RelationshipEntityKind.TAG
         else None,
         target_guideline=GuidelineDTO(
             id=relationship.target.id,
@@ -1378,13 +1378,13 @@ def _guideline_relationship_to_dto(
             tags=rel_target_guideline.tags,
             metadata=rel_target_guideline.metadata,
         )
-        if relationship.target_type == EntityType.GUIDELINE
+        if relationship.target_type == RelationshipEntityKind.GUIDELINE
         else None,
         target_tag=TagDTO(
             id=rel_target_tag.id,
             name=rel_target_tag.name,
         )
-        if relationship.target_type == EntityType.TAG
+        if relationship.target_type == RelationshipEntityKind.TAG
         else None,
         indirect=indirect,
         kind=_guideline_relationship_kind_to_dto(relationship.kind),

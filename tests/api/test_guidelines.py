@@ -21,7 +21,7 @@ from parlant.core.agents import AgentId
 from parlant.core.common import ItemNotFoundError
 from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     GuidelineRelationshipKind,
     RelationshipEntity,
     RelationshipStore,
@@ -63,11 +63,11 @@ async def create_guidelines_and_create_relationships_between_them(
         await container[RelationshipStore].create_relationship(
             source=RelationshipEntity(
                 id=source.id,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
                 id=target.id,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             kind=GuidelineRelationshipKind.ENTAILMENT,
         )
@@ -598,11 +598,11 @@ async def test_legacy_that_reading_a_guideline_lists_both_direct_and_indirect_co
         await container[RelationshipStore].create_relationship(
             source=RelationshipEntity(
                 id=source.id,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
                 id=target.id,
-                type=EntityType.GUIDELINE,
+                kind=RelationshipEntityKind.GUIDELINE,
             ),
             kind=GuidelineRelationshipKind.ENTAILMENT,
         )
@@ -1012,11 +1012,11 @@ async def test_legacy_that_an_existing_guideline_can_be_updated(
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=existing_guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=connected_guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -1242,11 +1242,11 @@ async def test_legacy_that_guideline_update_retains_existing_connections_with_di
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=existing_guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=connected_guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )
@@ -1937,11 +1937,11 @@ async def test_that_guideline_relationships_can_be_read(
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         target=RelationshipEntity(
             id=connected_guideline.id,
-            type=EntityType.GUIDELINE,
+            kind=RelationshipEntityKind.GUIDELINE,
         ),
         kind=GuidelineRelationshipKind.ENTAILMENT,
     )

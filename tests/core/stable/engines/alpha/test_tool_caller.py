@@ -37,7 +37,7 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
 from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.relationships import (
-    EntityType,
+    RelationshipEntityKind,
     RelationshipEntity,
     RelationshipStore,
     ToolRelationshipKind,
@@ -999,11 +999,11 @@ async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         target=RelationshipEntity(
             id=b_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         kind=ToolRelationshipKind.OVERLAP,
     )
@@ -1011,11 +1011,11 @@ async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         target=RelationshipEntity(
             id=c_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         kind=ToolRelationshipKind.OVERLAP,
     )
@@ -1092,11 +1092,11 @@ async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evalu
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=a_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         target=RelationshipEntity(
             id=b_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         kind=ToolRelationshipKind.OVERLAP,
     )
@@ -1104,11 +1104,11 @@ async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evalu
     await relationship_store.create_relationship(
         source=RelationshipEntity(
             id=b_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         target=RelationshipEntity(
             id=c_tool_id,
-            type=EntityType.TOOL,
+            kind=RelationshipEntityKind.TOOL,
         ),
         kind=ToolRelationshipKind.OVERLAP,
     )

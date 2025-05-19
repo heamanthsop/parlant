@@ -38,12 +38,20 @@ from parlant.core.nlp.generation import (
 )
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 from parlant.core.persistence.document_database import DocumentDatabase
-from parlant.core.relationships import RelationshipDocumentStore, RelationshipStore
+from parlant.core.relationships import (
+    GuidelineRelationshipKind,
+    RelationshipDocumentStore,
+    RelationshipEntity,
+    RelationshipEntityKind,
+    RelationshipId,
+    RelationshipStore,
+)
 from parlant.core.services.tools.service_registry import ServiceDocumentRegistry, ServiceRegistry
 from parlant.core.sessions import (
     EventKind,
     EventSource,
     MessageEventData,
+    SessionId,
     SessionDocumentStore,
     SessionStore,
     StatusEventData,
@@ -130,6 +138,59 @@ class _PicoAgentStore(AgentStore):
 
 
 @dataclass
+class Guideline:
+    id: GuidelineId
+    condition: str
+    action: str | None
+    tags: Sequence[TagId]
+
+    _parlant: Server
+    _container: Container
+
+    async def prioritize_over(self, guideline: Guideline) -> RelationshipId:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.PRIORITY,
+            direction="source",
+        )
+
+    async def entail(self, guideline: Guideline) -> RelationshipId:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.ENTAILMENT,
+            direction="source",
+        )
+
+    async def depend_on(self, guideline: Guideline) -> RelationshipId:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.DEPENDENCY,
+            direction="source",
+        )
+
+    async def _create_relationship(
+        self,
+        guideline: Guideline,
+        kind: GuidelineRelationshipKind,
+        direction: Literal["source", "target"],
+    ) -> RelationshipId:
+        if direction == "source":
+            source = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
+            target = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
+        else:
+            source = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
+            target = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
+
+        relationship = await self._container[RelationshipStore].create_relationship(
+            source=source,
+            target=target,
+            kind=kind,
+        )
+
+        return relationship.id
+
+
+@dataclass
 class Journey:
     id: JourneyId
     description: str
@@ -143,7 +204,7 @@ class Journey:
         condition: str,
         action: str,
         tools: Iterable[ToolEntry] = [],
-    ) -> GuidelineId:
+    ) -> Guideline:
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=action,
@@ -158,7 +219,14 @@ class Journey:
                 tool_id=ToolId(service_name=_INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
             )
 
-        return guideline.id
+        return Guideline(
+            id=guideline.id,
+            condition=condition,
+            action=action,
+            tags=guideline.tags,
+            _parlant=self._parlant,
+            _container=self._container,
+        )
 
     async def attach_tool(
         self,
@@ -219,7 +287,7 @@ class Agent:
         condition: str,
         action: str,
         tools: Iterable[ToolEntry] = [],
-    ) -> GuidelineId:
+    ) -> Guideline:
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=action,
@@ -234,7 +302,14 @@ class Agent:
                 tool_id=ToolId(service_name=_INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
             )
 
-        return guideline.id
+        return Guideline(
+            id=guideline.id,
+            condition=condition,
+            action=action,
+            tags=guideline.tags,
+            _parlant=self._parlant,
+            _container=self._container,
+        )
 
     async def attach_tool(
         self,
@@ -258,11 +333,11 @@ class Agent:
 
     async def create_utterance(
         self,
-        text: str,
+        template: str,
         tags: list[TagId] = [],
     ) -> UtteranceId:
         utterance = await self._container[UtteranceStore].create_utterance(
-            value=text,
+            value=template,
             tags=tags,
             fields=[],
         )
@@ -517,9 +592,11 @@ __all__ = [
     "MessageEventData",
     "NLPService",
     "PluginServer",
+    "RelationshipId",
     "SchematicGenerationResult",
     "SchematicGenerator",
     "Server",
+    "SessionId",
     "ServiceRegistry",
     "SessionMode",
     "SessionStatus",

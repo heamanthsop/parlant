@@ -56,10 +56,10 @@ class ToolRelationshipKind(Enum):
 RelationshipKind = Union[GuidelineRelationshipKind, ToolRelationshipKind]
 
 
-EntityIdType = Union[GuidelineId, TagId, ToolId]
+RelationshipEntityId = Union[GuidelineId, TagId, ToolId]
 
 
-class EntityType(Enum):
+class RelationshipEntityKind(Enum):
     GUIDELINE = "guideline"
     TAG = "tag"
     TOOL = "tool"
@@ -67,8 +67,8 @@ class EntityType(Enum):
 
 @dataclass(frozen=True)
 class RelationshipEntity:
-    id: EntityIdType
-    type: EntityType
+    id: RelationshipEntityId
+    kind: RelationshipEntityKind
 
     def id_to_string(self) -> str:
         return str(self.id) if not isinstance(self.id, ToolId) else self.id.to_string()
@@ -109,8 +109,8 @@ class RelationshipStore(ABC):
         self,
         kind: Optional[RelationshipKind] = None,
         indirect: bool = False,
-        source_id: Optional[EntityIdType] = None,
-        target_id: Optional[EntityIdType] = None,
+        source_id: Optional[RelationshipEntityId] = None,
+        target_id: Optional[RelationshipEntityId] = None,
     ) -> Sequence[Relationship]: ...
 
 
@@ -198,9 +198,9 @@ class RelationshipDocumentStore(RelationshipStore):
             version=self.VERSION.to_string(),
             creation_utc=relationship.creation_utc.isoformat(),
             source=relationship.source.id_to_string(),
-            source_type=relationship.source.type.value,
+            source_type=relationship.source.kind.value,
             target=relationship.target.id_to_string(),
-            target_type=relationship.target.type.value,
+            target_type=relationship.target.kind.value,
             kind=relationship.kind.value,
         )
 
@@ -212,14 +212,16 @@ class RelationshipDocumentStore(RelationshipStore):
             id: str,
             entity_type_str: str,
         ) -> RelationshipEntity:
-            entity_type = EntityType(entity_type_str)
+            entity_type = RelationshipEntityKind(entity_type_str)
 
-            if entity_type == EntityType.GUIDELINE:
-                return RelationshipEntity(id=GuidelineId(id), type=EntityType.GUIDELINE)
-            elif entity_type == EntityType.TAG:
-                return RelationshipEntity(id=TagId(id), type=EntityType.TAG)
-            elif entity_type == EntityType.TOOL:
-                return RelationshipEntity(id=ToolId.from_string(id), type=EntityType.TOOL)
+            if entity_type == RelationshipEntityKind.GUIDELINE:
+                return RelationshipEntity(id=GuidelineId(id), kind=RelationshipEntityKind.GUIDELINE)
+            elif entity_type == RelationshipEntityKind.TAG:
+                return RelationshipEntity(id=TagId(id), kind=RelationshipEntityKind.TAG)
+            elif entity_type == RelationshipEntityKind.TOOL:
+                return RelationshipEntity(
+                    id=ToolId.from_string(id), kind=RelationshipEntityKind.TOOL
+                )
 
             raise ValueError(f"Unknown entity type: {entity_type_str}")
 
@@ -234,7 +236,7 @@ class RelationshipDocumentStore(RelationshipStore):
 
         kind = (
             GuidelineRelationshipKind(relationship_document["kind"])
-            if source.type in {EntityType.GUIDELINE, EntityType.TAG}
+            if source.kind in {RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG}
             else ToolRelationshipKind(relationship_document["kind"])
         )
 
@@ -359,11 +361,11 @@ class RelationshipDocumentStore(RelationshipStore):
         self,
         kind: Optional[RelationshipKind] = None,
         indirect: bool = True,
-        source_id: Optional[EntityIdType] = None,
-        target_id: Optional[EntityIdType] = None,
+        source_id: Optional[RelationshipEntityId] = None,
+        target_id: Optional[RelationshipEntityId] = None,
     ) -> Sequence[Relationship]:
         async def get_node_relationships_by_kind(
-            source_id: EntityIdType,
+            source_id: RelationshipEntityId,
             reversed_graph: bool = False,
         ) -> Sequence[Relationship]:
             if not graph.has_node(source_id):
