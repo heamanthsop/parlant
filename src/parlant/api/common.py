@@ -439,6 +439,7 @@ class ToolParameterTypeDTO(Enum):
     NUMBER = "number"
     INTEGER = "integer"
     BOOLEAN = "boolean"
+    ARRAY = "array"
 
 
 tool_parameter_example: ExampleJson = {

@@ -39,11 +39,11 @@ from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSeriali
 from parlant.core.utterances import Utterance
 
 ToolParameterType = Literal[
-    "array",
     "string",
     "number",
     "integer",
     "boolean",
+    "array",
 ]
 
 DEFAULT_PARAMETER_PRECEDENCE: int = sys.maxsize
