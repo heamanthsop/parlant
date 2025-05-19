@@ -361,8 +361,10 @@ Feature: Strict Utterance
         Given an agent whose job is to provide technical support for cloud-based molecular modeling software
         And that the agent uses the strict_utterance message composition mode
         And a tag "Enterprise"
+        And a tag "Standard"
+        And a customer named "Joanna"
+        And an empty session with "Joanna"
         And a customer tagged as "Enterprise"
-        And a context variable "subscription_tier" set to "Enterprise"
         And a context variable "api_access" set to "Unlimited" for the tag "Enterprise"
         And a context variable "api_access" set to "Basic" for the tag "Standard"
         And a guideline to mention dedicated support channels and unlimited API access when responding to Enterprise customers with technical issues
@@ -394,6 +396,7 @@ Feature: Strict Utterance
         And that the agent uses the strict_utterance message composition mode
         And a customer named "Joanna"
         And a guideline to check stock levels in the context variables when a customer makes a specific order
+        And an empty session with "Joanna"
         And a context variable "Merino Wool Skein inventory count" set to "37" for "Joanna" 
         And a context variable "Alpaca Blend Yarn inventory count" set to "12" for "Joanna"
         And a guideline to include the current inventory count when confirming orders for yarn products
@@ -412,6 +415,7 @@ Feature: Strict Utterance
         And a guideline to check stock levels in the context variables when a customer makes a specific order
         And a context variable "Merino Wool Skein inventory count" set to "1" for "Joanna" 
         And a context variable "Alpaca Blend Yarn inventory count" set to "1" for "Joanna"
+        And an empty session with "Joanna"
         And a guideline to include the current inventory count when confirming orders for yarn products
         And a customer message, "I'd like to order 5 skeins of your Merino Wool, please."
         And an utterance, "I've added {quantity} skeins of Merino Wool to your order. We currently have {inventory_count} in stock."
@@ -427,6 +431,7 @@ Scenario: The agent fills multiple fields in a veterinary appointment system (st
     And a context variable "next_available_date" set to "May 22" for "Joanna"
     And a context variable "vet_name" set to "Dr. Happypaws" for "Joanna"
     And a context variable "clinic_address" set to "155 Pawprint Lane" for "Joanna"
+    And an empty session with "Joanna"
     And a guideline to provide the next available appointment details when a customer requests a checkup for their pet
     And a customer message, "I need to schedule a routine checkup for my dog Max. He's a 5-year-old golden retriever."
     And an utterance, "I've scheduled a checkup appointment for {pet_name} with {vet_name} on {appointment_date} at our clinic located at {clinic_address}. For a {pet_age}-year-old {pet_breed}, we recommend {recommended_services}. Please arrive 15 minutes early to complete any necessary paperwork."
