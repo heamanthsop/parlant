@@ -3,11 +3,18 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
-Introduce journey
-Introduction of guideline properties evaluation
-Make guideline action optional
-Introduction of guideline action proposer
-Added choices to insights of invalid and missing tool parameters
+TBD
+
+## [2.2.0] - 2025-05-20
+
+### Added
+- Add journeys
+- Add of guideline properties evaluation
+- Add automatic guideline action deduction when adding direct tool guidelines
+- Added choices of invalid and missing tool parameters to tool insights
+
+### Changed
+- Make guideline action optional
 
 ## [2.1.2] - 2025-05-07
 
