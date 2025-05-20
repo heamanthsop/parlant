@@ -252,6 +252,15 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> Optional[str]:
+        def _get_field_extraction_guidelines_text(all_matches: Sequence[GuidelineMatch]):
+            guidelines_texts = []
+            for i, p in enumerate(all_matches, start=1):
+                if p.guideline.content.action:
+                    guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                    guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
+                    guidelines_texts.append(guideline)
+            return "\n".join(guidelines_texts)
+
         builder = PromptBuilder()
 
         builder.add_section(
@@ -260,8 +269,26 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         )
 
         builder.add_agent_identity(context.agent)
+        builder.add_customer_identity(context.customer)
         builder.add_context_variables(context.context_variables)
         builder.add_journeys(context.journeys)
+        all_guideline_matches = list(
+            chain(context.ordinary_guideline_matches, context.tool_enabled_guideline_matches)
+        )
+        builder.add_section(
+            name=BuiltInSection.GUIDELINES,
+            template="""
+When crafting your reply, you must follow the behavioral guidelines provided below, which have been identified as relevant to the current state of the interaction.
+Each guideline includes a priority score to indicate its importance and a rationale for its relevance.
+The guidelines are not necessarily intended to aid your current task of field generation, but to support other components in the system.
+{all_guideline_matches_text}
+""",
+            props={
+                "all_guideline_matches_text": _get_field_extraction_guidelines_text(
+                    all_guideline_matches
+                )
+            },
+        )
         builder.add_interaction_history(context.interaction_history)
         builder.add_glossary(context.terms)
         builder.add_staged_events(context.staged_events)
@@ -890,9 +917,6 @@ Produce a valid JSON object in the following format: ###
                 ),
             },
         )
-
-        with open("draft prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
     def _get_draft_output_format(
@@ -994,8 +1018,6 @@ Output a JSON object with a two properties:
                 "composition_mode": context.agent.composition_mode,
             },
         )
-        with open("utterance selection prompt.txt", "w") as f:
-            f.write(builder.build())
 
         return builder
 

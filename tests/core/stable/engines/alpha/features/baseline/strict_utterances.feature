@@ -402,3 +402,17 @@ Feature: Strict Utterance
         When processing is triggered
         Then a single message event is emitted
         And the message contains roughly the text "I've added 5 skeins of Merino Wool to your order. We currently have 37 in stock." 
+
+    Scenario: The agent adheres to guidelines in field extraction (strict utterance)
+        Given an agent whose job is to provide account information
+        And that the agent uses the strict_utterance message composition mode
+        And a customer named "Alex Smith"
+        And an empty session with "Alex Smith"
+        And a context variable "account_balance" set to "1243.67" for "Alex Smith"
+        And a guideline to always round monetary amounts to the nearest dollar when responding to balance inquiries
+        And a customer message, "What's my current account balance?"
+        And an utterance, "Your current balance is ${{generative.account_balance}} as of today."
+        And an utterance, "I apologize but I don't have this information available"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "Your current balance is $1244 as of today."
