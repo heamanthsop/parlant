@@ -17,7 +17,7 @@ Feature: Strict Utterance
         And an utterance, "Your account balance is {{balance}}"
         When processing is triggered
         Then a single message event is emitted
-        Then a no-match message is emitted
+        And a no-match message is emitted
 
     Scenario: Adherence to guidelines without fabricating responses (strict utterance)
         Given a guideline "account_related_questions" to respond to the best of your knowledge when customers inquire about their account
@@ -171,7 +171,6 @@ Feature: Strict Utterance
         And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
         And a customer message, "What? Just reset my password please"
         When processing is triggered
-        When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
         And the message contains either that the password could not be reset at this time
@@ -237,7 +236,7 @@ Feature: Strict Utterance
         And a customer message, "Next Monday"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains either asking for the name of the person traveling, or informing them that they can only travel in economy class
+        And the message contains either asking for the name of the person traveling, or informing them that they can only travel are only eligible for economy class
 
     Scenario: The agent greets the customer (strict utterance)
         Given a guideline to greet with 'Howdy' when the session starts
@@ -281,8 +280,6 @@ Feature: Strict Utterance
         When processing is triggered
         Then a single message event is emitted
         And the message contains an offering of our specialty pizza
-
-# Copy from here
 
     Scenario: The agent follows response guidelines without looping out (strict utterance)
         Given a guideline to politely answer that you have no information when a user asks any questions aside from Mobileye
@@ -338,8 +335,6 @@ Feature: Strict Utterance
         Then a single message event is emitted
         And the message contains the name 'Beef'
         And the message contains a welcoming back of the customer to the store and asking how the agent could help
-
-    # Don't copy the rest
 
     Scenario: Agent chooses utterance which uses glossary (strict utterance)
         Given an agent whose job is to assist customers with specialized banking products
@@ -423,29 +418,29 @@ Feature: Strict Utterance
         When processing is triggered
         Then a single message event is emitted
         And the message contains roughly the text "We don't have 5 of that item in stock. Would you like to place a backorder?"
+        And the message contains "5" in the {quantity} field
 
-
-Scenario: The agent fills multiple fields in a veterinary appointment system (strict utterance)
-    Given an agent whose job is to schedule veterinary appointments and provide pet care information
-    And that the agent uses the strict_utterance message composition mode
-    And a customer named "Joanna"
-    And a context variable "next_available_date" set to "May 22" for "Joanna"
-    And a context variable "vet_name" set to "Dr. Happypaws" for "Joanna"
-    And a context variable "clinic_address" set to "155 Pawprint Lane" for "Joanna"
-    And an empty session with "Joanna"
-    And a guideline to provide the next available appointment details when a customer requests a checkup for their pet
-    And a customer message, "I need to schedule a routine checkup for my dog Max. He's a 5-year-old golden retriever."
-    And an utterance, "I've scheduled a checkup appointment for {{generative.pet_name}} with {{generative.vet_name}} on {{generative.appointment_date}} at our clinic located at {{generative.clinic_address}}. For a {{generative.pet_age}}-year-old {{generative.pet_breed}}, we recommend {{generative.recommended_services}}. Please arrive 15 minutes early to complete any necessary paperwork."
-    And an utterance, "We're fully booked at the moment. Please call back next week."
-    And an utterance, "What symptoms is your dog experiencing?"
-    And an utterance, "Would you prefer a morning or afternoon appointment?"
-    And an utterance, "Our next available appointment is next Tuesday. Does that work for you?"
-    When processing is triggered
-    Then a single message event is emitted
-    And the message contains "Max" in the {pet_name} field
-    And the message contains "Dr. Happypaws" in the {vet_name} field
-    And the message contains "May 22" in the {appointment_date} field
-    And the message contains "155 Pawprint Lane" in the {clinic_address} field
-    And the message contains "5" in the {pet_age} field
-    And the message contains "golden retriever" in the {pet_breed} field
-    And the message contains appropriate veterinary services for a middle-aged dog in the {recommended_services} field
+    Scenario: The agent fills multiple fields in a veterinary appointment system (strict utterance)
+        Given an agent whose job is to schedule veterinary appointments and provide pet care information
+        And that the agent uses the strict_utterance message composition mode
+        And a customer named "Joanna"
+        And a context variable "next_available_date" set to "May 22" for "Joanna"
+        And a context variable "vet_name" set to "Dr. Happypaws" for "Joanna"
+        And a context variable "clinic_address" set to "155 Pawprint Lane" for "Joanna"
+        And an empty session with "Joanna"
+        And a guideline to provide the next available appointment details when a customer requests a checkup for their pet
+        And a customer message, "I need to schedule a routine checkup for my dog Max. He's a 5-year-old golden retriever."
+        And an utterance, "I've scheduled a checkup appointment for {{generative.pet_name}} with {{generative.vet_name}} on {{generative.appointment_date}} at our clinic located at {{generative.clinic_address}}. For a {{generative.pet_age}}-year-old {{generative.pet_breed}}, we recommend {{generative.recommended_services}}. Please arrive 15 minutes early to complete any necessary paperwork."
+        And an utterance, "We're fully booked at the moment. Please call back next week."
+        And an utterance, "What symptoms is your dog experiencing?"
+        And an utterance, "Would you prefer a morning or afternoon appointment?"
+        And an utterance, "Our next available appointment is next Tuesday. Does that work for you?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains "Max" in the {pet_name} field
+        And the message contains "Dr. Happypaws" in the {vet_name} field
+        And the message contains "May 22" in the {appointment_date} field
+        And the message contains "155 Pawprint Lane" in the {clinic_address} field
+        And the message contains "5" in the {pet_age} field
+        And the message contains "golden retriever" in the {pet_breed} field
+        And the message contains appropriate veterinary services for a middle-aged dog in the {recommended_services} field
