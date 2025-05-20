@@ -608,7 +608,7 @@ async def test_that_migration_error_raised_when_version_mismatch_and_migration_d
     context: _TestContext,
 ) -> None:
     async with create_database(context) as chroma_db:
-        await chroma_db.upsert_metadata("version", "NotRealVersion")
+        await chroma_db.upsert_metadata("version", "0.0.1")
 
     async with create_database(context) as chroma_db:
         with raises(MigrationRequired) as exc_info:
