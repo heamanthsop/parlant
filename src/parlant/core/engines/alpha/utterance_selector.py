@@ -252,7 +252,7 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> Optional[str]:
-        def _get_field_extraction_guidelines_text(all_matches: Sequence[GuidelineMatch]):
+        def _get_field_extraction_guidelines_text(all_matches: Sequence[GuidelineMatch]) -> str:
             guidelines_texts = []
             for i, p in enumerate(all_matches, start=1):
                 if p.guideline.content.action:
