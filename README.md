@@ -62,18 +62,60 @@ parlant guideline create \
 
 import parlant.sdk as p
 import asyncio
+from textwrap import dedent
 
-async def start_conversation_server():
-  async with p.Server() as server:
-    agent = await server.create_agent(
-      name="Otto Carmen",
-      description="You work at a car dealership",
+
+@p.tool
+async def get_on_sale_car(context: p.ToolContext) -> p.ToolResult:
+    return p.ToolResult("Hyundai i20")
+
+@p.tool
+async def human_handoff(context: p.ToolContext) -> p.ToolResult:
+    await notify_sales(context.customer_id, context.session_id)
+
+    return p.ToolResult(
+        data="Session handed off to sales team",
+        # Disable auto-responding using the AI agent on this session
+        # following the next message.
+        control={"mode": "manual"},
     )
 
-    await agent.create_guideline(
-      condition="the user greets you",
-      action="thank them for checking out Parlant",
-    )
+
+async def start_conversation_server() -> None:
+    async with p.Server() as server:
+        agent = await server.create_agent(
+            name="Johnny",
+            description="You work at a car dealership",
+        )
+
+        journey = await agent.create_journey(
+            title="Research Car",
+            conditions=[
+                "The customer wants to buy a new car",
+                "The customer expressed general interest in new cars",
+            ],
+            description=dedent("""\
+                Help the customer come to a decision of what new car to get.
+
+                The process goes like this:
+                1. First try to actively understand their needs
+                2. Once needs are clarified, recommend relevant categories or specific models for consideration."""),
+        )
+
+        offer_on_sale_car = await journey.create_guideline(
+          condition="the customer indicates they're on a budget",
+          action="offer them a car that is on sale",
+          tools=[get_on_sale_cars],
+        )
+
+        transfer_to_sales = await journey.create_guideline(
+          condition="the customer clearly stated they wish to buy a specific car",
+          action="transfer them to the sales team",
+          tools=[human_handoff_to_sales],
+        )
+
+        await transfer_to_sales.prioritize_over(proactively_offer_on_sale_car)
+
 
 asyncio.run(start_conversation_server())
 ```
