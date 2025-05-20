@@ -182,9 +182,9 @@ async def test_event_creation(
 
     assert len(events_from_json["events"]) == 1
     json_event = events_from_json["events"][0]
-    assert json_event["kind"] == event.kind
+    assert json_event["kind"] == "message"
     assert json_event["data"] == event.data
-    assert json_event["source"] == event.source
+    assert json_event["source"] == "customer"
     assert datetime.fromisoformat(json_event["creation_utc"]) == event.creation_utc
 
 
@@ -784,7 +784,7 @@ async def test_that_version_mismatch_raises_error_when_migration_is_required_but
         json.dump(
             {
                 "metadata": [
-                    {"id": "meta_id", "version": "NotRealVersion"},
+                    {"id": "meta_id", "version": "0.0.1"},
                 ]
             },
             f,
