@@ -26,13 +26,13 @@ DEFAULT_MCP_SERVER_URL = "http://localhost"
 
 def create_client(
     server: MCPToolsServer,
-    event_emitter_factory: EventEmitterFactory,
+    container: Container,
 ) -> MCPToolClient:
     correlator = ContextualCorrelator()
     logger = StdoutLogger(correlator)
     return MCPToolClient(
         url=DEFAULT_MCP_SERVER_URL,
-        event_emitter_factory=event_emitter_factory,
+        event_emitter_factory=container[EventEmitterFactory],
         logger=logger,
         correlator=correlator,
         port=server._server.settings.port,
@@ -47,6 +47,8 @@ async def greet_me_like_pirate(name: str, lucky_number: int, am_i_the_goat: bool
 
 
 async def tool_with_date_and_float(when: datetime, factor: float) -> str:
+    assert isinstance(when, datetime), "when must be a datetime"
+    assert isinstance(factor, float), "factor must be a float"
     return f"The date is {when.isoformat()} and the factor is {factor}"
 
 
@@ -55,14 +57,14 @@ async def test_that_simple_mcp_tool_is_listed_and_called(
     agent: Agent,
 ) -> None:
     async with MCPToolsServer([greet_me_like_pirate]) as server:
-        client = create_client(server, container[EventEmitterFactory])
+        client = create_client(server, container)
         async with client:
             tool = await client.read_tool("greet_me_like_pirate")
             assert tool is not None
             result = await client.call_tool(
                 tool.name, {"name": "Short Jon Nickel", "lucky_number": 7}
             )
-            print(result)
+            assert "Ahoy Short Jon Nickel! I doubled your lucky number to 14 !" in result.data
 
 
 async def test_that_another_simple_mcp_tool_is_listed_and_called(
@@ -70,11 +72,11 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
     agent: Agent,
 ) -> None:
     async with MCPToolsServer([tool_with_date_and_float, greet_me_like_pirate]) as server:
-        client = create_client(server, container[EventEmitterFactory])
+        client = create_client(server, container)
         async with client:
             tools = await client.list_tools()
             assert tools is not None and len(tools) == 2
             tool = await client.read_tool("tool_with_date_and_float")
             assert tool is not None
-            result = await client.call_tool(tool.name, {"when": datetime.now(), "factor": 2.3})
-            print(result)
+            result = await client.call_tool(tool.name, {"when": "2025-01-20 12:05", "factor": 2.3})
+            assert "The date is 2025-01-20T12:05:00 and the factor is 2.3" in result.data
