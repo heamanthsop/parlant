@@ -456,7 +456,7 @@ def legacy_create_router(
     @router.post(
         "/evaluations",
         status_code=status.HTTP_201_CREATED,
-        operation_id="create_evaluation",
+        operation_id="legacy_create_evaluation",
         response_model=LegacyEvaluationDTO,
         responses={
             status.HTTP_201_CREATED: {
@@ -503,7 +503,7 @@ def legacy_create_router(
 
     @router.get(
         "/evaluations/{evaluation_id}",
-        operation_id="read_evaluation",
+        operation_id="legacy_read_evaluation",
         response_model=LegacyEvaluationDTO,
         responses={
             status.HTTP_200_OK: {
