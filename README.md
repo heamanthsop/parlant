@@ -36,24 +36,50 @@ Parlant is the open-source engine for controlled, compliant, and purposeful gene
 ## Introduction Video
 [![Parlant Introduction](https://github.com/emcie-co/parlant/blob/develop/yt-preview.png?raw=true)](https://www.youtube.com/watch?v=_39ERIb0100)
 
-1. Install
+#### Install
 ```bash
 pip install parlant
 ```
 
-2. Start the server and start interact with the default agent
+#### Option 1: Use the CLI
+Start the server and start interact with the default agent
 ```bash
 parlant-server run
 # Now visit http://localhost:8800
 ```
 
-3. Add behavioral guidelines and let Parlant do the rest
+Add behavioral guidelines and let Parlant do the rest
 ```bash
 parlant guideline create \
     --condition "the user greets you" \
     --action "thank them for checking out Parlant"
 # Now start a new conversation and greet the agent
 ```
+
+#### Option 2: Use the Python SDK
+```python
+# file: agent.py
+
+import parlant.sdk as p
+import asyncio
+
+async def start_conversation_server():
+  async with p.Server() as server:
+    agent = await server.create_agent(
+      name="Otto Carmen",
+      description="You work at a car dealership",
+    )
+
+    await agent.create_guideline(
+      condition="the user greets you",
+      action="thank them for checking out Parlant",
+    )
+
+asyncio.run(start_conversation_server())
+```
+
+Run `python agent.py` and visit `http://localhost:8800`.
+
 
 ## Quick Demo
 <img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/ParlantGIF.gif?raw=true" />
