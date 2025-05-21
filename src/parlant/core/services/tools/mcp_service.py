@@ -211,19 +211,27 @@ def mcp_parameter_to_parlant_parameter(
     if "$ref" in mcp_param:
         """ Reference to another schema - currently only enum is supported"""
         def_ = resolve_ref(mcp_param["$ref"], schema)
-        if "properties" in def_ or "enum" not in def_:
-            raise FormatError("Only enum references are supported")
-        if def_.get("type", None) != "string":
-            raise FormatError("Only string enums are supported")
-        return ToolParameterDescriptor(type="string", description=description, enum=def_["enum"])
+        return parse_enum_def(def_)
 
     if param_type == "array":
         """ Currently only lists and sets are supported """
         if "items" not in mcp_param:
             raise FormatError("Only lists and sets are supported collections")
+
+        enum_desc = None
+        if "$ref" in mcp_param["items"]:
+            """ Reference to another schema - currently only enum is supported"""
+            def_ = resolve_ref(mcp_param["items"]["$ref"], schema)
+            enum_desc = parse_enum_def(def_)
+
         return ToolParameterDescriptor(
             type="array",
-            item_type=mcp_parameter_type_map[(mcp_param["items"]["type"], None)],
+            item_type=(
+                enum_desc["type"]
+                if enum_desc
+                else mcp_parameter_type_map[(mcp_param["items"]["type"], None)]
+            ),
+            enum=(enum_desc["enum"] if enum_desc else None),
             description=mcp_param.get("title", ""),
         )
 
@@ -239,3 +247,12 @@ def resolve_ref(ref: str, schema: dict[str, any]) -> dict[str, any]:
             raise FormatError(f"Reference #{ref} not found in schema")
         schema = schema[part]
     return schema
+
+
+def parse_enum_def(def_: dict[str, any]) -> ToolParameterDescriptor:
+    if "properties" in def_ or "enum" not in def_:
+        raise FormatError("Only enum references are supported")
+    if def_.get("type", None) != "string":
+        raise FormatError("Only string enums are supported")
+    description = def_.get("description", None)
+    return ToolParameterDescriptor(type="string", description=description, enum=def_["enum"])

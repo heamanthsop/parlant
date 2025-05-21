@@ -13,6 +13,10 @@
 # limitations under the License.
 
 from datetime import datetime
+from enum import Enum
+from random import randint
+import socket
+import sys
 from parlant.core.services.tools.mcp_service import MCPToolsServer, MCPToolClient
 from lagom import Container
 from parlant.core.agents import Agent
@@ -22,6 +26,30 @@ from parlant.core.loggers import StdoutLogger
 
 
 DEFAULT_MCP_SERVER_URL = "http://localhost"
+
+
+def is_port_available(port: int, host="localhost") -> bool:
+    available = True
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.1)  # Short timeout for faster testing
+        sock.bind((host, port))
+    except (socket.error, OSError):
+        available = False
+    finally:
+        sock.close()
+
+    return available
+
+
+def get_random_port(
+    min_port: int = 10240, max_port: int = 65535, max_iterations=sys.maxsize
+) -> int:
+    iter = 0
+    while not is_port_available(port := randint(min_port, max_port)) and iter < max_iterations:
+        iter += 1
+        pass
+    return port
 
 
 def create_client(
@@ -56,7 +84,7 @@ async def test_that_simple_mcp_tool_is_listed_and_called(
     container: Container,
     agent: Agent,
 ) -> None:
-    async with MCPToolsServer([greet_me_like_pirate]) as server:
+    async with MCPToolsServer([greet_me_like_pirate], port=get_random_port()) as server:
         client = create_client(server, container)
         async with client:
             tool = await client.read_tool("greet_me_like_pirate")
@@ -71,7 +99,9 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
     container: Container,
     agent: Agent,
 ) -> None:
-    async with MCPToolsServer([tool_with_date_and_float, greet_me_like_pirate]) as server:
+    async with MCPToolsServer(
+        [tool_with_date_and_float, greet_me_like_pirate], port=get_random_port()
+    ) as server:
         client = create_client(server, container)
         async with client:
             tools = await client.list_tools()
@@ -80,3 +110,30 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
             assert tool is not None
             result = await client.call_tool(tool.name, {"when": "2025-01-20 12:05", "factor": 2.3})
             assert "The date is 2025-01-20T12:05:00 and the factor is 2.3" in result.data
+
+
+async def test_mcp_tool_is_called_with_enum_list_and_bool_list(
+    container: Container,
+    agent: Agent,
+) -> None:
+    class JustEnum(Enum):
+        a = "a"
+        b = "b"
+        c = "c"
+
+    def tool_with_two_lists(
+        enum_list: list[JustEnum],
+        bool_list: list[bool],
+    ) -> str:
+        return f"The enum list is {enum_list} and the bool list is {bool_list}"
+
+    async with MCPToolsServer([tool_with_two_lists], port=get_random_port()) as server:
+        client = create_client(server, container)
+        async with client:
+            tool = await client.read_tool("tool_with_two_lists")
+            assert tool is not None
+            result = await client.call_tool(
+                tool.name,
+                {"enum_list": ["a", "b", "c", "a"], "bool_list": [True, False, True]},
+            )
+            assert "The enum list is" in result.data
