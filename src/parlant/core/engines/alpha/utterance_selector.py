@@ -1044,10 +1044,7 @@ Output a JSON object with a two properties:
             selection_response.content.match_quality not in ["partial", "high"]
             or not selection_response.content.chosen_template_id
         ):
-            if composition_mode in [
-                CompositionMode.STRICT_UTTERANCE,
-                CompositionMode.COMPOSITED_UTTERANCE,
-            ]:
+            if composition_mode == CompositionMode.STRICT_UTTERANCE:
                 self._logger.warning(
                     "Failed to find relevant utterances. Please review utterance selection prompt and completion."
                 )
@@ -1057,13 +1054,27 @@ Output a JSON object with a two properties:
                     "selection": selection_response.info,
                 }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
             else:
-                raise FluidUtteranceFallback()
+                return {
+                    "draft": draft_response.info,
+                    "selection": selection_response.info,
+                }, _UtteranceSelectionResult(
+                    message=draft_response.content.message,
+                    draft=draft_response.content.message,
+                    utterances=[],
+                )
 
         if (
             selection_response.content.match_quality == "partial"
             and composition_mode == CompositionMode.FLUID_UTTERANCE
         ):
-            raise FluidUtteranceFallback()
+            return {
+                "draft": draft_response.info,
+                "selection": selection_response.info,
+            }, _UtteranceSelectionResult(
+                message=draft_response.content.message,
+                draft=draft_response.content.message,
+                utterances=[],
+            )
 
         utterance_id = UtteranceId(selection_response.content.chosen_template_id)
 
