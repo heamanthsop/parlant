@@ -615,17 +615,30 @@ class UtteranceSelector(MessageEventComposer):
                         events.append(event)
 
                         if next_message := sub_messages[0] if sub_messages else None:
-                            word_count = len(next_message.split())
-
-                            if word_count <= 10:
-                                initial_delay = 1.5
-                            else:
-                                initial_delay = 2
-
                             typing_speed_in_words_per_minute = 50
 
+                            initial_delay = 0.0
+
+                            word_count_for_the_message_that_was_just_sent = len(m.split())
+
+                            if word_count_for_the_message_that_was_just_sent <= 10:
+                                initial_delay += 0.5
+                            else:
+                                initial_delay += (
+                                    word_count_for_the_message_that_was_just_sent
+                                    / typing_speed_in_words_per_minute
+                                ) * 2
+
+                            word_count_for_next_message = len(next_message.split())
+
+                            if word_count_for_next_message <= 10:
+                                initial_delay += 1
+                            else:
+                                initial_delay += 2
+
                             await asyncio.sleep(
-                                initial_delay + (word_count / typing_speed_in_words_per_minute)
+                                initial_delay
+                                + (word_count_for_next_message / typing_speed_in_words_per_minute)
                             )
 
                     return [MessageEventComposition(generation_info, events)]
