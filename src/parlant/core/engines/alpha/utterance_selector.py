@@ -615,7 +615,7 @@ class UtteranceSelector(MessageEventComposer):
                         events.append(event)
 
                         if next_message := sub_messages[0] if sub_messages else None:
-                            initial_delay = 2
+                            initial_delay = 3
                             typing_speed_in_words_per_minute = 50
                             word_count = len(next_message.split())
                             await asyncio.sleep(
