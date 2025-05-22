@@ -31,7 +31,6 @@ from tests.e2e.test_utilities import (
 from tests.test_utilities import (
     OPENAPI_SERVER_BASE_URL,
     SERVER_ADDRESS,
-    rng_app,
     run_openapi_server,
     run_service_server,
 )
@@ -72,7 +71,7 @@ async def test_that_an_agent_can_be_added(context: ContextOfTest) -> None:
     name = "TestAgent"
     description = "This is a test agent"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "agent",
             "create",
@@ -126,7 +125,7 @@ async def test_that_an_agent_can_be_updated(
     new_description = "Updated description"
     new_max_engine_iterations = 5
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "agent",
             "update",
@@ -159,7 +158,7 @@ async def test_that_an_agent_can_be_deleted(
 ) -> None:
     name = "Test Agent"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         agent = await context.api.create_agent(name=name)
 
         assert (
@@ -182,7 +181,7 @@ async def test_that_sessions_can_be_listed(
     second_title = "Second Title"
     third_title = "Third Title"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         agent_id = (await context.api.get_first_agent())["id"]
         _ = await context.api.create_session(
             agent_id=agent_id, customer_id=first_customer, title=first_title
@@ -232,7 +231,7 @@ async def test_that_session_can_be_updated(
 ) -> None:
     session_title = "Old Title"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         agent_id = (await context.api.get_first_agent())["id"]
         session_id = (await context.api.create_session(agent_id=agent_id, title=session_title))[
             "id"
@@ -262,7 +261,7 @@ async def test_that_a_term_can_be_created_with_synonyms(
     description = "when and then statements"
     synonyms = "rule, principle"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "glossary",
             "create",
@@ -288,7 +287,7 @@ async def test_that_a_term_can_be_created_without_synonyms(
     term_name = "guideline_no_synonyms"
     description = "simple guideline with no synonyms"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "glossary",
             "create",
@@ -322,7 +321,7 @@ async def test_that_a_term_can_be_updated(
     new_description = "then and when statements "
     new_synonyms = "instructions"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         term_to_update = await context.api.create_term(name, description, synonyms)
 
         process = await run_cli(
@@ -358,7 +357,7 @@ async def test_that_a_term_can_be_deleted(
     description = "to be deleted"
     synonyms = "rule, principle"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         term = await context.api.create_term(name, description, synonyms)
 
         process = await run_cli(
@@ -385,7 +384,7 @@ async def test_that_a_guideline_can_be_added(
     condition = "the customer greets you"
     action = "greet them back with 'Hello'"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "guideline",
             "create",
@@ -413,7 +412,7 @@ async def test_that_a_guideline_can_be_updated(
     initial_action = "offer assistance"
     updated_action = "provide detailed support information"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         guideline = await context.api.create_guideline(condition=condition, action=initial_action)
 
         process = await run_cli(
@@ -451,7 +450,7 @@ async def test_that_guidelines_can_be_entailed(
     condition2 = "customer ask about a certain subject"
     action2 = "offer detailed explanation"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         process = await run_cli(
             "guideline",
             "create",
@@ -522,7 +521,7 @@ async def test_that_guidelines_can_be_entailed(
 async def test_that_a_guideline_can_be_deleted(
     context: ContextOfTest,
 ) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         guideline = await context.api.create_guideline(
             condition="the customer greets you", action="greet them back with 'Hello'"
         )
@@ -548,7 +547,7 @@ async def test_that_a_guideline_can_be_deleted(
 async def test_that_a_tool_can_be_enabled_for_a_guideline(
     context: ContextOfTest,
 ) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         guideline = await context.api.create_guideline(
             condition="the customer wants to get meeting details",
             action="get meeting event information",
@@ -606,7 +605,7 @@ async def test_that_a_tool_can_be_enabled_for_a_guideline(
 async def test_that_a_tool_can_be_disabled_for_a_guideline(
     context: ContextOfTest,
 ) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         guideline = await context.api.create_guideline(
             condition="the customer wants to get meeting details",
             action="get meeting event information",
@@ -668,7 +667,7 @@ async def test_that_variables_can_be_listed(
     name2 = "VAR2"
     description2 = "SECOND"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         _ = await context.api.create_context_variable(name1, description1)
         _ = await context.api.create_context_variable(name2, description2)
 
@@ -696,7 +695,7 @@ async def test_that_a_variable_can_be_added(
     name = "test_variable_cli"
     description = "Variable added via CLI"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         service_name = "local_service"
         tool_name = "fetch_event_data"
         service_kind = "sdk"
@@ -772,7 +771,7 @@ async def test_that_a_variable_can_be_updated(
     tool_name = "fetch_account_balance"
     freshness_rules = "0 0,6,12,18 * * *"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(name, description)
 
         service_name = "local_service"
@@ -836,7 +835,7 @@ async def test_that_a_variable_can_be_deleted(
     name = "test_variable_to_delete"
     description = "Variable to be deleted via CLI"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(name, description)
 
         process = await run_cli(
@@ -865,7 +864,7 @@ async def test_that_a_variable_value_can_be_set_with_json(
     key = "test_key"
     data: dict[str, Any] = {"test": "data", "type": 27}
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(variable_name, variable_description)
 
         process = await run_cli(
@@ -898,7 +897,7 @@ async def test_that_a_variable_value_can_be_set_with_string(
     key = "test_key"
     data = "test_string"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(variable_name, variable_description)
 
         process = await run_cli(
@@ -935,7 +934,7 @@ async def test_that_a_variables_values_can_be_retrieved(
         "key3": "data3",
     }
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(variable_name, variable_description)
 
         for key, data in values.items():
@@ -989,7 +988,7 @@ async def test_that_a_variable_value_can_be_deleted(
     key = "DEFAULT"
     value = "test-value"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         variable = await context.api.create_context_variable(name, description="")
         _ = await context.api.update_context_variable_value(
             variable_id=variable["id"],
@@ -1017,7 +1016,7 @@ async def test_that_a_variable_value_can_be_deleted(
 async def test_that_a_message_can_be_inspected(
     context: ContextOfTest,
 ) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         guideline = await context.api.create_guideline(
             condition="the customer talks about cows",
             action="address the customer by his first name and say you like Pepsi",
@@ -1080,10 +1079,10 @@ async def test_that_an_openapi_service_can_be_added_via_file(
     service_name = "test_openapi_service"
     service_kind = "openapi"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-        async with run_openapi_server(rng_app(port=port), port=port):
+        async with run_openapi_server(port=port):
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{url}/openapi.json")
                 response.raise_for_status()
@@ -1126,10 +1125,10 @@ async def test_that_an_openapi_service_can_be_added_via_url(
     service_name = "test_openapi_service_via_url"
     service_kind = "openapi"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-        async with run_openapi_server(rng_app(port=port), port=port):
+        async with run_openapi_server(port=port):
             source = url + "/openapi.json"
 
             assert (
@@ -1172,7 +1171,7 @@ async def test_that_a_sdk_service_can_be_added(
         and displayed such that the customer can easily read and understand it."""
         return ToolResult(param * 2)
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         async with run_service_server([sample_tool]) as server:
             assert (
                 await run_cli_and_get_exit_status(
@@ -1203,10 +1202,10 @@ async def test_that_a_service_can_be_deleted(
 ) -> None:
     service_name = "test_service_to_delete"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-        async with run_openapi_server(rng_app(port=port), port=port):
+        async with run_openapi_server(port=port):
             await context.api.create_openapi_service(service_name, url)
 
         process = await run_cli(
@@ -1236,10 +1235,10 @@ async def test_that_services_can_be_listed(
     service_name_1 = "test_openapi_service_1"
     service_name_2 = "test_openapi_service_2"
 
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-        async with run_openapi_server(rng_app(port=port), port=port):
+        async with run_openapi_server(port=port):
             await context.api.create_openapi_service(service_name_1, url)
             await context.api.create_openapi_service(service_name_2, url)
 
@@ -1267,8 +1266,8 @@ async def test_that_a_service_can_be_viewed(
     service_name = "test_service_view"
     service_url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
 
-    with run_server(context, randomize_port=True):
-        async with run_openapi_server(rng_app(port=port), port=port):
+    with run_server(context):
+        async with run_openapi_server(port=port):
             await context.api.create_openapi_service(service_name, service_url)
 
         process = await run_cli(
@@ -1298,7 +1297,7 @@ async def test_that_a_service_can_be_viewed(
 
 
 async def test_that_customers_can_be_listed(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         await context.api.create_customer(name="First Customer")
         await context.api.create_customer(name="Second Customer")
 
@@ -1318,7 +1317,7 @@ async def test_that_customers_can_be_listed(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_can_be_added(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         assert (
             await run_cli_and_get_exit_status(
                 "customer",
@@ -1335,7 +1334,7 @@ async def test_that_a_customer_can_be_added(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_can_be_updated(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer = await context.api.create_customer("TestCustomer")
 
         assert (
@@ -1356,7 +1355,7 @@ async def test_that_a_customer_can_be_updated(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_can_be_viewed(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
 
         process = await run_cli(
@@ -1377,7 +1376,7 @@ async def test_that_a_customer_can_be_viewed(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_can_be_deleted(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
 
         assert (
@@ -1396,7 +1395,7 @@ async def test_that_a_customer_can_be_deleted(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_extra_can_be_added(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
 
         assert (
@@ -1419,7 +1418,7 @@ async def test_that_a_customer_extra_can_be_added(context: ContextOfTest) -> Non
 
 
 async def test_that_a_customer_extra_can_be_deleted(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (
             await context.api.create_customer(name="TestCustomer", extra={"key1": "value1"})
         )["id"]
@@ -1442,7 +1441,7 @@ async def test_that_a_customer_extra_can_be_deleted(context: ContextOfTest) -> N
 
 
 async def test_that_a_customer_tag_can_be_added(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
         tag_id = (await context.api.create_tag(name="TestTag"))["id"]
 
@@ -1464,7 +1463,7 @@ async def test_that_a_customer_tag_can_be_added(context: ContextOfTest) -> None:
 
 
 async def test_that_a_customer_tag_can_be_deleted(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
         tag_id = (await context.api.create_tag(name="TestTag"))["id"]
         await context.api.add_customer_tag(customer_id, tag_id)
@@ -1487,7 +1486,7 @@ async def test_that_a_customer_tag_can_be_deleted(context: ContextOfTest) -> Non
 
 
 async def test_that_a_tag_can_be_added(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         tag_name = "TestTag"
 
         assert (
@@ -1506,7 +1505,7 @@ async def test_that_a_tag_can_be_added(context: ContextOfTest) -> None:
 
 
 async def test_that_tags_can_be_listed(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         await context.api.create_tag("FirstTag")
         await context.api.create_tag("SecondTag")
 
@@ -1526,7 +1525,7 @@ async def test_that_tags_can_be_listed(context: ContextOfTest) -> None:
 
 
 async def test_that_a_tag_can_be_updated(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         tag_id = (await context.api.create_tag("TestViewTag"))["id"]
         new_name = "UpdatedTagName"
 
@@ -1548,7 +1547,7 @@ async def test_that_a_tag_can_be_updated(context: ContextOfTest) -> None:
 
 
 async def test_that_utterances_can_be_initialized(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file_path = tmp_file.name
         tmp_file.close()
@@ -1573,7 +1572,7 @@ async def test_that_utterances_can_be_initialized(context: ContextOfTest) -> Non
 
 
 async def test_that_utterances_can_be_loaded(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         await context.api.create_tag("testTag1")
         await context.api.create_tag("testTag2")
 
@@ -1631,7 +1630,7 @@ async def test_that_utterances_can_be_loaded(context: ContextOfTest) -> None:
 
 
 async def test_that_guidelines_can_be_enabled(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         first_guideline = await context.api.create_guideline(
             condition="the customer greets you",
             action="greet them back with 'Hello'",
@@ -1675,7 +1674,7 @@ async def test_that_guidelines_can_be_enabled(context: ContextOfTest) -> None:
 
 
 async def test_that_guidelines_can_be_disabled(context: ContextOfTest) -> None:
-    with run_server(context, randomize_port=True):
+    with run_server(context):
         first_guideline = await context.api.create_guideline(
             condition="the customer greets you",
             action="greet them back with 'Hello'",
@@ -1712,9 +1711,6 @@ async def test_that_a_guideline_can_be_created_with_tool_id(
     tool_id = "parameter_types:give_number_types"
 
     with run_server(context):
-        while not is_server_responsive(SERVER_PORT):
-            pass
-
         service_name = "parameter_types"
         tool_name = "give_number_types"
 

@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 import hashlib
 import json
 import logging
+import socket
+import sys
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from random import randint
@@ -556,7 +558,7 @@ async def run_service_server(
     tools: list[ToolEntry], plugin_data: Mapping[str, Any] = {}, port: int = 0
 ) -> AsyncIterator[PluginServer]:
     if port == 0:
-        port = randint(50001, 65535)
+        port = get_random_port(50001, 65535)
     async with PluginServer(
         tools=tools,
         port=port,
@@ -632,6 +634,30 @@ def rng_app(port: int = OPENAPI_SERVER_PORT) -> FastAPI:
     return app
 
 
+def is_port_available(port: int, host: str = "localhost") -> bool:
+    available = True
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.1)  # Short timeout for faster testing
+        sock.bind((host, port))
+    except (socket.error, OSError):
+        available = False
+    finally:
+        sock.close()
+
+    return available
+
+
+def get_random_port(
+    min_port: int = 1024, max_port: int = 65535, max_iterations: int = sys.maxsize
+) -> int:
+    iter = 0
+    while not is_port_available(port := randint(min_port, max_port)) and iter < max_iterations:
+        iter += 1
+        pass
+    return port
+
+
 class DummyDTO(DefaultBaseModel):
     number: int
     text: str
@@ -642,7 +668,13 @@ async def dto_object(dto: DummyDTO) -> JSONResponse:
 
 
 @asynccontextmanager
-async def run_openapi_server(app: FastAPI, port: int = OPENAPI_SERVER_PORT) -> AsyncIterator[None]:
+async def run_openapi_server(app: Optional[FastAPI] = None, port: int = 0) -> AsyncIterator[None]:
+    if port == 0:
+        port = get_random_port(10001, 65535)
+
+    if app is None:
+        app = rng_app(port=port)
+
     config = uvicorn.Config(app=app, port=port)
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())

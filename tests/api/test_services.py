@@ -14,7 +14,6 @@
 
 import json
 import os
-from random import randint
 import tempfile
 from fastapi import status
 import httpx
@@ -26,7 +25,7 @@ from parlant.core.services.tools.service_registry import ServiceRegistry
 
 from tests.test_utilities import (
     OPENAPI_SERVER_BASE_URL,
-    rng_app,
+    get_random_port,
     run_openapi_server,
     run_service_server,
 )
@@ -76,9 +75,9 @@ async def test_that_sdk_service_fails_to_create_due_to_url_not_starting_with_htt
 async def test_that_openapi_service_is_created_with_url_source(
     async_client: httpx.AsyncClient,
 ) -> None:
-    port = randint(10000, 50000)
+    port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-    async with run_openapi_server(rng_app(port=port), port=port):
+    async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
 
         response = await async_client.put(
@@ -172,9 +171,9 @@ async def test_that_sdk_service_is_created_and_deleted(
 async def test_that_openapi_service_is_created_and_deleted(
     async_client: httpx.AsyncClient,
 ) -> None:
-    port = randint(10000, 50000)
+    port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-    async with run_openapi_server(rng_app(port=port), port=port):
+    async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
 
         _ = (
@@ -217,9 +216,9 @@ async def test_that_services_can_be_listed(
         .json()
     )
 
-    port = randint(10000, 50000)
+    port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-    async with run_openapi_server(rng_app(port=port), port=port):
+    async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
         response = await async_client.put(
             "/services/my_openapi_service",
@@ -253,9 +252,9 @@ async def test_that_reading_an_existing_openapi_service_returns_its_metadata_and
     container: Container,
 ) -> None:
     service_registry = container[ServiceRegistry]
-    port = randint(10000, 50000)
+    port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
-    async with run_openapi_server(rng_app(port=port), port=port):
+    async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
         await service_registry.update_tool_service(
             name="my_openapi_service",
