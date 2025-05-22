@@ -254,7 +254,7 @@ const SessionView = (): ReactElement => {
 												isFirstMessageInDate={!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc)}
 												isRegenerateHidden={!!isMissingAgent}
 												event={event}
-												isContinual={event.source === visibleMessages[i - 1]?.source}
+												isContinual={event.correlation_id === visibleMessages[i - 1]?.correlation_id}
 												regenerateMessageFn={regenerateMessageDialog(i)}
 												resendMessageFn={resendMessageDialog(i)}
 												showLogsForMessage={showLogsForMessage}
