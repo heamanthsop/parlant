@@ -157,7 +157,7 @@ const SessionView = (): ReactElement => {
 		const lastStatusEventStaus = lastStatusEvent?.data?.status;
 
 		if (lastStatusEventStaus) {
-			setShowThinking(!!messages?.length && lastStatusEventStaus === 'processing');
+			setShowThinking(lastStatusEventStaus === 'processing');
 			setShowTyping(lastStatusEventStaus === 'typing');
 		}
 
