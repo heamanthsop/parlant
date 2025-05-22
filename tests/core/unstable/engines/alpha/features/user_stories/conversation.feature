@@ -31,7 +31,7 @@ Feature: Conversation
         Then a single message event is emitted
         And the message contains no rudeness to tell the user to go away
 
-    Scenario: The agent correctly applies greeting guidelines based on auxillary data
+    Scenario: The agent correctly applies greeting guidelines based on auxiliary data
         Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
         And a customer named "Beef Wellington"
         And an empty session with "Beef Wellingotn"

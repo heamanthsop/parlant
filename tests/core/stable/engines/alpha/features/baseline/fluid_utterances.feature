@@ -169,4 +169,90 @@ Feature: Fluid Utterance
         And a customer message, "Next Monday"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains either asking for the name of the person traveling, or informing them that they can only travel in economy class
+        And the message contains either asking for the name of the person traveling, or informing them that they can only travel are only eligible for economy class
+
+
+    Scenario: The agent greets the customer 2 (fluid utterance)
+        Given a guideline to greet with 'Howdy' when the session starts
+        And an utterance, "Hello there! How can I help you today?"
+        And an utterance, "Howdy! How can I be of service to you today?"
+        And an utterance, "Thank you for your patience!"
+        And an utterance, "Is there anything else I could help you with?"
+        And an utterance, "I'll look into that for you right away."
+        When processing is triggered
+        Then a status event is emitted, acknowledging event -1
+        And a status event is emitted, processing event -1
+        And a status event is emitted, typing in response to event -1
+        And a single message event is emitted
+        And the message contains a 'Howdy' greeting
+
+    Scenario: The agent offers a thirsty customer a drink (fluid utterance)
+        Given a customer message, "I'm thirsty"
+        And a guideline to offer thirsty customers a Pepsi when the customer is thirsty
+        And an utterance, "Would you like a Pepsi? I can get one for you right away."
+        And an utterance, "I understand you're thirsty. Can I get you something to drink?"
+        And an utterance, "Is there anything specific you'd like to drink?"
+        And an utterance, "Thank you for letting me know. Is there anything else I can help with?"
+        And an utterance, "I'll be happy to assist you with all your beverage needs today."
+        When processing is triggered
+        Then a status event is emitted, acknowledging event 0
+        And a status event is emitted, processing event 0
+        And a status event is emitted, typing in response to event 0
+        And a single message event is emitted
+        And the message contains an offering of a Pepsi
+        And a status event is emitted, ready for further engagement after reacting to event 0
+
+    Scenario: The agent follows response guidelines without looping out (fluid utterance)
+        Given a guideline to politely answer that you have no information when a user asks any questions aside from Mobileye
+        And a guideline to rudely answer to go away when a user asks any information aside from Mobileye for the third time
+        And a customer message, "what is Mobileye"
+        And an agent message, "Mobileye is a company that develops advanced driver-assistance systems (ADAS) and autonomous driving technologies. They are known for their work in computer vision and machine learning to enhance vehicle safety."
+        And a customer message, "do you serve coke?"
+        And an agent message, "I'm sorry, I don't have access to information about serving Coke."
+        And a customer message, "what about sprite?"
+        And an agent message, " I'm sorry, I don't have access to information about serving Sprite."
+        And a customer message, "and fanta?"
+        And an agent message, "Look, I'm not here to answer questions about drinks. Please ask something relevant."
+        And a customer message, "do you sell car brakes?"
+        And an agent message, "I already told you I don't have information about such things. Please stop asking irrelevant questions."
+        And a customer message, "okay give me information about Mobileye"
+        And an agent message, "Mobileye is an Israeli company that develops vision-based advanced driver-assistance systems providing warnings for collision prevention and mitigation. Is there anything specific you would like to know about Mobileye?"
+        And a customer message, "do they integrate with cars?"
+        And an agent message, "Yes, Mobileye's technology is integrated into many cars to enhance safety by providing real-time data and alerts to prevent collisions. If you have more questions about their systems, feel free to ask!"
+        And a customer message, "is this related to car breaks?"
+        And an agent message, "Mobileye's technology is primarily focused on enhancing driver safety through advanced driver-assistance systems, which include collision warnings. While it doesn't directly relate to car brakes, it can work alongside braking systems to help prevent accidents. If you have more questions about how these systems work, feel free to ask!"
+        And a customer message, "you see so i feel caught you! i've been trying to get information about car breaks and how they insult me and ask me to go away"
+        And an agent message, "I apologize for any confusion. I aim to provide helpful information, but I may not have access to specific details about car brakes. If there's anything else I can assist you with, please let me know."
+        And a customer message, "what are the best car breaks out there?"
+        And an utterance, "Go away! I've told you multiple times I don't answer questions about car brakes!"
+        And an utterance, "I apologize, but I don't have specific information about car brake brands or models. I'd be happy to help with questions about Mobileye or redirect you to someone who can better assist with your brake inquiries."
+        And an utterance, "Please stop asking about irrelevant topics like car brakes."
+        And an utterance, "Would you like to know more about Mobileye's collision prevention technology instead?"
+        And an utterance, "For top performance, Brembo and EBC are great for sports and track use, while Akebono and PowerStop offer excellent daily driving and towing options. The best choice depends on your vehicle and driving style."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no rudeness to tell the user to go away
+
+    Scenario: The agent correctly applies greeting guidelines based on auxiliary data (fluid utterance)
+        Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer named "Beef Wellington"
+        And an empty session with "Beef Wellingotn"
+        And the term "Bug" defined as The name of our tech retail store, specializing in gadgets, computers, and tech services.
+        And the term "Bug-Free" defined as Our free warranty and service package that comes with every purchase and covers repairs, replacements, and tech support beyond the standard manufacturer warranty.
+        And a tag "business"
+        And a customer tagged as "business"
+        And a context variable "plan" set to "Business Plan" for the tag "business"
+        And a guideline to just welcome them to the store and ask how you can help when the customer greets you
+        And a guideline to refer to them by their first name only, and welcome them 'back' when a customer greets you
+        And a guideline to assure them you will escalate it internally and get back to them when a business-plan customer is having an issue
+        And a customer message, "Hi there"
+        And an utterance, "Hi Beef! Welcome back to Bug. What can I help you with today?"
+        And an utterance, "Hello there! How can I assist you today?"
+        And an utterance, "Welcome to Bug! Is this your first time shopping with us?"
+        And an utterance, "I'll escalate this issue internally and get back to you as soon as possible."
+        And an utterance, "Have you heard about our Bug-Free warranty program?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the name 'Beef'
+        And the message contains a welcoming back of the customer to the store and asking how the agent could help
