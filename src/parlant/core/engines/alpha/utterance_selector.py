@@ -1139,7 +1139,9 @@ Output a JSON object with a two properties:
             }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
 
         match composition_mode:
-            case CompositionMode.COMPOSITED_UTTERANCE:
+            case CompositionMode.COMPOSITED_UTTERANCE if (
+                selection_response.content.match_quality != "high"
+            ):
                 recomposition_generation_info, recomposed_utterance = await self._recompose(
                     context,
                     draft_response.content.message,
@@ -1155,7 +1157,7 @@ Output a JSON object with a two properties:
                     draft=draft_response.content.message,
                     utterances=[(utterance_id, utterance)],
                 )
-            case CompositionMode.STRICT_UTTERANCE | CompositionMode.FLUID_UTTERANCE:
+            case _:
                 return {
                     "draft": draft_response.info,
                     "selection": selection_response.info,
