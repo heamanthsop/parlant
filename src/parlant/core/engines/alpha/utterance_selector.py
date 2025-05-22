@@ -618,9 +618,9 @@ class UtteranceSelector(MessageEventComposer):
                             word_count = len(next_message.split())
 
                             if word_count <= 10:
-                                initial_delay = 2
+                                initial_delay = 1
                             else:
-                                initial_delay = 3
+                                initial_delay = 2
 
                             typing_speed_in_words_per_minute = 50
 
