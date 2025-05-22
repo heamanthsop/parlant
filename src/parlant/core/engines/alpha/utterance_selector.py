@@ -627,7 +627,7 @@ class UtteranceSelector(MessageEventComposer):
                                 initial_delay += (
                                     word_count_for_the_message_that_was_just_sent
                                     / typing_speed_in_words_per_minute
-                                ) * 2
+                                ) * 3
 
                             word_count_for_next_message = len(next_message.split())
 
