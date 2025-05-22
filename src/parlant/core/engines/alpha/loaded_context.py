@@ -27,6 +27,7 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.glossary import Term
 from parlant.core.guidelines import Guideline
 from parlant.core.journeys import Journey
+from parlant.core.loggers import Logger
 from parlant.core.sessions import Event, EventKind, EventSource, Session, ToolEventData
 from parlant.core.tools import ToolId, ToolResult
 
@@ -85,6 +86,9 @@ class LoadedContext:
 
     info: Context
     """The raw call context which is here represented in its loaded form"""
+
+    logger: Logger
+    """The logger used to log messages in the current context"""
 
     correlation_id: str
     """The correlation ID for the current context"""
