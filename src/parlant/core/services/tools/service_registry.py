@@ -139,14 +139,14 @@ class ServiceDocumentRegistry(ServiceRegistry):
         self,
         service: ToolService,
     ) -> OpenAPIClient | PluginClient | MCPToolClient:
-        if isinstance(service, OpenAPIClient):
-            return service
-        elif isinstance(service, PluginClient):
-            return cast(PluginClient, service)
-        elif isinstance(service, MCPToolClient):
-            return cast(MCPToolClient, service)
-        else:
+        if not (
+            isinstance(service, OpenAPIClient)
+            or isinstance(service, PluginClient)
+            or isinstance(service, MCPToolClient)
+        ):
             raise ValueError("Unsupported ToolService class.")
+
+        return service
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_ToolServiceDocument]:
         if doc["version"] == "0.1.0":
@@ -215,6 +215,8 @@ class ServiceDocumentRegistry(ServiceRegistry):
         name: str,
         service: ToolService,
     ) -> _ToolServiceDocument:
+        kind: ToolServiceKind
+
         if isinstance(service, OpenAPIClient):
             kind = "openapi"
             url = service.server_url

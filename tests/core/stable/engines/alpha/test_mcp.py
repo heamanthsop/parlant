@@ -17,18 +17,19 @@ from enum import Enum
 from random import randint
 import socket
 import sys
-from parlant.core.services.tools.mcp_service import MCPToolsServer, MCPToolClient
+from parlant.core.services.tools.mcp_service import MCPToolServer, MCPToolClient
 from lagom import Container
 from parlant.core.agents import Agent
 from parlant.core.emissions import EventEmitterFactory
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import StdoutLogger
+from parlant.sdk import ToolContext
 
 
 DEFAULT_MCP_SERVER_URL = "http://localhost"
 
 
-def is_port_available(port: int, host="localhost") -> bool:
+def is_port_available(port: int, host: str = "localhost") -> bool:
     available = True
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,7 +44,7 @@ def is_port_available(port: int, host="localhost") -> bool:
 
 
 def get_random_port(
-    min_port: int = 10240, max_port: int = 65535, max_iterations=sys.maxsize
+    min_port: int = 10240, max_port: int = 65535, max_iterations: int = sys.maxsize
 ) -> int:
     iter = 0
     while not is_port_available(port := randint(min_port, max_port)) and iter < max_iterations:
@@ -53,7 +54,7 @@ def get_random_port(
 
 
 def create_client(
-    server: MCPToolsServer,
+    server: MCPToolServer,
     container: Container,
 ) -> MCPToolClient:
     correlator = ContextualCorrelator()
@@ -84,13 +85,15 @@ async def test_that_simple_mcp_tool_is_listed_and_called(
     container: Container,
     agent: Agent,
 ) -> None:
-    async with MCPToolsServer([greet_me_like_pirate], port=get_random_port()) as server:
+    async with MCPToolServer([greet_me_like_pirate], port=get_random_port()) as server:
         client = create_client(server, container)
         async with client:
             tool = await client.read_tool("greet_me_like_pirate")
             assert tool is not None
             result = await client.call_tool(
-                tool.name, {"name": "Short Jon Nickel", "lucky_number": 7}
+                tool.name,
+                ToolContext("", "", ""),
+                {"name": "Short Jon Nickel", "lucky_number": 7},
             )
             assert "Ahoy Short Jon Nickel! I doubled your lucky number to 14 !" in result.data
 
@@ -99,7 +102,7 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
     container: Container,
     agent: Agent,
 ) -> None:
-    async with MCPToolsServer(
+    async with MCPToolServer(
         [tool_with_date_and_float, greet_me_like_pirate], port=get_random_port()
     ) as server:
         client = create_client(server, container)
@@ -108,7 +111,9 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
             assert tools is not None and len(tools) == 2
             tool = await client.read_tool("tool_with_date_and_float")
             assert tool is not None
-            result = await client.call_tool(tool.name, {"when": "2025-01-20 12:05", "factor": 2.3})
+            result = await client.call_tool(
+                tool.name, ToolContext("", "", ""), {"when": "2025-01-20 12:05", "factor": 2.3}
+            )
             assert "The date is 2025-01-20T12:05:00 and the factor is 2.3" in result.data
 
 
@@ -127,13 +132,14 @@ async def test_mcp_tool_is_called_with_enum_list_and_bool_list(
     ) -> str:
         return f"The enum list is {enum_list} and the bool list is {bool_list}"
 
-    async with MCPToolsServer([tool_with_two_lists], port=get_random_port()) as server:
+    async with MCPToolServer([tool_with_two_lists], port=get_random_port()) as server:
         client = create_client(server, container)
         async with client:
             tool = await client.read_tool("tool_with_two_lists")
             assert tool is not None
             result = await client.call_tool(
                 tool.name,
+                ToolContext("", "", ""),
                 {"enum_list": ["a", "b", "c", "a"], "bool_list": [True, False, True]},
             )
             assert "The enum list is" in result.data

@@ -19,6 +19,7 @@ from fastapi import status
 import httpx
 from lagom import Container
 
+from parlant.core.services.tools.mcp_service import MCPToolServer
 from parlant.core.services.tools.plugins import tool
 from parlant.core.tools import ToolResult, ToolContext
 from parlant.core.services.tools.service_registry import ServiceRegistry
@@ -311,3 +312,42 @@ async def test_that_reading_an_existing_sdk_service_returns_its_metadata_and_too
             and t["description"] == my_async_tool.tool.description
             for t in tools_list
         )
+
+
+async def test_that_reading_an_existing_mcp_service_returns_its_tools_and_can_call_them(
+    container: Container,
+) -> None:
+    def my_tool(arg_1: int, arg_2: int) -> int:
+        return arg_1 + arg_2
+
+    async def my_async_tool(message: str) -> str:
+        return f"Echo: {message}"
+
+    service_registry = container[ServiceRegistry]
+
+    async with MCPToolServer([my_tool, my_async_tool]) as server:
+        await service_registry.update_tool_service(
+            name="my_mcp_service",
+            kind="mcp",
+            url=f"http://localhost:{server.get_port()}",
+        )
+
+        await service_registry.list_tool_services()
+
+        # service_data = (await service_registry.list_tool_services()).raise_for_status().json()
+        service = await service_registry.read_tool_service("my_mcp_service")
+
+        tools_list = await service.list_tools()
+        assert len(tools_list) == 2
+        assert "my_tool" in [t.name for t in tools_list]
+        assert "my_async_tool" in [t.name for t in tools_list]
+
+        result = await service.call_tool(
+            "my_tool", ToolContext("", "", ""), {"arg_1": 11, "arg_2": 22}
+        )
+        assert str(result.data) == "33"
+
+        result = await service.call_tool(
+            "my_async_tool", ToolContext("", "", ""), {"message": "Hello"}
+        )
+        assert str(result.data) == "Echo: Hello"
