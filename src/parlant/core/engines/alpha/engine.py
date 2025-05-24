@@ -120,6 +120,9 @@ class AlphaEngine(Engine):
         # Load the full relevant information from storage.
         loaded_context = await self._load_context(context, event_emitter)
 
+        if loaded_context.session.mode == "manual":
+            return True
+
         try:
             with self._logger.operation(f"Processing context for session {context.session_id}"):
                 await self._do_process(loaded_context, event_emitter)

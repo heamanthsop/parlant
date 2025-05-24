@@ -6,6 +6,7 @@ All notable changes to Parlant will be documented here.
 - Increase utterance multi-message delay
 - Use fast fluid draft if no utterance found
 - Add logger to LoadedContext (accessible via engine hooks)
+- Add ability to update session mode directly from API
 
 ## [2.2.0] - 2025-05-20
 

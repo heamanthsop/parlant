@@ -151,12 +151,29 @@ SessionTitleField: TypeAlias = Annotated[
 ]
 
 
+class SessionModeDTO(Enum):
+    """Defines the reason for the action"""
+
+    AUTO = "auto"
+    MANUAL = "manual"
+
+
+SessionModeField: TypeAlias = Annotated[
+    SessionModeDTO,
+    Field(
+        description="The mode of the session, either 'auto' or 'manual'. In manual mode, events added to a session will not be responded to automatically by the agent.",
+        examples=["auto", "manual"],
+    ),
+]
+
+
 session_example: ExampleJson = {
     "id": "sess_123yz",
     "agent_id": "ag_123xyz",
     "customer_id": "cust_123xy",
     "creation_utc": "2024-03-24T12:00:00Z",
     "title": "Product inquiry session",
+    "mode": "auto",
     "consumption_offsets": consumption_offsets_example,
 }
 
@@ -172,6 +189,7 @@ class SessionDTO(
     customer_id: SessionCustomerIdField
     creation_utc: SessionCreationUTCField
     title: Optional[SessionTitleField] = None
+    mode: SessionModeField
     consumption_offsets: ConsumptionOffsetsDTO
 
 
@@ -337,6 +355,7 @@ class SessionUpdateParamsDTO(
 
     consumption_offsets: Optional[ConsumptionOffsetsUpdateParamsDTO] = None
     title: Optional[SessionTitleField] = None
+    mode: Optional[SessionModeField] = None
 
 
 ToolResultDataField: TypeAlias = Annotated[
@@ -1227,6 +1246,7 @@ def create_router(
             creation_utc=session.creation_utc,
             consumption_offsets=ConsumptionOffsetsDTO(client=session.consumption_offsets["client"]),
             title=session.title,
+            mode=SessionModeDTO(session.mode),
         )
 
     @router.get(
@@ -1258,6 +1278,7 @@ def create_router(
             consumption_offsets=ConsumptionOffsetsDTO(
                 client=session.consumption_offsets["client"],
             ),
+            mode=SessionModeDTO(session.mode),
         )
 
     @router.get(
@@ -1299,6 +1320,7 @@ def create_router(
                 consumption_offsets=ConsumptionOffsetsDTO(
                     client=s.consumption_offsets["client"],
                 ),
+                mode=SessionModeDTO(s.mode),
             )
             for s in sessions
         ]
@@ -1389,6 +1411,9 @@ def create_router(
             if dto.title:
                 params["title"] = dto.title
 
+            if dto.mode:
+                params["mode"] = dto.mode.value
+
             return params
 
         session = await session_store.update_session(
@@ -1405,6 +1430,7 @@ def create_router(
             consumption_offsets=ConsumptionOffsetsDTO(
                 client=session.consumption_offsets["client"],
             ),
+            mode=SessionModeDTO(session.mode),
         )
 
     @router.post(

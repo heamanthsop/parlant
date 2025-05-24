@@ -259,3 +259,20 @@ async def test_that_a_response_is_not_generated_automatically_after_a_tool_switc
 
     assert session.mode == "auto"
     assert updated_session.mode == "manual"
+
+    event = await context.app.post_event(
+        session_id=session.id,
+        kind=EventKind.MESSAGE,
+        data={
+            "message": "Well?",
+            "participant": {
+                "display_name": "Johnny Boy",
+            },
+        },
+    )
+
+    assert not await context.app.wait_for_update(
+        session_id=session.id,
+        min_offset=event.offset + 1,
+        timeout=Timeout(3),
+    )

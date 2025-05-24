@@ -362,6 +362,24 @@ async def test_that_title_can_be_updated(
     assert session_dto["title"] == "new session title"
 
 
+async def test_that_mode_can_be_updated(
+    async_client: httpx.AsyncClient,
+    session_id: SessionId,
+) -> None:
+    session_dto = (
+        (
+            await async_client.patch(
+                f"/sessions/{session_id}",
+                json={"mode": "manual"},
+            )
+        )
+        .raise_for_status()
+        .json()
+    )
+
+    assert session_dto["mode"] == "manual"
+
+
 async def test_that_deleting_a_nonexistent_session_returns_404(
     async_client: httpx.AsyncClient,
 ) -> None:
