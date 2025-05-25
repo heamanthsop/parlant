@@ -344,7 +344,8 @@ def create_guideline(
                 ],
             )
         )
-        metadata = guideline_evaluation_data[0].properties_proposition or {}
+
+    metadata = guideline_evaluation_data[0].properties_proposition or {}
 
     guideline = Guideline(
         id=GuidelineId(generate_id()),
@@ -450,7 +451,9 @@ def match_preparation(
         )
         for g in previously_matched_guidelines
         if g.id not in session.agent_state["applied_guideline_ids"]
-        and not g.metadata.get("continuous", False)
+        and not g.metadata.get(
+            "continuous", False
+        )  # TODO - evaluate if guideline is continuous in tests
     ]
 
     interaction_history_for_preparation = (
@@ -519,7 +522,6 @@ def base_test_that_correct_guidelines_are_matched(
         for name in previously_matched_guidelines_names
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
-
     previously_applied_guidelines = [
         guideline.id
         for name in previously_applied_guidelines_names
@@ -528,24 +530,36 @@ def base_test_that_correct_guidelines_are_matched(
 
     update_previously_applied_guidelines(context, session, previously_applied_guidelines)
 
+    previously_applied_guidelines = [
+        guideline.id
+        for name in previously_applied_guidelines_names
+        if (guideline := conversation_guidelines.get(name)) is not None
+    ]
+
+    update_previously_applied_guidelines(
+        context=context,
+        session=session,
+        previously_applied_guidelines=previously_applied_guidelines,
+    )
+
     match_preparation(
-        context,
-        agent,
-        session,
-        customer,
-        context_variables,
-        terms,
-        staged_events,
-        previously_matched_guidelines,
-        interaction_history,
+        context=context,
+        agent=agent,
+        session=session,
+        customer=customer,
+        context_variables=context_variables,
+        terms=terms,
+        staged_events=staged_events,
+        previously_matched_guidelines=previously_matched_guidelines,
+        interaction_history=interaction_history,
     )
 
     guideline_matches = match_guidelines(
-        context,
-        agent,
-        session,
-        customer,
-        interaction_history,
+        context=context,
+        agent=agent,
+        session=session,
+        customer=customer,
+        interaction_history=interaction_history,
         context_variables=context_variables,
         terms=terms,
         staged_events=staged_events,
@@ -790,7 +804,7 @@ def test_that_guidelines_are_matched_based_on_agent_description(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        session,
+        session.id,
         customer,
         conversation_context,
         conversation_guideline_names,
