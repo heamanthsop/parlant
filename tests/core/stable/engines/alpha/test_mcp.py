@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from enum import Enum
 from random import randint
 import socket
 import sys
+import uuid
+from pathlib import Path
+
 from parlant.core.services.tools.mcp_service import MCPToolServer, MCPToolClient
 from lagom import Container
 from parlant.core.agents import Agent
@@ -98,7 +101,7 @@ async def test_that_simple_mcp_tool_is_listed_and_called(
             assert "Ahoy Short Jon Nickel! I doubled your lucky number to 14 !" in result.data
 
 
-async def test_that_another_simple_mcp_tool_is_listed_and_called(
+async def test_that_another_simple_mcp_tool_is_listed_resolved_and_called(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -109,7 +112,7 @@ async def test_that_another_simple_mcp_tool_is_listed_and_called(
         async with client:
             tools = await client.list_tools()
             assert tools is not None and len(tools) == 2
-            tool = await client.read_tool("tool_with_date_and_float")
+            tool = await client.resolve_tool("tool_with_date_and_float", ToolContext("", "", ""))
             assert tool is not None
             result = await client.call_tool(
                 tool.name, ToolContext("", "", ""), {"when": "2025-01-20 12:05", "factor": 2.3}
@@ -143,3 +146,60 @@ async def test_mcp_tool_is_called_with_enum_list_and_bool_list(
                 {"enum_list": ["a", "b", "c", "a"], "bool_list": [True, False, True]},
             )
             assert "The enum list is" in result.data
+
+
+async def test_mcp_tool_with_list_of_date_and_datetime(
+    container: Container,
+    agent: Agent,
+) -> None:
+    def tool_with_date_list_and_datetime(
+        date_list: list[date],
+        date_time: datetime,
+    ) -> str:
+        return f"The dates are {date_list} and the datetime is {date_time}"
+
+    async with MCPToolServer([tool_with_date_list_and_datetime], port=get_random_port()) as server:
+        client = create_client(server, container)
+        async with client:
+            tool = await client.read_tool("tool_with_date_list_and_datetime")
+            assert tool is not None
+            result = await client.call_tool(
+                tool.name,
+                ToolContext("", "", ""),
+                {
+                    "date_list": [
+                        "2025-05-25",
+                        "2020-10-10",
+                    ],
+                    "date_time": "1948-05-14 16:00",
+                },
+            )
+            assert "The dates are" in result.data
+
+
+async def test_mcp_tool_with_timedelta_path_and_uuid(
+    container: Container,
+    agent: Agent,
+) -> None:
+    def tool_with_timedelta_path_and_uuid(
+        delta: timedelta,
+        path: Path,
+        uuid: uuid.UUID,
+    ) -> str:
+        return f"uuid {uuid} reports it took {delta} seconds to navigate to {path}"
+
+    async with MCPToolServer([tool_with_timedelta_path_and_uuid], port=get_random_port()) as server:
+        client = create_client(server, container)
+        async with client:
+            tool = await client.read_tool("tool_with_timedelta_path_and_uuid")
+            assert tool is not None
+            result = await client.call_tool(
+                tool.name,
+                ToolContext("", "", ""),
+                {
+                    "uuid": str(uuid.uuid1()),
+                    "delta": str(timedelta(seconds=10)),
+                    "path": str(Path("/dev/null")),
+                },
+            )
+            assert "reports it took" in result.data
