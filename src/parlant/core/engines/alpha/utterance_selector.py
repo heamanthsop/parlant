@@ -72,7 +72,7 @@ class UtteranceDraftSchema(DefaultBaseModel):
 
 
 class UtteranceSelectionSchema(DefaultBaseModel):
-    rationale: Optional[str] = None
+    reasoning: Optional[str] = None
     chosen_template_id: Optional[str] = None
     match_quality: Optional[str] = None
 
@@ -980,9 +980,7 @@ Produce a valid JSON object in the following format: ###
         )
 
         if context.guidelines:
-            formatted_guidelines = (
-                "In choosing the template, try to abide by the following general guidelines: ###\n"
-            )
+            formatted_guidelines = "In choosing the template, there are 2 cases. 1) There is a single, clear match. 2) There are multiple candidates for a match. In the second care, you may also find that there are multiple templates that overlap with the draft message in different ways. In those cases, you will have to decide which part (which overlap) you prioritize. When doing so, your prioritization for choosing between different overlapping templates should try to maximize adherence to the following behavioral guidelines: ###\n"
 
             for g in context.guidelines:
                 formatted_guidelines += (
@@ -1005,7 +1003,7 @@ Produce a valid JSON object in the following format: ###
 3. You are presented with a number of Jinja2 reply templates to choose from. These templates have been pre-approved by business stakeholders for producing fluent customer-facing AI conversations.
 4. Your role is to choose (classify) the pre-approved reply template that MOST faithfully captures the human operator's draft reply.
 5. Note that there may be multiple relevant choices. Out of those, you must choose the MOST suitable one that is MOST LIKE the human operator's draft reply.
-6. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procederal instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.""",
+6. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procedural instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.""",
         )
 
         builder.add_interaction_history(context.interaction_history)
@@ -1013,18 +1011,18 @@ Produce a valid JSON object in the following format: ###
         builder.add_section(
             name="utterance-selector-selection-inputs",
             template="""
-{formatted_guidelines}
-
 Pre-approved reply templates: ###
 {formatted_utterances}
 ###
+
+{formatted_guidelines}
 
 Draft reply message: ###
 {draft_message}
 ###
 
-Output a JSON object with a two properties:
-1. "rationale": reason about the most appropriate template choice to capture the draft message's main intent
+Output a JSON object with three properties:
+1. "reasoning": consider 1-3 best candidate templates for a match (in view of the draft message and the additional behavioral guidelines) and reason about the most appropriate one choice to capture the draft message's main intent while also ensuring to take the behavioral guidelines into account
 2. "chosen_template_id" containing the selected template ID.
 3. "match_quality": which can be ONLY ONE OF "low", "partial", "high".
     a. "low": You couldn't find a template that even comes close
