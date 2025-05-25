@@ -362,7 +362,6 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        And that the "make_transfer" guideline is matched with a priority of 10 because "Customer asked to make a transfer"
         When processing is triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
@@ -379,7 +378,6 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        And that the "make_transfer" guideline is matched with a priority of 10 because "Customer asked to make a transfer"
         When processing is triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
