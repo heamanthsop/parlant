@@ -230,7 +230,8 @@ Feature: Tools
         And a tool event with data, { "tool_calls": [{ "tool_id": "local:get_account_balance", "arguments": { "account_name": "Larry David"}, "result": { "data": 451000000, "metadata": {} }}]}
         And an agent message, "Larry David currently has 451 million dollars."
         And a customer message, "And what about now?"
-        When processing is triggered
+        And that the "retrieve_account_information" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains 1 tool call(s)
