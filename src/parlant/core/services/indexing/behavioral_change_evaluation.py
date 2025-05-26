@@ -526,7 +526,41 @@ class GuidelineEvaluator:
         self._guideline_continuous_proposer = guideline_continuous_proposer
         self._customer_dependent_action_detector = customer_dependent_action_detector
 
-    async def evaluate(  # TODO is this what we need to run for Hadar's tests?
+    def _build_invoice_data(
+        self,
+        action_propositions: Sequence[Optional[GuidelineActionProposition]],
+        continuous_propositions: Sequence[Optional[GuidelineContinuousProposition]],
+        customer_dependant_action_detections: Sequence[
+            Optional[CustomerDependentActionProposition]
+        ],
+    ) -> Sequence[InvoiceGuidelineData]:
+        results = []
+        for payload_action, payload_continuous, payload_customer_dependent in zip(
+            action_propositions, continuous_propositions, customer_dependant_action_detections
+        ):
+            action_prop = payload_action.content.action if payload_action else None
+
+            properties_prop = None
+            if payload_continuous or payload_customer_dependent:
+                properties_prop = {
+                    "continuous": payload_continuous.is_continuous if payload_continuous else None,
+                    "customer_dependent_action_data": payload_customer_dependent.model_dump()
+                    if payload_customer_dependent
+                    else None,
+                }
+
+            invoice_data = InvoiceGuidelineData(
+                coherence_checks=None,
+                entailment_propositions=None,
+                action_proposition=action_prop,
+                properties_proposition=properties_prop,
+            )
+
+            results.append(invoice_data)
+
+        return results
+
+    async def evaluate(
         self,
         payloads: Sequence[Payload],
         progress_report: Optional[ProgressReport] = None,
@@ -542,23 +576,15 @@ class GuidelineEvaluator:
             progress_report,
         )
 
-        # customer_dependant_action_detections = await self._detect_customer_dependant_actions(
-        #    payloads, action_propositions, progress_report
-        # )  TODO add to the dictionary that's returned here
+        customer_dependant_action_detections = await self._detect_customer_dependant_actions(
+            payloads, action_propositions, progress_report
+        )
 
-        return [
-            InvoiceGuidelineData(
-                coherence_checks=None,
-                entailment_propositions=None,
-                action_proposition=payload_action.content.action if payload_action else None,
-                properties_proposition={"continuous": payload_continuous.is_continuous}
-                if payload_continuous
-                else None,
-            )
-            for payload_action, payload_continuous in zip(
-                action_propositions, continuous_propositions
-            )
-        ]
+        return self._build_invoice_data(
+            action_propositions,
+            continuous_propositions,
+            customer_dependant_action_detections,
+        )
 
     async def _propose_actions(
         self,
@@ -592,7 +618,7 @@ class GuidelineEvaluator:
         self,
         payloads: Sequence[Payload],
         proposed_actions: Sequence[Optional[GuidelineActionProposition]],
-        progress_report: ProgressReport,
+        progress_report: Optional[ProgressReport] = None,
     ) -> Sequence[Optional[CustomerDependentActionProposition]]:
         tasks: list[asyncio.Task[CustomerDependentActionProposition]] = []
         indices: list[int] = []
