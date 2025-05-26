@@ -680,7 +680,10 @@ async def run_openapi_server(app: Optional[FastAPI] = None, port: int = 0) -> As
     task = asyncio.create_task(server.serve())
 
     try:
-        await asyncio.sleep(0.1)
+        while not server.started:
+            await asyncio.sleep(0.01)
+
+        await asyncio.sleep(0.05)
         yield
     finally:
         server.should_exit = True

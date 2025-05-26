@@ -15,6 +15,7 @@
 from __future__ import annotations
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
+import socket
 import traceback
 import httpx
 import logging
@@ -25,6 +26,7 @@ import subprocess
 import sys
 import time
 from typing import Any, AsyncIterator, Iterator, Optional, TypedDict, cast
+
 from tests.test_utilities import SERVER_ADDRESS_BASE, get_random_port
 
 
@@ -61,6 +63,32 @@ class ContextOfTest:
     api: API
 
 
+def _wait_for_port_ready(
+    server_address: str, max_attempts: int = 30, initial_delay: float = 0.1
+) -> None:
+    """Wait for the server port to be ready to accept connections."""
+    # Parse the server address to get host and port
+    host, port_str = server_address.rsplit(":", 1)
+    if "://" in host:
+        host = host.split("://")[1]
+    port = int(port_str)
+
+    delay = initial_delay
+
+    for attempt in range(max_attempts):
+        try:
+            with socket.create_connection((host, port), timeout=5):
+                return  # Server is ready
+        except (socket.error, ConnectionRefusedError, OSError):
+            pass  # Server not ready yet
+
+        if attempt == max_attempts - 1:
+            raise RuntimeError(f"Server failed to become ready after {max_attempts} attempts")
+
+        time.sleep(delay)
+        delay = min(delay * 1.3, 2.0)  # Exponential backoff with max 2s
+
+
 @contextmanager
 def run_server(
     context: ContextOfTest,
@@ -90,6 +118,7 @@ def run_server(
         )
 
         try:
+            _wait_for_port_ready(context.api.server_address)
             yield process
         except Exception as exc:
             caught_exception = exc
