@@ -42,6 +42,14 @@ GUIDELINES_DICT = {
         "condition": "the customer appears frustrated or upset",
         "action": "Acknowledge the customer's concerns, apologize for any inconvenience, and offer a solution or escalate the issue to a supervisor if necessary.",
     },
+    "do_payment": {
+        "condition": "the customer wants to pay for a product",
+        "action": "Use the do_payment tool to process their payment.",
+    },
+    "problem_with_order": {
+        "condition": "The customer is reporting a problem with their order.",
+        "action": "Apologize and ask for more details about the issue.",
+    },
 }
 
 
@@ -350,7 +358,36 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_top
     new_session: Session,
     customer: Customer,
 ) -> None:
-    return
+    conversation_context: list[tuple[EventSource, str]] = [
+        (EventSource.CUSTOMER, "Hey can I order 2 cheese pizzas please?"),
+        (
+            EventSource.AI_AGENT,
+            "Sure! would you like a drink with that?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "No, thanks. How can I pay?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "It will cost $20.9. Could you please provide your credit card number?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Sure, it's 1111 2222 3333 4444.",
+        ),
+    ]
+    guidelines: list[str] = ["do_payment"]
+
+    base_test_that_correct_guidelines_detect_as_previously_applied(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
 
 
 def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold(
@@ -359,4 +396,24 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     new_session: Session,
     customer: Customer,
 ) -> None:
-    return
+    conversation_context: list[tuple[EventSource, str]] = [
+        (EventSource.CUSTOMER, "Hi, I just received my order, and the pizza is cold."),
+        (
+            EventSource.AI_AGENT,
+            "I'm so sorry to hear that. Could you tell me more about the issue?",
+        ),
+        (EventSource.CUSTOMER, "Yeah, it's not just cold — the box was crushed too."),
+        (EventSource.AI_AGENT, "That's really unacceptable. Let me make this right."),
+        (EventSource.CUSTOMER, "And this isn’t the first time, honestly."),
+    ]
+    guidelines: list[str] = ["problem_with_order"]
+
+    base_test_that_correct_guidelines_detect_as_previously_applied(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )

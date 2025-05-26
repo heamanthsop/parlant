@@ -35,12 +35,16 @@ GUIDELINES_DICT = {
         "action": "tell them that it's ok and it happens to everyone and ask for their email address to send them a password",
     },
     "frustrated_so_discount": {
-        "condition": "The user expresses frustration, impatience, or dissatisfaction",
+        "condition": "The customer expresses frustration, impatience, or dissatisfaction",
         "action": "apologize and offer a discount",
     },
     "confirm_reservation": {
-        "condition": "The user is about to confirm a reservation or place an order",
-        "action": "Before submitting the reservation, politely confirm whether the user would like to add anything else",
+        "condition": "The customer has placed a reservation, submitted an order, or added items to an order.",
+        "action": "Politely confirm the details and ask whether the customer would like to add anything else before finalizing the reservation or order",
+    },
+    "order_status": {
+        "condition": "The customer is asking about a status of an order.",
+        "action": "retrieve it's status and inform the customer",
     },
 }
 
@@ -317,7 +321,7 @@ def test_that_partially_fulfilled_action_but_cosmetic_is_not_match_again(
     )
 
 
-def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched(
+def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_1(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -367,6 +371,64 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
     )
 
 
+def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey I haven’t receive my order, I placed it 2 weeks ago.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Let me check on that for you. Can you provide the order number?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "12233",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Thanks! I see it’s on the way and should arrive this weekend.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Okay, thanks. I also have another order from a different store—what’s the status of that one?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure, let me take a look. Could you share the order number for that one too?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I think 111222.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Hmm, that number doesn’t seem right. Could you double-check it?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "How can I change the address of an order?",
+        ),
+    ]
+
+    guidelines: list[str] = ["frustrated_so_discount"]
+
+    base_test_that_correct_guidelines_detect_as_previously_applied(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=[],
+        guidelines_names=guidelines,
+    )
+
+
 def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_based_on_the_most_recent_interaction_is_matched(
     context: ContextOfTest,
     agent: Agent,
@@ -393,6 +455,48 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
         (
             EventSource.CUSTOMER,
             "Oh, and can we have a table near the window if possible?",
+        ),
+    ]
+
+    guidelines: list[str] = ["confirm_reservation"]
+
+    base_test_that_correct_guidelines_detect_as_previously_applied(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_the_last_several_messages(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I’d like to book a table for 2 at 7 PM tonight.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it — a table for 2 at 7 PM. Would you like to add anything else before I confirm the reservation?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes, actually — it’s for a birthday. Can we get a small cake? Do you have chocolate cakes?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Yes we have chocolate and cheese cakes. What would you want?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Great so add one chocolate cake please.",
         ),
     ]
 
