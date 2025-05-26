@@ -677,7 +677,7 @@ You will now be given the current state of the interaction to which you must gen
                     latch.enable()
 
                 if result is not None:
-                    sub_messages = result.message.split("\n\n")
+                    sub_messages = result.message.strip().split("\n\n")
                     events = []
 
                     while sub_messages:
