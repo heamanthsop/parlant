@@ -214,6 +214,7 @@ Feature: Tools
         And an association between "handle_policy_questions" and "consult_policy"
         And an association between "handle_policy_questions" and "other_inquiries"
         And a customer message, "I'd like to return a product please?"
+        And a tool relationship whereby "consult_policy" overlaps with "other_inquiries"
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
@@ -466,7 +467,7 @@ Feature: Tools
         And a guideline "make_transfer" to make a transfer when asked to transfer money from one account to another
         And the tool "transfer_coins"
         And an association between "make_transfer" and "transfer_coins"
-        And a guideline to set the destination account to Sophie Chapman when asked to make a coins transfer
+        And a guideline to set the destination account to Sophie Chapman when asked to transfer money from one account to another
         And a customer message, "Hi, it’s Mark Corrigan here. Can I make a transfer of 4500$?. You probably need my pincode, its 1234 "
         When processing is triggered
         Then the tool calls event contains a call to "transfer_coins" with amount 4500 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
