@@ -143,18 +143,22 @@ def given_50_other_random_guidelines(
 ) -> list[Guideline]:
     guideline_store = context.container[GuidelineStore]
 
-    async def create_guideline(condition: str, action: str) -> Guideline:
+    def create_guideline(condition: str, action: str) -> Guideline:
         metadata = get_guideline_properties(context, condition, action)
 
-        guideline = await guideline_store.create_guideline(
-            condition=condition,
-            action=action,
-            metadata=metadata,
+        guideline = context.sync_await(
+            guideline_store.create_guideline(
+                condition=condition,
+                action=action,
+                metadata=metadata,
+            )
         )
 
-        _ = await guideline_store.upsert_tag(
-            guideline.id,
-            Tag.for_agent_id(agent_id),
+        _ = context.sync_await(
+            guideline_store.upsert_tag(
+                guideline.id,
+                Tag.for_agent_id(agent_id),
+            )
         )
 
         return guideline
@@ -379,7 +383,7 @@ def given_50_other_random_guidelines(
             "services to simplify their future orders",
         },
     ]:
-        guidelines.append(context.sync_await(create_guideline(**guideline_params)))
+        guidelines.append(create_guideline(**guideline_params))
 
     return guidelines
 
@@ -392,18 +396,22 @@ def given_the_guideline_called(
 ) -> Guideline:
     guideline_store = context.container[GuidelineStore]
 
-    async def create_guideline(condition: str, action: str) -> Guideline:
+    def create_guideline(condition: str, action: str) -> Guideline:
         metadata = get_guideline_properties(context, condition, action)
 
-        guideline = await guideline_store.create_guideline(
-            condition=condition,
-            action=action,
-            metadata=metadata,
+        guideline = context.sync_await(
+            guideline_store.create_guideline(
+                condition=condition,
+                action=action,
+                metadata=metadata,
+            )
         )
 
-        _ = await guideline_store.upsert_tag(
-            guideline.id,
-            Tag.for_agent_id(agent_id),
+        _ = context.sync_await(
+            guideline_store.upsert_tag(
+                guideline.id,
+                Tag.for_agent_id(agent_id),
+            )
         )
 
         return guideline
@@ -464,7 +472,7 @@ def given_the_guideline_called(
         },
     }
 
-    guideline = context.sync_await(create_guideline(**guidelines[guideline_id]))
+    guideline = create_guideline(**guidelines[guideline_id])
 
     context.guidelines[guideline_id] = guideline
 
