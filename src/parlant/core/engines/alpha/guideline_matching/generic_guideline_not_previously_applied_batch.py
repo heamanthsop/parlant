@@ -181,7 +181,6 @@ Each guideline is composed of two parts:
 Task Description
 ----------------
 Your task is to evaluate the relevance and applicability of a set of provided 'when' conditions to the most recent state of an interaction between yourself (an AI agent) and a user.
-These conditions, along with the interaction details, will be provided later in this message.
 You examine the applicability of each guideline under the assumption that the action was not taken yet during the interaction. 
 
 A guideline should be marked as applicable if it is relevant to the MOST RECENT interaction in the conversation. Do not mark a guideline as applicable solely based on earlier parts of the conversation if the topic 

@@ -180,22 +180,17 @@ Each guideline is composed of two parts:
 
 Task Description
 ----------------
-You will be provided with a set of guidelines, each of which has had its action applied one or more times during the conversation.
+You will be given a set of guidelines, each associated with an action that has already been applied one or more times during the conversation.
 
-Your task is to evaluate whether reapplying the action is appropriate, based on whether the guideline’s condition has become true again in a way that justifies reapplying the action after it was previously fulfilled.
+Your task is to determine whether reapplying the action is appropriate, based on whether the guideline’s condition is met again in a way that justifies repeating the action.
 
 For example, a guideline with the condition “the customer is asking a question” should be reapplied each time the customer asks a new question—since this condition can be true multiple times throughout the conversation. 
 In contrast, guidelines involving one-time behaviors (e.g., “send the user our address”) should be reapplied more conservatively: only if the condition ceased to be true for a while and is now clearly true again in the current context.
 
-- A guideline should be marked as "should_reapply" if the condition is met again in the MOST RECENT part of the conversation (specifically on the last user message). 
+Key rule:
+- Mark a guideline as should_reapply only if the condition is met in the MOST RECENT part of the conversation (specifically on the last user message). 
 - Do not mark a guideline as applicable solely based on earlier parts of the conversation if the topic has since shifted or resolved. 
-- A guideline can be activated and applied multiple times. Pay close attention to when the condition was last met and whether it has become true again since then.
-
-Important clarification on reapplication:
-A guideline’s "should_reapply" status depends exclusively on whether the condition holds true for the most recent user message.
-Even if the guideline was previously applied multiple times, if the most recent user message does not meet the condition, the guideline should not be reapplied.
-This prevents redundant responses and ensures the agent reacts appropriately to the current context rather than lingering past issues.
-
+- Even if a guideline was applied previously, it should only be reapplied if the latest message clearly meets the condition again. This avoids unnecessary repetition and ensures responses are relevant to the current context.
 
 The conversation and guidelines will follow. Instructions on how to format your response will be provided after that.
 
