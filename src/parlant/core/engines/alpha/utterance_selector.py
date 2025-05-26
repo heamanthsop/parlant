@@ -987,7 +987,7 @@ Produce a valid JSON object in the following format: ###
                     f"\n- When {g.guideline.content.condition}, then {g.guideline.content.action}."
                 )
 
-            formatted_guidelines = "###"
+            formatted_guidelines += "\n###"
         else:
             formatted_guidelines = ""
 
