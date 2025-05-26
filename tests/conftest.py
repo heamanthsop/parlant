@@ -39,6 +39,10 @@ from parlant.core.engines.alpha.guideline_matching import (
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
 )
+from parlant.core.engines.alpha.perceived_performance_policy import (
+    DefaultPerceivedPerformancePolicy,
+    PerceivedPerformancePolicy,
+)
 from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
@@ -48,6 +52,7 @@ from parlant.core.engines.alpha.utterance_selector import (
     UtteranceDraftSchema,
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
+    UtteranceFluidPreambleSchema,
     UtteranceSelector,
     UtteranceSelectionSchema,
     UtteranceRevisionSchema,
@@ -310,6 +315,7 @@ async def container(
             MessageSchema,
             UtteranceDraftSchema,
             UtteranceSelectionSchema,
+            UtteranceFluidPreambleSchema,
             UtteranceRevisionSchema,
             UtteranceFieldExtractionSchema,
             single_tool_batch.SingleToolBatchSchema,
@@ -373,6 +379,7 @@ async def container(
         container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
         container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)
+        container[PerceivedPerformancePolicy] = Singleton(DefaultPerceivedPerformancePolicy)
 
         hooks = JournalingEngineHooks()
         container[JournalingEngineHooks] = hooks
@@ -450,6 +457,15 @@ def no_cache(container: Container) -> None:
         cast(
             CachedSchematicGenerator[UtteranceSelectionSchema],
             container[SchematicGenerator[UtteranceSelectionSchema]],
+        ).use_cache = False
+
+    if isinstance(
+        container[SchematicGenerator[UtteranceFluidPreambleSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[UtteranceFluidPreambleSchema],
+            container[SchematicGenerator[UtteranceFluidPreambleSchema]],
         ).use_cache = False
 
     if isinstance(

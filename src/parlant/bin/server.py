@@ -53,6 +53,10 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.perceived_performance_policy import (
+    DefaultPerceivedPerformancePolicy,
+    PerceivedPerformancePolicy,
+)
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.tool_calling.overlapping_tools_batch import (
     OverlappingToolsBatchSchema,
@@ -61,6 +65,7 @@ from parlant.core.engines.alpha.utterance_selector import (
     UtteranceDraftSchema,
     UtteranceFieldExtractionSchema,
     UtteranceFieldExtractor,
+    UtteranceFluidPreambleSchema,
     UtteranceSelectionSchema,
     UtteranceRevisionSchema,
     UtteranceSelector,
@@ -361,6 +366,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
     c[UtteranceSelector] = Singleton(UtteranceSelector)
     c[MessageGenerator] = Singleton(MessageGenerator)
+    c[PerceivedPerformancePolicy] = Singleton(DefaultPerceivedPerformancePolicy)
 
     c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
     c[CoherenceChecker] = Singleton(CoherenceChecker)
@@ -535,6 +541,7 @@ async def initialize_container(
         MessageSchema,
         UtteranceDraftSchema,
         UtteranceSelectionSchema,
+        UtteranceFluidPreambleSchema,
         UtteranceRevisionSchema,
         UtteranceFieldExtractionSchema,
         SingleToolBatchSchema,

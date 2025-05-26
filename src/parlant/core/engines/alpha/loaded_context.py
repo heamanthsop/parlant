@@ -80,7 +80,7 @@ class ResponseState:
         return self.tool_events + self.message_events
 
 
-@dataclass(frozen=True)
+@dataclass
 class LoadedContext:
     """Helper class to access loaded values that are relevant for responding in a particular context"""
 

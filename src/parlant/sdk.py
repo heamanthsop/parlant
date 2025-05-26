@@ -394,14 +394,14 @@ class Server:
         self,
         name: str,
         description: str,
-        composition_mode: CompositionMode | None = None,
+        composition_mode: CompositionMode = CompositionMode.COMPOSITED_UTTERANCE,
         max_engine_iterations: int | None = None,
     ) -> Agent:
         agent = await self._container[AgentStore].create_agent(
             name=name,
             description=description,
             max_engine_iterations=max_engine_iterations or 1,
-            composition_mode=composition_mode or CompositionMode.FLUID,
+            composition_mode=composition_mode,
         )
 
         return Agent(

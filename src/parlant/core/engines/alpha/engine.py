@@ -15,7 +15,9 @@
 from __future__ import annotations
 import asyncio
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from itertools import chain
 from pprint import pformat
 import traceback
@@ -33,6 +35,7 @@ from parlant.core.context_variables import (
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPerformancePolicy
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
     MissingToolData,
@@ -79,6 +82,20 @@ from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolId
 
 
+class _PreparationIterationResolution(Enum):
+    COMPLETED = "continue"
+    """Continue with the next preparation iteration"""
+
+    BAIL = "bail"
+    """Bail out of the preparation iterations, as requested by a hook"""
+
+
+@dataclass
+class _PreparationIterationResult:
+    resolution: _PreparationIterationResolution
+    inspection: PreparationIteration | None = field(default=None)
+
+
 class AlphaEngine(Engine):
     """The main AI processing engine (as of Feb 25, the latest and greatest processing engine)"""
 
@@ -93,6 +110,7 @@ class AlphaEngine(Engine):
         tool_event_generator: ToolEventGenerator,
         fluid_message_generator: MessageGenerator,
         utterance_selector: UtteranceSelector,
+        perceived_performance_policy: PerceivedPerformancePolicy,
         hooks: EngineHooks,
     ) -> None:
         self._logger = logger
@@ -106,6 +124,7 @@ class AlphaEngine(Engine):
         self._tool_event_generator = tool_event_generator
         self._fluid_message_generator = fluid_message_generator
         self._utterance_selector = utterance_selector
+        self._perceived_performance_policy = perceived_performance_policy
 
         self._hooks = hooks
 
@@ -215,11 +234,10 @@ class AlphaEngine(Engine):
             await self._initialize_response_state(context)
             preparation_iteration_inspections = []
 
-            # Mark that the agent is in the process of preparing for a response.
-            await self._emit_processing_event(context)
-
             while not context.state.prepared_to_respond:
                 # Need more data before we're ready to respond
+
+                preamble_task = await self._get_preamble_task(context)
 
                 if not await self._hooks.call_on_preparation_iteration_start(context):
                     break  # Hook requested to finish preparing
@@ -228,10 +246,15 @@ class AlphaEngine(Engine):
                 # This happens in iterations in order to support a feedback loop
                 # where particular tool-call results may trigger new or different
                 # guidelines that we need to follow.
-                iteration_inspection = await self._run_preparation_iteration(context)
+                iteration_result = await self._run_preparation_iteration(context, preamble_task)
+
+                if iteration_result.resolution == _PreparationIterationResolution.BAIL:
+                    return
+                else:
+                    assert iteration_result.inspection
 
                 # Save results for later inspection.
-                preparation_iteration_inspections.append(iteration_inspection)
+                preparation_iteration_inspections.append(iteration_result.inspection)
 
                 # Some tools may update session mode (e.g. from automatic to manual).
                 # This is particularly important to support human handoff.
@@ -365,7 +388,11 @@ class AlphaEngine(Engine):
         # mostly on the current interaction history.
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
-    async def _run_preparation_iteration(self, context: LoadedContext) -> PreparationIteration:
+    async def _run_preparation_iteration(
+        self,
+        context: LoadedContext,
+        preamble_task: asyncio.Task[bool],
+    ) -> _PreparationIterationResult:
         # For optimization concerns, it's useful to capture the exact state
         # we were in before matching guidelines.
         tool_preexecution_state = await self._capture_tool_preexecution_state(context)
@@ -379,6 +406,11 @@ class AlphaEngine(Engine):
             context.state.tool_enabled_guideline_matches,
             context.state.journeys,
         ) = await self._load_matched_guidelines_and_journeys(context)
+
+        if not await preamble_task:
+            # Bail out on the rest of the processing, as the preamble
+            # hook decided we should not proceed with processing.
+            return _PreparationIterationResult(_PreparationIterationResolution.BAIL)
 
         # Matched guidelines may use glossary terms, so we need to ground our
         # response by reevaluating the relevant terms given these new guidelines.
@@ -423,52 +455,55 @@ class AlphaEngine(Engine):
             context.state.prepared_to_respond = True
 
         # Return structured inspection information, useful for later troubleshooting.
-        return PreparationIteration(
-            guideline_matches=[
-                StoredGuidelineMatch(
-                    guideline_id=match.guideline.id,
-                    condition=match.guideline.content.condition,
-                    action=match.guideline.content.action or None,
-                    score=match.score,
-                    rationale=match.rationale,
-                )
-                for match in chain(
-                    context.state.ordinary_guideline_matches,
-                    context.state.tool_enabled_guideline_matches.keys(),
-                )
-            ],
-            tool_calls=[
-                tool_call
-                for tool_event in new_tool_events
-                for tool_call in cast(ToolEventData, tool_event.data)["tool_calls"]
-            ],
-            terms=[
-                StoredTerm(
-                    id=term.id,
-                    name=term.name,
-                    description=term.description,
-                    synonyms=list(term.synonyms),
-                )
-                for term in context.state.glossary_terms
-            ],
-            context_variables=[
-                StoredContextVariable(
-                    id=variable.id,
-                    name=variable.name,
-                    description=variable.description,
-                    key=context.session.customer_id,
-                    value=value.data,
-                )
-                for variable, value in context.state.context_variables
-            ],
-            generations=PreparationIterationGenerations(
-                guideline_matching=GuidelineMatchingInspection(
-                    total_duration=guideline_matching_result.total_duration,
-                    batches=guideline_matching_result.batch_generations,
+        return _PreparationIterationResult(
+            _PreparationIterationResolution.COMPLETED,
+            PreparationIteration(
+                guideline_matches=[
+                    StoredGuidelineMatch(
+                        guideline_id=match.guideline.id,
+                        condition=match.guideline.content.condition,
+                        action=match.guideline.content.action or None,
+                        score=match.score,
+                        rationale=match.rationale,
+                    )
+                    for match in chain(
+                        context.state.ordinary_guideline_matches,
+                        context.state.tool_enabled_guideline_matches.keys(),
+                    )
+                ],
+                tool_calls=[
+                    tool_call
+                    for tool_event in new_tool_events
+                    for tool_call in cast(ToolEventData, tool_event.data)["tool_calls"]
+                ],
+                terms=[
+                    StoredTerm(
+                        id=term.id,
+                        name=term.name,
+                        description=term.description,
+                        synonyms=list(term.synonyms),
+                    )
+                    for term in context.state.glossary_terms
+                ],
+                context_variables=[
+                    StoredContextVariable(
+                        id=variable.id,
+                        name=variable.name,
+                        description=variable.description,
+                        key=context.session.customer_id,
+                        value=value.data,
+                    )
+                    for variable, value in context.state.context_variables
+                ],
+                generations=PreparationIterationGenerations(
+                    guideline_matching=GuidelineMatchingInspection(
+                        total_duration=guideline_matching_result.total_duration,
+                        batches=guideline_matching_result.batch_generations,
+                    ),
+                    tool_calls=tool_event_generation_result.generations
+                    if tool_event_generation_result
+                    else [],
                 ),
-                tool_calls=tool_event_generation_result.generations
-                if tool_event_generation_result
-                else [],
             ),
         )
 
@@ -499,6 +534,68 @@ class AlphaEngine(Engine):
                     },
                 )
 
+    async def _get_preamble_task(self, context: LoadedContext) -> asyncio.Task[bool]:
+        async def preamble_task() -> bool:
+            if (
+                # Only consider a preamble in the first iteration
+                context.state.iterations_completed == 0
+                and await self._perceived_performance_policy.is_preamble_required(context)
+            ):
+                if not await self._hooks.call_on_generating_preamble(context):
+                    return False
+
+                await asyncio.sleep(
+                    await self._perceived_performance_policy.get_preamble_delay(context),
+                )
+
+                if await self._generate_preamble(context):
+                    context.interaction = await self._load_interaction_state(context.info)
+
+                await self._emit_ready_event(context)
+
+                if not await self._hooks.call_on_generated_preamble(context):
+                    return False
+            else:
+                pass  # No preamble message is needed
+
+            # Emit a processing event to indicate that the agent is thinking
+
+            await asyncio.sleep(
+                await self._perceived_performance_policy.get_processing_indicator_delay(context),
+            )
+
+            await self._emit_processing_event(context)
+
+            return True
+
+        return asyncio.create_task(preamble_task())
+
+    async def _generate_preamble(
+        self,
+        context: LoadedContext,
+    ) -> bool:
+        generated_messages = False
+
+        for event_generation_result in await self._get_message_composer(
+            context.agent
+        ).generate_preamble(
+            event_emitter=context.event_emitter,
+            agent=context.agent,
+            customer=context.customer,
+            context_variables=context.state.context_variables,
+            interaction_history=context.interaction.history,
+            terms=list(context.state.glossary_terms),
+            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
+            journeys=context.state.journeys,
+            tool_insights=context.state.tool_insights,
+            staged_events=context.state.tool_events,
+        ):
+            generated_messages = True
+            context.state.message_events += [e for e in event_generation_result.events if e]
+
+        return generated_messages
+
     async def _generate_messages(
         self,
         context: LoadedContext,
@@ -508,7 +605,7 @@ class AlphaEngine(Engine):
 
         for event_generation_result in await self._get_message_composer(
             context.agent
-        ).generate_response_message_events(
+        ).generate_response(
             event_emitter=context.event_emitter,
             agent=context.agent,
             customer=context.customer,

@@ -77,6 +77,10 @@ class UtteranceSelectionSchema(DefaultBaseModel):
     match_quality: Optional[str] = None
 
 
+class UtteranceFluidPreambleSchema(DefaultBaseModel):
+    preamble: str
+
+
 class UtteranceRevisionSchema(DefaultBaseModel):
     revised_utterance: str
 
@@ -102,8 +106,9 @@ class _UtteranceSelectionResult:
     utterances: list[tuple[UtteranceId, str]]
 
 
-@dataclass(frozen=True)
+@dataclass
 class UtteranceContext:
+    event_emitter: EventEmitter
     agent: Agent
     customer: Customer
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
@@ -389,6 +394,7 @@ class UtteranceSelector(MessageEventComposer):
         utterance_draft_generator: SchematicGenerator[UtteranceDraftSchema],
         utterance_selection_generator: SchematicGenerator[UtteranceSelectionSchema],
         utterance_composition_generator: SchematicGenerator[UtteranceRevisionSchema],
+        utterance_fluid_preamble_generator: SchematicGenerator[UtteranceFluidPreambleSchema],
         utterance_store: UtteranceStore,
         field_extractor: UtteranceFieldExtractor,
         message_generator: MessageGenerator,
@@ -398,6 +404,7 @@ class UtteranceSelector(MessageEventComposer):
         self._utterance_draft_generator = utterance_draft_generator
         self._utterance_selection_generator = utterance_selection_generator
         self._utterance_composition_generator = utterance_composition_generator
+        self._utterance_fluid_preamble_generator = utterance_fluid_preamble_generator
         self._utterance_store = utterance_store
         self._field_extractor = field_extractor
         self._message_generator = message_generator
@@ -411,7 +418,91 @@ class UtteranceSelector(MessageEventComposer):
         return supported_shots
 
     @override
-    async def generate_response_message_events(
+    async def generate_preamble(
+        self,
+        event_emitter: EventEmitter,
+        agent: Agent,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        ordinary_guideline_matches: Sequence[GuidelineMatch],
+        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+        journeys: Sequence[Journey],
+        tool_insights: ToolInsights,
+        staged_events: Sequence[EmittedEvent],
+    ) -> Sequence[MessageEventComposition]:
+        if agent.composition_mode not in [
+            # TODO: Add support for fluid and strict mode (and adjust the tests accordingly)
+            CompositionMode.COMPOSITED_UTTERANCE,
+        ]:
+            return []
+
+        last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
+
+        await event_emitter.emit_status_event(
+            correlation_id=self._correlator.correlation_id,
+            data={
+                "acknowledged_offset": last_known_event_offset,
+                "status": "typing",
+                "data": {},
+            },
+        )
+
+        prompt_builder = PromptBuilder(
+            on_build=lambda prompt: self._logger.debug(f"Utterance Preamble Prompt:\n{prompt}")
+        )
+
+        prompt_builder.add_section(
+            name="utterance-fluid-preamble-instructions",
+            template="""\
+You are an AI agent that is expected to generate a preamble message for the customer.
+
+The actual message will be sent later by a smarter agent. Your job is only to generate the right preamble in order to save time.
+You must not assume anything about how to handle the interaction in any way, shape, or form, beyond just generating the right, nuanced preamble message.
+
+Example preamble messages:
+- "Hey there"
+- "Just a moment"
+- "Sorry to hear that"
+- "Definitely"
+- "Let me check that for you"
+etc.
+
+Basically, the preamble is something very short that continues the interaction naturally, without committing to any later action or response.
+We leave that later response to another agent. Make sure you understand this.
+
+You must generate the preamble message. You must produce a JSON object with a single key, "preamble", holding the preamble message as a string.
+
+You will now be given the current state of the interaction to which you must generate the next preamble message.
+""",
+            props={},
+        )
+
+        prompt_builder.add_interaction_history(interaction_history)
+
+        response = await self._utterance_fluid_preamble_generator.generate(
+            prompt=prompt_builder, hints={"temperature": 0.1}
+        )
+
+        self._logger.debug(
+            f"Utterance Preamble Completion:\n{response.content.model_dump_json(indent=2)}"
+        )
+
+        emitted_event = await event_emitter.emit_message_event(
+            correlation_id=self._correlator.correlation_id,
+            data=response.content.preamble,
+        )
+
+        return [
+            MessageEventComposition(
+                generation_info={"message": response.info},
+                events=[emitted_event],
+            )
+        ]
+
+    @override
+    async def generate_response(
         self,
         event_emitter: EventEmitter,
         agent: Agent,
@@ -445,7 +536,7 @@ class UtteranceSelector(MessageEventComposer):
                             latch=latch,
                         )
             except FluidUtteranceFallback:
-                return await self._message_generator.generate_response_message_events(
+                return await self._message_generator.generate_response(
                     event_emitter,
                     agent,
                     customer,
@@ -546,6 +637,7 @@ class UtteranceSelector(MessageEventComposer):
             return []
 
         context = UtteranceContext(
+            event_emitter=event_emitter,
             agent=agent,
             customer=customer,
             context_variables=context_variables,
@@ -563,17 +655,6 @@ class UtteranceSelector(MessageEventComposer):
         if not utterances and agent.composition_mode == CompositionMode.FLUID_UTTERANCE:
             self._logger.warning("No utterances found; falling back to fluid generation")
             raise FluidUtteranceFallback()
-
-        last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
-
-        await event_emitter.emit_status_event(
-            correlation_id=self._correlator.correlation_id,
-            data={
-                "acknowledged_offset": last_known_event_offset,
-                "status": "typing",
-                "data": {},
-            },
-        )
 
         generation_attempt_temperatures = {
             0: 0.1,
@@ -766,6 +847,7 @@ Always abide by the following general principles (note these are not the "guidel
 """,
             props={},
         )
+
         if not interaction_history or all(
             [event.kind != EventKind.MESSAGE for event in interaction_history]
         ):
@@ -1050,6 +1132,10 @@ Output a JSON object with three properties:
         composition_mode: CompositionMode,
         temperature: float,
     ) -> tuple[Mapping[str, GenerationInfo], Optional[_UtteranceSelectionResult]]:
+        last_known_event_offset = (
+            context.interaction_history[-1].offset if context.interaction_history else -1
+        )
+
         draft_prompt = self._build_draft_prompt(
             agent=context.agent,
             context_variables=context.context_variables,
@@ -1065,6 +1151,19 @@ Output a JSON object with three properties:
             shots=await self.shots(context.agent.composition_mode),
         )
 
+        if (
+            not utterances
+            and context.agent.composition_mode == CompositionMode.COMPOSITED_UTTERANCE
+        ):
+            await context.event_emitter.emit_status_event(
+                correlation_id=self._correlator.correlation_id,
+                data={
+                    "acknowledged_offset": last_known_event_offset,
+                    "status": "typing",
+                    "data": {},
+                },
+            )
+
         draft_response = await self._utterance_draft_generator.generate(
             prompt=draft_prompt,
             hints={"temperature": temperature},
@@ -1076,6 +1175,27 @@ Output a JSON object with three properties:
 
         if not draft_response.content.message:
             return {"draft": draft_response.info}, None
+
+        if (
+            not utterances
+            and context.agent.composition_mode == CompositionMode.COMPOSITED_UTTERANCE
+        ):
+            return {
+                "draft": draft_response.info,
+            }, _UtteranceSelectionResult(
+                message=draft_response.content.message,
+                draft=draft_response.content.message,
+                utterances=[],
+            )
+
+        await context.event_emitter.emit_status_event(
+            correlation_id=self._correlator.correlation_id,
+            data={
+                "acknowledged_offset": last_known_event_offset,
+                "status": "typing",
+                "data": {},
+            },
+        )
 
         selection_response = await self._utterance_selection_generator.generate(
             prompt=self._build_selection_prompt(

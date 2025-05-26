@@ -217,6 +217,15 @@ The user you're interacting with is called {customer_name}.
         if events:
             interaction_events = [self.adapt_event(e) for e in events if e.kind != EventKind.STATUS]
 
+            last_event_note = ""
+
+            if last_message_event := next(
+                (e for e in reversed(events) if e.kind == EventKind.MESSAGE), None
+            ):
+                if last_message_event.source == EventSource.AI_AGENT:
+                    last_message = cast(MessageEventData, last_message_event.data)["message"]
+                    last_event_note = f"\nIMPORTANT: Please note that the last message was sent by you, the AI agent, and it was: ###\n{last_message}\n###\n\nKeep that in mind when responding to the user, so as to continue the last message naturally."
+
             self.add_section(
                 name=BuiltInSection.INTERACTION_HISTORY,
                 template="""
@@ -224,8 +233,12 @@ The following is a list of events describing a back-and-forth
 interaction between you and a user: ###
 {interaction_events}
 ###
+{last_event_note}
 """,
-                props={"interaction_events": interaction_events},
+                props={
+                    "interaction_events": interaction_events,
+                    "last_event_note": last_event_note,
+                },
                 status=SectionStatus.ACTIVE,
             )
         else:
