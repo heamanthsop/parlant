@@ -741,7 +741,9 @@ You will now be given the current state of the interaction to which you must gen
         ordinary: Sequence[GuidelineMatch],
         tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
     ) -> str:
-        all_matches = list(chain(ordinary, tool_enabled))
+        all_matches = [
+            match for match in chain(ordinary, tool_enabled) if match.guideline.content.action
+        ]
 
         if not all_matches:
             return """
