@@ -1066,10 +1066,8 @@ Produce a valid JSON object in the following format: ###
         if context.guidelines:
             formatted_guidelines = "In choosing the template, there are 2 cases. 1) There is a single, clear match. 2) There are multiple candidates for a match. In the second care, you may also find that there are multiple templates that overlap with the draft message in different ways. In those cases, you will have to decide which part (which overlap) you prioritize. When doing so, your prioritization for choosing between different overlapping templates should try to maximize adherence to the following behavioral guidelines: ###\n"
 
-            for g in context.guidelines:
-                formatted_guidelines += (
-                    f"\n- When {g.guideline.content.condition}, then {g.guideline.content.action}."
-                )
+            for guideline in [g for g in context.guidelines if g.guideline.content.action]:
+                formatted_guidelines += f"\n- When {guideline.guideline.content.condition}, then {guideline.guideline.content.action}."
 
             formatted_guidelines += "\n###"
         else:
