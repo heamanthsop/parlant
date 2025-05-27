@@ -130,10 +130,11 @@ Feature: Strict Utterance
         And the message contains asking the customer for their mobile number or email address
         And the message contains nothing about wishing the customer a good day
 
+    # TODO talk to Hadar about this test
     Scenario: Multistep journey invokes tool calls correctly (strict utterance) 
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
         And the tool "reset_password"
-        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when in the process of resetting the customer's password
+        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when the customer requested to reset their password
         And an association between "reset_password_guideline" and "reset_password"
         And a customer message, "I want to reset my password"
         And an agent message, "I can help you do just that. What's your username?"

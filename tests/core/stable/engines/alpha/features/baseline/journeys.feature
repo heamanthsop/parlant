@@ -37,7 +37,7 @@ Feature: Journeys
     Scenario: Multistep journey invokes tool calls correctly
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
         And the tool "reset_password"
-        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when in the process of resetting the customer's password
+        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when the customer requested to reset their password
         And an association between "reset_password_guideline" and "reset_password"
         And a customer message, "I want to reset my password"
         And an agent message, "I can help you do just that. What's your username?"
@@ -124,4 +124,4 @@ Feature: Journeys
         And a customer message, "Next Monday"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains either asking for the name of the person traveling, or confirming that only economy class is available
+        And the message contains either asking for the name of the person traveling, or informing them that they are only eligible for economy class
