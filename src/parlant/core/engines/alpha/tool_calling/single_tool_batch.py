@@ -559,23 +559,23 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
         candidate_tool: tuple[ToolId, Tool],
         reference_tools: Sequence[tuple[ToolId, Tool]],
     ) -> tuple[str, dict[str, Any]]:
-        def _get_type_suffix(descriptor_type: str) -> str:
+        def _format_type(descriptor_type: str) -> str:
             if descriptor_type == "datetime":
-                return ": year-month-day hour:minute:second"
+                return "year-month-day hour:minute:second"
             if descriptor_type == "date":
-                return ": year-month-day"
+                return "year-month-day"
             return ""
 
         def _get_param_spec(spec: tuple[ToolParameterDescriptor, ToolParameterOptions]) -> str:
             descriptor, options = spec
 
             result: dict[str, Any] = {
-                "schema": {"type": descriptor["type"] + _get_type_suffix(descriptor["type"])}
+                "schema": {"type": f"{descriptor['type']}: {_format_type(descriptor['type'])}"}
             }
 
             if descriptor["type"] == "array":
                 result["schema"]["items"] = {
-                    "type": descriptor["item_type"] + _get_type_suffix(descriptor["item_type"])
+                    "type": f"{descriptor['item_type']}: {_format_type(descriptor['item_type'])}"
                 }
 
                 if enum := descriptor.get("enum"):
