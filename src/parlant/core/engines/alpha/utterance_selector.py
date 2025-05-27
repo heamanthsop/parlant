@@ -1121,7 +1121,7 @@ Output a JSON object with three properties:
                 "draft_message": draft_message,
                 "utterances": utterances,
                 "formatted_utterances": formatted_utterances,
-                "guidelines": context.guidelines,
+                "guidelines": [g for g in context.guidelines if g.guideline.content.action],
                 "formatted_guidelines": formatted_guidelines,
                 "composition_mode": context.agent.composition_mode,
             },
