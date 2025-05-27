@@ -64,7 +64,9 @@ class ContextOfTest:
 
 
 def _wait_for_port_ready(
-    server_address: str, max_attempts: int = 30, initial_delay: float = 0.1
+    server_address: str,
+    max_attempts: int = 30,
+    initial_delay: float = 0.1,
 ) -> None:
     """Wait for the server port to be ready to accept connections."""
     # Parse the server address to get host and port

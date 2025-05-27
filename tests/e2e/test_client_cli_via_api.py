@@ -1082,6 +1082,7 @@ async def test_that_an_openapi_service_can_be_added_via_file(
     with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
         async with run_openapi_server(port=port):
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{url}/openapi.json")
@@ -1128,6 +1129,7 @@ async def test_that_an_openapi_service_can_be_added_via_url(
     with run_server(context):
         port = randint(10000, 50000)
         url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
         async with run_openapi_server(port=port):
             source = url + "/openapi.json"
 

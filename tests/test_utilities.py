@@ -555,10 +555,10 @@ async def create_schematic_generation_result_collection(
 
 @asynccontextmanager
 async def run_service_server(
-    tools: list[ToolEntry], plugin_data: Mapping[str, Any] = {}, port: int = 0
+    tools: list[ToolEntry],
+    plugin_data: Mapping[str, Any] = {},
 ) -> AsyncIterator[PluginServer]:
-    if port == 0:
-        port = get_random_port(50001, 65535)
+    port = get_random_port(50001, 65535)
     async with PluginServer(
         tools=tools,
         port=port,
@@ -668,7 +668,10 @@ async def dto_object(dto: DummyDTO) -> JSONResponse:
 
 
 @asynccontextmanager
-async def run_openapi_server(app: Optional[FastAPI] = None, port: int = 0) -> AsyncIterator[None]:
+async def run_openapi_server(
+    app: Optional[FastAPI] = None,
+    port: int = 0,
+) -> AsyncIterator[None]:
     if port == 0:
         port = get_random_port(10001, 65535)
 

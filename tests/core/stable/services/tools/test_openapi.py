@@ -35,6 +35,7 @@ from tests.test_utilities import (
 async def test_that_tools_are_exposed_via_an_openapi_server() -> None:
     port = randint(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         openapi_json = await get_openapi_spec(url)
 
@@ -49,6 +50,7 @@ async def test_that_tools_are_exposed_via_an_openapi_server() -> None:
 async def test_that_tools_can_be_read_via_an_openapi_server() -> None:
     port = randint(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         openapi_json = await get_openapi_spec(url)
 
@@ -96,6 +98,7 @@ async def test_that_a_tool_can_be_called_via_an_openapi_server(
 ) -> None:
     port = randint(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         openapi_json = await get_openapi_spec(url)
 
@@ -122,6 +125,7 @@ async def test_that_openapi_client_raises_tool_error_on_argument_mismatch(
 ) -> None:
     port = randint(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         openapi_json = await get_openapi_spec(url)
 
@@ -153,6 +157,7 @@ async def test_that_openapi_client_raises_tool_error_on_type_mismatch(
 ) -> None:
     port = randint(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         openapi_json = await get_openapi_spec(url)
 

@@ -77,6 +77,7 @@ async def test_that_openapi_service_is_created_with_url_source(
 ) -> None:
     port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
 
@@ -173,6 +174,7 @@ async def test_that_openapi_service_is_created_and_deleted(
 ) -> None:
     port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
 
@@ -254,6 +256,7 @@ async def test_that_reading_an_existing_openapi_service_returns_its_metadata_and
     service_registry = container[ServiceRegistry]
     port = get_random_port(10000, 50000)
     url = f"{OPENAPI_SERVER_BASE_URL}:{port}"
+
     async with run_openapi_server(port=port):
         source = f"{url}/openapi.json"
         await service_registry.update_tool_service(
