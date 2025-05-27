@@ -1044,7 +1044,9 @@ Produce a valid JSON object in the following format: ###
             ),
             "",
         )
-        guidelines_list_text = ", ".join([f'"{g.guideline}"' for g in guidelines])
+        guidelines_list_text = ", ".join(
+            [f'"{g.guideline}"' for g in guidelines if g.guideline.content.action]
+        )
 
         return f"""
 {{
