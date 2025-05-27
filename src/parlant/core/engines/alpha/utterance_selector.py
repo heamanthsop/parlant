@@ -38,6 +38,7 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposition,
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
+from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPerformancePolicy
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.journeys import Journey
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
@@ -395,6 +396,7 @@ class UtteranceSelector(MessageEventComposer):
         utterance_selection_generator: SchematicGenerator[UtteranceSelectionSchema],
         utterance_composition_generator: SchematicGenerator[UtteranceRevisionSchema],
         utterance_fluid_preamble_generator: SchematicGenerator[UtteranceFluidPreambleSchema],
+        perceived_performance_policy: PerceivedPerformancePolicy,
         utterance_store: UtteranceStore,
         field_extractor: UtteranceFieldExtractor,
         message_generator: MessageGenerator,
@@ -406,6 +408,7 @@ class UtteranceSelector(MessageEventComposer):
         self._utterance_composition_generator = utterance_composition_generator
         self._utterance_fluid_preamble_generator = utterance_fluid_preamble_generator
         self._utterance_store = utterance_store
+        self._perceived_performance_policy = perceived_performance_policy
         self._field_extractor = field_extractor
         self._message_generator = message_generator
         self._cached_utterance_fields: dict[UtteranceId, set[str]] = {}
@@ -695,6 +698,26 @@ You will now be given the current state of the interaction to which you must gen
 
                         events.append(event)
 
+                        await context.event_emitter.emit_status_event(
+                            correlation_id=self._correlator.correlation_id,
+                            data={
+                                "acknowledged_offset": 0,
+                                "status": "ready",
+                                "data": {},
+                            },
+                        )
+
+                        await self._perceived_performance_policy.get_follow_up_delay()
+
+                        await context.event_emitter.emit_status_event(
+                            correlation_id=self._correlator.correlation_id,
+                            data={
+                                "acknowledged_offset": 0,
+                                "status": "typing",
+                                "data": {},
+                            },
+                        )
+
                         if next_message := sub_messages[0] if sub_messages else None:
                             typing_speed_in_words_per_minute = 50
 
@@ -708,7 +731,7 @@ You will now be given the current state of the interaction to which you must gen
                                 initial_delay += (
                                     word_count_for_the_message_that_was_just_sent
                                     / typing_speed_in_words_per_minute
-                                ) * 3
+                                ) * 2
 
                             word_count_for_next_message = len(next_message.split())
 

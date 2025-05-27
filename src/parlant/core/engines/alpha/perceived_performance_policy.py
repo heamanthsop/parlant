@@ -8,7 +8,10 @@ from parlant.core.sessions import EventKind, EventSource
 
 class PerceivedPerformancePolicy(ABC):
     @abstractmethod
-    async def get_processing_indicator_delay(self, context: LoadedContext) -> float:
+    async def get_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
         """
         Returns the delay before the indicator (agent is thinking...) is sent.
 
@@ -18,9 +21,22 @@ class PerceivedPerformancePolicy(ABC):
         ...
 
     @abstractmethod
+    async def get_follow_up_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        """
+        Returns the delay before a follow-up message is sent.
+
+        :param context: The loaded context containing session and interaction details.
+        :return: The delay in seconds before sending the follow-up message.
+        """
+        ...
+
+    @abstractmethod
     async def get_preamble_delay(
         self,
-        context: LoadedContext,
+        context: LoadedContext | None = None,
     ) -> float:
         """
         Returns the delay before the preamble message is sent.
@@ -33,7 +49,7 @@ class PerceivedPerformancePolicy(ABC):
     @abstractmethod
     async def is_preamble_required(
         self,
-        context: LoadedContext,
+        context: LoadedContext | None = None,
     ) -> bool:
         """
         Determines if a preamble message is required for the given context.
@@ -46,21 +62,34 @@ class PerceivedPerformancePolicy(ABC):
 
 class DefaultPerceivedPerformancePolicy(PerceivedPerformancePolicy):
     @override
-    async def get_processing_indicator_delay(self, context: LoadedContext) -> float:
+    async def get_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
         return random.uniform(1.0, 2.0)
+
+    @override
+    async def get_follow_up_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return random.uniform(0.5, 1.5)
 
     @override
     async def get_preamble_delay(
         self,
-        context: LoadedContext,
+        context: LoadedContext | None = None,
     ) -> float:
         return random.uniform(1.0, 2.0)
 
     @override
     async def is_preamble_required(
         self,
-        context: LoadedContext,
+        context: LoadedContext | None = None,
     ) -> bool:
+        if context is None:
+            return False
+
         previous_wait_times = self._calculate_previous_customer_wait_times(context)
 
         if len(previous_wait_times) <= 2:
