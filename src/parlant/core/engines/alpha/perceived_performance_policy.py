@@ -54,7 +54,7 @@ class DefaultPerceivedPerformancePolicy(PerceivedPerformancePolicy):
         self,
         context: LoadedContext,
     ) -> float:
-        return random.uniform(0.5, 1.5)
+        return random.uniform(1.0, 2.0)
 
     @override
     async def is_preamble_required(

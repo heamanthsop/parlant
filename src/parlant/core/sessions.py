@@ -1171,4 +1171,4 @@ class PollingSessionListener(SessionListener):
             elif timeout.expired():
                 return False
             else:
-                await timeout.wait_up_to(1)
+                await timeout.wait_up_to(0.25)
