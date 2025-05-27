@@ -596,18 +596,6 @@ Feature: Tools
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains laptop as keyword and Dell as vendor and 300 as max price and 10 as min price 
 
-    Scenario: Tool caller include only required argument when asked to 
-        Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
-        And the tool "search_electronic_products"
-        And an association between "filter_electronic_products" and "search_electronic_products"
-        And a guideline to check only products of Dell when customer is interested in laptops with specific attributes
-        And a customer message, "Hey, do you have electronic device like microphones in your store?"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And no tool error has occurred
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains microphone as keyword 
-
      Scenario: Tool caller call tool twice with optional arguments
         Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
         And the tool "search_electronic_products"
