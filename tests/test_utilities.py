@@ -17,8 +17,11 @@ from dataclasses import dataclass, field
 import hashlib
 import json
 import logging
+import socket
+import sys
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
+from random import randint
 from time import sleep
 from typing import (
     Any,
@@ -90,7 +93,8 @@ T = TypeVar("T")
 GLOBAL_CACHE_FILE = Path("schematic_generation_test_cache.json")
 
 SERVER_PORT = 8089
-SERVER_ADDRESS = f"http://localhost:{SERVER_PORT}"
+SERVER_ADDRESS_BASE = "http://localhost"
+SERVER_ADDRESS = f"{SERVER_ADDRESS_BASE}:{SERVER_PORT}"
 
 PLUGIN_SERVER_PORT = 8091
 OPENAPI_SERVER_PORT = 8092
@@ -554,9 +558,10 @@ async def run_service_server(
     tools: list[ToolEntry],
     plugin_data: Mapping[str, Any] = {},
 ) -> AsyncIterator[PluginServer]:
+    port = get_random_port(50001, 65535)
     async with PluginServer(
         tools=tools,
-        port=PLUGIN_SERVER_PORT,
+        port=port,
         host="127.0.0.1",
         plugin_data=plugin_data,
     ) as server:
@@ -566,7 +571,8 @@ async def run_service_server(
             await server.shutdown()
 
 
-OPENAPI_SERVER_URL = f"http://localhost:{OPENAPI_SERVER_PORT}"
+OPENAPI_SERVER_BASE_URL = "http://localhost"
+OPENAPI_SERVER_URL = f"{OPENAPI_SERVER_BASE_URL}:{OPENAPI_SERVER_PORT}"
 
 
 async def one_required_query_param(
@@ -610,8 +616,8 @@ async def one_required_query_param_one_required_body_param(
     return JSONResponse({"result": f"{body.body_param}: {query_param}"})
 
 
-def rng_app() -> FastAPI:
-    app = FastAPI(servers=[{"url": OPENAPI_SERVER_URL}])
+def rng_app(port: int = OPENAPI_SERVER_PORT) -> FastAPI:
+    app = FastAPI(servers=[{"url": f"{OPENAPI_SERVER_BASE_URL}:{port}"}])
 
     @app.middleware("http")
     async def debug_request(
@@ -628,6 +634,30 @@ def rng_app() -> FastAPI:
     return app
 
 
+def is_port_available(port: int, host: str = "localhost") -> bool:
+    available = True
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.1)  # Short timeout for faster testing
+        sock.bind((host, port))
+    except (socket.error, OSError):
+        available = False
+    finally:
+        sock.close()
+
+    return available
+
+
+def get_random_port(
+    min_port: int = 1024, max_port: int = 65535, max_iterations: int = sys.maxsize
+) -> int:
+    iter = 0
+    while not is_port_available(port := randint(min_port, max_port)) and iter < max_iterations:
+        iter += 1
+        pass
+    return port
+
+
 class DummyDTO(DefaultBaseModel):
     number: int
     text: str
@@ -638,13 +668,37 @@ async def dto_object(dto: DummyDTO) -> JSONResponse:
 
 
 @asynccontextmanager
-async def run_openapi_server(app: FastAPI) -> AsyncIterator[None]:
-    config = uvicorn.Config(app=app, port=OPENAPI_SERVER_PORT)
+async def run_openapi_server(
+    app: Optional[FastAPI] = None,
+    port: int = 0,
+) -> AsyncIterator[None]:
+    if port == 0:
+        port = get_random_port(10001, 65535)
+
+    if app is None:
+        app = rng_app(port=port)
+
+    config = uvicorn.Config(app=app, port=port)
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())
-    yield
-    server.should_exit = True
-    await task
+
+    try:
+        while not server.started:
+            await asyncio.sleep(0.01)
+
+        await asyncio.sleep(0.05)
+        yield
+    finally:
+        server.should_exit = True
+        await asyncio.sleep(0.1)
+
+        # If it's still running close it more aggressively
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 async def get_json(address: str, params: dict[str, str] = {}) -> Any:

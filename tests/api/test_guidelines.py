@@ -34,7 +34,6 @@ from parlant.core.tools import LocalToolService, ToolId, ToolOverlap
 
 from tests.test_utilities import (
     OPENAPI_SERVER_URL,
-    rng_app,
     run_openapi_server,
     run_service_server,
 )
@@ -897,7 +896,7 @@ async def test_legacy_that_an_http_404_is_thrown_when_associating_with_a_nonexis
 
     tool_name = "nonexistent_tool"
 
-    async with run_openapi_server(rng_app()):
+    async with run_openapi_server():
         source = f"{OPENAPI_SERVER_URL}/openapi.json"
         await service_registry.update_tool_service(
             name="my_openapi_service",
