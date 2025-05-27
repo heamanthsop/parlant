@@ -490,13 +490,13 @@ You will now be given the current state of the interaction to which you must gen
         )
 
         emitted_event = await event_emitter.emit_message_event(
-            correlation_id=self._correlator.correlation_id,
+            correlation_id=f"{self._correlator.correlation_id}.preamble",
             data=response.content.preamble,
         )
 
         return [
             MessageEventComposition(
-                generation_info={"draft": response.info},
+                generation_info={"message": response.info},
                 events=[emitted_event],
             )
         ]
