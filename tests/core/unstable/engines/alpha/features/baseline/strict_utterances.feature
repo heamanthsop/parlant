@@ -48,3 +48,20 @@ Feature: Strict Utterance
         Then no tool calls event is emitted
         And a single message event is emitted
         And the message contains either that the password could not be reset at this time
+
+    Scenario: Two journeys are used in unison (strict utterance) 
+        Given a journey titled Book Flight to ask for the source and destination airport first, the date second, economy or business class third, and finally to ask for the name of the traveler. You may skip steps that are inapplicable due to other contextual reasons. when a customer wants to book a flight
+        And an utterance, "Great. Are you interested in economy or business class?"
+        And an utterance, "Great. Only economy class is available for this booking. What is the name of the traveler?"
+        And an utterance, "Great. What is the name of the traveler?"
+        And an utterance, "Great. Are you interested in economy or business class? Also, what is the name of the person traveling?"
+        And a journey titled No Economy to remember that travelers under the age of 21 are illegible for business class, and may only use economy when a flight is being booked
+        And a customer message, "Hi, I'd like to book a flight for myself. I'm 19 if that effects anything."
+        And an agent message, "Great! From and to where would are you looking to fly?"
+        And a customer message, "From LAX to JFK"
+        And an agent message, "Got it. And when are you looking to travel?"
+        And a customer message, "Next Monday"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains either asking for the name of the person traveling, or informing them that they can only travel are only eligible for economy class
+

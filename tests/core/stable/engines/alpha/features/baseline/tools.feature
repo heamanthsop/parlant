@@ -1024,7 +1024,7 @@ Feature: Tools
 
     Scenario: The agent correctly chooses to call the right tool based on journeys
         Given an agent whose job is to sell groceries
-        And a journey titled Carrots are Fruit to be aware that all orange vegetables are classified as fruits when an orange store item is mentioned
+        And a journey titled Orange things are Fruit to be aware that all orange vegetables are classified as fruits when an orange pruducts is mentioned
         And a guideline "check_prices" to reply with the price of the item when a customer asks about an items price
         And the tool "check_fruit_price"
         And the tool "check_vegetable_price"
