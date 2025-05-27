@@ -176,7 +176,7 @@ function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinu
 			<div
 				className={twMerge(
 					'group/main flex py-[12px] mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
-					isSameSourceAsPrevious && 'py-0',
+					isSameSourceAsPrevious && 'py-0 pb-[12px]',
 					isEditing && 'flex-1 flex justify-start max-w-[1000px] items-end w-[calc(100%-412px)] max-[2100px]:w-[calc(100%-200px)] self-end max-[1700px]:w-[calc(100%-40px)]'
 				)}>
 				<Spacer />
