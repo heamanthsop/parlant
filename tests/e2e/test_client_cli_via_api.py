@@ -573,7 +573,7 @@ async def test_that_a_tool_can_be_enabled_for_a_guideline(
                     service_kind,
                     "--url",
                     server.url,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -588,7 +588,7 @@ async def test_that_a_tool_can_be_enabled_for_a_guideline(
                     service_name,
                     "--tool",
                     tool_name,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -631,7 +631,7 @@ async def test_that_a_tool_can_be_disabled_for_a_guideline(
                     service_kind,
                     "--url",
                     server.url,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -648,7 +648,7 @@ async def test_that_a_tool_can_be_disabled_for_a_guideline(
                     service_name,
                     "--tool",
                     tool_name,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -717,7 +717,7 @@ async def test_that_a_variable_can_be_added(
                     service_kind,
                     "--url",
                     server.url,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -736,7 +736,7 @@ async def test_that_a_variable_can_be_added(
                     tool_name,
                     "--freshness-rules",
                     freshness_rules,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -795,7 +795,7 @@ async def test_that_a_variable_can_be_updated(
                     service_kind,
                     "--url",
                     server.url,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -814,7 +814,7 @@ async def test_that_a_variable_can_be_updated(
                     tool_name,
                     "--freshness-rules",
                     freshness_rules,
-                    context.api.server_address,
+                    address=context.api.server_address,
                 )
                 == os.EX_OK
             )
@@ -1742,6 +1742,7 @@ async def test_that_a_guideline_can_be_created_with_tool_id(
                     condition,
                     "--tool-id",
                     tool_id,
+                    address=context.api.server_address,
                 )
             ) == os.EX_OK
 
