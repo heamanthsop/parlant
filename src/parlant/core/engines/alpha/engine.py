@@ -981,6 +981,7 @@ class AlphaEngine(Engine):
             for g in guidelines
             if g.guideline.id not in session.agent_state["applied_guideline_ids"]
             and not g.guideline.metadata.get("continuous", False)
+            and g.guideline.content.action
         ]
 
         applied_guideline_ids = [

@@ -313,7 +313,11 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
+        import pathlib
 
+        pathlib.Path("generic actionable batch prompt.txt").write_text(
+            builder.build()
+        )  # TODO delete
         return builder
 
 

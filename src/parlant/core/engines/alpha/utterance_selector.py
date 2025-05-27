@@ -19,6 +19,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
+import pathlib
 import re
 import jinja2
 import jinja2.meta
@@ -1086,6 +1087,8 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 ],
             },
         )
+        pathlib.Path("utterance draft prompt.txt").write_text(builder.build())  # TODO delete
+
         return builder
 
     def _get_draft_output_format(
@@ -1212,7 +1215,7 @@ Output a JSON object with three properties:
                 "composition_mode": context.agent.composition_mode,
             },
         )
-
+        pathlib.Path("utterance selection prompt.txt").write_text(builder.build())  # TODO delete
         return builder
 
     async def _generate_utterance(

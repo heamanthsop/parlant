@@ -70,7 +70,7 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            with open("output_not_prev_apply_matcher.txt", "a") as f:
+            with open("output_not_prev_apply_matcher.txt", "w") as f:
                 f.write(f"{inference.content.model_dump_json(indent=2)}")
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
@@ -236,6 +236,11 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+        import pathlib
+
+        pathlib.Path("guideline not previously applied matcher prompt.txt").write_text(
+            builder.build()
+        )  # TODO delete me
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:

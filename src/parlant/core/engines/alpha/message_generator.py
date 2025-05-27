@@ -615,7 +615,7 @@ Produce a valid JSON object in the following format: ###
             },
         )
 
-        pathlib.Path("message generator prompt.txt").write_text(builder.build())
+        pathlib.Path("message generator prompt.txt").write_text(builder.build())  # TODO delete
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:

@@ -358,6 +358,12 @@ OUTPUT FORMAT
                 "guidelines_len": len(guidelines),
             },
         )
+        import pathlib
+
+        pathlib.Path("generic previously applied detector batch.txt").write_text(
+            builder.build()
+        )  # TODO delete
+
         return builder
 
     def _format_of_guideline_check_json_description(

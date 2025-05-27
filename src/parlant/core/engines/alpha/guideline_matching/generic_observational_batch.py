@@ -250,6 +250,10 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
+        import pathlib
+
+        pathlib.Path("generic observational batch.txt").write_text(builder.build())  # TODO delete
+
         return builder
 
 

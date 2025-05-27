@@ -144,6 +144,11 @@ Expected output (JSON):
 
         with open("customer dependent action detector prompt.txt", "w") as f:
             f.write(builder.build())
+        import pathlib
+
+        pathlib.Path("customer dependent action detector prompt.txt").write_text(
+            builder.build()
+        )  # TODO delete
 
         return builder
 
