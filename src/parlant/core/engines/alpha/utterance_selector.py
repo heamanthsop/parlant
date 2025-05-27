@@ -441,7 +441,7 @@ class UtteranceSelector(MessageEventComposer):
         last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
 
         await event_emitter.emit_status_event(
-            correlation_id=self._correlator.correlation_id,
+            correlation_id=f"{self._correlator.correlation_id}.preamble",
             data={
                 "acknowledged_offset": last_known_event_offset,
                 "status": "typing",
