@@ -496,7 +496,7 @@ You will now be given the current state of the interaction to which you must gen
 
         return [
             MessageEventComposition(
-                generation_info={"message": response.info},
+                generation_info={"draft": response.info},
                 events=[emitted_event],
             )
         ]
