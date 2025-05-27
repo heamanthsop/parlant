@@ -1448,6 +1448,7 @@ example_1_expected = UtteranceDraftSchema(
         "All of our cheese has expired and is currently out of stock",
         "The user is a long-time user and we should treat him with extra respect",
     ],
+    response_preamble="Let me check",
     response_body="Unfortunately we're out of cheese. Would you like anything else instead?",
 )
 
@@ -1465,6 +1466,7 @@ example_2_expected = UtteranceDraftSchema(
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
     ],
+    response_preamble="",
     response_body="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
 )
 
@@ -1485,6 +1487,7 @@ example_3_expected = UtteranceDraftSchema(
     insights=[
         "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
     ],
+    response_preamble="",
     response_body="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
 )
 
@@ -1505,6 +1508,7 @@ example_4_expected = UtteranceDraftSchema(
     insights=[
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
+    response_preamble="Hello",
     response_body="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
 )
 
