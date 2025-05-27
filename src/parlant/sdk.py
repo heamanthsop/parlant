@@ -202,7 +202,7 @@ class Journey:
     async def create_guideline(
         self,
         condition: str,
-        action: str,
+        action: str | None = None,
         tools: Iterable[ToolEntry] = [],
     ) -> Guideline:
         guideline = await self._container[GuidelineStore].create_guideline(
@@ -285,7 +285,7 @@ class Agent:
     async def create_guideline(
         self,
         condition: str,
-        action: str,
+        action: str | None = None,
         tools: Iterable[ToolEntry] = [],
     ) -> Guideline:
         guideline = await self._container[GuidelineStore].create_guideline(
