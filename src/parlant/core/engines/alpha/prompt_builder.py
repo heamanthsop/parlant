@@ -224,7 +224,7 @@ The user you're interacting with is called {customer_name}.
             ):
                 if last_message_event.source == EventSource.AI_AGENT:
                     last_message = cast(MessageEventData, last_message_event.data)["message"]
-                    last_event_note = f"\nIMPORTANT: Please note that the last message was sent by you, the AI agent (possibly as a preamble), and it was: ###\n{last_message}\n###\n\nYou must keep that in mind when responding to the user, so as to continue the last message naturally (for example, without repeating the preamble - make sure you don't repeat the preamble)."
+                    last_event_note = f"\nIMPORTANT: Please note that the last message was sent by you, the AI agent (possibly as a preamble). Your last message was: ###\n{last_message}\n###\n\nYou must keep that in mind when responding to the user, to continue the last message naturally (without repeating anything in your last message - make sure you don't repeat this!)."
 
             self.add_section(
                 name=BuiltInSection.INTERACTION_HISTORY,

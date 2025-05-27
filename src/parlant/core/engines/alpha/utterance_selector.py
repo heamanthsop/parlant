@@ -1018,9 +1018,11 @@ Produce a valid JSON object in the following format: ###
                     list(chain(ordinary_guideline_matches, tool_enabled_guideline_matches)),
                 ),
                 "interaction_history": interaction_history,
-                "guidelines": list(
-                    chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
-                ),
+                "guidelines": [
+                    g
+                    for g in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
+                    if g.guideline.content.action
+                ],
             },
         )
         return builder
