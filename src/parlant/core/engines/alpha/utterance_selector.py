@@ -69,8 +69,8 @@ class UtteranceDraftSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
     guidelines: list[str]
     insights: Optional[list[str]] = None
-    my_last_message: Optional[str] = None
-    message: Optional[str] = None
+    response_preamble: Optional[str] = None
+    response_body: Optional[str] = None
 
 
 class UtteranceSelectionSchema(DefaultBaseModel):
@@ -889,8 +889,8 @@ If you decide not to emit a message, output the following:
     "last_message_of_user": "<user's last message>",
     "guidelines": [<list of strings- a re-statement of all guidelines>],
     "insights": [<list of strings- up to 3 original insights>],
-    "my_last_message": "<your (agent)'s last message, if any, else null>",
-    "message": null
+    "response_preamble": null,
+    "response_body": null
 }}
 Otherwise, follow the rest of this prompt to choose the content of your response.
         """,
@@ -1059,18 +1059,41 @@ Produce a valid JSON object in the following format: ###
         interaction_history: Sequence[Event],
         guidelines: Sequence[GuidelineMatch],
     ) -> str:
-        last_user_message = next(
+        last_user_message_event = next(
             (
-                event.data["message"] if not event.data.get("flagged", False) else "<N/A>"
+                event
                 for event in reversed(interaction_history)
-                if (
-                    event.kind == EventKind.MESSAGE
-                    and event.source == EventSource.CUSTOMER
-                    and isinstance(event.data, dict)
-                )
+                if (event.kind == EventKind.MESSAGE and event.source == EventSource.CUSTOMER)
             ),
-            "",
+            None,
         )
+
+        agent_preamble = ""
+
+        if event := last_user_message_event:
+            event_data = cast(MessageEventData, event.data)
+
+            last_user_message = (
+                event_data["message"]
+                if not event_data.get("flagged", False)
+                else "<N/A -- censored>"
+            )
+
+            agent_preamble = next(
+                (
+                    cast(MessageEventData, event.data)["message"]
+                    for event in reversed(interaction_history)
+                    if (
+                        event.kind == EventKind.MESSAGE
+                        and event.source == EventSource.AI_AGENT
+                        and event.offset > last_user_message_event.offset
+                    )
+                ),
+                "",
+            )
+        else:
+            last_user_message = ""
+
         guidelines_list_text = ", ".join(
             [f'"{g.guideline}"' for g in guidelines if g.guideline.content.action]
         )
@@ -1080,8 +1103,8 @@ Produce a valid JSON object in the following format: ###
     "last_message_of_user": "{last_user_message}",
     "guidelines": [{guidelines_list_text}],
     "insights": [<Up to 3 original insights to adhere to>],
-    "my_last_message": "<your (agent)'s last message, if any, else null>",
-    "message": "<message text>"
+    "response_preamble": "{agent_preamble}",
+    "response_body": "<response message text (that would immediately follow the preamble)>"
 }}
 ###"""
 
@@ -1205,7 +1228,7 @@ Output a JSON object with three properties:
             f"Utterance Draft Completion:\n{draft_response.content.model_dump_json(indent=2)}"
         )
 
-        if not draft_response.content.message:
+        if not draft_response.content.response_body:
             return {"draft": draft_response.info}, None
 
         if (
@@ -1215,8 +1238,8 @@ Output a JSON object with three properties:
             return {
                 "draft": draft_response.info,
             }, _UtteranceSelectionResult(
-                message=draft_response.content.message,
-                draft=draft_response.content.message,
+                message=draft_response.content.response_body,
+                draft=draft_response.content.response_body,
                 utterances=[],
             )
 
@@ -1232,7 +1255,7 @@ Output a JSON object with three properties:
         selection_response = await self._utterance_selection_generator.generate(
             prompt=self._build_selection_prompt(
                 context=context,
-                draft_message=draft_response.content.message,
+                draft_message=draft_response.content.response_body,
                 utterances=utterances,
             ),
             hints={"temperature": 0.1},
@@ -1254,14 +1277,14 @@ Output a JSON object with three properties:
                 return {
                     "draft": draft_response.info,
                     "selection": selection_response.info,
-                }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
+                }, _UtteranceSelectionResult.no_match(draft=draft_response.content.response_body)
             else:
                 return {
                     "draft": draft_response.info,
                     "selection": selection_response.info,
                 }, _UtteranceSelectionResult(
-                    message=draft_response.content.message,
-                    draft=draft_response.content.message,
+                    message=draft_response.content.response_body,
+                    draft=draft_response.content.response_body,
                     utterances=[],
                 )
 
@@ -1273,8 +1296,8 @@ Output a JSON object with three properties:
                 "draft": draft_response.info,
                 "selection": selection_response.info,
             }, _UtteranceSelectionResult(
-                message=draft_response.content.message,
-                draft=draft_response.content.message,
+                message=draft_response.content.response_body,
+                draft=draft_response.content.response_body,
                 utterances=[],
             )
 
@@ -1290,7 +1313,7 @@ Output a JSON object with three properties:
             return {
                 "draft": draft_response.info,
                 "selection": selection_response.info,
-            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
+            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.response_body)
 
         try:
             rendered_utterance = await self._render_utterance(context, utterance)
@@ -1301,7 +1324,7 @@ Output a JSON object with three properties:
             return {
                 "draft": draft_response.info,
                 "selection": selection_response.info,
-            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.message)
+            }, _UtteranceSelectionResult.no_match(draft=draft_response.content.response_body)
 
         match composition_mode:
             case CompositionMode.COMPOSITED_UTTERANCE if (
@@ -1309,7 +1332,7 @@ Output a JSON object with three properties:
             ):
                 recomposition_generation_info, recomposed_utterance = await self._recompose(
                     context,
-                    draft_response.content.message,
+                    draft_response.content.response_body,
                     rendered_utterance,
                 )
 
@@ -1319,7 +1342,7 @@ Output a JSON object with three properties:
                     "composition": recomposition_generation_info,
                 }, _UtteranceSelectionResult(
                     message=recomposed_utterance,
-                    draft=draft_response.content.message,
+                    draft=draft_response.content.response_body,
                     utterances=[(utterance_id, utterance)],
                 )
             case _:
@@ -1328,7 +1351,7 @@ Output a JSON object with three properties:
                     "selection": selection_response.info,
                 }, _UtteranceSelectionResult(
                     message=rendered_utterance,
-                    draft=draft_response.content.message,
+                    draft=draft_response.content.response_body,
                     utterances=[(utterance_id, utterance)],
                 )
 
@@ -1425,7 +1448,7 @@ example_1_expected = UtteranceDraftSchema(
         "All of our cheese has expired and is currently out of stock",
         "The user is a long-time user and we should treat him with extra respect",
     ],
-    message="Unfortunately we're out of cheese. Would you like anything else instead?",
+    response_body="Unfortunately we're out of cheese. Would you like anything else instead?",
 )
 
 example_1_shot = UtteranceSelectorDraftShot(
@@ -1442,7 +1465,7 @@ example_2_expected = UtteranceDraftSchema(
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
     ],
-    message="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
+    response_body="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
 )
 
 example_2_shot = UtteranceSelectorDraftShot(
@@ -1462,7 +1485,7 @@ example_3_expected = UtteranceDraftSchema(
     insights=[
         "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
     ],
-    message="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
+    response_body="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
 )
 
 example_3_shot = UtteranceSelectorDraftShot(
@@ -1482,7 +1505,7 @@ example_4_expected = UtteranceDraftSchema(
     insights=[
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
-    message="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
+    response_body="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
 )
 
 example_4_shot = UtteranceSelectorDraftShot(
