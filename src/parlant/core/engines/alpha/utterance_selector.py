@@ -69,7 +69,7 @@ class UtteranceDraftSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
     guidelines: list[str]
     insights: Optional[list[str]] = None
-    response_preamble: Optional[str] = None
+    response_preamble_that_was_already_sent: Optional[str] = None
     response_body: Optional[str] = None
 
 
@@ -889,7 +889,7 @@ If you decide not to emit a message, output the following:
     "last_message_of_user": "<user's last message>",
     "guidelines": [<list of strings- a re-statement of all guidelines>],
     "insights": [<list of strings- up to 3 original insights>],
-    "response_preamble": null,
+    "response_preamble_that_was_already_sent": null,
     "response_body": null
 }}
 Otherwise, follow the rest of this prompt to choose the content of your response.
@@ -1103,7 +1103,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
     "last_message_of_user": "{last_user_message}",
     "guidelines": [{guidelines_list_text}],
     "insights": [<Up to 3 original insights to adhere to>],
-    "response_preamble": "{agent_preamble}",
+    "response_preamble_that_was_already_sent": "{agent_preamble}",
     "response_body": "<response message text (that would immediately follow the preamble)>"
 }}
 ###"""
@@ -1448,7 +1448,7 @@ example_1_expected = UtteranceDraftSchema(
         "All of our cheese has expired and is currently out of stock",
         "The user is a long-time user and we should treat him with extra respect",
     ],
-    response_preamble="Let me check",
+    response_preamble_that_was_already_sent="Let me check",
     response_body="Unfortunately we're out of cheese. Would you like anything else instead?",
 )
 
@@ -1466,7 +1466,7 @@ example_2_expected = UtteranceDraftSchema(
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
     ],
-    response_preamble="Just a moment",
+    response_preamble_that_was_already_sent="Just a moment",
     response_body="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
 )
 
@@ -1487,7 +1487,7 @@ example_3_expected = UtteranceDraftSchema(
     insights=[
         "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
     ],
-    response_preamble="I apologize for the confusion",
+    response_preamble_that_was_already_sent="I apologize for the confusion",
     response_body="Looks like I'm not able to assist you with your issue. If there's anything else I can do for you, please let me know.",
 )
 
@@ -1508,7 +1508,7 @@ example_4_expected = UtteranceDraftSchema(
     insights=[
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
-    response_preamble="Hello",
+    response_preamble_that_was_already_sent="Hello",
     response_body="Unfortunately, I cannot refer you to live customer support. Is there anything else I can help you with?",
 )
 
