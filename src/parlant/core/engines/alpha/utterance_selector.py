@@ -1035,7 +1035,7 @@ You should inform the user about this invalid data: ###
         builder.add_section(
             name="utterance-selector-output-format",
             template="""
-Produce a valid JSON object in the following format: ###
+Produce a valid JSON object according to the following spec. Use the values provided as follows, and only replace those in <angle brackets> with appropriate values: ###
 
 {formatted_output_format}
 """,
@@ -1466,7 +1466,7 @@ example_2_expected = UtteranceDraftSchema(
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
     ],
-    response_preamble="",
+    response_preamble=None,
     response_body="I'm sorry, but I'm having trouble accessing our menu at the moment. This isn't a great first impression! Can I possibly help you with anything else?",
 )
 
@@ -1487,7 +1487,7 @@ example_3_expected = UtteranceDraftSchema(
     insights=[
         "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
     ],
-    response_preamble="",
+    response_preamble=None,
     response_body="I apologize for failing to assist you with your issue. If there's anything else I can do for you, please let me know.",
 )
 
