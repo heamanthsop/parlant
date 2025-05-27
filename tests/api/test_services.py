@@ -123,7 +123,7 @@ async def test_that_openapi_service_is_created_with_file_source(
         json={
             "kind": "openapi",
             "openapi": {
-                "url": "http://localhost",
+                "url": TEST_BASE_URL,
                 "source": source,
             },
         },
@@ -133,7 +133,7 @@ async def test_that_openapi_service_is_created_with_file_source(
 
     assert content["name"] == "my_openapi_file_service"
     assert content["kind"] == "openapi"
-    assert content["url"] == "http://localhost"
+    assert content["url"] == TEST_BASE_URL
 
     os.remove(source)
 
@@ -329,7 +329,7 @@ async def test_that_reading_an_existing_mcp_service_returns_its_tools_and_can_ca
         await service_registry.update_tool_service(
             name="my_mcp_service",
             kind="mcp",
-            url=f"http://localhost:{server.get_port()}",
+            url=f"{TEST_BASE_URL}:{server.get_port()}",
         )
 
         await service_registry.list_tool_services()

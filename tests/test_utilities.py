@@ -614,7 +614,7 @@ async def one_required_query_param_one_required_body_param(
 
 
 def rng_app(port: int = OPENAPI_SERVER_PORT) -> FastAPI:
-    app = FastAPI(servers=[{"url": f"{OPENAPI_SERVER_BASE_URL}:{port}"}])
+    app = FastAPI(servers=[{"url": f"{TEST_BASE_URL}:{port}"}])
 
     @app.middleware("http")
     async def debug_request(

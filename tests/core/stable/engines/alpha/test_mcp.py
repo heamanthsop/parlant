@@ -14,9 +14,6 @@
 
 from datetime import datetime, date, timedelta
 from enum import Enum
-from random import randint
-import socket
-import sys
 import uuid
 from pathlib import Path
 
@@ -27,33 +24,7 @@ from parlant.core.emissions import EventEmitterFactory
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import StdoutLogger
 from parlant.sdk import ToolContext
-
-
-DEFAULT_MCP_SERVER_URL = "http://localhost"
-
-
-def is_port_available(port: int, host: str = "localhost") -> bool:
-    available = True
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(0.1)  # Short timeout for faster testing
-        sock.bind((host, port))
-    except (socket.error, OSError):
-        available = False
-    finally:
-        sock.close()
-
-    return available
-
-
-def get_random_port(
-    min_port: int = 10240, max_port: int = 65535, max_iterations: int = sys.maxsize
-) -> int:
-    iter = 0
-    while not is_port_available(port := randint(min_port, max_port)) and iter < max_iterations:
-        iter += 1
-        pass
-    return port
+from tests.test_utilities import TEST_BASE_URL, get_random_port
 
 
 def create_client(
@@ -63,7 +34,7 @@ def create_client(
     correlator = ContextualCorrelator()
     logger = StdoutLogger(correlator)
     return MCPToolClient(
-        url=DEFAULT_MCP_SERVER_URL,
+        url=TEST_BASE_URL,
         event_emitter_factory=container[EventEmitterFactory],
         logger=logger,
         correlator=correlator,

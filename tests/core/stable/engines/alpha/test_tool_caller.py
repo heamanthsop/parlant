@@ -60,9 +60,8 @@ from parlant.core.tools import (
 )
 
 from tests.core.common.utils import create_event_message
-from tests.test_utilities import run_service_server
+from tests.test_utilities import run_service_server, get_random_port
 from parlant.core.services.tools.mcp_service import MCPToolServer
-from tests.core.stable.engines.alpha.test_mcp import get_random_port
 
 
 @fixture
