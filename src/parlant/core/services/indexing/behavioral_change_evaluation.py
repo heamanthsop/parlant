@@ -18,7 +18,7 @@ from typing import Any, Iterable, Optional, OrderedDict, Sequence, cast
 from parlant.core import async_utils
 from parlant.core.agents import Agent, AgentId, AgentStore
 from parlant.core.background_tasks import BackgroundTaskService
-from parlant.core.common import md5_checksum
+from parlant.core.common import JSONSerializable, md5_checksum
 from parlant.core.evaluations import (
     CoherenceCheck,
     CoherenceCheckKind,
@@ -540,14 +540,12 @@ class GuidelineEvaluator:
         ):
             action_prop = payload_action.content.action if payload_action else None
 
-            properties_prop = None
-            if payload_continuous or payload_customer_dependent:
-                properties_prop = {
-                    "continuous": payload_continuous.is_continuous if payload_continuous else None,
-                    "customer_dependent_action_data": payload_customer_dependent.model_dump()
-                    if payload_customer_dependent
-                    else None,
-                }
+            properties_prop: dict[str, JSONSerializable] = {
+                "continuous": payload_continuous.is_continuous if payload_continuous else None,
+                "customer_dependent_action_data": payload_customer_dependent.model_dump()
+                if payload_customer_dependent
+                else None,
+            }
 
             invoice_data = InvoiceGuidelineData(
                 coherence_checks=None,
