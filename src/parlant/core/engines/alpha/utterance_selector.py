@@ -456,6 +456,8 @@ class UtteranceSelector(MessageEventComposer):
             on_build=lambda prompt: self._logger.debug(f"Utterance Preamble Prompt:\n{prompt}")
         )
 
+        prompt_builder.add_agent_identity(agent)
+
         prompt_builder.add_section(
             name="utterance-fluid-preamble-instructions",
             template="""\
