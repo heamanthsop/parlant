@@ -87,10 +87,8 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
                     GuidelineMatch(
                         guideline=self._guidelines[GuidelineId(match.guideline_id)],
                         score=10 if match.applies else 1,
-                        rationale=f'''Condition Application: "{match.rationale}"''',
-                        guideline_previously_applied=PreviouslyAppliedType("irrelevant"),
-                        guideline_is_continuous=True,
-                        should_reapply=True,
+                        rationale=f'''Condition Application Rationale: "{match.rationale}"''',
+                        guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
                     )
                 )
             else:

@@ -84,10 +84,8 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
                     GuidelineMatch(
                         guideline=self._guidelines[GuidelineId(match.guideline_id)],
                         score=10 if match.applies else 1,
-                        rationale=f'''Not previously applied matcher: "{match.rationale}"''',
-                        guideline_previously_applied=PreviouslyAppliedType("irrelevant"),
-                        guideline_is_continuous=True,
-                        should_reapply=True,
+                        rationale=f'''Not previously applied matcher rationale: "{match.rationale}"''',
+                        guideline_previously_applied=PreviouslyAppliedType.NO,
                     )
                 )
             else:

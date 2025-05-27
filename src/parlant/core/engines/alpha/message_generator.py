@@ -15,6 +15,7 @@
 from dataclasses import dataclass
 from itertools import chain
 import json
+import pathlib
 import traceback
 from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
@@ -613,6 +614,8 @@ Produce a valid JSON object in the following format: ###
                 "guidelines": actionable_guidelines,
             },
         )
+
+        pathlib.Path("message generator prompt.txt").write_text(builder.build())
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:

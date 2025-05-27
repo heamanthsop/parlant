@@ -111,9 +111,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
                         else ""}"''',
                         guideline_previously_applied=PreviouslyAppliedType(
                             match.guideline_previously_applied or "no"
-                        ),
-                        guideline_is_continuous=match.guideline_is_continuous or False,
-                        should_reapply=match.guideline_should_reapply or False,
+                        ),  # TODO either remove the file or delete this
                     )
                 )
             else:

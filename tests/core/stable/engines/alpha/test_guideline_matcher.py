@@ -1314,8 +1314,6 @@ class ActivateEveryGuidelineBatch(GuidelineMatchingBatch):
                     score=10,
                     rationale="",
                     guideline_previously_applied=PreviouslyAppliedType.NO,
-                    guideline_is_continuous=False,
-                    should_reapply=False,
                 )
                 for g in self.guidelines
             ],
