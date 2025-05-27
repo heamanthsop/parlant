@@ -732,7 +732,7 @@ Guidelines:
             prompt=prompt,
             hints={"temperature": 0.05},
         )
-        with open('output single tool batch.txt', 'w') as f:
+        with open("output single tool batch.txt", "w") as f:
             f.write(inference.content.model_dump_json(indent=2))
         self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
