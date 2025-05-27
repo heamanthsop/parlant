@@ -67,6 +67,7 @@ DEFAULT_NO_MATCH_UTTERANCE = "Not sure I understand. Could you please say that a
 
 class UtteranceDraftSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
+    my_last_message: Optional[str] = None
     guidelines: list[str]
     insights: Optional[list[str]] = None
     message: Optional[str] = None
@@ -886,6 +887,7 @@ If told so by a guideline or some other contextual condition, send the first mes
 If you decide not to emit a message, output the following:
 {{
     "last_message_of_user": "<user's last message>",
+    "my_last_message": "<your (agent)'s last message, if any, else null>",
     "guidelines": [<list of strings- a re-statement of all guidelines>],
     "insights": [<list of strings- up to 3 original insights>],
     "message": null
@@ -1076,6 +1078,7 @@ Produce a valid JSON object in the following format: ###
         return f"""
 {{
     "last_message_of_user": "{last_user_message}",
+    "my_last_message": "<your (agent)'s last message, if any, else null>",
     "guidelines": [{guidelines_list_text}],
     "insights": [<Up to 3 original insights to adhere to>],
     "message": "<message text>"
