@@ -129,6 +129,7 @@ Feature: Fluid Utterance
         And the message contains asking the customer for their age
         And the message contains no questions about the customer's email address or phone number
 
+    #TODO move to unstable (80%)
     Scenario: Simple journey is followed to inform decision (fluid utterance)
         Given a guideline "recommend_pizza" to recommend either tomato, mushrooms or pepperoni when the customer asks for topping recommendations
         And an utterance, "I recommend tomatoes"
