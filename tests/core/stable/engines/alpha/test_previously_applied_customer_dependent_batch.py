@@ -26,6 +26,14 @@ GUIDELINES_DICT = {
         "condition": "customer wants to make a reservation",
         "action": "check if they prefer inside or outside",
     },
+    "issue_reporting": {
+        "condition": "The customer is reporting a technical issue",
+        "action": "Ask for the exact error message or steps to reproduce the issue",
+    },
+    "order_lookup": {
+        "condition": "The customer wants to check their order status",
+        "action": " Ask for their order number",
+    },
 }
 
 
@@ -265,19 +273,19 @@ def test_that_customer_dependent_guideline_is_not_matched_when_customer_hasnt_co
     conversation_context: list[tuple[EventSource, str]] = [
         (
             EventSource.CUSTOMER,
-            " ",
+            "Your app keeps crashing when I try to open it.",
         ),
         (
             EventSource.AI_AGENT,
-            " ",
+            "I’m sorry to hear that! Could you tell me the exact error message you’re seeing?",
         ),
         (
             EventSource.CUSTOMER,
-            " ",
+            "Anyway, I was also wondering if you have any discounts available right now?",
         ),
     ]
 
-    guidelines: list[str] = [" "]
+    guidelines: list[str] = ["issue_reporting"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
@@ -299,19 +307,126 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
     conversation_context: list[tuple[EventSource, str]] = [
         (
             EventSource.CUSTOMER,
-            " ",
+            "Can you check the status of my phone order?",
         ),
         (
             EventSource.AI_AGENT,
-            " ",
+            "Sure! Could you share the order number?",
         ),
         (
             EventSource.CUSTOMER,
-            " ",
+            "It’s 12345. Thanks.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it. It's on the way and should arrive by Thursday.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Great. What about the headphones I ordered last week?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I'll check right now. Whats the order number for them?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I need to check just a second",
         ),
     ]
 
-    guidelines: list[str] = [" "]
+    guidelines: list[str] = ["order_lookup"]
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_customer_dependent_guideline_is_matched_when_condition_arises_for_the_second_time(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Can you check the status of my phone order?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure! Could you share the order number?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "It’s 12345. Thanks.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it. It's on the way and should arrive by Thursday.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Great. What about the headphones I ordered last week?",
+        ),
+    ]
+
+    guidelines: list[str] = ["order_lookup"]
+
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_completed(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Can you check the status of my phone order?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure! Could you share the order number?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "It’s 12345. Thanks.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it. It's on the way and should arrive by Thursday.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Great. What about the headphones I ordered last week?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I'll check right now. Whats the order number for them?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "It’s 11122.",
+        ),
+    ]
+
+    guidelines: list[str] = ["order_lookup"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
