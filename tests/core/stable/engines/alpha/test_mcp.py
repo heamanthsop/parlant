@@ -24,7 +24,8 @@ from parlant.core.emissions import EventEmitterFactory
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import StdoutLogger
 from parlant.sdk import ToolContext
-from tests.test_utilities import TEST_BASE_URL, get_random_port
+from tests.test_utilities import SERVER_BASE_URL, get_random_port
+from parlant.core.services.tools.service_registry import ServiceRegistry
 
 
 def create_client(
@@ -34,7 +35,7 @@ def create_client(
     correlator = ContextualCorrelator()
     logger = StdoutLogger(correlator)
     return MCPToolClient(
-        url=TEST_BASE_URL,
+        url=SERVER_BASE_URL,
         event_emitter_factory=container[EventEmitterFactory],
         logger=logger,
         correlator=correlator,
@@ -174,3 +175,42 @@ async def test_mcp_tool_with_timedelta_path_and_uuid(
                 },
             )
             assert "reports it took" in result.data
+
+
+async def test_that_reading_an_existing_mcp_service_returns_its_tools_and_can_call_them(
+    container: Container,
+) -> None:
+    def my_tool(arg_1: int, arg_2: int) -> int:
+        return arg_1 + arg_2
+
+    async def my_async_tool(message: str) -> str:
+        return f"Echo: {message}"
+
+    service_registry = container[ServiceRegistry]
+
+    async with MCPToolServer([my_tool, my_async_tool]) as server:
+        await service_registry.update_tool_service(
+            name="my_mcp_service",
+            kind="mcp",
+            url=f"{SERVER_BASE_URL}:{server.get_port()}",
+        )
+
+        await service_registry.list_tool_services()
+
+        # service_data = (await service_registry.list_tool_services()).raise_for_status().json()
+        service = await service_registry.read_tool_service("my_mcp_service")
+
+        tools_list = await service.list_tools()
+        assert len(tools_list) == 2
+        assert "my_tool" in [t.name for t in tools_list]
+        assert "my_async_tool" in [t.name for t in tools_list]
+
+        result = await service.call_tool(
+            "my_tool", ToolContext("", "", ""), {"arg_1": 11, "arg_2": 22}
+        )
+        assert str(result.data) == "33"
+
+        result = await service.call_tool(
+            "my_async_tool", ToolContext("", "", ""), {"message": "Hello"}
+        )
+        assert str(result.data) == "Echo: Hello"

@@ -41,7 +41,11 @@ class MCPToolServer:
         transport: Optional[Literal["stdio", "streamable-http", "sse"]] = "streamable-http",
     ) -> None:
         self._server: FastMCP[Any] = FastMCP(name=name)
+
         self._server.settings.port = port
+
+        if "://" in host:
+            host = host.split("://")[1]
         self._server.settings.host = host
         self.transport = transport
         for tool in tools:

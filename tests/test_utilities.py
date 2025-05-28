@@ -98,7 +98,6 @@ OPENAPI_SERVER_PORT = 8092
 
 SERVER_BASE_URL = "http://localhost"
 SERVER_ADDRESS = f"{SERVER_BASE_URL}:{SERVER_PORT}"
-OPENAPI_SERVER_BASE_URL = SERVER_BASE_URL
 
 
 class NLPTestSchema(DefaultBaseModel):
@@ -614,7 +613,7 @@ async def one_required_query_param_one_required_body_param(
 
 
 def rng_app(port: int = OPENAPI_SERVER_PORT) -> FastAPI:
-    app = FastAPI(servers=[{"url": f"{TEST_BASE_URL}:{port}"}])
+    app = FastAPI(servers=[{"url": f"{SERVER_BASE_URL}:{port}"}])
 
     @app.middleware("http")
     async def debug_request(
@@ -691,7 +690,7 @@ async def run_openapi_server(
 
         server_info = ServerInfo(
             port=port,
-            url=OPENAPI_SERVER_BASE_URL,
+            url=SERVER_BASE_URL,
         )
 
         yield server_info

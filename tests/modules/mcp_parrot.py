@@ -17,7 +17,7 @@ from lagom import Container
 from enum import Enum
 
 from parlant.core.background_tasks import BackgroundTaskService
-from parlant.core.services.tools.mcp_service import MCPToolServer
+from parlant.core.services.tools.mcp_service import MCPToolServer, DEFAULT_MCP_PORT
 from parlant.core.services.tools.service_registry import ServiceRegistry
 
 server_instance: MCPToolServer | None = None
@@ -51,7 +51,7 @@ async def configure_module(container: Container) -> Container:
 
     server = MCPToolServer(
         tools=[parrot_numbers, parrot_bools, parrot_enums],
-        port=8094,
+        port=DEFAULT_MCP_PORT,
         host="0.0.0.0",
     )
 
@@ -69,7 +69,7 @@ async def initialize_module(container: Container) -> None:
     await service_registry.update_tool_service(
         name="parrot",
         kind="mcp",
-        url="http://127.0.0.1:8094",
+        url=f"http://127.0.0.1:{DEFAULT_MCP_PORT}",
         transient=True,
     )
 
