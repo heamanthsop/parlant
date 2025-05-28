@@ -159,6 +159,7 @@ class StandardFieldExtraction(UtteranceFieldExtractionMethod):
             },
             "missing_params": self._extract_missing_params(context.tool_insights),
             "invalid_params": self._extract_invalid_params(context.tool_insights),
+            "glossary": {term.name: term.description for term in context.terms},
         }
 
     def _extract_missing_params(
