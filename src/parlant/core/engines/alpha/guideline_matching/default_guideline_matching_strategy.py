@@ -1,8 +1,9 @@
 import math
-from typing import Sequence
+from typing import Mapping, Sequence
 from typing_extensions import override
 
 
+from parlant.core.common import JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
     GenericNotPreviouslyAppliedGuidelineMatchesSchema,
     GenericNotPreviouslyAppliedGuidelineMatchingBatch,
@@ -12,6 +13,7 @@ from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_
     GenericPreviouslyAppliedGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
     GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
@@ -40,6 +42,9 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         previously_applied_guideline_schematic_generator: SchematicGenerator[
             GenericPreviouslyAppliedGuidelineMatchesSchema
         ],
+        previously_applied_customer_dependent_guideline_schematic_generator: SchematicGenerator[
+            GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema
+        ],
         not_previously_applied_guideline_schematic_generator: SchematicGenerator[
             GenericNotPreviouslyAppliedGuidelineMatchesSchema
         ],
@@ -53,6 +58,9 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         )
         self._previously_applied_guideline_schematic_generator = (
             previously_applied_guideline_schematic_generator
+        )
+        self._previously_applied_customer_dependent_guideline_schematic_generator = (
+            previously_applied_customer_dependent_guideline_schematic_generator
         )
 
     @override
@@ -73,7 +81,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                     not_previously_applied.append(g)
                 else:
                     if g.id in context.session.agent_state["applied_guideline_ids"]:
-                        if g.metadata.get("customer_dependent_action_data", False):
+                        data = g.metadata.get("customer_dependent_action_data", False)
+                        if isinstance(data, Mapping) and data.get("is_customer_dependent", False):
                             previously_applied_customer_dependent_batch.append(g)
                         else:
                             previously_applied_batch.append(g)
@@ -209,7 +218,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     ) -> GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch:
         return GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(
             logger=self._logger,
-            schematic_generator=self._previously_applied_guideline_schematic_generator,
+            schematic_generator=self._previously_applied_customer_dependent_guideline_schematic_generator,
             guidelines=guidelines,
             context=context,
         )
