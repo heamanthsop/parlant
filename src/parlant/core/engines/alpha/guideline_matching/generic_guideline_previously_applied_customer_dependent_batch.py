@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
-from typing import Sequence
+from typing import Optional, Sequence
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
@@ -27,6 +27,10 @@ class GenericPreviouslyAppliedCustomerDependentBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
     action: str
+    condition_still_met: bool
+    customer_should_reply: Optional[bool] = None
+    condition_met_again: Optional[bool] = None
+    action_wasnt_taken: Optional[bool] = None
     tldr: str
     should_apply: bool
 
@@ -199,13 +203,17 @@ The guideline should be apply if either of the following is true:
 
 Additional KeyRules:
 
-Conditions May Arise Multiple Times
+Don't Perform Action That It's Result Clearly Won't Change
+In some cases the action ask for the user for information that should not change from time to time, for example their Id or name. So even when the condition arises again, don't re activate the guideline 
+since we don't want to perform the action again. However if the action contains requests that some are constant and some are not, 
+
+Conditions May Arise Multiple Times:
     As said before, if the same condition comes up again later in a new context, and the associated action should be repeated (e.g., asking for a different account ID), the guideline should be reapplied.
     - We will want to repeat the action only if the current application refers to a new or subtly different context or information.
     - We will also want to make sure the nre context justify to retake the action. For example, a guideline “get the item title when the customer wants to purchase an item” should be reapplied each time the customer asks 
     to buy something. In contrast, guidelines involving constant information (e.g., “ask for the user ID”) should not be apply again since this information has not changed.
 
-Focus on the most recent context 
+Focus on the most recent context:
 When evaluating whether a guideline should be reapplied, the most recent part of the conversation, specifically the last user message, is what matters. A guideline should only be reapplied if its condition is clearly met 
 again in that latest message.
 Always base your decision on the current context to avoid unnecessary repetition and to keep the response aligned with the user’s present needs.
@@ -213,6 +221,7 @@ Always base your decision on the current context to avoid unnecessary repetition
 Context May Shift:
     Sometimes, the user may briefly raise an issue that would normally trigger a guideline, but then shift the topic within the same message or shortly after. In such cases, the condition should NOT be considered active, 
     and the guideline should not be reapplied.
+
 Conditions Can Arise and Resolve Multiple Times:
     A condition may be met more than once over the course of a conversation and may also be resolved multiple times (the action was taken). If the most recent instance of the condition has already been addressed and resolved,
     there is no need to reapply the guideline. However, if the user is still clearly engaging with the same unresolved issue, or if a new instance of the condition arises, reapplying the guideline may be appropriate.
@@ -278,6 +287,10 @@ OUTPUT FORMAT
                 "guideline_id": g.id,
                 "condition": g.content.condition,
                 "action": g.content.action,
+                "condition_still_met": "<BOOL, weather the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
+                "customer_should_reply": "<BOOL, include only if customer_should_reply=True weather the customer needs to apply their side of the action>",
+                "condition_met_again": "<BOOL, include only if customer_should_reply=False weather the condition is met again in the recent interaction for a new reason and action should be taken again>",
+                "action_wasnt_taken": "<BOOL, include only if condition_met_again=True, weather the new action wasn't taken yet by the agent or the customer>",
                 "tldr": "<str, Explanation for why the guideline should apply in the most recent context>",
                 "should_apply": "<BOOL>",
             }
@@ -371,7 +384,9 @@ example_1_events = [
         EventSource.AI_AGENT,
         "That sounds exciting! What kind of activities do you enjoy — relaxing on the beach, hiking, museums, food tours?",
     ),
-    _make_event("12", EventSource.CUSTOMER, "Tha't a complicated question"),
+    _make_event(
+        "44", EventSource.CUSTOMER, "That's a complicated question. I will think and tell you."
+    ),
 ]
 
 example_1_guidelines = [
@@ -387,6 +402,8 @@ example_1_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
+            condition_still_met=True,
+            customer_should_reply=True,
             tldr="The customer should answer what's their preferred activities.",
             should_apply=True,
         ),
@@ -403,7 +420,7 @@ example_2_events = [
         EventSource.AI_AGENT,
         "That sounds exciting! What kind of activities do you enjoy—relaxing on the beach, hiking, museums, food tours?",
     ),
-    _make_event("12", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
+    _make_event("25", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
 ]
 
 example_2_guidelines = [
@@ -419,11 +436,15 @@ example_2_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
+            condition_still_met=True,
+            customer_should_reply=False,
+            condition_met_again=False,
             tldr="The customer has already answer what's their preferred activities",
             should_apply=False,
         ),
     ]
 )
+
 example_3_events = [
     _make_event(
         "11", EventSource.CUSTOMER, "I'm planning a trip next month. Any ideas on where to go?"
@@ -433,13 +454,13 @@ example_3_events = [
         EventSource.AI_AGENT,
         "That sounds exciting! What kind of activities do you enjoy—relaxing on the beach, hiking, museums, food tours?",
     ),
-    _make_event("12", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
+    _make_event("66", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
     _make_event(
-        "22",
+        "76",
         EventSource.AI_AGENT,
         "Great! You might enjoy a trip to the Pacific Northwest—plenty of trails and great food in Portland and Seattle.",
     ),
-    _make_event("19", EventSource.CUSTOMER, "What about a winter trip in Europe?"),
+    _make_event("89", EventSource.CUSTOMER, "What about a winter trip in Europe?"),
 ]
 
 example_3_guidelines = [
@@ -455,12 +476,105 @@ example_3_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
+            condition_still_met=True,
+            customer_should_reply=False,
+            condition_met_again=True,
+            action_wasnt_taken=True,
             tldr="The customer ask about a new trip plan.",
             should_apply=True,
         ),
     ]
 )
 
+
+example_4_events = [
+    _make_event(
+        "11", EventSource.CUSTOMER, "I'm planning a trip next month. Any ideas on where to go?"
+    ),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "That sounds exciting! What kind of activities do you enjoy—relaxing on the beach, hiking, museums, food tours?",
+    ),
+    _make_event("26", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
+    _make_event(
+        "54",
+        EventSource.AI_AGENT,
+        "Great! You might enjoy a trip to the Pacific Northwest—plenty of trails and great food in Portland and Seattle.",
+    ),
+    _make_event("66", EventSource.CUSTOMER, "What about a winter trip in Europe?"),
+    _make_event(
+        "77",
+        EventSource.AI_AGENT,
+        "That can be great! What kind of activities would you like to do there?",
+    ),
+    _make_event("78", EventSource.CUSTOMER, "I will go to France probably"),
+]
+
+example_4_guidelines = [
+    GuidelineContent(
+        condition="The customer wants recommendations for a trip",
+        action="Ask for their preferred activities and recommend accordingly",
+    ),
+]
+
+example_4_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema(
+    checks=[
+        GenericPreviouslyAppliedCustomerDependentBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="The customer wants recommendations for a trip",
+            action="Ask for their preferred activities and recommend accordingly",
+            condition_still_met=True,
+            customer_should_reply=True,
+            tldr="The customer didn't answer the question.",
+            should_apply=True,
+        ),
+    ]
+)
+
+example_5_events = [
+    _make_event(
+        "11", EventSource.CUSTOMER, "I'm planning a trip next month. Any ideas on where to go?"
+    ),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "That sounds exciting! What kind of activities do you enjoy—relaxing on the beach, hiking, museums, food tours?",
+    ),
+    _make_event("26", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
+    _make_event(
+        "54",
+        EventSource.AI_AGENT,
+        "Great! You might enjoy a trip to the Pacific Northwest—plenty of trails and great food in Portland and Seattle.",
+    ),
+    _make_event("66", EventSource.CUSTOMER, "What about a winter trip in Europe?"),
+    _make_event(
+        "77",
+        EventSource.AI_AGENT,
+        "That can be great! What kind of activities would you like to do there?",
+    ),
+    _make_event("78", EventSource.CUSTOMER, "Actually let's stick to the Plan for next month"),
+]
+
+example_5_guidelines = [
+    GuidelineContent(
+        condition="The customer wants recommendations for a trip",
+        action="Ask for their preferred activities and recommend accordingly",
+    ),
+]
+
+example_5_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema(
+    checks=[
+        GenericPreviouslyAppliedCustomerDependentBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="The customer wants recommendations for a trip",
+            action="Ask for their preferred activities and recommend accordingly",
+            condition_still_met=False,
+            tldr="The customer regret about the new planning",
+            should_apply=False,
+        ),
+    ]
+)
 
 _baseline_shots: Sequence[GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot] = [
     GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot(
@@ -480,6 +594,18 @@ _baseline_shots: Sequence[GenericPreviouslyAppliedCustomerDependentGuidelineMatc
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
+    ),
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot(
+        description="",
+        interaction_events=example_4_events,
+        guidelines=example_4_guidelines,
+        expected_result=example_4_expected,
+    ),
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot(
+        description="",
+        interaction_events=example_5_events,
+        guidelines=example_5_guidelines,
+        expected_result=example_5_expected,
     ),
 ]
 
