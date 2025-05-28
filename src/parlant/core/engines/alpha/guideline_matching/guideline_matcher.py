@@ -94,7 +94,7 @@ class GuidelineMatcher:
         self._batch_retry_policy = retry(
             exceptions=KeyError,
             max_attempts=3,
-            wait_times=(1.0, 2.0, 4.0),  # 1s, 2s, 4s wait times
+            wait_times=(1.0, 2.0, 4.0),
         )
 
     async def _process_batch_with_retry(
