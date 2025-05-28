@@ -759,6 +759,8 @@ Produce a valid JSON object in the following format: ###
             hints={"temperature": temperature},
         )
 
+        with open("output message generator.txt", 'w') as f:
+            f.write(message_event_response.content.model_dump_json(indent=2))
         self._logger.debug(
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
