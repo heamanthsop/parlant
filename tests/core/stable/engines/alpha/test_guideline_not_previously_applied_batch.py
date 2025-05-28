@@ -22,10 +22,6 @@ from tests.test_utilities import SyncAwaiter
 
 
 GUIDELINES_DICT = {
-    "first_order_and_order_more_than_2": {
-        "condition": "When this is the customer first order and they order more than 2 pizzas",
-        "action": "offer 2 for 1 sale",
-    },
     "transfer_to_manager": {
         "condition": "When customer ask to talk with a manager",
         "action": "Hand them over to a manager immediately.",
@@ -33,6 +29,10 @@ GUIDELINES_DICT = {
     "don't_transfer_to_manager": {
         "condition": "When customer ask to talk with a manager",
         "action": "Explain that it's not possible to talk with a manager and that you are here to help",
+    },
+    "first_order_and_order_more_than_2": {
+        "condition": "When this is the customer first order and they order more than 2 pizzas",
+        "action": "offer 2 for 1 sale",
     },
     "identify_problem": {
         "condition": "When customer say that they got an error in the app",
@@ -49,6 +49,10 @@ GUIDELINES_DICT = {
     "problem_with_order": {
         "condition": "The customer is reporting a problem with their order.",
         "action": "Apologize and ask for more details about the issue.",
+    },
+    "delivery_time_inquiry": {
+        "condition": "When the customer asks about the estimated delivery time for their order.",
+        "action": "Always use Imperial units",
     },
 }
 
@@ -113,7 +117,7 @@ def create_guideline(
     return guideline
 
 
-def base_test_that_correct_guidelines_detect_as_previously_applied(
+def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     session_id: SessionId,
@@ -127,9 +131,7 @@ def base_test_that_correct_guidelines_detect_as_previously_applied(
         name: create_guideline_by_name(context, name) for name in guidelines_names
     }
 
-    previously_applied_target_guidelines = [
-        conversation_guidelines[name] for name in guidelines_target_names
-    ]
+    target_guidelines = [conversation_guidelines[name] for name in guidelines_target_names]
 
     interaction_history = [
         create_event_message(
@@ -163,21 +165,21 @@ def base_test_that_correct_guidelines_detect_as_previously_applied(
         staged_events=staged_events,
     )
 
-    guideline_previously_applied_detector = GenericNotPreviouslyAppliedGuidelineMatchingBatch(
+    guideline_not_previously_applied_matcher = GenericNotPreviouslyAppliedGuidelineMatchingBatch(
         logger=context.container[Logger],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
         context=guideline_matching_context,
     )
 
-    result = context.sync_await(guideline_previously_applied_detector.process())
+    result = context.sync_await(guideline_not_previously_applied_matcher.process())
 
     matched_guidelines = [p.guideline for p in result.matches]
 
-    assert set(matched_guidelines) == set(previously_applied_target_guidelines)
+    assert set(matched_guidelines) == set(target_guidelines)
 
 
-def test_that_guideline_that_its_condition_partially_satisfied_not_matched(
+def test_that_a_guideline_whose_condition_is_partially_satisfied_not_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -200,7 +202,7 @@ def test_that_guideline_that_its_condition_partially_satisfied_not_matched(
 
     guidelines: list[str] = ["first_order_and_order_more_than_2"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -211,7 +213,7 @@ def test_that_guideline_that_its_condition_partially_satisfied_not_matched(
     )
 
 
-def test_that_guideline_that_its_condition_was_partially_fulfilled_now_match(
+def test_that_guideline_whose_condition_was_partially_fulfilled_now_matches(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -242,7 +244,7 @@ def test_that_guideline_that_its_condition_was_partially_fulfilled_now_match(
 
     guidelines: list[str] = ["first_order_and_order_more_than_2"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -269,7 +271,7 @@ def test_that_conflicting_actions_with_similar_conditions_are_both_matched(
 
     guidelines: list[str] = ["transfer_to_manager", "don't_transfer_to_manager"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -303,7 +305,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
 
     guidelines: list[str] = ["identify_problem"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -341,7 +343,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
     ]
     guidelines: list[str] = ["frustrated_customer"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -379,7 +381,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_top
     ]
     guidelines: list[str] = ["do_payment"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -408,7 +410,45 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     ]
     guidelines: list[str] = ["problem_with_order"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, I had an order sent to me about a week ago, any idea as to when it would arrive?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Hello there! Before I proceed, what's the number of your order",
+        ),
+        (EventSource.CUSTOMER, "7815276"),
+        (
+            EventSource.AI_AGENT,
+            "Got it, it looks like it was shipped last Tuesday. It should arrive in the next 4 business days",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I hoped it would be here by now - is it being shipped by air, or by another method?",
+        ),
+    ]
+    guidelines: list[str] = ["delivery_time_inquiry"]
+
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,

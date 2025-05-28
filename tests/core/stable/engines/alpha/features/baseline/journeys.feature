@@ -47,7 +47,8 @@ Feature: Journeys
         And a customer message, "the email is leonardobarbosa@gmail.br"
         And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
         And a customer message, "Thank you! Have a great day as well!"
-        When processing is triggered
+        And that the "reset_password_guideline" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains the tool reset password with username leonardo_barbosa_1982 and email leonardobarbosa@gmail.br 
