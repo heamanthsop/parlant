@@ -37,7 +37,7 @@ Feature: Conversation
         Then a single message event is emitted
         And the message contains either telling the user that the relevant topic is Mobileye or rudely telling the user to go away
 
-    Scenario: The agent follows a guideline without necessarily adhering to it literally every time HADAR CHECK ME OUT
+    Scenario: The agent follows a guideline without necessarily adhering to it literally every time TODO Fix in message generator
         Given an agent
         And an empty session
         And a guideline "empathetic_response" to be empathetic and inquire about the customer's problem when a customer is frustrated with the service
