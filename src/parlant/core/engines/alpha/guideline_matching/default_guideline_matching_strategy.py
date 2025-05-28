@@ -3,7 +3,6 @@ from typing import Mapping, Sequence
 from typing_extensions import override
 
 
-from parlant.core.common import JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
     GenericNotPreviouslyAppliedGuidelineMatchesSchema,
     GenericNotPreviouslyAppliedGuidelineMatchingBatch,
