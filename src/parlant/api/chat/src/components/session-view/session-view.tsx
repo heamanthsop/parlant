@@ -238,11 +238,11 @@ const SessionView = (): ReactElement => {
 	return (
 		<>
 			<div ref={messagesRef} className={twMerge('flex items-center h-full w-full bg-white gap-[14px] rounded-[10px]', showLogsForMessage && 'bg-green-light')}>
-				<div className={twMerge('h-full w-full pb-[14px] pt-0 rounded-[10px] flex flex-col transition-all duration-500 bg-white', showLogsForMessage && 'w-[calc(100%-min(700px,35vw))]')}>
+				<div className={twMerge('h-full w-full pb-[14px] pt-[10px] rounded-[10px] flex flex-col transition-all duration-500 bg-white', showLogsForMessage && 'w-[calc(100%-min(700px,35vw))]')}>
 					<div className='h-full flex flex-col rounded-[10px] m-auto w-full min-w-[unset]'>
 						{/* <div className='h-[58px] bg-[#f5f5f9]'></div> */}
-						<SessoinViewHeader />
-						<div className={twMerge('h-[21px] border-t-0 bg-white')}></div>
+						{/* <SessoinViewHeader /> */}
+						{/* <div className={twMerge('h-[21px] border-t-0 bg-white')}></div> */}
 						<div className={twMerge('flex flex-col rounded-es-[16px] rounded-ee-[16px] items-center bg-white mx-auto w-full flex-1 overflow-hidden')}>
 							<div className='messages [scroll-snap-type:y_mandatory] fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden' aria-live='polite' role='log' aria-label='Chat messages'>
 								{ErrorTemplate && <ErrorTemplate />}
