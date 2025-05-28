@@ -469,11 +469,12 @@ The actual message will be sent later by a smarter agent. Your job is only to ge
 You must not assume anything about how to handle the interaction in any way, shape, or form, beyond just generating the right, nuanced preamble message.
 
 Example preamble messages:
-- "Hey there"
-- "Just a moment"
-- "Sorry to hear that"
-- "Definitely"
-- "Let me check that for you"
+- "Hey there!"
+- "Just a moment."
+- "Hello."
+- "Sorry to hear that."
+- "Definitely."
+- "Let me check that for you."
 etc.
 
 Basically, the preamble is something very short that continues the interaction naturally, without committing to any later action or response.
