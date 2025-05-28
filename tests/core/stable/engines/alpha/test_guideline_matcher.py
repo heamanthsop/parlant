@@ -294,15 +294,13 @@ def context(
 def match_guidelines(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
     guideline_matching_result = context.sync_await(
         context.container[GuidelineMatcher].match_guidelines(
             agent=agent,
@@ -416,14 +414,16 @@ def create_guideline_by_name(
 
 
 def update_previously_applied_guidelines(
-    context: ContextOfTest, session_id: SessionId, applied_guideline_ids: list[GuidelineId]
+    context: ContextOfTest,
+    session: Session,
+    applied_guideline_ids: list[GuidelineId],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = context.sync_await(context.container[SessionStore].read_session(session.id))
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
 
     context.sync_await(
         context.container[EntityCommands].update_session(
-            session_id=session_id,
+            session_id=session.id,
             params=SessionUpdateParams(
                 agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
             ),
@@ -434,7 +434,7 @@ def update_previously_applied_guidelines(
 def match_preparation(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
@@ -442,8 +442,6 @@ def match_preparation(
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
     matches_to_prepare = [
         GuidelineMatch(
             guideline=g,
@@ -484,13 +482,13 @@ def match_preparation(
         if g.is_previously_applied
     ]
 
-    update_previously_applied_guidelines(context, session_id, applied_guideline_ids)
+    update_previously_applied_guidelines(context, session, applied_guideline_ids)
 
 
 def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
     conversation_context: list[tuple[EventSource, str]],
     conversation_guideline_names: list[str],
@@ -528,12 +526,12 @@ def base_test_that_correct_guidelines_are_matched(
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_guidelines(context, session_id, previously_applied_guidelines)
+    update_previously_applied_guidelines(context, session, previously_applied_guidelines)
 
     match_preparation(
         context,
         agent,
-        session_id,
+        session,
         customer,
         context_variables,
         terms,
@@ -545,7 +543,7 @@ def base_test_that_correct_guidelines_are_matched(
     guideline_matches = match_guidelines(
         context,
         agent,
-        session_id,
+        session,
         customer,
         interaction_history,
         context_variables=context_variables,
@@ -624,7 +622,7 @@ def test_that_relevant_guidelines_are_matched_parametrized_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -671,7 +669,7 @@ def test_that_irrelevant_guidelines_are_not_matched_parametrized_1(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -723,7 +721,7 @@ def test_that_guidelines_with_the_same_conditions_are_scored_similarly(
     guideline_matches = match_guidelines(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         interaction_history,
     )
@@ -792,7 +790,7 @@ def test_that_guidelines_are_matched_based_on_agent_description(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        session.id,
+        session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -848,7 +846,7 @@ def test_that_guidelines_are_matched_based_on_glossary(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -927,7 +925,7 @@ def test_that_conflicting_actions_with_similar_conditions_are_both_detected(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1007,7 +1005,7 @@ def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_context_vari
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1079,7 +1077,7 @@ def test_that_guidelines_are_matched_based_on_staged_tool_calls_without_context_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1110,7 +1108,7 @@ def test_that_already_addressed_guidelines_are_not_matched(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1143,7 +1141,7 @@ def test_that_guidelines_referring_to_continuous_processes_are_detected_even_if_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1183,7 +1181,7 @@ def test_that_guideline_with_already_addressed_condition_but_unaddressed_action_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1210,7 +1208,7 @@ def test_that_guideline_is_not_detected_based_on_its_action(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1245,7 +1243,7 @@ def test_that_guideline_with_fulfilled_action_regardless_of_condition_can_be_rea
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1272,7 +1270,7 @@ def test_that_guideline_with_initial_response_is_matched(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1306,7 +1304,7 @@ def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_a_few_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1425,7 +1423,13 @@ def test_that_guideline_matching_strategies_can_be_overridden(
         create_guideline(context, "help", "assist customer"),
     ]
 
-    guideline_matches = match_guidelines(context, agent, new_session.id, customer, [])
+    guideline_matches = match_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        [],
+    )
 
     long_condition_guidelines = [g for g in guidelines if len(g.content.condition.split()) >= 4]
     short_condition_guidelines = [g for g in guidelines if len(g.content.condition.split()) < 4]
@@ -1480,9 +1484,7 @@ def test_that_strategy_for_specific_guideline_can_be_overridden_in_default_strat
         )
     ]
 
-    guideline_matches = match_guidelines(
-        context, agent, new_session.id, customer, interaction_history
-    )
+    guideline_matches = match_guidelines(context, agent, new_session, customer, interaction_history)
 
     assert guideline.id in [match.guideline.id for match in guideline_matches]
 
@@ -1512,7 +1514,7 @@ def test_that_observational_guidelines_are_detected_1(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1545,7 +1547,7 @@ def test_that_irrelevant_observational_guidelines_are_not_detected_1(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1578,7 +1580,7 @@ def test_that_observational_guidelines_are_detected_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1640,7 +1642,7 @@ def test_that_irrelevant_observational_guidelines_are_not_detected_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1689,7 +1691,7 @@ def test_that_observational_guidelines_are_detected_3(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1716,7 +1718,7 @@ def test_that_observational_guidelines_are_detected_5(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1774,7 +1776,7 @@ def test_that_observational_guidelines_are_detected_4(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1821,7 +1823,7 @@ def test_that_observational_guidelines_are_detected_based_on_context_variables(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1880,7 +1882,7 @@ def test_that_observational_guidelines_are_detected_based_on_tool_results(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1933,7 +1935,7 @@ def test_that_observational_guidelines_are_matched_based_on_glossary(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -1959,7 +1961,7 @@ def test_that_observational_guidelines_are_matched_based_on_vague_customer_messa
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -2036,7 +2038,7 @@ def test_that_observational_guidelines_are_matched_based_on_old_messages(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -2128,7 +2130,7 @@ def test_that_both_observational_and_actionable_guidelines_are_matched_together(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -2137,21 +2139,16 @@ def test_that_both_observational_and_actionable_guidelines_are_matched_together(
     )
 
 
-# Tests for guideline matching preparation
-
-
 def match_guideline_preparation(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelinePreviouslyApplied]:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
     matches_to_prepare = [
         GuidelineMatch(
             guideline=g,
@@ -2241,7 +2238,7 @@ def test_that_guideline_preparation_processes_guideline(
     preparation_result = match_guideline_preparation(
         context=context,
         agent=agent,
-        session_id=new_session.id,
+        session=new_session,
         customer=customer,
         interaction_history=interaction_history,
         context_variables=[],
@@ -2328,7 +2325,7 @@ def test_that_guideline_preparation_strategy_can_be_overridden(
     preparation_result = match_guideline_preparation(
         context=context,
         agent=agent,
-        session_id=new_session.id,
+        session=new_session,
         customer=customer,
         interaction_history=interaction_history,
         context_variables=[],
@@ -2338,3 +2335,194 @@ def test_that_guideline_preparation_strategy_can_be_overridden(
 
     assert len(preparation_result) == 1
     assert all(pa.is_previously_applied for pa in preparation_result)
+
+
+def test_that_batch_processing_retries_on_key_error(
+    context: ContextOfTest,
+    agent: Agent,
+    customer: Customer,
+    new_session: Session,
+) -> None:
+    class FailingBatch(GuidelineMatchingBatch):
+        def __init__(self, guidelines: Sequence[Guideline], fail_count: int = 2):
+            self.guidelines = guidelines
+            self.fail_count = fail_count
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingBatchResult:
+            self.attempt_count += 1
+            if self.attempt_count <= self.fail_count:
+                raise KeyError(f"Simulated failure on attempt {self.attempt_count}")
+
+            return GuidelineMatchingBatchResult(
+                matches=[
+                    GuidelineMatch(
+                        guideline=g,
+                        score=10,
+                        rationale="Success after retry",
+                        guideline_previously_applied=PreviouslyAppliedType.NO,
+                    )
+                    for g in self.guidelines
+                ],
+                generation_info=GenerationInfo(
+                    schema_name="test",
+                    model="test-model",
+                    duration=0.1,
+                    usage=UsageInfo(
+                        input_tokens=10,
+                        output_tokens=5,
+                        extra={},
+                    ),
+                ),
+            )
+
+    class FailingPreparationBatch(GuidelineMatchingPreparationBatch):
+        def __init__(self, guideline_matches: Sequence[GuidelineMatch], fail_count: int = 2):
+            self.guideline_matches = guideline_matches
+            self.fail_count = fail_count
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingPreparationBatchResult:
+            self.attempt_count += 1
+            if self.attempt_count <= self.fail_count:
+                raise KeyError(f"Simulated failure on attempt {self.attempt_count}")
+
+            return GuidelineMatchingPreparationBatchResult(
+                previously_applied_guidelines=[
+                    GuidelinePreviouslyApplied(
+                        guideline=m.guideline,
+                        is_previously_applied=True,
+                    )
+                    for m in self.guideline_matches
+                ],
+                generation_info=GenerationInfo(
+                    schema_name="test",
+                    model="test-model",
+                    duration=0.1,
+                    usage=UsageInfo(
+                        input_tokens=10,
+                        output_tokens=5,
+                        extra={},
+                    ),
+                ),
+            )
+
+    class FailingStrategy(GuidelineMatchingStrategy):
+        @override
+        async def create_matching_batches(
+            self,
+            guidelines: Sequence[Guideline],
+            context: GuidelineMatchingContext,
+        ) -> Sequence[GuidelineMatchingBatch]:
+            return [
+                FailingBatch(
+                    guidelines=guidelines,
+                    fail_count=2,
+                )
+            ]
+
+        @override
+        async def create_matching_preparation_batches(
+            self,
+            guideline_matches: Sequence[GuidelineMatch],
+            context: GuidelineMatchingPreparationContext,
+        ) -> Sequence[GuidelineMatchingPreparationBatch]:
+            return [
+                FailingPreparationBatch(
+                    guideline_matches=guideline_matches,
+                    fail_count=2,
+                )
+            ]
+
+    class FailingStrategyResolver(GuidelineMatchingStrategyResolver):
+        @override
+        async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
+            return FailingStrategy()
+
+    guideline = create_guideline(
+        context=context,
+        condition="test condition",
+        action="test action",
+    )
+
+    context.container[GuidelineMatcher].strategy_resolver = FailingStrategyResolver()
+
+    guideline_matches = match_guidelines(
+        context=context,
+        agent=agent,
+        session=new_session,
+        customer=customer,
+        interaction_history=[],
+    )
+
+    assert len(guideline_matches) == 1
+    assert guideline_matches[0].guideline == guideline
+    assert guideline_matches[0].rationale == "Success after retry"
+
+
+def test_that_batch_processing_fails_after_max_retries(
+    context: ContextOfTest,
+    agent: Agent,
+    customer: Customer,
+    session: Session,
+) -> None:
+    class AlwaysFailingBatch(GuidelineMatchingBatch):
+        def __init__(self, guidelines: Sequence[Guideline]):
+            self.guidelines = guidelines
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingBatchResult:
+            self.attempt_count += 1
+            raise KeyError(f"Always fails - attempt {self.attempt_count}")
+
+    class AlwaysFailingPreparationBatch(GuidelineMatchingPreparationBatch):
+        def __init__(self, guideline_matches: Sequence[GuidelineMatch]):
+            self.guideline_matches = guideline_matches
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingPreparationBatchResult:
+            self.attempt_count += 1
+            raise KeyError(f"Always fails - attempt {self.attempt_count}")
+
+    class AlwaysFailingStrategy(GuidelineMatchingStrategy):
+        @override
+        async def create_matching_batches(
+            self,
+            guidelines: Sequence[Guideline],
+            context: GuidelineMatchingContext,
+        ) -> Sequence[GuidelineMatchingBatch]:
+            return [AlwaysFailingBatch(guidelines=guidelines)]
+
+        @override
+        async def create_matching_preparation_batches(
+            self,
+            guideline_matches: Sequence[GuidelineMatch],
+            context: GuidelineMatchingPreparationContext,
+        ) -> Sequence[GuidelineMatchingPreparationBatch]:
+            return [AlwaysFailingPreparationBatch(guideline_matches=guideline_matches)]
+
+    class AlwaysFailingStrategyResolver(GuidelineMatchingStrategyResolver):
+        @override
+        async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
+            return AlwaysFailingStrategy()
+
+    create_guideline(
+        context=context,
+        condition="test condition",
+        action="test action",
+    )
+
+    context.container[GuidelineMatcher].strategy_resolver = AlwaysFailingStrategyResolver()
+
+    with raises(KeyError, match="Always fails - attempt 3"):
+        match_guidelines(
+            context,
+            agent,
+            session,
+            customer,
+            [],
+        )
