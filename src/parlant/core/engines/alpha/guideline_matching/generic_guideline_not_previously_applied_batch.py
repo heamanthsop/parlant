@@ -70,7 +70,7 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            with open("output_not_prev_apply_matcher.txt", "w") as f:
+            with open("output_not_prev_apply_matcher.txt", "a") as f:
                 f.write(f"{inference.content.model_dump_json(indent=2)}")
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
