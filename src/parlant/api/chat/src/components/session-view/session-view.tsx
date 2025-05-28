@@ -21,6 +21,7 @@ import SessoinViewHeader from './session-view-header/session-view-header';
 import {isSameDay} from '@/lib/utils';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
 import {ShieldEllipsis} from 'lucide-react';
+import { soundDoubleBlip } from '@/utils/sounds';
 
 const SessionView = (): ReactElement => {
 	const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -156,11 +157,11 @@ const SessionView = (): ReactElement => {
 
 		const lastStatusEventStaus = lastStatusEvent?.data?.status;
 
+		if (newMessages?.length && (showThinking || showTyping)) soundDoubleBlip(true);
 		if (lastStatusEventStaus) {
 			setShowThinking(lastStatusEventStaus === 'processing');
 			setShowTyping(lastStatusEventStaus === 'typing');
 		}
-
 		refetch();
 	};
 
@@ -215,6 +216,7 @@ const SessionView = (): ReactElement => {
 		const useContentFilteringStatus = useContentFiltering ? 'auto' : 'none';
 		postData(`sessions/${eventSession}/events?moderation=${useContentFilteringStatus}`, {kind: 'message', message: content, source: 'customer'})
 			.then(() => {
+				soundDoubleBlip();
 				refetch();
 			})
 			.catch(() => toast.error('Something went wrong'));
