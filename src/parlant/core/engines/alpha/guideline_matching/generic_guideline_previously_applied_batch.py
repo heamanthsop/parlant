@@ -29,7 +29,7 @@ class GenericPreviouslyAppliedBatch(DefaultBaseModel):
     action: str
     condition_met_again: bool
     action_wasnt_taken: Optional[bool] = None
-    tldr: str
+    # tldr: str
     should_reapply: bool
 
 
@@ -86,7 +86,7 @@ class GenericPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
                     GuidelineMatch(
                         guideline=self._guidelines[GuidelineId(match.guideline_id)],
                         score=10 if match.should_reapply else 1,
-                        rationale=f'''reapply rational: "{match.tldr}"''',
+                        rationale='''reapply rational: ""''',
                         guideline_previously_applied=PreviouslyAppliedType.FULLY,
                     )
                 )
@@ -269,7 +269,7 @@ OUTPUT FORMAT
                 "action": g.content.action,
                 "condition_met_again": "<BOOL. Whether the condition met again in a new or subtly different context or information>",
                 "action_wasnt_taken": "<BOOL. include only condition_met_again is True if The action wasn't already taken for this new reason>",
-                "tldr": "<str, Explanation for why the guideline condition is met AGAIN and should reapply when focusing on the MOST RECENT interaction>",
+                # "tldr": "<str, Explanation for why the guideline condition is met AGAIN and should reapply when focusing on the MOST RECENT interaction>",
                 "should_reapply": "<BOOL>",
             }
             for g in self._guidelines.values()
@@ -373,7 +373,7 @@ example_1_events = [
         "If your son is not a member of your same household account, he won't be able to see your subscription. Please refer to our privacy policy page for additional up-to-date information.",
     ),
     _make_event(
-        "78",
+        "99",
         EventSource.CUSTOMER,
         "Gotcha, and I imagine that if he does try to add me to the household account he won't be able to see that there already is an account, right?",
     ),
@@ -398,7 +398,7 @@ example_1_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             condition="the customer initiates a purchase.",
             action="Open a new cart for the customer",
             condition_met_again=False,
-            tldr="The purchase-related guideline was initiated earlier, but is currently irrelevant since the customer completed the purchase and the conversation has moved to a new topic.",
+            # tldr="The purchase-related guideline was initiated earlier, but is currently irrelevant since the customer completed the purchase and the conversation has moved to a new topic.",
             should_reapply=False,
         ),
         GenericPreviouslyAppliedBatch(
@@ -406,9 +406,9 @@ example_1_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             condition="the customer asks about data security",
             action="Refer the customer to our privacy policy page",
             condition_met_again=True,
-            action_wasnt_taken=False,
-            tldr="While the customer has already asked a question to do with data security, and has been REFERRED to the privacy policy page, they now asked another question, so I should tell"
-            " them once again to refer to the privacy policy page, perhaps stressing it more this time",
+            action_wasnt_taken=True,
+            # tldr="While the customer has already asked a question to do with data security, and has been REFERRED to the privacy policy page, they now asked another question, so I should tell"
+            # " them once again to refer to the privacy policy page, perhaps stressing it more this time",
             should_reapply=True,
         ),
     ]
@@ -448,8 +448,8 @@ example_2_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             condition="the customer asks about the value of a stock.",
             action="provide the price using the 'check_stock_price' tool",
             condition_met_again=True,
-            action_wasnt_taken=False,
-            tldr="The agent previously provided the price of that stock, but since the price might have changed since it should be checked and provided again",
+            action_wasnt_taken=True,
+            # tldr="The agent previously provided the price of that stock, but since the price might have changed since it should be checked and provided again",
             should_reapply=True,
         ),
         GenericPreviouslyAppliedBatch(
@@ -457,7 +457,7 @@ example_2_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             condition="the weather at a certain location is discussed.",
             action="check the weather at that location using the 'check_weather' tool",
             condition_met_again=False,
-            tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
+            # tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
             should_reapply=False,
         ),
     ]
@@ -491,7 +491,7 @@ example_3_events = [
         "Yes, you made a payment of $30 on May 5th. Can I help with anything else?",
     ),
     _make_event(
-        "78",
+        "99",
         EventSource.CUSTOMER,
         "Yes can you provide me your contact details?",
     ),
@@ -511,7 +511,57 @@ example_3_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             condition="The customer asks about their account balance, billing amount, or payment status.",
             action="Provide the current account balance or billing information clearly.",
             condition_met_again=False,
-            tldr="The customer last request is not related to balance or payment",
+            # tldr="The customer last request is not related to balance or payment",
+            should_reapply=False,
+        ),
+    ]
+)
+
+example_4_events = [
+    _make_event("11", EventSource.CUSTOMER, "Hi there, what is the S&P500 trading at right now?"),
+    _make_event("23", EventSource.AI_AGENT, "Hello! It's currently priced at just about 6,000$."),
+    _make_event(
+        "34",
+        EventSource.CUSTOMER,
+        "Better than I hoped. And what's the weather looking like today?",
+    ),
+    _make_event("56", EventSource.AI_AGENT, "It's 5 degrees Celsius in London today"),
+    _make_event(
+        "78", EventSource.CUSTOMER, "Bummer. Does S&P500 still trade at 6,000$ by the way?"
+    ),
+    _make_event("99", EventSource.AI_AGENT, "I checked that for you and it's still on 6000$!"),
+    _make_event("111", EventSource.CUSTOMER, "Cool thanks"),
+]
+
+example_4_guidelines = [
+    GuidelineContent(
+        condition="the customer asks about the value of a stock.",
+        action="provide the price using the 'check_stock_price' tool",
+    ),
+    GuidelineContent(
+        condition="the weather at a certain location is discussed.",
+        action="check the weather at that location using the 'check_weather' tool",
+    ),
+]
+
+
+example_4_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
+    checks=[
+        GenericPreviouslyAppliedBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the customer asks about the value of a stock.",
+            action="provide the price using the 'check_stock_price' tool",
+            condition_met_again=True,
+            action_wasnt_taken=False,
+            # tldr="The customer asked for the stock price again and was answered.",
+            should_reapply=False,
+        ),
+        GenericPreviouslyAppliedBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the weather at a certain location is discussed.",
+            action="check the weather at that location using the 'check_weather' tool",
+            condition_met_again=False,
+            # tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
             should_reapply=False,
         ),
     ]
@@ -535,6 +585,12 @@ _baseline_shots: Sequence[GenericPreviouslyAppliedGuidelineGuidelineMatchingShot
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
+    ),
+    GenericPreviouslyAppliedGuidelineGuidelineMatchingShot(
+        description="",
+        interaction_events=example_4_events,
+        guidelines=example_4_guidelines,
+        expected_result=example_4_expected,
     ),
 ]
 
