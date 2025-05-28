@@ -88,8 +88,6 @@ class GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(GuidelineM
                         score=10 if match.should_apply else 1,
                         rationale=f'''reapply rational: "{match.tldr}"''',
                         guideline_previously_applied=PreviouslyAppliedType.FULLY,
-                        guideline_is_continuous=True,
-                        should_reapply=match.should_apply,
                     )
                 )
             else:
