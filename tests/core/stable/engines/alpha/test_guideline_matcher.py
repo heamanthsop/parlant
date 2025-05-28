@@ -20,7 +20,7 @@ from typing_extensions import override
 
 from lagom import Container
 from more_itertools import unique
-from pytest import fixture
+from pytest import fixture, raises
 
 from parlant.core.agents import Agent, AgentId
 from parlant.core.common import generate_id, JSONSerializable
@@ -1853,3 +1853,124 @@ def test_that_both_observational_and_actionable_guidelines_are_matched_together(
         relevant_guideline_names,
         context_variables=context_variables,
     )
+
+
+def test_that_batch_processing_retries_on_key_error(
+    context: ContextOfTest,
+    agent: Agent,
+    customer: Customer,
+) -> None:
+    class FailingBatch(GuidelineMatchingBatch):
+        def __init__(self, guidelines: Sequence[Guideline], fail_count: int = 2):
+            self.guidelines = guidelines
+            self.fail_count = fail_count
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingBatchResult:
+            self.attempt_count += 1
+            if self.attempt_count <= self.fail_count:
+                raise KeyError(f"Simulated failure on attempt {self.attempt_count}")
+
+            return GuidelineMatchingBatchResult(
+                matches=[
+                    GuidelineMatch(
+                        guideline=g,
+                        score=10,
+                        rationale="Success after retry",
+                        guideline_previously_applied=PreviouslyAppliedType.NO,
+                        guideline_is_continuous=False,
+                        should_reapply=False,
+                    )
+                    for g in self.guidelines
+                ],
+                generation_info=GenerationInfo(
+                    schema_name="test",
+                    model="test-model",
+                    duration=0.1,
+                    usage=UsageInfo(
+                        input_tokens=10,
+                        output_tokens=5,
+                        extra={},
+                    ),
+                ),
+            )
+
+    class FailingStrategy(GuidelineMatchingStrategy):
+        @override
+        async def create_batches(
+            self,
+            guidelines: Sequence[Guideline],
+            context: GuidelineMatchingContext,
+        ) -> Sequence[GuidelineMatchingBatch]:
+            return [FailingBatch(guidelines=guidelines, fail_count=2)]
+
+    class FailingStrategyResolver(GuidelineMatchingStrategyResolver):
+        @override
+        async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
+            return FailingStrategy()
+
+    guideline = create_guideline(
+        context=context,
+        condition="test condition",
+        action="test action",
+    )
+
+    context.container[GuidelineMatcher].strategy_resolver = FailingStrategyResolver()
+
+    guideline_matches = match_guidelines(
+        context,
+        agent,
+        customer,
+        [],
+    )
+
+    assert len(guideline_matches) == 1
+    assert guideline_matches[0].guideline == guideline
+    assert guideline_matches[0].rationale == "Success after retry"
+
+
+def test_that_batch_processing_fails_after_max_retries(
+    context: ContextOfTest,
+    agent: Agent,
+    customer: Customer,
+) -> None:
+    class AlwaysFailingBatch(GuidelineMatchingBatch):
+        def __init__(self, guidelines: Sequence[Guideline]):
+            self.guidelines = guidelines
+            self.attempt_count = 0
+
+        @override
+        async def process(self) -> GuidelineMatchingBatchResult:
+            self.attempt_count += 1
+            raise KeyError(f"Always fails - attempt {self.attempt_count}")
+
+    class AlwaysFailingStrategy(GuidelineMatchingStrategy):
+        @override
+        async def create_batches(
+            self,
+            guidelines: Sequence[Guideline],
+            context: GuidelineMatchingContext,
+        ) -> Sequence[GuidelineMatchingBatch]:
+            return [AlwaysFailingBatch(guidelines=guidelines)]
+
+    class AlwaysFailingStrategyResolver(GuidelineMatchingStrategyResolver):
+        @override
+        async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
+            return AlwaysFailingStrategy()
+
+    create_guideline(
+        context=context,
+        condition="test condition",
+        action="test action",
+    )
+
+    context.container[GuidelineMatcher].strategy_resolver = AlwaysFailingStrategyResolver()
+
+    with raises(KeyError, match="Always fails - attempt 3"):
+        match_guidelines(
+            context,
+            agent,
+            customer,
+            [],
+        )
