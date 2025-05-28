@@ -32,8 +32,8 @@ from parlant.core.context_variables import (
     ContextVariableValue,
     ContextVariableStore,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_detector import (
-    GenericGuidelinePreviouslyAppliedDetector,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationBatch,
 )
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
@@ -116,7 +116,7 @@ class AlphaEngine(Engine):
         fluid_message_generator: MessageGenerator,
         utterance_selector: UtteranceSelector,
         perceived_performance_policy: PerceivedPerformancePolicy,
-        generic_guideline_previously_applied_detector: GenericGuidelinePreviouslyAppliedDetector,
+        generic_guideline_previously_applied_detector: GenericGuidelineMatchingPreparationBatch,
         hooks: EngineHooks,
     ) -> None:
         self._logger = logger

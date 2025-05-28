@@ -63,7 +63,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         )
 
     @override
-    async def create_batches(
+    async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,

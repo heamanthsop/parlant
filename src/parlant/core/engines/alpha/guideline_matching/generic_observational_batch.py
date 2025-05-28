@@ -267,7 +267,7 @@ class GenericObservationalGuidelineMatching(GuidelineMatchingStrategy):
         self._schematic_generator = schematic_generator
 
     @override
-    async def create_batches(
+    async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,

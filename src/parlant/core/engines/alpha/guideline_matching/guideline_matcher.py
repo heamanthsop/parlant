@@ -28,6 +28,7 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
+    GuidelinePreviouslyApplied,
 )
 from parlant.core.glossary import Term
 from parlant.core.guidelines import Guideline
@@ -37,6 +38,17 @@ from parlant.core.loggers import Logger
 
 @dataclass(frozen=True)
 class GuidelineMatchingContext:
+    agent: Agent
+    session: Session
+    customer: Customer
+    context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
+    interaction_history: Sequence[Event]
+    terms: Sequence[Term]
+    staged_events: Sequence[EmittedEvent]
+
+
+@dataclass(frozen=True)
+class GuidelineMatchingPreparationContext:
     agent: Agent
     session: Session
     customer: Customer
@@ -59,8 +71,26 @@ class GuidelineMatchingResult:
 
 
 @dataclass(frozen=True)
+class GuidelineMatchingPreparationResult:
+    total_duration: float
+    batch_count: int
+    batch_generations: Sequence[GenerationInfo]
+    batches: Sequence[Sequence[GuidelinePreviouslyApplied]]
+
+    @cached_property
+    def previously_applied_guidelines(self) -> Sequence[GuidelinePreviouslyApplied]:
+        return list(chain.from_iterable(self.batches))
+
+
+@dataclass(frozen=True)
 class GuidelineMatchingBatchResult:
     matches: Sequence[GuidelineMatch]
+    generation_info: GenerationInfo
+
+
+@dataclass(frozen=True)
+class GuidelineMatchingPreparationBatchResult:
+    previously_applied_guidelines: Sequence[GuidelinePreviouslyApplied]
     generation_info: GenerationInfo
 
 
@@ -69,13 +99,25 @@ class GuidelineMatchingBatch(ABC):
     async def process(self) -> GuidelineMatchingBatchResult: ...
 
 
+class GuidelineMatchingPreparationBatch(ABC):
+    @abstractmethod
+    async def process(self) -> GuidelineMatchingPreparationBatchResult: ...
+
+
 class GuidelineMatchingStrategy(ABC):
     @abstractmethod
-    async def create_batches(
+    async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]: ...
+
+    @abstractmethod
+    async def create_matching_preparation_batches(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingPreparationContext,
+    ) -> Sequence[GuidelineMatchingPreparationBatch]: ...
 
 
 class GuidelineMatchingStrategyResolver(ABC):
@@ -139,7 +181,7 @@ class GuidelineMatcher:
 
                 batches = await async_utils.safe_gather(
                     *[
-                        strategy.create_batches(
+                        strategy.create_matching_batches(
                             guidelines,
                             context=GuidelineMatchingContext(
                                 agent,
@@ -170,4 +212,70 @@ class GuidelineMatcher:
             batch_count=len(batches[0]),
             batch_generations=[result.generation_info for result in batch_results],
             batches=[result.matches for result in batch_results],
+        )
+
+    async def match_guideline_preparation(
+        self,
+        agent: Agent,
+        session: Session,
+        customer: Customer,
+        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+        interaction_history: Sequence[Event],
+        terms: Sequence[Term],
+        staged_events: Sequence[EmittedEvent],
+        guidelines: Sequence[Guideline],
+    ) -> GuidelineMatchingPreparationResult:
+        if not guidelines:
+            return GuidelineMatchingPreparationResult(
+                total_duration=0.0,
+                batch_count=0,
+                batch_generations=[],
+                batches=[],
+            )
+
+        t_start = time.time()
+
+        with self._logger.scope("GuidelineMatcherPreparation"):
+            with self._logger.operation("Creating preparation batches"):
+                guideline_strategies: dict[
+                    str, tuple[GuidelineMatchingStrategy, list[Guideline]]
+                ] = {}
+                for guideline in guidelines:
+                    strategy = await self.strategy_resolver.resolve(guideline)
+                    key = strategy.__class__.__name__
+                    if key not in guideline_strategies:
+                        guideline_strategies[key] = (strategy, [])
+                    guideline_strategies[key][1].append(guideline)
+
+                batches = await async_utils.safe_gather(
+                    *[
+                        strategy.create_matching_preparation_batches(
+                            guidelines,
+                            context=GuidelineMatchingPreparationContext(
+                                agent,
+                                session,
+                                customer,
+                                context_variables,
+                                interaction_history,
+                                terms,
+                                staged_events,
+                            ),
+                        )
+                        for _, (strategy, guidelines) in guideline_strategies.items()
+                    ]
+                )
+
+            with self._logger.operation("Processing preparation batches"):
+                batch_tasks = [
+                    batch.process() for strategy_batches in batches for batch in strategy_batches
+                ]
+                batch_results = await async_utils.safe_gather(*batch_tasks)
+
+        t_end = time.time()
+
+        return GuidelineMatchingPreparationResult(
+            total_duration=t_end - t_start,
+            batch_count=len(batch_results),
+            batch_generations=[result.generation_info for result in batch_results],
+            batches=[result.previously_applied_guidelines for result in batch_results],
         )

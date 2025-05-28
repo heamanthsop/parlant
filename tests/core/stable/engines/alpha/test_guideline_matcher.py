@@ -35,8 +35,8 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_detector import (
-    GenericGuidelinePreviouslyAppliedDetector,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
@@ -437,7 +437,7 @@ def detect_previously_applied_guideline(
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
-    detector = context.container[GenericGuidelinePreviouslyAppliedDetector]
+    detector = context.container[GenericGuidelineMatchingPreparationBatch]
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
 
     guidelines_to_detect = [
@@ -1358,7 +1358,7 @@ def test_that_guideline_matching_strategies_can_be_overridden(
 
     class LongConditionStrategy(GuidelineMatchingStrategy):
         @override
-        async def create_batches(
+        async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
             context: GuidelineMatchingContext,
@@ -1369,7 +1369,7 @@ def test_that_guideline_matching_strategies_can_be_overridden(
 
     class ShortConditionStrategy(GuidelineMatchingStrategy):
         @override
-        async def create_batches(
+        async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
             context: GuidelineMatchingContext,
@@ -1417,7 +1417,7 @@ def test_that_strategy_for_specific_guideline_can_be_overridden_in_default_strat
 ) -> None:
     class CustomGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         @override
-        async def create_batches(
+        async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
             context: GuidelineMatchingContext,

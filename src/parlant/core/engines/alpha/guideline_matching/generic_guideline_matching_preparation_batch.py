@@ -11,8 +11,15 @@ from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import _make_event
-from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
+from parlant.core.engines.alpha.guideline_matching.guideline_match import (
+    GuidelineMatch,
+    GuidelinePreviouslyApplied,
+)
+from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
+    GuidelineMatchingContext,
+    GuidelineMatchingPreparationBatch,
+    GuidelineMatchingPreparationBatchResult,
+)
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder
 from parlant.core.glossary import Term
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -21,12 +28,6 @@ from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.sessions import Event, EventSource
 from parlant.core.shots import Shot, ShotCollection
-
-
-@dataclass
-class GuidelinePreviouslyAppliedDetectionResult:
-    previously_applied_guidelines: Sequence[Guideline]
-    generation_info: GenerationInfo
 
 
 class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
@@ -45,22 +46,22 @@ class GuidelinePreviouslyAppliedDetectionSchema(DefaultBaseModel):
     guideline_applied: bool
 
 
-class GenericGuidelinePreviouslyAppliedDetectorSchema(DefaultBaseModel):
+class GenericGuidelineMatchingPreparationSchema(DefaultBaseModel):
     checks: Sequence[GuidelinePreviouslyAppliedDetectionSchema]
 
 
 @dataclass
-class GenericGuidelinePreviouslyAppliedDetectorShot(Shot):
+class GenericGuidelineMatchingPreparationShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: GenericGuidelinePreviouslyAppliedDetectorSchema
+    expected_result: GenericGuidelineMatchingPreparationSchema
 
 
-class GenericGuidelinePreviouslyAppliedDetector:
+class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GenericGuidelinePreviouslyAppliedDetectorSchema],
+        schematic_generator: SchematicGenerator[GenericGuidelineMatchingPreparationSchema],
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
@@ -75,7 +76,7 @@ class GenericGuidelinePreviouslyAppliedDetector:
         terms: Sequence[Term],
         staged_events: Sequence[EmittedEvent],
         guideline_matches: Sequence[GuidelineMatch],
-    ) -> GuidelinePreviouslyAppliedDetectionResult:
+    ) -> GuidelineMatchingPreparationBatchResult:
         context = GuidelineMatchingContext(
             agent=agent,
             customer=customer,
@@ -90,7 +91,7 @@ class GenericGuidelinePreviouslyAppliedDetector:
         guideline_batches = list(chunked(all_guidelines, self._batch_size))
 
         with self._logger.operation(
-            f"GenericGuidelinePreviouslyAppliedDetector: {len(all_guidelines)} guidelines "
+            f"GenericGuidelineMatchingPreparationBatch: {len(all_guidelines)} guidelines "
             f"in {len(guideline_batches)} batches (batch size={self._batch_size})"
         ):
             batch_tasks = [
@@ -125,7 +126,7 @@ class GenericGuidelinePreviouslyAppliedDetector:
                 )
             )
 
-            return GuidelinePreviouslyAppliedDetectionResult(
+            return GuidelineMatchingPreparationBatchResult(
                 previously_applied_guidelines=all_applied_guidelines,
                 generation_info=generation_info,
             )
@@ -135,7 +136,7 @@ class GenericGuidelinePreviouslyAppliedDetector:
         batch: Sequence[Guideline],
         guideline_matches: Sequence[GuidelineMatch],
         context: GuidelineMatchingContext,
-    ) -> GuidelinePreviouslyAppliedDetectionResult:
+    ) -> GuidelineMatchingPreparationBatchResult:
         batch_guideline_ids = {g.id for g in batch}
 
         batch_guidelines = [
@@ -155,36 +156,41 @@ class GenericGuidelinePreviouslyAppliedDetector:
                 prompt=prompt,
                 hints={"temperature": 0.15},
             )
-        if not inference.content.checks:
-            self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
-        else:
-            with open("output_prev_applied_detector.txt", "a") as f:
-                f.write(inference.content.model_dump_json(indent=2))
-            self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
-        applied = []
+        previously_applied_guidelines: list[GuidelinePreviouslyApplied] = []
 
         for check in inference.content.checks:
             if check.guideline_applied:
                 self._logger.debug(f"Completion::Activated:\n{check.model_dump_json(indent=2)}")
-                applied.append(guidelines[GuidelineId(check.guideline_id)])
+                previously_applied_guidelines.append(
+                    GuidelinePreviouslyApplied(
+                        guideline=guidelines[GuidelineId(check.guideline_id)],
+                        is_previously_applied=True,
+                    )
+                )
             else:
                 self._logger.debug(f"Completion::Skipped:\n{check.model_dump_json(indent=2)}")
+                previously_applied_guidelines.append(
+                    GuidelinePreviouslyApplied(
+                        guideline=guidelines[GuidelineId(check.guideline_id)],
+                        is_previously_applied=False,
+                    )
+                )
 
-        return GuidelinePreviouslyAppliedDetectionResult(
-            previously_applied_guidelines=applied,
+        return GuidelineMatchingPreparationBatchResult(
+            previously_applied_guidelines=previously_applied_guidelines,
             generation_info=inference.info,
         )
 
-    async def shots(self) -> Sequence[GenericGuidelinePreviouslyAppliedDetectorShot]:
+    async def shots(self) -> Sequence[GenericGuidelineMatchingPreparationShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[GenericGuidelinePreviouslyAppliedDetectorShot]) -> str:
+    def _format_shots(self, shots: Sequence[GenericGuidelineMatchingPreparationShot]) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GenericGuidelinePreviouslyAppliedDetectorShot) -> str:
+    def _format_shot(self, shot: GenericGuidelineMatchingPreparationShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 EventSource.CUSTOMER: "user",
@@ -250,7 +256,7 @@ Guidelines:
 
     def _build_prompt(
         self,
-        shots: Sequence[GenericGuidelinePreviouslyAppliedDetectorShot],
+        shots: Sequence[GenericGuidelineMatchingPreparationShot],
         guidelines: dict[GuidelineId, Guideline],
         context: GuidelineMatchingContext,
     ) -> PromptBuilder:
@@ -360,7 +366,7 @@ OUTPUT FORMAT
         )
         import pathlib
 
-        pathlib.Path("generic previously applied detector batch.txt").write_text(
+        pathlib.Path("generic guideline matching preparation batch.txt").write_text(
             builder.build()
         )  # TODO delete
 
@@ -427,7 +433,7 @@ example_1_guidelines = [
 ]
 
 
-example_1_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_1_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -484,7 +490,7 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_2_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -542,7 +548,7 @@ example_3_guidelines = [
     ),
 ]
 
-example_3_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_3_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -583,7 +589,7 @@ example_4_guidelines = [
     ),
 ]
 
-example_4_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_4_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -622,7 +628,7 @@ example_5_guidelines = [
     ),
 ]
 
-example_5_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_5_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -668,7 +674,7 @@ example_6_guidelines = [
     ),
 ]
 
-example_6_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_6_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -706,7 +712,7 @@ example_7_guidelines = [
     ),
 ]
 
-example_7_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
+example_7_expected = GenericGuidelineMatchingPreparationSchema(
     checks=[
         GuidelinePreviouslyAppliedDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -730,44 +736,44 @@ example_7_expected = GenericGuidelinePreviouslyAppliedDetectorSchema(
     ]
 )
 
-_baseline_shots: Sequence[GenericGuidelinePreviouslyAppliedDetectorShot] = [
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+_baseline_shots: Sequence[GenericGuidelineMatchingPreparationShot] = [
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
         expected_result=example_4_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_5_events,
         guidelines=example_5_guidelines,
         expected_result=example_5_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_6_events,
         guidelines=example_6_guidelines,
         expected_result=example_6_expected,
     ),
-    GenericGuidelinePreviouslyAppliedDetectorShot(
+    GenericGuidelineMatchingPreparationShot(
         description="",
         interaction_events=example_7_events,
         guidelines=example_7_guidelines,
@@ -775,4 +781,4 @@ _baseline_shots: Sequence[GenericGuidelinePreviouslyAppliedDetectorShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[GenericGuidelinePreviouslyAppliedDetectorShot](_baseline_shots)
+shot_collection = ShotCollection[GenericGuidelineMatchingPreparationShot](_baseline_shots)

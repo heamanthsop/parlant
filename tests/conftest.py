@@ -53,8 +53,8 @@ from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_
     GenericPreviouslyAppliedGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_detector import (
-    GenericGuidelinePreviouslyAppliedDetectorSchema,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationSchema,
 )
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
@@ -350,7 +350,7 @@ async def container(
             GuidelineActionPropositionSchema,
             GuidelineContinuousPropositionSchema,
             CustomerDependentActionSchema,
-            GenericGuidelinePreviouslyAppliedDetectorSchema,
+            GenericGuidelineMatchingPreparationSchema,
             GenericNotPreviouslyAppliedGuidelineMatchesSchema,
             GenericPreviouslyAppliedGuidelineMatchesSchema,
             GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,

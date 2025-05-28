@@ -27,8 +27,8 @@ from parlant.core.context_variables import (
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_detector import (
-    GenericGuidelinePreviouslyAppliedDetector,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationBatch,
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.utils import context_variables_to_json
@@ -202,7 +202,7 @@ def when_processing_is_detected_and_triggered(
     )
     buffer = EventBuffer(agent)
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
-    detector = context.container[GenericGuidelinePreviouslyAppliedDetector]
+    detector = context.container[GenericGuidelineMatchingPreparationBatch]
 
     context_variables = _load_context_variables(
         context,
