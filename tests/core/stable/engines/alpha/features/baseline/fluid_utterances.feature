@@ -169,7 +169,7 @@ Feature: Fluid Utterance
         And a customer message, "Next Monday"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains either asking for the name of the person traveling, or informing them that they can only travel are only eligible for economy class
+        And the message contains either asking for the name of the person traveling, or informing them that they are only eligible for economy class
 
 
     Scenario: The agent greets the customer 2 (fluid utterance)
