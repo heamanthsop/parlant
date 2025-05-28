@@ -32,7 +32,11 @@ GUIDELINES_DICT = {
     },
     "order_lookup": {
         "condition": "The customer wants to check their order status",
-        "action": " Ask for their order number",
+        "action": "Ask for their order number",
+    },
+    "order_alcohol": {
+        "condition": "The customer wants to order alcohol",
+        "action": "Check their age",
     },
 }
 
@@ -427,6 +431,51 @@ def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_
     ]
 
     guidelines: list[str] = ["order_lookup"]
+
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=[],
+        guidelines_names=guidelines,
+    )
+
+
+# TODO- add test that condition arise again but shouldn't take the action because we already have this information
+
+
+def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_dont_need_to_take_the_action_again_because_its_the_same(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi can I get 2 beers?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure, but first, may I ask your age?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I'm 25 thank God!",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Perfect — I’ve added 2 beers to your order. Would you like anything else?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes, I'd also like some wine, please.",
+        ),
+    ]
+
+    guidelines: list[str] = ["order_alcohol"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
