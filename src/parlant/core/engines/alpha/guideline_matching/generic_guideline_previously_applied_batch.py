@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
-from typing import Sequence
+from typing import Optional, Sequence
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
@@ -27,8 +27,10 @@ class GenericPreviouslyAppliedBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
     action: str
+    condition_met_again: bool
+    action_wasnt_taken: Optional[bool] = None
     tldr: str
-    guideline_should_reapply: bool
+    should_reapply: bool
 
 
 class GenericPreviouslyAppliedGuidelineMatchesSchema(DefaultBaseModel):
@@ -77,17 +79,17 @@ class GenericPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
         matches = []
 
         for match in inference.content.checks:
-            if match.guideline_should_reapply:
+            if match.should_reapply:
                 self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
 
                 matches.append(
                     GuidelineMatch(
                         guideline=self._guidelines[GuidelineId(match.guideline_id)],
-                        score=10 if match.guideline_should_reapply else 1,
+                        score=10 if match.should_reapply else 1,
                         rationale=f'''reapply rational: "{match.tldr}"''',
                         guideline_previously_applied=PreviouslyAppliedType.FULLY,
                         guideline_is_continuous=True,
-                        should_reapply=match.guideline_should_reapply,
+                        should_reapply=match.should_reapply,
                     )
                 )
             else:
@@ -182,15 +184,27 @@ Task Description
 ----------------
 You will be given a set of guidelines, each associated with an action that has already been applied one or more times during the conversation.
 
-Your task is to determine whether reapplying the action is appropriate, based on whether the guideline’s condition is met again in a way that justifies repeating the action.
+In general, a guideline should be reapplied if:
+1. The condition is met again for a new reason in the most recent user message, and
+2. The associated action has not yet been taken in response to this new occurrence, but still needs to be.
 
-For example, a guideline with the condition “the customer is asking a question” should be reapplied each time the customer asks a new question—since this condition can be true multiple times throughout the conversation. 
+Your task is to determine whether reapplying the action is appropriate, based on whether the guideline’s condition is met again in a way that justifies repeating the action. We will want to repeat the action if the current application refers
+ to a new or subtly different context or information
+For example, a guideline with the condition “the customer is asking a question” should be reapplied each time the customer asks a new question. 
 In contrast, guidelines involving one-time behaviors (e.g., “send the user our address”) should be reapplied more conservatively: only if the condition ceased to be true for a while and is now clearly true again in the current context.
+For instance, if the customer previously complained about an issue and you already offered compensation, then mentions the same issue again, it is usually not necessary to repeat the compensation offer. However, if the customer raises a new
+ issue or clearly indicates a different concern, it may warrant reapplying the guideline.
 
-Key rule:
-- Mark a guideline as should_reapply only if the condition is met in the MOST RECENT part of the conversation (specifically on the last user message). 
-- Do not mark a guideline as applicable solely based on earlier parts of the conversation if the topic has since shifted or resolved. 
-- Even if a guideline was applied previously, it should only be reapplied if the latest message clearly meets the condition again. This avoids unnecessary repetition and ensures responses are relevant to the current context.
+-- Focusing on the most recent context --
+When evaluating whether a guideline should be reapplied, the most recent part of the conversation, specifically the last user message, is what matters. A guideline should only be reapplied if its condition is clearly met again in that latest message.
+Always base your decision on the current context to avoid unnecessary repetition and to keep the response aligned with the user’s present needs.
+Context May Shift:
+    Sometimes, the user may briefly raise an issue that would normally trigger a guideline, but then shift the topic within the same message or shortly after. In such cases, the condition should NOT be considered active, and the guideline should
+    not be reapplied.
+Conditions Can Arise and Resolve Multiple Times:
+    A condition may be met more than once over the course of a conversation and may also be resolved multiple times (the action was taken). If the most recent instance of the condition has already been addressed and resolved, there is no need to 
+    reapply the guideline. However, if the user is still clearly engaging with the same unresolved issue, or if a new instance of the condition arises, reapplying the guideline may be appropriate.
+
 
 The conversation and guidelines will follow. Instructions on how to format your response will be provided after that.
 
@@ -244,6 +258,9 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+
+        with open("prompt_prev_applied_matcher.txt", "a") as f:
+            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
@@ -252,8 +269,10 @@ OUTPUT FORMAT
                 "guideline_id": g.id,
                 "condition": g.content.condition,
                 "action": g.content.action,
+                "condition_met_again": "<BOOL. Whether the condition met again in a new or subtly different context or information>",
+                "action_wasnt_taken": "<BOOL. include only condition_met_again is True if The action wasn't already taken for this new reason>",
                 "tldr": "<str, Explanation for why the guideline condition is met AGAIN and should reapply when focusing on the MOST RECENT interaction>",
-                "guideline_should_reapply": "<BOOL>",
+                "should_reapply": "<BOOL>",
             }
             for g in self._guidelines.values()
         ]
@@ -335,43 +354,42 @@ def _make_event(e_id: str, source: EventSource, message: str) -> Event:
 
 
 example_1_events = [
-    _make_event("11", EventSource.CUSTOMER, "Hi, can you tell me what kinds of pizzas you have?"),
+    _make_event("11", EventSource.CUSTOMER, "Can I purchase a subscription to your software?"),
+    _make_event("23", EventSource.AI_AGENT, "Absolutely, I can assist you with that right now."),
     _make_event(
-        "23",
-        EventSource.AI_AGENT,
-        "Sure! We offer Margherita, Pepperoni, BBQ Chicken, and Veggie pizzas. Would you like details on any of these?",
-    ),
-    _make_event(
-        "34",
-        EventSource.CUSTOMER,
-        "Can I customize the toppings on a pizza?",
+        "34", EventSource.CUSTOMER, "Cool, let's go with the subscription for the Pro plan."
     ),
     _make_event(
         "56",
         EventSource.AI_AGENT,
-        "Currently, customization isn’t supported, but you can choose from our standard menu.",
+        "Your subscription has been successfully activated. Is there anything else I can help you with?",
     ),
     _make_event(
         "88",
         EventSource.CUSTOMER,
-        "How long does delivery usually take?",
+        "Will my son be able to see that I'm subscribed? Or is my data protected?",
     ),
     _make_event(
         "98",
         EventSource.AI_AGENT,
-        "Delivery usually takes about 30-45 minutes depending on your location.",
+        "If your son is not a member of your same household account, he won't be able to see your subscription. Please refer to our privacy policy page for additional up-to-date information.",
     ),
     _make_event(
         "78",
         EventSource.CUSTOMER,
-        "Do you accept online payment?",
+        "Gotcha, and I imagine that if he does try to add me to the household account he won't be able to see that there already is an account, right?",
     ),
 ]
 
+
 example_1_guidelines = [
     GuidelineContent(
-        condition="The customer asks a question about the service, menu, payment or ordering process",
-        action="Politely provide a clear, helpful answer explaining the requested information or options",
+        condition="the customer initiates a purchase.",
+        action="Open a new cart for the customer",
+    ),
+    GuidelineContent(
+        condition="the customer asks about data security",
+        action="Refer the customer to our privacy policy page",
     ),
 ]
 
@@ -379,89 +397,73 @@ example_1_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
     checks=[
         GenericPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="The customer asks a question about the service, menu, or ordering process",
-            action="Politely provide a clear, helpful answer explaining the requested information or options",
-            tldr="The user is asking about payment options which is a part of ordering process.",
-            guideline_should_reapply=True,
+            condition="the customer initiates a purchase.",
+            action="Open a new cart for the customer",
+            condition_met_again=False,
+            tldr="The purchase-related guideline was initiated earlier, but is currently irrelevant since the customer completed the purchase and the conversation has moved to a new topic.",
+            should_reapply=False,
+        ),
+        GenericPreviouslyAppliedBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the customer asks about data security",
+            action="Refer the customer to our privacy policy page",
+            condition_met_again=True,
+            action_wasnt_taken=False,
+            tldr="While the customer has already asked a question to do with data security, and has been REFERRED to the privacy policy page, they now asked another question, so I should tell"
+            " them once again to refer to the privacy policy page, perhaps stressing it more this time",
+            should_reapply=True,
         ),
     ]
 )
 
 
 example_2_events = [
-    _make_event("11", EventSource.CUSTOMER, "The app keeps freezing on my phone."),
-    _make_event(
-        "23",
-        EventSource.AI_AGENT,
-        "Sorry to hear that! Let’s go through a few troubleshooting steps. First let's try to restart",
-    ),
+    _make_event("11", EventSource.CUSTOMER, "Hi there, what is the S&P500 trading at right now?"),
+    _make_event("23", EventSource.AI_AGENT, "Hello! It's currently priced at just about 6,000$."),
     _make_event(
         "34",
         EventSource.CUSTOMER,
-        "Ok how do I do that?",
+        "Better than I hoped. And what's the weather looking like today?",
     ),
+    _make_event("56", EventSource.AI_AGENT, "It's 5 degrees Celsius in London today"),
     _make_event(
-        "56",
-        EventSource.AI_AGENT,
-        "To restart your phone, press and hold the power button until the restart option appears, then tap 'Restart'. Let me know once you've done that",
-    ),
-    _make_event(
-        "88",
-        EventSource.CUSTOMER,
-        "Okay, I restarted it. It seems better.",
-    ),
-    _make_event(
-        "98",
-        EventSource.AI_AGENT,
-        "Great! there is anything else to help you with?",
-    ),
-    _make_event(
-        "78",
-        EventSource.CUSTOMER,
-        "Actually, it froze just now when I tried to upload a file.",
-    ),
-    _make_event(
-        "98",
-        EventSource.AI_AGENT,
-        "OK I see, let me check what we can do",
-    ),
-    _make_event(
-        "78",
-        EventSource.CUSTOMER,
-        "By the way how much a new phone will cost?.",
+        "78", EventSource.CUSTOMER, "Bummer. Does S&P500 still trade at 6,000$ by the way?"
     ),
 ]
 
 example_2_guidelines = [
     GuidelineContent(
-        condition="The customer is experiencing a technical issue.",
-        action="Offer to help troubleshoot the issue.",
+        condition="the customer asks about the value of a stock.",
+        action="provide the price using the 'check_stock_price' tool",
     ),
     GuidelineContent(
-        condition="The customer reports a technical issue",
-        action="Acknowledge the issue and express empathy before proceeding with help.",
+        condition="the weather at a certain location is discussed.",
+        action="check the weather at that location using the 'check_weather' tool",
     ),
 ]
+
 
 example_2_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
     checks=[
         GenericPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="The customer is experiencing a technical issue.",
-            action="Offer to help troubleshoot the issue.",
-            tldr="The customer is facing a new technical issue but the most recent message is about phone price.",
-            guideline_should_reapply=False,
+            condition="the customer asks about the value of a stock.",
+            action="provide the price using the 'check_stock_price' tool",
+            condition_met_again=True,
+            action_wasnt_taken=False,
+            tldr="The agent previously provided the price of that stock, but since the price might have changed since it should be checked and provided again",
+            should_reapply=True,
         ),
         GenericPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="The customer reports a technical issue",
-            action="Acknowledge the issue and express empathy before proceeding with help.",
-            tldr="the most recent message is about phone price.",
-            guideline_should_reapply=False,
+            condition="the weather at a certain location is discussed.",
+            action="check the weather at that location using the 'check_weather' tool",
+            condition_met_again=False,
+            tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
+            should_reapply=False,
         ),
     ]
 )
-
 
 example_3_events = [
     _make_event("11", EventSource.CUSTOMER, "Can you tell me my current account balance?"),
@@ -510,8 +512,9 @@ example_3_expected = GenericPreviouslyAppliedGuidelineMatchesSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer asks about their account balance, billing amount, or payment status.",
             action="Provide the current account balance or billing information clearly.",
+            condition_met_again=False,
             tldr="The customer last request is not related to balance or payment",
-            guideline_should_reapply=False,
+            should_reapply=False,
         ),
     ]
 )
