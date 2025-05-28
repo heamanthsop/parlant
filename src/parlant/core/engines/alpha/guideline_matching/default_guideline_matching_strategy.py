@@ -11,6 +11,9 @@ from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_
     GenericPreviouslyAppliedGuidelineMatchesSchema,
     GenericPreviouslyAppliedGuidelineMatchingBatch,
 )
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch,
+)
 from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
     GenericObservationalGuidelineMatchesSchema,
     GenericObservationalGuidelineMatchingBatch,
@@ -60,6 +63,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     ) -> Sequence[GuidelineMatchingBatch]:
         observational_batch: list[Guideline] = []
         previously_applied_batch: list[Guideline] = []
+        previously_applied_customer_dependent_batch: list[Guideline] = []
         not_previously_applied: list[Guideline] = []
         for g in guidelines:
             if not g.content.action:
@@ -68,8 +72,11 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 if g.metadata.get("continuous", False):
                     not_previously_applied.append(g)
                 else:
-                    if g.id in context.session.agent_state.applied_guideline_ids:
-                        previously_applied_batch.append(g)
+                    if g.id in context.session.agent_state["applied_guideline_ids"]:
+                        if g.metadata.get("customer_dependent_action_data", False):
+                            previously_applied_customer_dependent_batch.append(g)
+                        else:
+                            previously_applied_batch.append(g)
                     else:
                         not_previously_applied.append(g)
 
@@ -81,6 +88,12 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         if previously_applied_batch:
             guideline_batches.extend(
                 self._create_sub_batches_previously_applied_guideline(observational_batch, context)
+            )
+        if previously_applied_customer_dependent_batch:
+            guideline_batches.extend(
+                self._create_sub_batches_previously_applied_customer_dependent_guideline(
+                    previously_applied_batch, context
+                )
             )
         if not_previously_applied:
             guideline_batches.extend(
@@ -164,7 +177,44 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             context=context,
         )
 
-    async def _create_sub_batches_not_previously_applied_guideline(
+    def _create_sub_batches_previously_applied_customer_dependent_guideline(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
+    ) -> Sequence[GuidelineMatchingBatch]:
+        batches = []
+
+        guidelines_dict = {g.id: g for g in guidelines}
+        batch_size = self._get_optimal_batch_size(guidelines_dict)
+        guidelines_list = list(guidelines_dict.items())
+        batch_count = math.ceil(len(guidelines_dict) / batch_size)
+
+        for batch_number in range(batch_count):
+            start_offset = batch_number * batch_size
+            end_offset = start_offset + batch_size
+            batch = dict(guidelines_list[start_offset:end_offset])
+            batches.append(
+                self._create_sub_batch_previously_applied_guideline(
+                    guidelines=list(batch.values()),
+                    context=context,
+                )
+            )
+
+        return batches
+
+    def _create_sub_batch_previously_applied_customer_dependent_guideline(
+        self,
+        guidelines: Sequence[Guideline],
+        context: GuidelineMatchingContext,
+    ) -> GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch:
+        return GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(
+            logger=self._logger,
+            schematic_generator=self._previously_applied_guideline_schematic_generator,
+            guidelines=guidelines,
+            context=context,
+        )
+
+    def _create_sub_batches_not_previously_applied_guideline(
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,

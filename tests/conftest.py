@@ -39,6 +39,9 @@ from parlant.core.engines.alpha.guideline_matching import (
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
 )
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
+)
 from parlant.core.engines.alpha.perceived_performance_policy import (
     DefaultPerceivedPerformancePolicy,
     PerceivedPerformancePolicy,
@@ -350,6 +353,7 @@ async def container(
             GenericGuidelinePreviouslyAppliedDetectorSchema,
             GenericNotPreviouslyAppliedGuidelineMatchesSchema,
             GenericPreviouslyAppliedGuidelineMatchesSchema,
+            GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
