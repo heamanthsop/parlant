@@ -23,7 +23,7 @@ from tests.test_utilities import SyncAwaiter
 
 GUIDELINES_DICT = {
     "problem_so_restart": {
-        "condition": "The customer has a problem with the app anc haven't tried anything yet",
+        "condition": "The customer has a problem with the app and hasn't tried anything yet",
         "action": "Suggest to do restart",
     },
     "reset_password": {
@@ -123,9 +123,7 @@ def base_test_that_correct_guidelines_are_matched(
         name: create_guideline_by_name(context, name) for name in guidelines_names
     }
 
-    previously_applied_target_guidelines = [
-        conversation_guidelines[name] for name in guidelines_target_names
-    ]
+    target_guidelines = [conversation_guidelines[name] for name in guidelines_target_names]
 
     interaction_history = [
         create_event_message(
@@ -148,21 +146,21 @@ def base_test_that_correct_guidelines_are_matched(
         staged_events=staged_events,
     )
 
-    guideline_previously_applied_detector = GenericPreviouslyAppliedGuidelineMatchingBatch(
+    guideline_previously_applied_matcher = GenericPreviouslyAppliedGuidelineMatchingBatch(
         logger=context.container[Logger],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
         context=guideline_matching_context,
     )
 
-    result = context.sync_await(guideline_previously_applied_detector.process())
+    result = context.sync_await(guideline_previously_applied_matcher.process())
 
     matched_guidelines = [p.guideline for p in result.matches]
 
-    assert set(matched_guidelines) == set(previously_applied_target_guidelines)
+    assert set(matched_guidelines) == set(target_guidelines)
 
 
-def test_that_previously_matched_guideline_not_matched_when_there_is_no_new_reason(
+def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_reason(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -287,7 +285,7 @@ def test_that_previously_matched_guideline_not_matched_when_there_is_no_new_reas
 #     )
 
 
-def test_that_partially_fulfilled_action_but_cosmetic_is_not_match_again(
+def test_that_partially_fulfilled_action_with_missing_cosmetic_part_is_not_matched_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -416,7 +414,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
         ),
     ]
 
-    guidelines: list[str] = ["frustrated_so_discount"]
+    guidelines: list[str] = ["frustrated_so_discount"]  # TODO Hadar - is this the wrong guideline?
 
     base_test_that_correct_guidelines_are_matched(
         context,
@@ -458,7 +456,9 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
         ),
     ]
 
-    guidelines: list[str] = ["confirm_reservation"]
+    guidelines: list[str] = [
+        "confirm_reservation"
+    ]  # TODO this seems customer dependent, maybe we should change it a little?
 
     base_test_that_correct_guidelines_are_matched(
         context,
@@ -511,3 +511,6 @@ def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_t
         guidelines_target_names=guidelines,
         guidelines_names=guidelines,
     )
+
+
+# TODO add couple of tests for sub-issue of new condition
