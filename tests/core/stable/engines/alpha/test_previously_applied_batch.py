@@ -109,7 +109,7 @@ def create_guideline(
     return guideline
 
 
-def base_test_that_correct_guidelines_detect_as_previously_applied(
+def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     session_id: SessionId,
@@ -179,13 +179,13 @@ def test_that_previously_matched_guideline_not_matched_when_there_is_no_new_reas
         ),
         (
             EventSource.CUSTOMER,
-            "That worked! By the way, how can I upgrade to the premium plan?",
+            "I did that but it's crashing!",
         ),
     ]
 
     guidelines: list[str] = ["problem_so_restart"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -241,7 +241,7 @@ def test_that_previously_matched_guideline_not_matched_when_there_is_no_new_reas
 
 #     guidelines: list[str] = ["reset_password"]
 
-#     base_test_that_correct_guidelines_detect_as_previously_applied(
+#     base_test_that_correct_guidelines_are_matched(
 #         context,
 #         agent,
 #         new_session.id,
@@ -276,7 +276,7 @@ def test_that_previously_matched_guideline_not_matched_when_there_is_no_new_reas
 
 #     guidelines: list[str] = ["reset_password"]
 
-#     base_test_that_correct_guidelines_detect_as_previously_applied(
+#     base_test_that_correct_guidelines_are_matched(
 #         context,
 #         agent,
 #         new_session.id,
@@ -310,7 +310,7 @@ def test_that_partially_fulfilled_action_but_cosmetic_is_not_match_again(
 
     guidelines: list[str] = ["calm_and_reset_password"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -360,7 +360,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
 
     guidelines: list[str] = ["frustrated_so_discount"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -418,7 +418,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
 
     guidelines: list[str] = ["frustrated_so_discount"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -460,7 +460,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
 
     guidelines: list[str] = ["confirm_reservation"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -502,7 +502,7 @@ def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_t
 
     guidelines: list[str] = ["confirm_reservation"]
 
-    base_test_that_correct_guidelines_detect_as_previously_applied(
+    base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
