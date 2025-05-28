@@ -25,8 +25,8 @@ from parlant.core.shots import Shot, ShotCollection
 
 class GenericNotPreviouslyAppliedBatch(DefaultBaseModel):
     guideline_id: str
-    condition: str
-    action: str
+    condition: str  # TODO try to remove, but don't insist on it
+    action: str  #  TODO try to remove
     rationale: str
     applies: bool
 

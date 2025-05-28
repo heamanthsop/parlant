@@ -25,6 +25,7 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
+# TODO delete me and all references
 class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
     action_segment: str
     rationale: str
