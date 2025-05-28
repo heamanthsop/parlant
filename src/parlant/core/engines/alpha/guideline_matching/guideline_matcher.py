@@ -20,7 +20,7 @@ import time
 from typing import Sequence
 
 from parlant.core import async_utils
-from parlant.core.nlp.policies import retry
+from parlant.core.nlp.policies import policy, retry
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
@@ -91,16 +91,18 @@ class GuidelineMatcher:
         self._logger = logger
         self.strategy_resolver = strategy_resolver
 
-        self._batch_retry_policy = retry(
-            exceptions=KeyError,
-            max_attempts=3,
-            wait_times=(1.0, 2.0, 4.0),
-        )
-
+    @policy(
+        [
+            retry(
+                exceptions=Exception,
+                max_attempts=3,
+            )
+        ]
+    )
     async def _process_batch_with_retry(
         self, batch: GuidelineMatchingBatch
     ) -> GuidelineMatchingBatchResult:
-        return await self._batch_retry_policy.apply(batch.process)
+        return await batch.process()
 
     async def match_guidelines(
         self,

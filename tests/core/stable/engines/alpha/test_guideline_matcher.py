@@ -1922,7 +1922,7 @@ def test_that_batch_processing_retries_on_key_error(
         context,
         agent,
         customer,
-        [(EventSource.CUSTOMER, "test message")],
+        [],
     )
 
     assert len(guideline_matches) == 1
@@ -1972,5 +1972,5 @@ def test_that_batch_processing_fails_after_max_retries(
             context,
             agent,
             customer,
-            [(EventSource.CUSTOMER, "test message")],
+            [],
         )
