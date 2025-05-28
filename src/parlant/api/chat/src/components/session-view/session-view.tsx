@@ -17,7 +17,7 @@ import {useAtom} from 'jotai';
 import {agentAtom, agentsAtom, emptyPendingMessage, newSessionAtom, pendingMessageAtom, sessionAtom, sessionsAtom, viewingMessageDetailsAtom} from '@/store';
 import ErrorBoundary from '../error-boundary/error-boundary';
 import DateHeader from './date-header/date-header';
-import SessoinViewHeader from './session-view-header/session-view-header';
+// import SessoinViewHeader from './session-view-header/session-view-header';
 import {isSameDay} from '@/lib/utils';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
 import {ShieldEllipsis} from 'lucide-react';
@@ -314,7 +314,7 @@ const SessionView = (): ReactElement => {
 										onKeyDown={handleTextareaKeydown}
 										onChange={(e) => setMessage(e.target.value)}
 										rows={1}
-										className='box-shadow-none placeholder:text-[#282828] resize-none border-none h-full rounded-none min-h-[unset] p-0 whitespace-nowrap no-scrollbar font-inter font-light text-[16px] leading-[18px] bg-white'
+										className='box-shadow-none placeholder:text-[#282828] resize-none border-none h-full rounded-none min-h-[unset] p-0 whitespace-nowrap no-scrollbar font-inter font-light text-[16px] leading-[100%] bg-white'
 									/>
 									<p className={twMerge('absolute invisible left-[0.25em] -bottom-[28px] font-normal text-[#A9AFB7] text-[14px] font-inter', (showTyping || showThinking) && 'visible')}>
 										{showTyping ? 'Typing...' : 'Thinking...'}
