@@ -74,8 +74,13 @@ class MCPToolServer:
         await asyncio.sleep(0.01)
         return False
 
-    def serve(self) -> None:
-        self._server.run(transport=self.transport)
+    async def serve(self) -> None:
+        await self._server.run_async(transport=self.transport)
+
+    async def shutdown(self) -> None:
+        """At the time of creating this server, there is no graceful shutdown for the FactMCP http server"""
+        if self.started() and hasattr(self._server, "server") and self._server.server:
+            self._server.server.should_exit = True
 
     def started(self) -> bool:
         if hasattr(self._server, "_mcp_server") and self._server._mcp_server:
