@@ -26,24 +26,6 @@ function soundDoubleBlip(reversed?: boolean) {
   blip(now + 0.2, 660);
 }
 
-function soundLayeredChime(reversed?: boolean) {
-  const ctx = new (window.AudioContext || (window as any)['webkitAudioContext'])();
-
-  const freqs = reversed ? [1320, 880] : [880, 1320];
-  freqs.forEach((f, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(f, ctx.currentTime);
-    gain.gain.setValueAtTime(0.4, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4 + i * 0.05);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(ctx.currentTime + i * 0.05);
-    osc.stop(ctx.currentTime + 0.4 + i * 0.05);
-  });
-}
-
 function soundBlipUp(reversed = false) {
   const ctx = new (window.AudioContext || (window as any)['webkitAudioContext'])();
   const now = ctx.currentTime;
@@ -152,4 +134,4 @@ function soundBlipCascade(reversed = false) {
 
 
 
-export { soundDoubleBlip, soundLayeredChime, soundBlipUp, soundChirpPop, soundSoftBounce, soundBlipCascade };
+export { soundDoubleBlip, soundBlipUp, soundChirpPop, soundSoftBounce, soundBlipCascade };
