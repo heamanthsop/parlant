@@ -34,6 +34,7 @@ Feature: Journeys
         And the message contains asking the customer for their mobile number or email address
         And the message contains nothing about wishing the customer a good day
 
+    # TODO talk to Dor about this
     Scenario: Multistep journey invokes tool calls correctly
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
         And the tool "reset_password"
