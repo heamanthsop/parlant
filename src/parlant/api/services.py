@@ -242,10 +242,9 @@ def _get_service_url(service: ToolService) -> str:
     if isinstance(service, OpenAPIClient):
         return service.server_url
     if isinstance(service, PluginClient):
-        return cast(PluginClient, service).url
+        return service.url
     if isinstance(service, MCPToolClient):
-        client = cast(MCPToolClient, service)
-        return f"{client.url}:{client.port}"
+        return f"{service.url}:{service.port}"
     raise ValueError(f"Unknown service kind: {type(service)}")
 
 

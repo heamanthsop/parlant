@@ -72,6 +72,7 @@ from parlant.core.nlp.generation import (
 )
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.nlp.tokenization import EstimatingTokenizer
+from parlant.core.services.tools.mcp_service import MCPToolServer
 from parlant.core.services.tools.plugins import PluginServer, ToolEntry
 from parlant.core.sessions import (
     _GenerationInfoDocument,
@@ -705,6 +706,45 @@ async def run_openapi_server(
                 await task
             except asyncio.CancelledError:
                 pass
+
+
+@asynccontextmanager
+async def run_mcp_server(tools: Sequence[Callable[..., Any]] = []) -> AsyncIterator[ServerInfo]:
+    port = get_random_port(10001, 65535)
+
+    server = MCPToolServer(
+        port=port,
+        host=SERVER_BASE_URL,
+        tools=tools,
+    )
+
+    try:
+        await server.__aenter__()
+
+        # Wait for server to start with timeout
+        start_timeout = 8
+        sample_frequency = 0.1
+        for _ in range(int(start_timeout / sample_frequency)):
+            if server.started():
+                break
+            await asyncio.sleep(sample_frequency)
+        else:
+            raise TimeoutError("MCP server failed to start within timeout period")
+
+        # Additional wait to ensure server is fully initialized
+        await asyncio.sleep(0.5)
+
+        server_info = ServerInfo(
+            port=port,
+            url=SERVER_BASE_URL,
+        )
+
+        yield server_info
+    finally:
+        try:
+            await server.__aexit__(None, None, None)
+        except Exception:
+            pass
 
 
 async def get_json(address: str, params: dict[str, str] = {}) -> Any:
