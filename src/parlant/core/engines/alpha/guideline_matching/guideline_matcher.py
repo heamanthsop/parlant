@@ -1,3 +1,14 @@
+__all__ = [
+    "GuidelineMatcher",
+    "GuidelineMatchingBatch",
+    "GuidelineMatchingBatchResult",
+    "GuidelineMatchingContext",
+    "GuidelineMatchingPreparationBatch",
+    "GuidelineMatchingPreparationBatchResult",
+    "GuidelineMatchingPreparationContext",
+    "GuidelineMatchingStrategy",
+    "GuidelineMatchingStrategyResolver",
+]
 # Copyright 2025 Emcie Co Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +37,8 @@ from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.nlp.generation_info import GenerationInfo
+
+# Removed circular import of GuidelineMatchingPreparationBatch and GuidelineMatchingPreparationBatchResult
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     GuidelinePreviouslyApplied,
@@ -94,6 +107,9 @@ class GuidelineMatchingPreparationBatchResult:
     generation_info: GenerationInfo
 
 
+# (Moved below GuidelineMatchingPreparationBatch definition)
+
+
 class GuidelineMatchingBatch(ABC):
     @abstractmethod
     async def process(self) -> GuidelineMatchingBatchResult: ...
@@ -115,7 +131,7 @@ class GuidelineMatchingStrategy(ABC):
     @abstractmethod
     async def create_matching_preparation_batches(
         self,
-        guidelines: Sequence[Guideline],
+        guideline_matches: Sequence[GuidelineMatch],
         context: GuidelineMatchingPreparationContext,
     ) -> Sequence[GuidelineMatchingPreparationBatch]: ...
 
@@ -223,9 +239,9 @@ class GuidelineMatcher:
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
         staged_events: Sequence[EmittedEvent],
-        guidelines: Sequence[Guideline],
+        guideline_matches: Sequence[GuidelineMatch],
     ) -> GuidelineMatchingPreparationResult:
-        if not guidelines:
+        if not guideline_matches:
             return GuidelineMatchingPreparationResult(
                 total_duration=0.0,
                 batch_count=0,
@@ -238,19 +254,19 @@ class GuidelineMatcher:
         with self._logger.scope("GuidelineMatcherPreparation"):
             with self._logger.operation("Creating preparation batches"):
                 guideline_strategies: dict[
-                    str, tuple[GuidelineMatchingStrategy, list[Guideline]]
+                    str, tuple[GuidelineMatchingStrategy, list[GuidelineMatch]]
                 ] = {}
-                for guideline in guidelines:
-                    strategy = await self.strategy_resolver.resolve(guideline)
+                for match in guideline_matches:
+                    strategy = await self.strategy_resolver.resolve(match.guideline)
                     key = strategy.__class__.__name__
                     if key not in guideline_strategies:
                         guideline_strategies[key] = (strategy, [])
-                    guideline_strategies[key][1].append(guideline)
+                    guideline_strategies[key][1].append(match)
 
                 batches = await async_utils.safe_gather(
                     *[
                         strategy.create_matching_preparation_batches(
-                            guidelines,
+                            guideline_matches,
                             context=GuidelineMatchingPreparationContext(
                                 agent,
                                 session,
@@ -261,7 +277,7 @@ class GuidelineMatcher:
                                 staged_events,
                             ),
                         )
-                        for _, (strategy, guidelines) in guideline_strategies.items()
+                        for _, (strategy, guideline_matches) in guideline_strategies.items()
                     ]
                 )
 

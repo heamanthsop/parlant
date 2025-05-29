@@ -32,9 +32,6 @@ from parlant.core.context_variables import (
     ContextVariableValue,
     ContextVariableStore,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
-    GenericGuidelineMatchingPreparationBatch,
-)
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
@@ -116,7 +113,6 @@ class AlphaEngine(Engine):
         fluid_message_generator: MessageGenerator,
         utterance_selector: UtteranceSelector,
         perceived_performance_policy: PerceivedPerformancePolicy,
-        generic_guideline_previously_applied_detector: GenericGuidelineMatchingPreparationBatch,
         hooks: EngineHooks,
     ) -> None:
         self._logger = logger
@@ -132,9 +128,6 @@ class AlphaEngine(Engine):
         self._utterance_selector = utterance_selector
         self._perceived_performance_policy = perceived_performance_policy
 
-        self._generic_guideline_previously_applied_detector = (
-            generic_guideline_previously_applied_detector
-        )
         self._hooks = hooks
 
     @override
@@ -300,7 +293,7 @@ class AlphaEngine(Engine):
                 await self._add_agent_state(
                     context=context,
                     session=context.session,
-                    guidelines=list(
+                    guideline_matches=list(
                         chain(
                             context.state.ordinary_guideline_matches,
                             context.state.tool_enabled_guideline_matches,
@@ -974,30 +967,31 @@ class AlphaEngine(Engine):
         self,
         context: LoadedContext,
         session: Session,
-        guidelines: Sequence[GuidelineMatch],
+        guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
-        guideline_to_detect = [
-            g
-            for g in guidelines
-            if g.guideline.id not in session.agent_state["applied_guideline_ids"]
-            and not g.guideline.metadata.get("continuous", False)
-            and g.guideline.content.action
+        matches_to_prepare = [
+            match
+            for match in guideline_matches
+            if match.guideline.id not in session.agent_state["applied_guideline_ids"]
+            and not match.guideline.metadata.get("continuous", False)
+            and match.guideline.content.action
         ]
 
+        preparation_result = await self._guideline_matcher.match_guideline_preparation(
+            agent=context.agent,
+            session=session,
+            customer=context.customer,
+            context_variables=context.state.context_variables,
+            interaction_history=context.interaction.history,
+            terms=list(context.state.glossary_terms),
+            staged_events=context.state.tool_events,
+            guideline_matches=matches_to_prepare,
+        )
+
         applied_guideline_ids = [
-            g.id
-            for g in (
-                await self._generic_guideline_previously_applied_detector.process(
-                    agent=context.agent,
-                    session=session,
-                    customer=context.customer,
-                    context_variables=context.state.context_variables,
-                    interaction_history=context.interaction.history,
-                    terms=list(context.state.glossary_terms),
-                    staged_events=context.state.tool_events,
-                    guideline_matches=guideline_to_detect,
-                )
-            ).previously_applied_guidelines
+            p.guideline.id
+            for p in preparation_result.previously_applied_guidelines
+            if p.is_previously_applied
         ]
 
         applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

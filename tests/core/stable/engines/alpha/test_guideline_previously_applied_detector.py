@@ -14,6 +14,9 @@ from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_pr
     GenericGuidelineMatchingPreparationSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
+    GuidelineMatchingPreparationContext,
+)
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
@@ -198,10 +201,7 @@ def base_test_that_correct_guidelines_detect_as_previously_applied(
             )
         )
 
-    guideline_previously_applied_detector = GenericGuidelineMatchingPreparationBatch(
-        logger=context.container[Logger],
-        schematic_generator=context.schematic_generator,
-    )
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
 
     guideline_matches = [
         GuidelineMatch(
@@ -212,10 +212,12 @@ def base_test_that_correct_guidelines_detect_as_previously_applied(
         for guideline in context.guidelines
     ]
 
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
-    result = context.sync_await(
-        guideline_previously_applied_detector.process(
+    guideline_matching_preparation = GenericGuidelineMatchingPreparationBatch(
+        logger=context.container[Logger],
+        schematic_generator=context.container[
+            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
+        ],
+        context=GuidelineMatchingPreparationContext(
             agent=agent,
             session=session,
             customer=customer,
@@ -223,11 +225,17 @@ def base_test_that_correct_guidelines_detect_as_previously_applied(
             interaction_history=interaction_history,
             terms=[],
             staged_events=staged_events,
-            guideline_matches=guideline_matches,
-        )
+        ),
+        guideline_matches=guideline_matches,
     )
 
-    assert set(result.previously_applied_guidelines) == set(previously_applied_target_guidelines)
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+
+    result = context.sync_await(guideline_matching_preparation.process())
+
+    assert set([p.guideline for p in result.previously_applied_guidelines]) == set(
+        previously_applied_target_guidelines
+    )
 
 
 def test_that_correct_guidelines_detect_as_previously_applied(

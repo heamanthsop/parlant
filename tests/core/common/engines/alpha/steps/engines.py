@@ -29,6 +29,10 @@ from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
     GenericGuidelineMatchingPreparationBatch,
+    GenericGuidelineMatchingPreparationSchema,
+)
+from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
+    GuidelineMatchingPreparationContext,
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.utils import context_variables_to_json
@@ -41,6 +45,8 @@ from parlant.core.engines.types import Context, UtteranceReason, UtteranceReques
 from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.entity_cq import EntityCommands, EntityQueries
 from parlant.core.glossary import Term
+from parlant.core.loggers import Logger
+from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import (
     AgentState,
     EventSource,
@@ -200,9 +206,9 @@ def when_processing_is_detected_and_triggered(
     customer = context.sync_await(
         context.container[CustomerStore].read_customer(customer_id),
     )
+
     buffer = EventBuffer(agent)
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
-    detector = context.container[GenericGuidelineMatchingPreparationBatch]
 
     context_variables = _load_context_variables(
         context,
@@ -212,7 +218,7 @@ def when_processing_is_detected_and_triggered(
 
     terms = _load_glossary_terms(context, agent_id, context_variables)
 
-    guideline_to_detect = [
+    matches_to_prepare = [
         g
         for g in context.guideline_matches.values()
         if g.guideline.id not in session.agent_state["applied_guideline_ids"]
@@ -223,22 +229,26 @@ def when_processing_is_detected_and_triggered(
         context.events[:-1] if context.events[-1].source == EventSource.CUSTOMER else context.events
     )
 
+    matching_preparation = GenericGuidelineMatchingPreparationBatch(
+        logger=context.container[Logger],
+        schematic_generator=context.container[
+            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
+        ],
+        context=GuidelineMatchingPreparationContext(
+            agent=agent,
+            session=session,
+            customer=customer,
+            context_variables=context_variables,
+            interaction_history=interaction_history,
+            terms=terms,
+            staged_events=[],
+        ),
+        guideline_matches=matches_to_prepare,
+    )
+
     applied_guideline_ids = [
-        g.id
-        for g in (
-            context.sync_await(
-                detector.process(
-                    agent=agent,
-                    session=session,
-                    customer=customer,
-                    context_variables=context_variables,
-                    interaction_history=interaction_history,
-                    terms=terms,
-                    staged_events=[],
-                    guideline_matches=guideline_to_detect,
-                )
-            )
-        ).previously_applied_guidelines
+        p.guideline.id
+        for p in (context.sync_await(matching_preparation.process())).previously_applied_guidelines
     ]
 
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

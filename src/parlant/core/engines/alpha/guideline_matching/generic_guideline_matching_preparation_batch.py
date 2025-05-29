@@ -5,23 +5,18 @@ from typing import Optional, Sequence
 from more_itertools import chunked
 
 from parlant.core import async_utils
-from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.context_variables import ContextVariable, ContextVariableValue
-from parlant.core.customers import Customer
-from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import _make_event
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     GuidelinePreviouslyApplied,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingContext,
     GuidelineMatchingPreparationBatch,
     GuidelineMatchingPreparationBatchResult,
+    GuidelineMatchingPreparationContext,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder
-from parlant.core.glossary import Term
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
@@ -62,31 +57,20 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
         self,
         logger: Logger,
         schematic_generator: SchematicGenerator[GenericGuidelineMatchingPreparationSchema],
+        context: GuidelineMatchingPreparationContext,
+        guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
         self._batch_size = 5
 
+        self._context = context
+        self._guideline_matches = guideline_matches
+
     async def process(
         self,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        staged_events: Sequence[EmittedEvent],
-        guideline_matches: Sequence[GuidelineMatch],
     ) -> GuidelineMatchingPreparationBatchResult:
-        context = GuidelineMatchingContext(
-            agent=agent,
-            customer=customer,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            terms=terms,
-            staged_events=staged_events,
-        )
-
-        all_guidelines = [m.guideline for m in guideline_matches]
+        all_guidelines = [m.guideline for m in self._guideline_matches]
 
         guideline_batches = list(chunked(all_guidelines, self._batch_size))
 
@@ -97,8 +81,6 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
             batch_tasks = [
                 self._process_batch(
                     batch,
-                    guideline_matches,
-                    context,
                 )
                 for batch in guideline_batches
             ]
@@ -134,13 +116,11 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
     async def _process_batch(
         self,
         batch: Sequence[Guideline],
-        guideline_matches: Sequence[GuidelineMatch],
-        context: GuidelineMatchingContext,
     ) -> GuidelineMatchingPreparationBatchResult:
         batch_guideline_ids = {g.id for g in batch}
 
         batch_guidelines = [
-            m.guideline for m in guideline_matches if m.guideline.id in batch_guideline_ids
+            m.guideline for m in self._guideline_matches if m.guideline.id in batch_guideline_ids
         ]
 
         guidelines = {g.id: g for g in batch_guidelines}
@@ -148,7 +128,6 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
         prompt = self._build_prompt(
             shots=await self.shots(),
             guidelines=guidelines,
-            context=context,
         )
 
         with self._logger.operation(f"GenericGuidelineMatchingBatch: {len(guidelines)} guidelines"):
@@ -258,7 +237,6 @@ Guidelines:
         self,
         shots: Sequence[GenericGuidelineMatchingPreparationShot],
         guidelines: dict[GuidelineId, Guideline],
-        context: GuidelineMatchingContext,
     ) -> PromptBuilder:
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
@@ -332,11 +310,11 @@ Examples of ...:
                 "shots": shots,
             },
         )
-        builder.add_agent_identity(context.agent)
-        builder.add_context_variables(context.context_variables)
-        builder.add_glossary(context.terms)
-        builder.add_interaction_history(context.interaction_history)
-        builder.add_staged_events(context.staged_events)
+        builder.add_agent_identity(self._context.agent)
+        builder.add_context_variables(self._context.context_variables)
+        builder.add_glossary(self._context.terms)
+        builder.add_interaction_history(self._context.interaction_history)
+        builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._add_guideline_matches_section(guidelines),
