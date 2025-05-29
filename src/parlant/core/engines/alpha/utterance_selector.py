@@ -1449,7 +1449,7 @@ example_1_expected = UtteranceDraftSchema(
         "When the user chooses and orders a burger, then provide it",
         "When the user chooses specific ingredients on the burger, only provide those ingredients if we have them fresh in stock; otherwise, reject the order",
     ],
-    journey_state="Still need to stay in step 2, choosing ingredients for the burger",
+    journey_state="Journey 1. Still need to stay in step 2 (choose ingredients for burger), as the user's choice is not available and I need to inform them about it",
     insights=[
         "All of our cheese has expired and is currently out of stock",
         "The user is a long-time user and we should treat him with extra respect",
@@ -1468,7 +1468,7 @@ example_1_shot = UtteranceSelectorDraftShot(
 example_2_expected = UtteranceDraftSchema(
     last_message_of_user="Hi there, can I get something to drink? What do you have on tap?",
     guidelines=["When the user asks for a drink, check the menu and offer what's on it"],
-    journey_state="Still in step 1 as I don't have the menu yet so I can't proceed from here",
+    journey_state="Journey 2. Still stuck in step 1 (take initial order), as I don't have the menu yet so I can't proceed from here",
     insights=[
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
@@ -1491,7 +1491,7 @@ example_2_shot = UtteranceSelectorDraftShot(
 example_3_expected = UtteranceDraftSchema(
     last_message_of_user="Sure, I'll take the Pepsi",
     guidelines=[],
-    journey_state="Moving from step 4 (drinks) to step 5 (order confirmation)",
+    journey_state="Journey 1. Moving from step 4 (offer drinks) to step 5 (order confirmation)",
     insights=[],
     response_preamble_that_was_already_sent="Great!",
     response_body="So just to confirm, you'll have a cheeseburger with onions and a Pepsi, right?",
