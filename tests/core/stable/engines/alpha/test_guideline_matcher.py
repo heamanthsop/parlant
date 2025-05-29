@@ -72,7 +72,6 @@ from parlant.core.sessions import (
     EventKind,
     EventSource,
     Session,
-    SessionId,
     SessionStore,
     SessionUpdateParams,
 )
@@ -539,7 +538,7 @@ def base_test_that_correct_guidelines_are_matched(
     update_previously_applied_guidelines(
         context=context,
         session=session,
-        previously_applied_guidelines=previously_applied_guidelines,
+        applied_guideline_ids=previously_applied_guidelines,
     )
 
     match_preparation(
@@ -2460,7 +2459,7 @@ def test_that_batch_processing_retries_on_key_error(
 
     context.container[GuidelineMatcher].strategy_resolver = FailingStrategyResolver()
 
-    session = context.sync_await(
+    context.sync_await(
         context.container[SessionStore].create_session(
             customer_id=customer.id,
             agent_id=agent.id,
@@ -2484,7 +2483,7 @@ def test_that_batch_processing_fails_after_max_retries(
     context: ContextOfTest,
     agent: Agent,
     customer: Customer,
-    session: Session,
+    new_session: Session,
 ) -> None:
     class AlwaysFailingBatch(GuidelineMatchingBatch):
         def __init__(self, guidelines: Sequence[Guideline]):
@@ -2528,7 +2527,7 @@ def test_that_batch_processing_fails_after_max_retries(
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
             return AlwaysFailingStrategy()
 
-    session = context.sync_await(
+    context.sync_await(
         context.container[SessionStore].create_session(
             customer_id=customer.id,
             agent_id=agent.id,
@@ -2547,7 +2546,7 @@ def test_that_batch_processing_fails_after_max_retries(
         match_guidelines(
             context,
             agent,
-            session,
+            new_session,
             customer,
             [],
         )

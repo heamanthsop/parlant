@@ -163,6 +163,19 @@ class GuidelineMatcher:
     ) -> GuidelineMatchingBatchResult:
         return await batch.process()
 
+    @policy(
+        [
+            retry(
+                exceptions=Exception,
+                max_attempts=3,
+            )
+        ]
+    )
+    async def _process_preparation_batch_with_retry(
+        self, batch: GuidelineMatchingPreparationBatch
+    ) -> GuidelineMatchingPreparationBatchResult:
+        return await batch.process()
+
     async def match_guidelines(
         self,
         agent: Agent,
@@ -283,7 +296,9 @@ class GuidelineMatcher:
 
             with self._logger.operation("Processing preparation batches"):
                 batch_tasks = [
-                    batch.process() for strategy_batches in batches for batch in strategy_batches
+                    self._process_preparation_batch_with_retry(batch)
+                    for strategy_batches in batches
+                    for batch in strategy_batches
                 ]
                 batch_results = await async_utils.safe_gather(*batch_tasks)
 
