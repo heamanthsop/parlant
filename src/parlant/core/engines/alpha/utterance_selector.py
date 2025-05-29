@@ -68,6 +68,7 @@ DEFAULT_NO_MATCH_UTTERANCE = "Not sure I understand. Could you please say that a
 class UtteranceDraftSchema(DefaultBaseModel):
     last_message_of_user: Optional[str]
     guidelines: list[str]
+    journey_state: Optional[str] = None
     insights: Optional[list[str]] = None
     response_preamble_that_was_already_sent: Optional[str] = None
     response_body: Optional[str] = None
@@ -890,6 +891,7 @@ If you decide not to emit a message, output the following:
 {{
     "last_message_of_user": "<user's last message>",
     "guidelines": [<list of strings- a re-statement of all guidelines>],
+    "journey_state": "<current state of the journey(s), if any>",
     "insights": [<list of strings- up to 3 original insights>],
     "response_preamble_that_was_already_sent": null,
     "response_body": null
@@ -1104,6 +1106,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
 {{
     "last_message_of_user": "{last_user_message}",
     "guidelines": [{guidelines_list_text}],
+    "journey_state": "<current state of the journey(s), if any>",
     "insights": [<Up to 3 original insights to adhere to>],
     "response_preamble_that_was_already_sent": "{agent_preamble}",
     "response_body": "<response message text (that would immediately follow the preamble)>"
@@ -1446,6 +1449,7 @@ example_1_expected = UtteranceDraftSchema(
         "When the user chooses and orders a burger, then provide it",
         "When the user chooses specific ingredients on the burger, only provide those ingredients if we have them fresh in stock; otherwise, reject the order",
     ],
+    journey_state="Still need to stay in step 2, choosing ingredients for the burger",
     insights=[
         "All of our cheese has expired and is currently out of stock",
         "The user is a long-time user and we should treat him with extra respect",
@@ -1464,6 +1468,7 @@ example_1_shot = UtteranceSelectorDraftShot(
 example_2_expected = UtteranceDraftSchema(
     last_message_of_user="Hi there, can I get something to drink? What do you have on tap?",
     guidelines=["When the user asks for a drink, check the menu and offer what's on it"],
+    journey_state="Still in step 1 as I don't have the menu yet so I can't proceed from here",
     insights=[
         "According to contextual information about the user, this is their first time here",
         "There's no menu information in my context",
@@ -1484,13 +1489,12 @@ example_2_shot = UtteranceSelectorDraftShot(
 
 
 example_3_expected = UtteranceDraftSchema(
-    last_message_of_user="This is not what I was asking for!",
+    last_message_of_user="Sure, I'll take the Pepsi",
     guidelines=[],
-    insights=[
-        "I should not keep repeating myself asking for clarifications, as it makes me sound robotic"
-    ],
-    response_preamble_that_was_already_sent="I apologize for the confusion",
-    response_body="Looks like I'm not able to assist you with your issue. If there's anything else I can do for you, please let me know.",
+    journey_state="Moving from step 4 (drinks) to step 5 (order confirmation)",
+    insights=[],
+    response_preamble_that_was_already_sent="Great!",
+    response_body="So just to confirm, you'll have a cheeseburger with onions and a Pepsi, right?",
 )
 
 example_3_shot = UtteranceSelectorDraftShot(
@@ -1507,6 +1511,7 @@ example_3_shot = UtteranceSelectorDraftShot(
 example_4_expected = UtteranceDraftSchema(
     last_message_of_user=("Hey, how can I contact customer support?"),
     guidelines=[],
+    journey_state=None,
     insights=[
         "When I cannot help with a topic, I should tell the user I can't help with it",
     ],
