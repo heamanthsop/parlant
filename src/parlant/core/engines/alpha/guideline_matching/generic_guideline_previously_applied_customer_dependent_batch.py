@@ -188,7 +188,7 @@ Each guideline is composed of two parts:
           Any instruction described here applies only to the agent, and not to the user.
 
 While an action can only instruct the agent to do something, some guidelines may require something from the customer in order to be completed. These are referred to as "customer dependent" guidelines.
-For example, the action "e.g., get the customer's ID number" requires the agent to ask the customer what's their account number, but the guideline is not fully completed until the user provides it.
+For example, the action "get the customer's ID number" requires the agent to ask the customer what's their account number, but the guideline is not fully completed until the user provides it.
 
 Task Description
 ----------------
@@ -197,7 +197,7 @@ Specifically, you will be given a set of "customer dependent" guidelines after w
 some point during the interaction. 
 
 The guideline should be apply if either of the following is true:
-1. The condition still holds, the reason that triggered the agent to make it's part of the action is still relevant, AND the customer has not yet fulfilled their side of the action.
+1. The condition still holds, the reason that triggered the agent to make its part of the action is still relevant, AND the customer has not yet fulfilled their side of the action.
     Example: The agent asked for the user’s ID, but the user has not responded yet, and the current conversation is still about accessing their account.
 2. The condition arises again in a new context and the associated action should be repeated (by the agent and the user)
     Example: The user switches to asking about a second account, and the agent needs to ask for another ID.
@@ -283,6 +283,8 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+        with open("customer dependent previously applied batch prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
@@ -291,13 +293,13 @@ OUTPUT FORMAT
                 "guideline_id": g.id,
                 "condition": g.content.condition,
                 "action": g.content.action,
-                "condition_still_met": "<BOOL, weather the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
-                "customer_should_reply": "<BOOL, include only if customer_should_reply=True weather the customer needs to apply their side of the action>",
-                "condition_met_again": "<BOOL, include only if customer_should_reply=False weather the condition is met again in the recent interaction for a new reason and action should be taken again>",
-                "action_should_reappply": "<BOOL, condition_met_again=True. weather the action is not static and should be taken again>",
-                "action_wasnt_taken": "<BOOL, include only if action_should_reappply=True, weather the new action wasn't taken yet by the agent or the customer>",
-                "tldr": "<str, Explanation for why the guideline should apply in the most recent context>",
-                "should_apply": "<BOOL>",
+                "condition_still_met": "<BOOL, whether the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
+                "customer_should_reply": "<BOOL, include only if condition_still_met=True whether the customer needs to apply their side of the action>",
+                "condition_met_again": "<BOOL, include only if customer_should_reply=False whether the condition is met again in the recent interaction for a new reason and action should be taken again>",
+                "action_should_reappply": "<BOOL, include only if condition_met_again=True. whether the action is not static and should be taken again>",
+                "action_wasnt_taken": "<BOOL, include only if action_should_reappply=True, whether the new action wasn't taken yet by the agent or the customer>",
+                "tldr": "<str, very brief explanation for why the guideline should apply in the most recent context>",
+                "should_apply": "<BOOL>",  # Should be true if customer_should_reply is True or if action_wasnt_taken is True. Reapply is with 3 ps
             }
             for g in self._guidelines.values()
         ]
