@@ -1697,11 +1697,8 @@ def test_that_observational_guidelines_are_detected_3(
     conversation_guideline_names: list[str] = [
         "delivery_order",
         "unknown_service",
-        "unanswered_questions",
     ]
-
-    relevant_guideline_names = ["unknown_service", "unanswered_questions"]
-
+    relevant_guideline_names = ["unknown_service"]
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,

@@ -170,7 +170,7 @@ class GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(GuidelineM
 
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
-        builder.add_section(
+        builder.add_section(  # TODO pass the 'task description' section through GPT to improve phrasing and grammar
             name="guideline-previously-applied-general-instructions",
             template="""
 GENERAL INSTRUCTIONS

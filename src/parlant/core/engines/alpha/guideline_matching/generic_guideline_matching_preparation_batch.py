@@ -258,7 +258,7 @@ Each guideline is composed of two parts:
 
 Task Description
 ----------------
-Your task is to evaluate whether the action specified by each guideline has now been applied. The guideline you are reviewing has not yet been marked as applied, and you need to determine if the latest agent message in the conversation
+Your task is to evaluate whether the action specified by each guideline has now been applied. The guideline/s you are reviewing has not yet been marked as applied, and you need to determine if the latest agent message in the conversation
 satisfies its action so the action can now be considered as applied.
 
 1. Focus on Agent-Side Requirements in Action Evaluation:

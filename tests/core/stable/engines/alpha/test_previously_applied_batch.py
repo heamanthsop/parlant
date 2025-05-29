@@ -458,7 +458,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
 
     guidelines: list[str] = [
         "confirm_reservation"
-    ]  # TODO this seems customer dependent, maybe we should change it a little?
+    ]  # TODO Hadar this seems customer dependent, maybe we should change it a little?
 
     base_test_that_correct_guidelines_are_matched(
         context,
@@ -513,4 +513,4 @@ def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_t
     )
 
 
-# TODO add couple of tests for sub-issue of new condition
+# TODO Bar add couple of tests for sub-issue of new condition
