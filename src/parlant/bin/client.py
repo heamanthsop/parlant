@@ -3469,11 +3469,6 @@ async def async_main() -> None:
         tool_id: Optional[str],
         tag: tuple[str],
     ) -> None:
-        if not action and not tool_id:
-            Interface.write_error("At least one of --action or --tool-id must be specified")
-            set_exit_status(1)
-            raise FastExit()
-
         Interface.create_guideline(
             ctx=ctx,
             condition=condition,
