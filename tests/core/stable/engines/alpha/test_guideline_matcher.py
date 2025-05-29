@@ -2460,6 +2460,13 @@ def test_that_batch_processing_retries_on_key_error(
 
     context.container[GuidelineMatcher].strategy_resolver = FailingStrategyResolver()
 
+    session = context.sync_await(
+        context.container[SessionStore].create_session(
+            customer_id=customer.id,
+            agent_id=agent.id,
+        )
+    )
+
     guideline_matches = match_guidelines(
         context=context,
         agent=agent,
@@ -2520,6 +2527,13 @@ def test_that_batch_processing_fails_after_max_retries(
         @override
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
             return AlwaysFailingStrategy()
+
+    session = context.sync_await(
+        context.container[SessionStore].create_session(
+            customer_id=customer.id,
+            agent_id=agent.id,
+        )
+    )
 
     create_guideline(
         context=context,
