@@ -803,7 +803,7 @@ def test_that_guidelines_are_matched_based_on_agent_description(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        session.id,
+        session,
         customer,
         conversation_context,
         conversation_guideline_names,
