@@ -30,6 +30,7 @@ class GenericPreviouslyAppliedCustomerDependentBatch(DefaultBaseModel):
     condition_still_met: bool
     customer_should_reply: Optional[bool] = None
     condition_met_again: Optional[bool] = None
+    action_should_reappply: Optional[bool] = None
     action_wasnt_taken: Optional[bool] = None
     tldr: str
     should_apply: bool
@@ -203,9 +204,11 @@ The guideline should be apply if either of the following is true:
 
 Additional KeyRules:
 
-Don't Perform Action That It's Result Clearly Won't Change
-In some cases the action ask for the user for information that should not change from time to time, for example their Id or name. So even when the condition arises again, don't re activate the guideline 
-since we don't want to perform the action again. However if the action contains requests that some are constant and some are not, 
+Avoid Repeating Actions With Static Outcomes:
+If an action requests information from the user that is unlikely to change — such as their ID, name, or date of birth—do not reapply the guideline, even if the condition arises again. 
+Repeating the request would be unnecessary and redundant.
+However, if the action includes both static and dynamic components (e.g., “ask for the user’s name and their preferred appointment time”), and the dynamic part becomes relevant again, 
+it’s appropriate to reapply the guideline to address the changing part of the request.
 
 Conditions May Arise Multiple Times:
     As said before, if the same condition comes up again later in a new context, and the associated action should be repeated (e.g., asking for a different account ID), the guideline should be reapplied.
@@ -290,7 +293,8 @@ OUTPUT FORMAT
                 "condition_still_met": "<BOOL, weather the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
                 "customer_should_reply": "<BOOL, include only if customer_should_reply=True weather the customer needs to apply their side of the action>",
                 "condition_met_again": "<BOOL, include only if customer_should_reply=False weather the condition is met again in the recent interaction for a new reason and action should be taken again>",
-                "action_wasnt_taken": "<BOOL, include only if condition_met_again=True, weather the new action wasn't taken yet by the agent or the customer>",
+                "action_should_reappply": "<BOOL, condition_met_again=True. weather the action is not static and should be taken again>",
+                "action_wasnt_taken": "<BOOL, include only if action_should_reappply=True, weather the new action wasn't taken yet by the agent or the customer>",
                 "tldr": "<str, Explanation for why the guideline should apply in the most recent context>",
                 "should_apply": "<BOOL>",
             }
@@ -479,6 +483,7 @@ example_3_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             condition_still_met=True,
             customer_should_reply=False,
             condition_met_again=True,
+            action_should_reappply=True,
             action_wasnt_taken=True,
             tldr="The customer ask about a new trip plan.",
             should_apply=True,
@@ -571,6 +576,46 @@ example_5_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             action="Ask for their preferred activities and recommend accordingly",
             condition_still_met=False,
             tldr="The customer regret about the new planning",
+            should_apply=False,
+        ),
+    ]
+)
+
+
+example_6_events = [
+    _make_event("11", EventSource.CUSTOMER, "Hi, I need help changing the email on my account."),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "Sure! Could you please provide your account ID so I can verify your identity?",
+    ),
+    _make_event("26", EventSource.CUSTOMER, "It’s ACC12345."),
+    _make_event(
+        "54",
+        EventSource.AI_AGENT,
+        "Thanks! I’ve updated your email.",
+    ),
+    _make_event("66", EventSource.CUSTOMER, "Also, can you check the last payment on my account?"),
+]
+
+example_6_guidelines = [
+    GuidelineContent(
+        condition="The customer is asking for account-related help",
+        action="Ask for their account ID to verify their identity",
+    ),
+]
+
+example_6_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema(
+    checks=[
+        GenericPreviouslyAppliedCustomerDependentBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="The customer is asking for account-related help",
+            action="Ask for their account ID to verify their identity",
+            condition_still_met=True,
+            customer_should_reply=False,
+            condition_met_again=True,
+            action_should_reappply=False,
+            tldr="The customer already provided their acount Id",
             should_apply=False,
         ),
     ]
