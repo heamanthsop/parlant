@@ -130,31 +130,6 @@ Feature: Strict Utterance
         And the message contains asking the customer for their mobile number or email address
         And the message contains nothing about wishing the customer a good day
 
-    Scenario: Multistep journey invokes tool calls correctly (strict utterance) 
-        Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
-        And the tool "reset_password"
-        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when in the process of resetting the customer's password
-        And an association between "reset_password_guideline" and "reset_password"
-        And a customer message, "I want to reset my password"
-        And an agent message, "I can help you do just that. What's your username?"
-        And a customer message, "it's leonardo_barbosa_1982"
-        And an agent message, "Great! And what's the account's associated email address or phone number?"
-        And a customer message, "the email is leonardobarbosa@gmail.br"
-        And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
-        And a customer message, "Thank you! Have a great day as well!"
-        And an utterance, "What is the name of your account?"
-        And an utterance, "can you please provide the email address or phone number attached to this account?"
-        And an utterance, "Thank you, have a good day!"
-        And an utterance, "I'm sorry but I have no information about that"
-        And an utterance, "Is there anything else I could help you with?"
-        And an utterance, "Your password was successfully reset. An email with further instructions will be sent to your address."
-        And an utterance, "An error occurred, your password could not be reset"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains the tool reset password with username leonardo_barbosa_1982 and email leonardobarbosa@gmail.br
-        And a single message event is emitted
-        And the message contains that the password was reset and an email with instructions was sent to the customer
 
     Scenario: Critical guideline overrides journey (strict utterance)
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password

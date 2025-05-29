@@ -23,6 +23,7 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
+# TODO Bar - read thoroughly
 class GenericPreviouslyAppliedCustomerDependentBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
@@ -171,7 +172,7 @@ class GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(GuidelineM
 
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
-        builder.add_section(  # TODO pass the 'task description' section through GPT to improve phrasing and grammar
+        builder.add_section(  # TODO Hadar pass the 'task description' section through GPT to improve phrasing and grammar
             name="guideline-previously-applied-general-instructions",
             template="""
 GENERAL INSTRUCTIONS

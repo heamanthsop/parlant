@@ -252,7 +252,9 @@ Expected Output
         )
         import pathlib
 
-        pathlib.Path("generic observational batch.txt").write_text(builder.build())  # TODO delete
+        pathlib.Path("generic observational batch.txt").write_text(
+            builder.build()
+        )  # TODO End delete
 
         return builder
 

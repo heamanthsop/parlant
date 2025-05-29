@@ -25,7 +25,7 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-# TODO delete me and all references
+# TODO END delete me and all references
 class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
     action_segment: str
     rationale: str
@@ -112,7 +112,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
                         else ""}"''',
                         guideline_previously_applied=PreviouslyAppliedType(
                             match.guideline_previously_applied or "no"
-                        ),  # TODO either remove the file or delete this
+                        ),
                     )
                 )
             else:
@@ -316,9 +316,7 @@ Expected Output
         )
         import pathlib
 
-        pathlib.Path("generic actionable batch prompt.txt").write_text(
-            builder.build()
-        )  # TODO delete
+        pathlib.Path("generic actionable batch prompt.txt").write_text(builder.build())
         return builder
 
 

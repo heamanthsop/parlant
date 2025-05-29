@@ -297,7 +297,7 @@ def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_act
     )
 
 
-def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_has_partially_applied_but_behavioral(  # TODO Bar - not sure I understand this test
+def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_has_partially_applied_but_behavioral(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -311,14 +311,6 @@ def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_has
         (
             EventSource.AI_AGENT,
             "I see your order is running late. I’m going to look into it right now and make sure it gets sorted. I’ll also apply a discount to your order for the delay.",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "Ok let's make it quick. Also can you help me make another order for tomorrow?",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "Sure I'm here to help. What would you like to order?",
         ),
     ]
     guidelines: list[str] = ["express_solidarity_and_discount"]
@@ -460,4 +452,4 @@ def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_act
     )
 
 
-# TODO add a test or two with partial fulfillment
+# TODO Bar add a test or two with partial fulfillment

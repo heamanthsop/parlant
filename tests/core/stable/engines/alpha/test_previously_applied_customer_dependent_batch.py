@@ -443,11 +443,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_
     )
 
 
-# TODO- add test that condition arise again but shouldn't take the action because we already have this information
-# TODO - from Bar: is the test below what's mentioned in the TODO above?
-
-
-def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_dont_need_to_take_the_action_again_because_its_the_same(
+def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_dont_need_to_take_the_action_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,

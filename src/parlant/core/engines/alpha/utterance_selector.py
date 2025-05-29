@@ -1087,7 +1087,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 ],
             },
         )
-        pathlib.Path("utterance draft prompt.txt").write_text(builder.build())  # TODO delete
+        pathlib.Path("utterance draft prompt.txt").write_text(builder.build())  # TODO END delete
 
         return builder
 
@@ -1215,7 +1215,9 @@ Output a JSON object with three properties:
                 "composition_mode": context.agent.composition_mode,
             },
         )
-        pathlib.Path("utterance selection prompt.txt").write_text(builder.build())  # TODO delete
+        pathlib.Path("utterance selection prompt.txt").write_text(
+            builder.build()
+        )  # TODO END delete
         return builder
 
     async def _generate_utterance(

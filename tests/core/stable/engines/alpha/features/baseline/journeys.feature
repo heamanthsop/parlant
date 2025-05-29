@@ -34,27 +34,6 @@ Feature: Journeys
         And the message contains asking the customer for their mobile number or email address
         And the message contains nothing about wishing the customer a good day
 
-    # TODO talk to Dor about this
-    Scenario: Multistep journey invokes tool calls correctly
-        Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise abort. 3. use the tool reset_password with the provided information 4. report the result to the customer when the customer wants to reset their password
-        And the tool "reset_password"
-        And a guideline "reset_password_guideline" to reset the customer's password using the associated tool when the customer requested to reset their password
-        And an association between "reset_password_guideline" and "reset_password"
-        And a customer message, "I want to reset my password"
-        And an agent message, "I can help you do just that. What's your username?"
-        And a customer message, "it's leonardo_barbosa_1982"
-        And an agent message, "Great! And what's the account's associated email address or phone number?"
-        And a customer message, "the email is leonardobarbosa@gmail.br"
-        And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
-        And a customer message, "Thank you! Have a great day as well!"
-        And that the "reset_password_guideline" guideline was matched in the previous iteration
-        When detection and processing are triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains the tool reset password with username leonardo_barbosa_1982 and email leonardobarbosa@gmail.br 
-        And a single message event is emitted
-        And the message contains that the password was reset and an email with instructions was sent to the customer
-
     Scenario: Multistep journey is aborted when the journey description requires so
         Given a journey titled Reset Password Journey to follow these steps to reset a customers password: 1. ask for their account name 2. ask for their email or phone number 3. Wish them a good day and only proceed if they wish one back to you. Otherwise refuse to continue with resetting their password, without explaining the reason for the refusal. 4. use the tool reset_password with the provided information 5. report the result to the customer when the customer wants to reset their password
         And the tool "reset_password"

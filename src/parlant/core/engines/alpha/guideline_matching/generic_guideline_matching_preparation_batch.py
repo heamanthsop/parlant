@@ -346,7 +346,7 @@ OUTPUT FORMAT
 
         pathlib.Path("generic guideline matching preparation batch.txt").write_text(
             builder.build()
-        )  # TODO delete
+        )  # TODO End delete
 
         return builder
 

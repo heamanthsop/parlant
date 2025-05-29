@@ -25,8 +25,8 @@ from parlant.core.shots import Shot, ShotCollection
 
 class GenericNotPreviouslyAppliedBatch(DefaultBaseModel):
     guideline_id: str
-    condition: str  # TODO try to remove, but don't insist on it
-    action: str  #  TODO try to remove
+    condition: str
+    action: str  # TODO Hadar try to remove
     rationale: str
     applies: bool
 
@@ -186,7 +186,7 @@ has since shifted. Notice that if previously discussed topic has not been fully 
 
 The exact format of your response will be provided later in this prompt.
 
-""",
+""",  # TODO Talk about who is doing this - add sentence and shot about subissue
             props={},
         )
         builder.add_section(

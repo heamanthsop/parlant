@@ -148,7 +148,7 @@ Expected output (JSON):
 
         pathlib.Path("customer dependent action detector prompt.txt").write_text(
             builder.build()
-        )  # TODO delete
+        )  # TODO End delete
 
         return builder
 
