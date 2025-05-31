@@ -50,6 +50,9 @@ ToolParameterType = Literal[
     "array",
     "date",
     "datetime",
+    "timedelta",
+    "path",
+    "uuid",
 ]
 
 DEFAULT_PARAMETER_PRECEDENCE: int = sys.maxsize

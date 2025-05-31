@@ -19,11 +19,17 @@ from fastapi import status
 import httpx
 from lagom import Container
 
+from parlant.core.services.tools.mcp_service import DEFAULT_MCP_PORT, MCPToolServer
 from parlant.core.services.tools.plugins import tool
 from parlant.core.tools import ToolResult, ToolContext
 from parlant.core.services.tools.service_registry import ServiceRegistry
 
-from tests.test_utilities import run_openapi_server, run_service_server
+from tests.test_utilities import (
+    SERVER_BASE_URL,
+    run_mcp_server,
+    run_openapi_server,
+    run_service_server,
+)
 
 
 async def test_that_sdk_service_is_created(
@@ -122,7 +128,7 @@ async def test_that_openapi_service_is_created_with_file_source(
         json={
             "kind": "openapi",
             "openapi": {
-                "url": "http://localhost",
+                "url": SERVER_BASE_URL,
                 "source": source,
             },
         },
@@ -132,7 +138,7 @@ async def test_that_openapi_service_is_created_with_file_source(
 
     assert content["name"] == "my_openapi_file_service"
     assert content["kind"] == "openapi"
-    assert content["url"] == "http://localhost"
+    assert content["url"] == SERVER_BASE_URL
 
     os.remove(source)
 
@@ -224,9 +230,22 @@ async def test_that_services_can_be_listed(
         )
         response.raise_for_status()
 
+    async with MCPToolServer(tools=[], host="localhost"):
+        _ = (
+            await async_client.put(
+                "/services/my_mcp_service",
+                json={
+                    "kind": "mcp",
+                    "mcp": {
+                        "url": f"{SERVER_BASE_URL}:{DEFAULT_MCP_PORT}",
+                    },
+                },
+            )
+        ).raise_for_status()
+
     services = (await async_client.get("/services")).raise_for_status().json()
 
-    assert len(services) == 2
+    assert len(services) == 3
 
     sdk_service = next((p for p in services if p["name"] == "my_sdk_service"), None)
     assert sdk_service is not None
@@ -237,6 +256,11 @@ async def test_that_services_can_be_listed(
     assert openapi_service is not None
     assert openapi_service["kind"] == "openapi"
     assert openapi_service["url"] == url
+
+    mcp_service = next((p for p in services if p["name"] == "my_mcp_service"), None)
+    assert mcp_service is not None
+    assert mcp_service["kind"] == "mcp"
+    assert mcp_service["url"] == f"{SERVER_BASE_URL}:{DEFAULT_MCP_PORT}"
 
 
 async def test_that_reading_an_existing_openapi_service_returns_its_metadata_and_tools(
@@ -311,3 +335,90 @@ async def test_that_reading_an_existing_sdk_service_returns_its_metadata_and_too
             and t["description"] == my_async_tool.tool.description
             for t in tools_list
         )
+
+
+async def test_that_mcp_service_is_created(
+    async_client: httpx.AsyncClient,
+) -> None:
+    async with run_mcp_server(tools=[]) as server_info:
+        url = f"{server_info.url}:{server_info.port}"
+        content = (
+            (
+                await async_client.put(
+                    "/services/my_mcp_service",
+                    json={
+                        "kind": "mcp",
+                        "mcp": {
+                            "url": url,
+                        },
+                    },
+                )
+            )
+            .raise_for_status()
+            .json()
+        )
+
+    assert content["name"] == "my_mcp_service"
+    assert content["kind"] == "mcp"
+    assert content["url"] == url
+
+
+async def test_that_mcp_service_is_created_and_deleted(
+    async_client: httpx.AsyncClient,
+) -> None:
+    async with run_mcp_server(tools=[]) as server_info:
+        _ = (
+            (
+                await async_client.put(
+                    "/services/my_mcp_service",
+                    json={
+                        "kind": "mcp",
+                        "mcp": {
+                            "url": f"{server_info.url}:{server_info.port}",
+                        },
+                    },
+                )
+            )
+            .raise_for_status()
+            .json()
+        )
+
+    await async_client.delete("/services/my_mcp_service")
+
+    response = await async_client.get("/services/my_mcp_service")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_that_reading_an_existing_mcp_service_returns_its_metadata_and_tools(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    def my_tool(arg_1: int, arg_2: int) -> int:
+        return arg_1 + arg_2
+
+    async def my_async_tool(message: str) -> str:
+        return f"Echo: {message}"
+
+    service_registry = container[ServiceRegistry]
+    async with run_mcp_server(tools=[my_tool, my_async_tool]) as server_info:
+        url = f"{server_info.url}:{server_info.port}"
+        await service_registry.update_tool_service(
+            name="my_mcp_service",
+            kind="mcp",
+            url=url,
+        )
+
+        service_data = (
+            (await async_client.get("/services/my_mcp_service")).raise_for_status().json()
+        )
+
+    assert service_data["name"] == "my_mcp_service"
+    assert service_data["kind"] == "mcp"
+    assert service_data["url"] == url
+
+    tools = service_data["tools"]
+    assert len(tools) == 2
+
+    for t in tools:
+        assert "name" in t
+        assert "description" in t
