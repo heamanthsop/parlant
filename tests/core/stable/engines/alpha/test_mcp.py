@@ -92,7 +92,7 @@ async def test_that_another_simple_mcp_tool_is_listed_resolved_and_called(
             assert "The date is 2025-01-20T12:05:00 and the factor is 2.3" in result.data
 
 
-async def test_mcp_tool_is_called_with_enum_list_and_bool_list(
+async def test_that_an_mcp_tool_can_be_called_with_enum_and_bool_lists(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -120,7 +120,7 @@ async def test_mcp_tool_is_called_with_enum_list_and_bool_list(
             assert "The enum list is" in result.data
 
 
-async def test_mcp_tool_with_list_of_date_and_datetime(
+async def test_that_an_mcp_tool_can_be_called_with_a_list_of_date_and_datetime(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -149,7 +149,7 @@ async def test_mcp_tool_with_list_of_date_and_datetime(
             assert "The dates are" in result.data
 
 
-async def test_mcp_tool_with_timedelta_path_and_uuid(
+async def test_that_an_mcp_tool_can_be_called_with_timedelta_path_and_uuid(
     container: Container,
     agent: Agent,
 ) -> None:
