@@ -72,7 +72,7 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
+from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.nlp.generation import T, SchematicGenerator
 from parlant.core.relationships import (
@@ -268,9 +268,6 @@ async def container(
         container[CustomerStore] = await stack.enter_async_context(
             CustomerDocumentStore(TransientDocumentDatabase())
         )
-        container[UtteranceStore] = await stack.enter_async_context(
-            UtteranceDocumentStore(TransientDocumentDatabase())
-        )
         container[GuidelineToolAssociationStore] = await stack.enter_async_context(
             GuidelineToolAssociationDocumentStore(TransientDocumentDatabase())
         )
@@ -298,8 +295,18 @@ async def container(
             return type(await container[NLPService].get_embedder())
 
         embedder_factory = EmbedderFactory(container)
+
         container[GlossaryStore] = await stack.enter_async_context(
             GlossaryVectorStore(
+                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+                document_db=TransientDocumentDatabase(),
+                embedder_factory=embedder_factory,
+                embedder_type_provider=get_embedder_type,
+            )
+        )
+
+        container[UtteranceStore] = await stack.enter_async_context(
+            UtteranceVectorStore(
                 vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,

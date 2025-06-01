@@ -80,7 +80,7 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
+from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ServerOutdated
 from parlant.core.shots import ShotCollection
@@ -458,7 +458,6 @@ async def initialize_container(
             (CustomerStore, CustomerDocumentStore, "customers.json"),
             (EvaluationStore, EvaluationDocumentStore, "evaluations.json"),
             (TagStore, TagDocumentStore, "tags.json"),
-            (UtteranceStore, UtteranceDocumentStore, "utterances.json"),
             (GuidelineStore, GuidelineDocumentStore, "guidelines.json"),
             (
                 GuidelineToolAssociationStore,
@@ -526,6 +525,24 @@ async def initialize_container(
             )
 
         await try_define_func(GlossaryStore, make_glossary_store)
+
+        async def make_utterances_store() -> UtteranceStore:
+            return await EXIT_STACK.enter_async_context(
+                UtteranceVectorStore(
+                    vector_db=await get_shared_chroma_db(),
+                    document_db=await EXIT_STACK.enter_async_context(
+                        JSONFileDocumentDatabase(
+                            c[Logger],
+                            PARLANT_HOME_DIR / "utterance_tags.json",
+                        )
+                    ),
+                    embedder_type_provider=get_embedder_type,
+                    embedder_factory=embedder_factory,
+                )
+            )
+
+        await try_define_func(UtteranceStore, make_utterances_store)
+
     except MigrationRequired as e:
         c[Logger].critical(str(e))
         die("Please re-run with `--migrate` to migrate your data to the new version.")
