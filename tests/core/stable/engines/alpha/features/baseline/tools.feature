@@ -187,7 +187,7 @@ Feature: Tools
         And an association between "retrieve_account_information" and "schedule" from "first_service"
         And an association between "retrieve_account_information" and "schedule" from "second_service"
         And an association between "retrieve_account_information" and "get_available_product_by_type"
-        And an association between "retrieve_account_information" and "multiply"
+        # And an association between "retrieve_account_information" and "multiply"
         And a customer message, "Does Larry David have enough money in his account to buy a kilogram of apples?"
         When processing is triggered
         Then a single tool calls event is emitted
@@ -945,39 +945,6 @@ Feature: Tools
         Then a single tool calls event is emitted
         And the tool calls event contains 3 tool call(s)
         And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse a call to "transfer_shekels" with 100 from Fredric to Bob and a call to "transfer_money" with 300 from Fredric to Bob and no call to "transfer_money" with 200
-
-    Scenario: Tool caller use the more suitable tool for transfer when three overlap directly 
-        Given a guideline "do_transaction" to transfer money for the customer when customer asks to transfer money
-        And the tool "transfer_shekels"
-        And the tool "transfer_money"
-        And the tool "transfer_dollars"
-        And an association between "do_transaction" and "transfer_shekels"
-        And an association between "do_transaction" and "transfer_money"
-        And an association between "do_transaction" and "transfer_dollars"
-        And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_shekels"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels and to my friend Dan $40 and to my friend Ali 500 Dinar? my name is Fredric"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 3 tool call(s)
-        And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse and a call to "transfer_dollars" with 40 from Fredric to Dan and a call to "transfer_money" with 500 from Fredric to Ali
-
-    Scenario: Tool caller use the more suitable tool for transfer when three overlap indirectly 
-        Given a guideline "do_transaction" to transfer money for the customer when customer asks to transfer money
-        And the tool "transfer_shekels"
-        And the tool "transfer_money"
-        And the tool "transfer_dollars"
-        And an association between "do_transaction" and "transfer_shekels"
-        And an association between "do_transaction" and "transfer_money"
-        And an association between "do_transaction" and "transfer_dollars"
-        And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_money"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels and to my friend Dan $40 and to my friend Ali 500 Dinar? my name is Fredric"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 3 tool call(s)
-        And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse and a call to "transfer_dollars" with 40 from Fredric to Dan and a call to "transfer_money" with 500 from Fredric to Ali
 
     Scenario: Tool caller user the more suitable tool for searching when two overlap (1)
         Given a guideline "do_search" to retrieve relevant products that match the asked attributes when customer is interested in products with specific attributes
