@@ -23,7 +23,6 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-# TODO Bar - read thoroughly
 class GenericPreviouslyAppliedCustomerDependentBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
@@ -307,7 +306,7 @@ OUTPUT FORMAT
         return json.dumps(result, indent=4)
 
 
-class GenericPreviouslyAppliedGuidelineMatching(GuidelineMatchingStrategy):
+class GenericPreviouslyAppliedCustomerDependentGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,

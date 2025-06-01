@@ -33,14 +33,28 @@ import uvicorn
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.core.engines.alpha import message_generator
+from parlant.core.engines.alpha.guideline_matching import (
+    generic_guideline_not_previously_applied_batch,
+    generic_guideline_previously_applied_batch,
+    generic_guideline_previously_applied_customer_dependent_batch,
+)
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
 )
-from parlant.core.engines.alpha.guideline_matching import generic_actionable_batch
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import (
-    GenericActionableGuidelineMatchesSchema,
-    GenericActionableGuidelineMatching,
-    GenericActionableGuidelineMatchingShot,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_batch import (
+    GenericPreviouslyAppliedGuidelineMatchesSchema,
+    GenericPreviouslyAppliedGuidelineMatching,
+    GenericPreviouslyAppliedGuidelineGuidelineMatchingShot,
+)
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
+    GenericNotPreviouslyAppliedGuidelineMatchesSchema,
+    GenericNotPreviouslyAppliedGuidelineMatching,
+    GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot,
+)
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatching,
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot,
 )
 from parlant.core.engines.alpha.guideline_matching import generic_observational_batch
 from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
@@ -353,9 +367,14 @@ async def setup_container() -> AsyncIterator[Container]:
     web_socket_logger = WebSocketLogger(CORRELATOR, LogLevel.INFO)
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
-
-    c[ShotCollection[GenericActionableGuidelineMatchingShot]] = (
-        generic_actionable_batch.shot_collection
+    c[ShotCollection[GenericPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
+        generic_guideline_previously_applied_batch.shot_collection
+    )
+    c[ShotCollection[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
+        generic_guideline_not_previously_applied_batch.shot_collection
+    )
+    c[ShotCollection[GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot]] = (
+        generic_guideline_previously_applied_customer_dependent_batch.shot_collection
     )
     c[ShotCollection[GenericObservationalGuidelineMatchingShot]] = (
         generic_observational_batch.shot_collection
@@ -558,7 +577,9 @@ async def initialize_container(
         )
 
     for schema in (
-        GenericActionableGuidelineMatchesSchema,
+        GenericPreviouslyAppliedGuidelineMatchesSchema,
+        GenericNotPreviouslyAppliedGuidelineMatchesSchema,
+        GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
         GenericObservationalGuidelineMatchesSchema,
         MessageSchema,
         UtteranceDraftSchema,
@@ -586,8 +607,18 @@ async def initialize_container(
     )
 
     try_define(
-        GenericActionableGuidelineMatching,
-        Singleton(GenericActionableGuidelineMatching),
+        GenericPreviouslyAppliedGuidelineMatching,
+        Singleton(GenericPreviouslyAppliedGuidelineMatching),
+    )
+
+    try_define(
+        GenericNotPreviouslyAppliedGuidelineMatching,
+        Singleton(GenericNotPreviouslyAppliedGuidelineMatching),
+    )
+
+    try_define(
+        GenericPreviouslyAppliedCustomerDependentGuidelineMatching,
+        Singleton(GenericPreviouslyAppliedCustomerDependentGuidelineMatching),
     )
 
     try_define(

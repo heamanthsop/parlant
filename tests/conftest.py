@@ -33,24 +33,36 @@ from parlant.core.emission.event_publisher import EventPublisherFactory
 from parlant.core.emissions import EventEmitterFactory
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.engines.alpha.guideline_matching import (
-    generic_actionable_batch,
     generic_observational_batch,
+)
+from parlant.core.engines.alpha.guideline_matching import generic_guideline_previously_applied_batch
+from parlant.core.engines.alpha.guideline_matching import (
+    generic_guideline_not_previously_applied_batch,
+)
+from parlant.core.engines.alpha.guideline_matching import (
+    generic_guideline_previously_applied_customer_dependent_batch,
 )
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
-)
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.perceived_performance_policy import (
     DefaultPerceivedPerformancePolicy,
     PerceivedPerformancePolicy,
 )
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatching,
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot,
+)
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
     GenericNotPreviouslyAppliedGuidelineMatchesSchema,
+    GenericNotPreviouslyAppliedGuidelineMatching,
+    GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot,
 )
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_batch import (
     GenericPreviouslyAppliedGuidelineMatchesSchema,
+    GenericPreviouslyAppliedGuidelineMatching,
+    GenericPreviouslyAppliedGuidelineGuidelineMatchingShot,
 )
 from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
@@ -115,11 +127,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingStrategyResolver,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import (
-    GenericActionableGuidelineMatchesSchema,
-    GenericActionableGuidelineMatchingShot,
-    GenericActionableGuidelineMatching,
-)
+
 from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
     GenericObservationalGuidelineMatchesSchema,
     GenericObservationalGuidelineMatchingShot,
@@ -334,8 +342,10 @@ async def container(
         container[EntityQueries] = Singleton(EntityQueries)
         container[EntityCommands] = Singleton(EntityCommands)
         for generation_schema in (
-            GenericActionableGuidelineMatchesSchema,
             GenericObservationalGuidelineMatchesSchema,
+            GenericNotPreviouslyAppliedGuidelineMatchesSchema,
+            GenericPreviouslyAppliedGuidelineMatchesSchema,
+            GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
             MessageSchema,
             UtteranceDraftSchema,
             UtteranceSelectionSchema,
@@ -351,9 +361,6 @@ async def container(
             GuidelineContinuousPropositionSchema,
             CustomerDependentActionSchema,
             GenericGuidelineMatchingPreparationSchema,
-            GenericNotPreviouslyAppliedGuidelineMatchesSchema,
-            GenericPreviouslyAppliedGuidelineMatchesSchema,
-            GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
@@ -361,9 +368,15 @@ async def container(
                 generation_schema,
             )
 
-        container[ShotCollection[GenericActionableGuidelineMatchingShot]] = (
-            generic_actionable_batch.shot_collection
+        container[ShotCollection[GenericPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
+            generic_guideline_previously_applied_batch.shot_collection
         )
+        container[ShotCollection[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
+            generic_guideline_not_previously_applied_batch.shot_collection
+        )
+        container[
+            ShotCollection[GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot]
+        ] = generic_guideline_previously_applied_customer_dependent_batch.shot_collection
         container[ShotCollection[GenericObservationalGuidelineMatchingShot]] = (
             generic_observational_batch.shot_collection
         )
@@ -393,11 +406,17 @@ async def container(
         container[GuidelineMatchingStrategyResolver] = lambda container: container[
             DefaultGuidelineMatchingStrategyResolver
         ]
-        container[GenericActionableGuidelineMatching] = Singleton(
-            GenericActionableGuidelineMatching
-        )
         container[GenericObservationalGuidelineMatching] = Singleton(
             GenericObservationalGuidelineMatching
+        )
+        container[GenericNotPreviouslyAppliedGuidelineMatching] = Singleton(
+            GenericNotPreviouslyAppliedGuidelineMatching
+        )
+        container[GenericPreviouslyAppliedGuidelineMatching] = Singleton(
+            GenericPreviouslyAppliedGuidelineMatching
+        )
+        container[GenericPreviouslyAppliedCustomerDependentGuidelineMatching] = Singleton(
+            GenericPreviouslyAppliedCustomerDependentGuidelineMatching
         )
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
         container[GuidelineEvaluator] = Singleton(GuidelineEvaluator)
@@ -446,14 +465,35 @@ class NoCachedGenerations:
 @fixture
 def no_cache(container: Container) -> None:
     if isinstance(
-        container[SchematicGenerator[GenericActionableGuidelineMatchesSchema]],
+        container[SchematicGenerator[GenericPreviouslyAppliedGuidelineMatchesSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[GenericActionableGuidelineMatchesSchema],
-            container[SchematicGenerator[GenericActionableGuidelineMatchesSchema]],
+            CachedSchematicGenerator[GenericPreviouslyAppliedGuidelineMatchesSchema],
+            container[SchematicGenerator[GenericPreviouslyAppliedGuidelineMatchesSchema]],
         ).use_cache = False
-
+    if isinstance(
+        container[SchematicGenerator[GenericNotPreviouslyAppliedGuidelineMatchesSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[GenericNotPreviouslyAppliedGuidelineMatchesSchema],
+            container[SchematicGenerator[GenericNotPreviouslyAppliedGuidelineMatchesSchema]],
+        ).use_cache = False
+    if isinstance(
+        container[
+            SchematicGenerator[GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema]
+        ],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[
+                GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema
+            ],
+            container[
+                SchematicGenerator[GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema]
+            ],
+        ).use_cache = False
     if isinstance(
         container[SchematicGenerator[GenericObservationalGuidelineMatchesSchema]],
         CachedSchematicGenerator,
