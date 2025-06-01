@@ -40,7 +40,9 @@ from parlant.core.engines.alpha.message_event_composer import (
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPerformancePolicy
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
+from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.journeys import Journey
+from parlant.core.tags import Tag
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
@@ -564,10 +566,38 @@ You will now be given the current state of the interaction to which you must gen
         self,
         context: UtteranceContext,
     ) -> list[Utterance]:
-        stored_utterances = list(await self._utterance_store.list_utterances())
+        query = ""
 
+        if context.context_variables:
+            query += f"\n{context_variables_to_json(context.context_variables)}"
+
+        if context.interaction_history:
+            query += str([e.data for e in context.interaction_history])
+
+        if context.guidelines:
+            query += str(
+                [
+                    f"When {g.guideline.content.condition}, then {g.guideline.content.action}"
+                    if g.guideline.content.action
+                    else f"When {g.guideline.content.condition}"
+                    for g in context.guidelines
+                ]
+            )
+
+        if context.staged_events:
+            query += str([e.data for e in context.staged_events])
+
+        tags = [Tag.for_agent_id(context.agent.id)]
+
+        stored_utterances = list(
+            await self._utterance_store.find_relevant_utterances(
+                query,
+                tags=tags,
+            )
+        )
+
+        # Add utterances from staged tool events (transient)
         utterances_by_staged_event: list[Utterance] = []
-
         for event in context.staged_events:
             if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)

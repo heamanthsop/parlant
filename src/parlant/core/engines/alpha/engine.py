@@ -845,6 +845,8 @@ class AlphaEngine(Engine):
             query += str(
                 [
                     f"When {g.content.condition}, then {g.content.action}"
+                    if g.content.action
+                    else f"When {g.content.condition}"
                     for g in context.state.guidelines
                 ]
             )

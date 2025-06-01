@@ -695,6 +695,10 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
         ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory)
     )
 
+    utterance_tags_db = await EXIT_STACK.enter_async_context(
+        JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "utterance_tags.json")
+    )
+
     chroma_unembedded_collection = next(
         (
             collection
@@ -703,6 +707,12 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
         ),
         None,
     ) or db.chroma_client.create_collection(name="utterances_unembedded")
+
+    new_utterance_tags_collection = await utterance_tags_db.get_or_create_collection(
+        "utterance_tags",
+        _UtteranceTagAssociationDocument,
+        _association_document_loader,
+    )
 
     migrated_count = 0
     for doc in await utterances_collection.find(filters={}):
@@ -721,7 +731,7 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
                 "checksum": md5_checksum(content),
                 "creation_utc": doc["creation_utc"],
                 "value": doc["value"],
-                "fields": doc["fields"],
+                "fields": json.dumps(doc["fields"]),
             }
 
             chroma_unembedded_collection.add(
@@ -734,13 +744,18 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
             migrated_count += 1
 
     for tag_doc in await utterance_tags_collection.find(filters={}):
-        if tag_doc["version"] == "0.1.0":
-            await utterance_tags_collection.update_one(
-                filters={"id": {"$eq": tag_doc["id"]}},
-                params={"version": Version.String("0.2.0")},
-            )
+        await new_utterance_tags_collection.insert_one(
+            {
+                "id": tag_doc["id"],
+                "version": Version.String("0.2.0"),
+                "creation_utc": tag_doc["creation_utc"],
+                "utterance_id": tag_doc["utterance_id"],
+                "tag_id": tag_doc["tag_id"],
+            }
+        )
 
     await db.upsert_metadata("version", Version.String("0.2.0"))
+    await upgrade_document_database_metadata(utterance_tags_db, Version.String("0.2.0"))
 
     utterances_json_file.unlink()
 
