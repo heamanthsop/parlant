@@ -83,3 +83,17 @@ Feature: Conversation
         Then a single message event is emitted
         And the message contains no mention of getting back to the customer with a further response
 
+    Scenario: The agent follows a guideline without necessarily adhering to it literally every time
+        Given an agent
+        And an empty session
+        And a guideline "empathetic_response" to be empathetic and inquire about the customer's problem when a customer is frustrated with the service
+        And a guideline "offer_discount" to offer 20% off all products on their next purchase when a customer is frustrated with the service
+        And a customer message, "I'm really unhappy with the service I've been getting!"
+        And an agent message, "Hi there, I'm sorry to have caused you any frustration. First, as a token of our appreciation for your business, I'd like to offer you a 20% off all of our products on your next purchase."
+        And a customer message, "I am extremely frustrated that I didn't get my item yet!"
+        And that the "empathetic_response" guideline was matched in the previous iteration
+        And that the "offer_discount" guideline was matched in the previous iteration
+        When detection and processing are triggered
+        Then a single message event is emitted
+        And the message contains no direct offer of a 20% discount
+

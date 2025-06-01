@@ -129,7 +129,7 @@ def _load_context_variables(
     customer = context.sync_await(
         context.container[CustomerStore].read_customer(customer_id),
     )
-    # TODO: Ask DOR: The function need to be replaced by AlphaEngine._load_context_variables once will be public
+    # TODO The function need to be replaced by AlphaEngine._load_context_variables once will be public
     variables_supported_by_agent = context.sync_await(
         context.container[EntityQueries].find_context_variables_for_agent(
             agent_id=agent_id,
@@ -165,7 +165,7 @@ def _load_glossary_terms(
     agent_id: AgentId,
     context_variables: list[tuple[ContextVariable, ContextVariableValue]],
 ) -> Sequence[Term]:
-    # TODO: Ask DOR: The function need to be replaced by AlphaEngine._load_glossary_terms once will be public
+    # TODO The function need to be replaced by AlphaEngine._load_glossary_terms once will be public
     query = ""
 
     if context_variables:
