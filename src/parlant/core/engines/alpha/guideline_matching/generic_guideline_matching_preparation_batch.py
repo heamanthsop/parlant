@@ -414,7 +414,7 @@ example_1_expected = GenericGuidelineMatchingPreparationSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer initiates a purchase.",
             action="Open a new cart for the customer",
-            guideline_previously_applied_rationale=[
+            guideline_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
                     action_segment="OPEN a new cart for the customer",
                     action_applied_rationale="No cart was opened",
@@ -427,7 +427,7 @@ example_1_expected = GenericGuidelineMatchingPreparationSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer asks about data security",
             action="Refer the customer to our privacy policy page",
-            guideline_previously_applied_rationale=[
+            guideline_applied_rationale=[
                 SegmentPreviouslyAppliedRationale(
                     action_segment="REFER the customer to our privacy policy page",
                     action_applied_rationale="The customer has been REFERRED to the privacy policy page.",
