@@ -54,6 +54,10 @@ GUIDELINES_DICT = {
         "condition": "When the customer asks about the estimated delivery time for their order.",
         "action": "Always use Imperial units",
     },
+    "cancel_subscription": {
+        "condition": "When the user asks for help canceling a subscription.",
+        "action": "Help them cancel it",
+    },
     "ordering_sandwich": {
         "condition": "the customer wants to order a sandwich",
         "action": "only discuss options which are in stock",
@@ -295,6 +299,40 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
     conversation_context: list[tuple[EventSource, str]] = [
         (
             EventSource.CUSTOMER,
+            " Hi, can you help me cancel my subscription?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure, I can walk you through the process. Are you using the mobile app or the website?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Actually, before that — how do I change my billing address?",
+        ),
+    ]
+
+    guidelines: list[str] = ["cancel_subscription"]
+
+    base_test_that_correct_guidelines_are_matched(
+        context=context,
+        agent=agent,
+        session_id=new_session.id,
+        customer=customer,
+        conversation_context=conversation_context,
+        guidelines_target_names=[],
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_not_matched_when_conversation_was_drifted_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
             "Hey, the app keeps crashing on my phone.",
         ),
         (
@@ -320,7 +358,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
     )
 
 
-def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_matched(
+def test_that_guideline_with_already_matched_condition_but_unaddressed_action_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
