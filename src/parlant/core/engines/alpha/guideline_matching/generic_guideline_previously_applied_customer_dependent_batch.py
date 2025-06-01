@@ -30,7 +30,7 @@ class GenericPreviouslyAppliedCustomerDependentBatch(DefaultBaseModel):
     condition_still_met: bool
     customer_should_reply: Optional[bool] = None
     condition_met_again: Optional[bool] = None
-    action_should_reappply: Optional[bool] = None
+    action_should_reapply: Optional[bool] = None
     action_wasnt_taken: Optional[bool] = None
     tldr: str
     should_apply: bool
@@ -196,18 +196,19 @@ Specifically, you will be given a set of "customer dependent" guidelines after w
 some point during the interaction. 
 
 The guideline should be apply if either of the following is true:
-1. The condition still holds, the reason that triggered the agent to make its part of the action is still relevant, AND the customer has not yet fulfilled their side of the action.
+1. The condition still holds, the reason that triggered the agent to make it's part of the action is still relevant (evaluated via condition_still_met), AND the customer has not yet fulfilled their 
+side of the action (evaluated via customer_should_reply).
     Example: The agent asked for the user’s ID, but the user has not responded yet, and the current conversation is still about accessing their account.
-2. The condition arises again in a new context and the associated action should be repeated (by the agent and the user)
+2. The condition arises again (evaluated via condition_met_again) in a new context and the associated action should be repeated (by the agent and the user) (evaluated via action_wasnt_taken)
     Example: The user switches to asking about a second account, and the agent needs to ask for another ID.
 
 
 Additional KeyRules:
 
 Avoid Repeating Actions With Static Outcomes:
-If an action requests information from the user that is unlikely to change — such as their ID, name, or date of birth—do not reapply the guideline, even if the condition arises again. 
+If an action requests information from the user that is unlikely to change — such as their ID, name, or date of birth—do not reapply the guideline, even if the condition arises again (evaluated via action_should_reapply). 
 Repeating the request would be unnecessary and redundant.
-However, if the action includes both static and dynamic components (e.g., “ask for the user’s name and their preferred appointment time”), and the dynamic part becomes relevant again, 
+However, if the action also includes components that might change (e.g., “ask for the user’s name and their preferred appointment time”), and the potentially changed part becomes relevant again, 
 it’s appropriate to reapply the guideline to address the changing part of the request.
 
 Conditions May Arise Multiple Times:
@@ -293,12 +294,12 @@ OUTPUT FORMAT
                 "condition": g.content.condition,
                 "action": g.content.action,
                 "condition_still_met": "<BOOL, whether the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
-                "customer_should_reply": "<BOOL, include only if condition_still_met=True whether the customer needs to apply their side of the action>",
+                "customer_should_reply": "<BOOL, include only if condition_still_met=True. whether the customer needs to apply their side of the action>",
                 "condition_met_again": "<BOOL, include only if customer_should_reply=False whether the condition is met again in the recent interaction for a new reason and action should be taken again>",
-                "action_should_reappply": "<BOOL, include only if condition_met_again=True. whether the action is not static and should be taken again>",
-                "action_wasnt_taken": "<BOOL, include only if action_should_reappply=True, whether the new action wasn't taken yet by the agent or the customer>",
-                "tldr": "<str, very brief explanation for why the guideline should apply in the most recent context>",
-                "should_apply": "<BOOL>",  # Should be true if customer_should_reply is True or if action_wasnt_taken is True. Reapply is with 3 ps
+                "action_should_reapply": "<BOOL,  include only if condition_met_again=True. whether the action is not static and should be taken again>",
+                "action_wasnt_taken": "<BOOL, include only if action_should_reapply=True, whether the new action wasn't taken yet by the agent or the customer>",
+                "tldr": "<str, Explanation for why the guideline should apply in the most recent context>",
+                "should_apply": "<BOOL>",
             }
             for g in self._guidelines.values()
         ]
