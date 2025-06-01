@@ -244,11 +244,7 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
-        import pathlib
 
-        pathlib.Path("guideline not previously applied matcher prompt.txt").write_text(
-            builder.build()
-        )  # TODO delete me
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
