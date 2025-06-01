@@ -754,6 +754,8 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
             }
         )
 
+    chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
+
     await db.upsert_metadata("version", Version.String("0.2.0"))
     await upgrade_document_database_metadata(utterance_tags_db, Version.String("0.2.0"))
 
