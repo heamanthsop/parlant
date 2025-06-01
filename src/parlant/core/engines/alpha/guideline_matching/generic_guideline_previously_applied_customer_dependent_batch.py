@@ -425,7 +425,7 @@ example_2_events = [
     _make_event(
         "23",
         EventSource.AI_AGENT,
-        "That sounds exciting! What kind of activities do you enjoy—relaxing on the beach, hiking, museums, food tours?",
+        "That sounds exciting! What kind of activities do you enjoy — relaxing on the beach, hiking, museums, food tours?",
     ),
     _make_event("25", EventSource.CUSTOMER, "I love hiking and exploring local food scenes."),
 ]
@@ -618,7 +618,7 @@ example_6_expected = GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSc
             customer_should_reply=False,
             condition_met_again=True,
             action_should_reappply=False,
-            tldr="The customer already provided their acount Id",
+            tldr="The customer already provided their account Id",
             should_apply=False,
         ),
     ]
@@ -654,6 +654,12 @@ _baseline_shots: Sequence[GenericPreviouslyAppliedCustomerDependentGuidelineMatc
         interaction_events=example_5_events,
         guidelines=example_5_guidelines,
         expected_result=example_5_expected,
+    ),
+    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot(
+        description="",
+        interaction_events=example_6_events,
+        guidelines=example_6_guidelines,
+        expected_result=example_6_expected,
     ),
 ]
 
