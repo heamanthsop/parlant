@@ -93,6 +93,14 @@ class UtteranceStore(ABC):
     ) -> Sequence[Utterance]: ...
 
     @abstractmethod
+    async def find_relevant_utterances(
+        self,
+        query: str,
+        tags: Optional[Sequence[TagId]] = None,
+        max_utterances: int = 20,
+    ) -> Sequence[Utterance]: ...
+
+    @abstractmethod
     async def upsert_tag(
         self,
         utterance_id: UtteranceId,
@@ -142,6 +150,18 @@ class _UtteranceTagAssociationDocument(TypedDict, total=False):
 
 class UtteranceVectorStore(UtteranceStore):
     VERSION = Version.from_string("0.2.0")
+
+    async def find_relevant_utterances(
+        self,
+        query: str,
+        tags: Optional[Sequence[TagId]] = None,
+        max_utterances: int = 20,
+    ) -> Sequence[Utterance]:
+        """
+        Placeholder for vector search functionality.
+        To implement: integrate with a vector database and embedder, similar to GlossaryVectorStore.
+        """
+        raise NotImplementedError("find_relevant_utterances is not yet implemented.")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database

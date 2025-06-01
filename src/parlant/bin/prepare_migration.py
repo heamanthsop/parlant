@@ -198,6 +198,13 @@ async def get_component_versions() -> list[tuple[str, str]]:
                 ("glossary", cast(dict[str, Any], await glossary_db.read_metadata())["version"])
             )
 
+    utterances_version = _get_version_from_json_file(
+        PARLANT_HOME_DIR / "utterances.json",
+        "utterances",
+    )
+    if utterances_version:
+        versions.append(("utterances", utterances_version))
+
     return versions
 
 
