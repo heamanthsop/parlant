@@ -54,6 +54,10 @@ GUIDELINES_DICT = {
         "condition": "When the customer asks about the estimated delivery time for their order.",
         "action": "Always use Imperial units",
     },
+    "ordering_sandwich": {
+        "condition": "the customer wants to order a sandwich",
+        "action": "only discuss options which are in stock",
+    },
 }
 
 
@@ -447,6 +451,36 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
         ),
     ]
     guidelines: list[str] = ["delivery_time_inquiry"]
+
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=guidelines,
+        guidelines_names=guidelines,
+    )
+
+
+def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold_3(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, I wanted to order a sandwich",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Hello there! We currently have either PB&J or cream cheese, which one would you like",
+        ),
+        (EventSource.CUSTOMER, "What's lower on calories, PB&J or cream cheese?"),
+    ]
+    guidelines: list[str] = ["ordering_sandwich"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
