@@ -111,7 +111,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         if previously_applied_customer_dependent_batch:
             guideline_batches.extend(
                 self._create_sub_batches_previously_applied_customer_dependent_guideline(
-                    previously_applied_batch, context
+                    previously_applied_customer_dependent_batch, context
                 )
             )
         if not_previously_applied:
@@ -231,7 +231,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             end_offset = start_offset + batch_size
             batch = dict(guidelines_list[start_offset:end_offset])
             batches.append(
-                self._create_sub_batch_previously_applied_guideline(
+                self._create_sub_batch_previously_applied_customer_dependent_guideline(
                     guidelines=list(batch.values()),
                     context=context,
                 )
