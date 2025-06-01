@@ -19,13 +19,9 @@ from pytest import fixture
 
 from parlant.core.agents import Agent
 from parlant.core.customers import Customer
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import (
-    GenericActionableGuidelineMatchesSchema,
-)
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatcher
 from parlant.core.guidelines import GuidelineContent
 from parlant.core.loggers import Logger
-from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.indexing.guideline_action_proposer import GuidelineActionProposer
 from parlant.core.sessions import EventSource, Session, SessionId, SessionStore
 from parlant.core.tools import LocalToolService, Tool, ToolId
@@ -48,7 +44,6 @@ def context(
         sync_await,
         guidelines=list(),
         logger=container[Logger],
-        schematic_generator=container[SchematicGenerator[GenericActionableGuidelineMatchesSchema]],
     )
 
 
