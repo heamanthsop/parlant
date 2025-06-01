@@ -339,7 +339,7 @@ def create_guideline(
             )
         )
 
-    metadata = guideline_evaluation_data[0].properties_proposition or {}
+        metadata = guideline_evaluation_data[0].properties_proposition or {}
 
     guideline = Guideline(
         id=GuidelineId(generate_id()),
