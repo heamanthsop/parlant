@@ -71,7 +71,7 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
             with open("output_not_prev_apply_matcher.txt", "a") as f:
-                f.write(f"{inference.content.model_dump_json(indent=2)}")
+                f.write(f"{inference.content.model_dump_json(indent=2)}")  # TODO End remove
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         matches = []
@@ -181,8 +181,14 @@ Task Description
 Your task is to evaluate the relevance and applicability of a set of provided 'when' conditions to the most recent state of an interaction between yourself (an AI agent) and a user.
 You examine the applicability of each guideline under the assumption that the action was not taken yet during the interaction. 
 
-A guideline should be marked as applicable if it is relevant to the MOST RECENT interaction in the conversation. Do not mark a guideline as applicable solely based on earlier parts of the conversation if the topic 
-has since shifted. Notice that if previously discussed topic has not been fully resolved but has shifted it should NOT be active. We want to know if based on the most recent user message the condition is met.
+A guideline should be marked as applicable if it is relevant to the latest part of the conversation and in particular the most recent customer message. Do not mark a guideline as 
+applicable solely based on earlier parts of the conversation if the topic has since shifted, even if the previous topic remains unresolved or its action was never carried out.
+
+If the conversation moves from a broader issue to a related sub-issue (a related detail or follow-up within the same overall issue), you should still consider the guideline as applicable
+if it is relevant to the sub-issue, as it is part of the ongoing discussion.
+In contrast, if the conversation has clearly moved on to an entirely new topic, previous guidelines should not be marked as applicable.
+This ensures that applicability is tied to the current context, but still respects the continuity of a discussion when diving deeper into subtopics.
+
 
 The exact format of your response will be provided later in this prompt.
 
@@ -382,14 +388,14 @@ example_1_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer ask for activities recommendations",
             action="Guide them in refining their preferences and suggest options that match what they're looking for",
-            rationale="The customer asked for recommendations but now they talk about visas or documents so it's not match with the latest interaction",
+            rationale="In the most recent message the customer talk about visas or documents and not about recommendations which is a new topic",
             applies=False,
         ),
         GenericNotPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer asks for logistical or legal requirements.",
             action="Provide a clear answer or direct them to a trusted official source if uncertain.",
-            rationale="The customer asked about visas and documents which are legal requirements",
+            rationale="The customer now asked about visas and documents which are legal requirements",
             applies=True,
         ),
     ]
@@ -407,7 +413,7 @@ example_2_events = [
         "Happy to help! Could you share a bit about your background or experience with programming so far?",
     ),
     _make_event(
-        "83",
+        "32",
         EventSource.CUSTOMER,
         "I’ve done some HTML and CSS, but never written real code before.",
     ),
@@ -431,7 +437,7 @@ example_2_guidelines = [
     ),
     GuidelineContent(
         condition="The user expresses hesitation or self-doubt.",
-        action="Affirm that it’s okay to be uncertain, normalize their situation, and provide confidence-building context",
+        action="Affirm that it’s okay to be uncertain and provide confidence-building context",
     ),
     GuidelineContent(
         condition="The user asks about certification or course completion benefits.",
@@ -451,9 +457,9 @@ example_2_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
         GenericNotPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The user expresses hesitation or self-doubt.",
-            action="Affirm that it’s okay to be uncertain, normalize their situation, and provide confidence-building context ",
+            action="Affirm that it’s okay to be uncertain and provide confidence-building context",
             rationale="The user still sounds hesitating about their fit to the course",
-            applies=False,
+            applies=True,
         ),
         GenericNotPreviouslyAppliedBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
@@ -465,6 +471,91 @@ example_2_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
     ]
 )
 
+
+example_3_events = [
+    _make_event(
+        "21",
+        EventSource.CUSTOMER,
+        "I'm having trouble logging into my account.",
+    ),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "I'm sorry to hear that. Can you tell me what happens when you try to log in?",
+    ),
+    _make_event(
+        "27",
+        EventSource.CUSTOMER,
+        "It says my password is incorrect.",
+    ),
+    _make_event(
+        "48",
+        EventSource.AI_AGENT,
+        "Have you tried resetting your password?",
+    ),
+    _make_event(
+        "78",
+        EventSource.CUSTOMER,
+        "Yes, I did, but I can't access my mail to complete the reset.",
+    ),
+]
+
+example_3_guidelines = [
+    GuidelineContent(
+        condition="When the user is having a problem with login.",
+        action="Help then identify the problem and solve it",
+    ),
+]
+
+example_3_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
+    checks=[
+        GenericNotPreviouslyAppliedBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="When the user is having a problem with login.",
+            action="Help then identify the problem and solve it",
+            rationale="In the most recent message the customer mentions a problem to access their mail, which a sub issue of the login problem",
+            applies=True,
+        ),
+    ]
+)
+
+
+example_4_events = [
+    _make_event(
+        "21",
+        EventSource.CUSTOMER,
+        "Hi, I'm thinking about ordering this coat, but I need to know — what's your return policy?",
+    ),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "You can return items within 30 days either in-store or using our prepaid return label.",
+    ),
+    _make_event(
+        "27",
+        EventSource.CUSTOMER,
+        "And what happens if I already wore it once?",
+    ),
+]
+
+example_4_guidelines = [
+    GuidelineContent(
+        condition="When the customer asks about how to return an item.",
+        action="Mention both in-store and delivery service return options.",
+    ),
+]
+
+example_4_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
+    checks=[
+        GenericNotPreviouslyAppliedBatch(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="When the customer asks about how to return an item.",
+            action="Mention both in-store and delivery service return options.",
+            rationale="In the most recent message the customer about what happens when they wore the item, which related to return an item",
+            applies=True,
+        ),
+    ]
+)
 
 _baseline_shots: Sequence[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot] = [
     GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot(
@@ -478,6 +569,18 @@ _baseline_shots: Sequence[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingS
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
+    ),
+    GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot(
+        description="",
+        interaction_events=example_3_events,
+        guidelines=example_3_guidelines,
+        expected_result=example_3_expected,
+    ),
+    GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot(
+        description="",
+        interaction_events=example_4_events,
+        guidelines=example_4_guidelines,
+        expected_result=example_4_expected,
     ),
 ]
 
