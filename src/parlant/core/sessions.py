@@ -637,6 +637,7 @@ class SessionDocumentStore(SessionStore):
                     )
                     for mg in doc["message_generations"]
                 ],
+                preparation_iterations=doc["preparation_iterations"],
             )
 
         async def v0_4_0_to_v_0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
