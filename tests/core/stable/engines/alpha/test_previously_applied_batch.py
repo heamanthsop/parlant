@@ -553,6 +553,3 @@ def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_subi
         guidelines_target_names=guidelines,
         guidelines_names=guidelines,
     )
-
-
-# TODO Bar add couple of tests for sub-issue of new condition

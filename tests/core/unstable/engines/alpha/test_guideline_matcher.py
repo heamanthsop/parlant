@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from itertools import chain
 from typing import Sequence, cast
+
 from lagom import Container
 from pytest import fixture
 
@@ -29,20 +30,31 @@ from parlant.core.context_variables import (
 )
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationBatch,
+    GenericGuidelineMatchingPreparationSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
+    GuidelineMatchingPreparationContext,
 )
+from parlant.core.entity_cq import EntityCommands
+from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
 from parlant.core.glossary import Term
 from parlant.core.nlp.generation import SchematicGenerator
 
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import (
-    GenericActionableGuidelineMatchesSchema,
-)
-from parlant.core.engines.alpha.guideline_matching.guideline_match import (
-    GuidelineMatch,
-)
+from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
-from parlant.core.sessions import EventKind, EventSource, Session, SessionId, SessionStore
+from parlant.core.services.indexing.behavioral_change_evaluation import GuidelineEvaluator
+from parlant.core.sessions import (
+    AgentState,
+    Event,
+    EventKind,
+    EventSource,
+    Session,
+    SessionStore,
+    SessionUpdateParams,
+)
 from parlant.core.loggers import Logger
 from parlant.core.glossary import TermId
 
@@ -240,7 +252,6 @@ class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
     guidelines: list[Guideline]
-    schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema]
     logger: Logger
 
 
@@ -254,31 +265,19 @@ def context(
         sync_await,
         guidelines=list(),
         logger=container[Logger],
-        schematic_generator=container[SchematicGenerator[GenericActionableGuidelineMatchesSchema]],
     )
 
 
 def match_guidelines(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
-    conversation_context: list[tuple[EventSource, str]],
+    interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
-    interaction_history = [
-        create_event_message(
-            offset=i,
-            source=source,
-            message=message,
-        )
-        for i, (source, message) in enumerate(conversation_context)
-    ]
-
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
     guideline_matching_result = context.sync_await(
         context.container[GuidelineMatcher].match_guidelines(
             agent=agent,
@@ -301,6 +300,30 @@ def create_guideline(
     action: str | None = None,
     tags: list[TagId] = [],
 ) -> Guideline:
+    metadata: dict[str, JSONSerializable] = {}
+    if action:
+        guideline_evaluator = context.container[GuidelineEvaluator]
+        guideline_evaluation_data = context.sync_await(
+            guideline_evaluator.evaluate(
+                payloads=[
+                    GuidelinePayload(
+                        content=GuidelineContent(
+                            condition=condition,
+                            action=action,
+                        ),
+                        tool_ids=[],
+                        operation=GuidelinePayloadOperation.ADD,
+                        coherence_check=False,
+                        connection_proposition=False,
+                        action_proposition=True,
+                        properties_proposition=True,
+                    )
+                ],
+            )
+        )
+
+        metadata = guideline_evaluation_data[0].properties_proposition or {}
+
     guideline = Guideline(
         id=GuidelineId(generate_id()),
         creation_utc=datetime.now(timezone.utc),
@@ -310,7 +333,7 @@ def create_guideline(
         ),
         enabled=True,
         tags=tags,
-        metadata={},
+        metadata=metadata,
     )
 
     context.guidelines.append(guideline)
@@ -368,37 +391,157 @@ def create_guideline_by_name(
     return guideline
 
 
+def update_previously_applied_guidelines(
+    context: ContextOfTest,
+    session: Session,
+    applied_guideline_ids: list[GuidelineId],
+) -> None:
+    session = context.sync_await(context.container[SessionStore].read_session(session.id))
+    applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
+
+    context.sync_await(
+        context.container[EntityCommands].update_session(
+            session_id=session.id,
+            params=SessionUpdateParams(
+                agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+            ),
+        )
+    )
+
+
+def match_preparation(
+    context: ContextOfTest,
+    agent: Agent,
+    session: Session,
+    customer: Customer,
+    context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
+    terms: Sequence[Term],
+    staged_events: Sequence[EmittedEvent],
+    previously_matched_guidelines: list[Guideline],
+    interaction_history: list[Event],
+) -> None:
+    matches_to_prepare = [
+        GuidelineMatch(
+            guideline=g,
+            rationale="",
+            score=10,
+        )
+        for g in previously_matched_guidelines
+        if g.id not in session.agent_state["applied_guideline_ids"]
+        and not g.metadata.get(
+            "continuous", False
+        )  # TODO - evaluate if guideline is continuous in tests
+    ]
+
+    interaction_history_for_preparation = (
+        interaction_history[:-1] if len(interaction_history) > 1 else interaction_history
+    )  # assume the last message is customer's
+
+    generic_matching_preparation_batch = GenericGuidelineMatchingPreparationBatch(
+        logger=context.container[Logger],
+        schematic_generator=context.container[
+            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
+        ],
+        context=GuidelineMatchingPreparationContext(
+            agent=agent,
+            session=session,
+            customer=customer,
+            interaction_history=interaction_history_for_preparation,
+            context_variables=context_variables,
+            terms=terms,
+            staged_events=staged_events,
+        ),
+        guideline_matches=matches_to_prepare,
+    )
+
+    applied_guideline_ids = [
+        g.guideline.id
+        for g in (
+            context.sync_await(generic_matching_preparation_batch.process())
+        ).previously_applied_guidelines
+        if g.is_previously_applied
+    ]
+
+    update_previously_applied_guidelines(context, session, applied_guideline_ids)
+
+
 def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
-    session_id: SessionId,
+    session: Session,
     customer: Customer,
     conversation_context: list[tuple[EventSource, str]],
     conversation_guideline_names: list[str],
     relevant_guideline_names: list[str],
+    previously_applied_guidelines_names: list[str] = [],
+    previously_matched_guidelines_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
+    interaction_history = [
+        create_event_message(
+            offset=i,
+            source=source,
+            message=message,
+        )
+        for i, (source, message) in enumerate(conversation_context)
+    ]
+
     conversation_guidelines = {
         name: create_guideline_by_name(context, name) for name in conversation_guideline_names
     }
-    relevant_guidelines = [
-        conversation_guidelines[name]
-        for name in conversation_guidelines
-        if name in relevant_guideline_names
+
+    relevant_guidelines = [conversation_guidelines[name] for name in relevant_guideline_names]
+
+    previously_matched_guidelines = [
+        guideline
+        for name in previously_matched_guidelines_names
+        if (guideline := conversation_guidelines.get(name)) is not None
+    ]
+    previously_applied_guidelines = [
+        guideline.id
+        for name in previously_applied_guidelines_names
+        if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
+    update_previously_applied_guidelines(context, session, previously_applied_guidelines)
+
+    previously_applied_guidelines = [
+        guideline.id
+        for name in previously_applied_guidelines_names
+        if (guideline := conversation_guidelines.get(name)) is not None
+    ]
+
+    update_previously_applied_guidelines(
+        context=context,
+        session=session,
+        applied_guideline_ids=previously_applied_guidelines,
+    )
+
+    match_preparation(
+        context=context,
+        agent=agent,
+        session=session,
+        customer=customer,
+        context_variables=context_variables,
+        terms=terms,
+        staged_events=staged_events,
+        previously_matched_guidelines=previously_matched_guidelines,
+        interaction_history=interaction_history,
+    )
+
     guideline_matches = match_guidelines(
-        context,
-        agent,
-        session_id,
-        customer,
-        conversation_context,
+        context=context,
+        agent=agent,
+        session=session,
+        customer=customer,
+        interaction_history=interaction_history,
         context_variables=context_variables,
         terms=terms,
         staged_events=staged_events,
     )
+
     matched_guidelines = [p.guideline for p in guideline_matches]
 
     assert set(matched_guidelines) == set(relevant_guidelines)
@@ -426,7 +569,7 @@ def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_one_ac
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -451,7 +594,7 @@ def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -529,7 +672,7 @@ def test_that_many_guidelines_are_classified_correctly(  # a stress test
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -575,7 +718,7 @@ def test_that_relevant_guidelines_are_matched_parametrized_1(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -636,7 +779,7 @@ def test_that_guideline_that_needs_to_be_reapplied_is_matched(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -704,7 +847,7 @@ def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -734,7 +877,7 @@ def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -794,7 +937,7 @@ def test_that_observational_guidelines_arent_wrongly_implied(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,
@@ -911,7 +1054,7 @@ def test_that_observational_guidelines_are_detected_correctly_when_lots_of_data_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session.id,
+        new_session,
         customer,
         conversation_context,
         conversation_guideline_names,

@@ -6,7 +6,9 @@ from more_itertools import chunked
 
 from parlant.core import async_utils
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import _make_event
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
+    _make_event,
+)
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     GuidelinePreviouslyApplied,
