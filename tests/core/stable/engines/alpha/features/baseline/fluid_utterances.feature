@@ -103,7 +103,7 @@ Feature: Fluid Utterance
         And the message contains asking the customer for their age
         And the message contains no questions about the customer's email address or phone number
     
-    Scenario: Journey information is followed (fluid utterance) TODO change nlp test
+    Scenario: Journey information is followed (fluid utterance)
         Given a journey titled Change Credit Limits to remember that credit limits can be decreased through this chat, using the decrease_limits tool, but that to increase credit limits you must visit a physical branch when credit limits are discussed
         And an utterance, "To increase credit limits, you must visit a physical branch"
         And an utterance, "Sure. Let me check how that could be done"

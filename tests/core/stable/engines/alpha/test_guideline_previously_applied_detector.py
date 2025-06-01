@@ -450,6 +450,3 @@ def test_that_correct_guidelines_detect_as_previously_applied_when_guideline_act
         guidelines_target_names=guidelines,
         guidelines_names=guidelines,
     )
-
-
-# TODO Bar add a test or two with partial fulfillment

@@ -474,8 +474,6 @@ You need to have tools_evaluation for each tool in the tools batch. Also, note t
 """,
             props={},
         )
-        with open("competing tool batch prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
     def _add_tool_definitions_section(
@@ -618,8 +616,6 @@ Guidelines:
             hints={"temperature": 0.05},
         )
 
-        with open("output overlapping tools.txt", "w") as f:
-            f.write(inference.content.model_dump_json(indent=2))
         self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         return inference.info, inference.content.tools_evaluation

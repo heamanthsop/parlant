@@ -503,10 +503,6 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                 ),
             },
         )
-        import pathlib
-
-        pathlib.Path("single tool prompt.txt").write_text(builder.build())  # TODO End delete
-
         return builder
 
     def _format_tool_calls_for_candidate_tool_json_description(
@@ -732,8 +728,6 @@ Guidelines:
             prompt=prompt,
             hints={"temperature": 0.05},
         )
-        with open("output single tool batch.txt", "w") as f:
-            f.write(inference.content.model_dump_json(indent=2))
         self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         return inference.info, inference.content.tool_calls_for_candidate_tool

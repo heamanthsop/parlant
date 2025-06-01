@@ -142,14 +142,6 @@ Expected output (JSON):
             props={"action": guideline.action},
         )
 
-        with open("customer dependent action detector prompt.txt", "w") as f:
-            f.write(builder.build())
-        import pathlib
-
-        pathlib.Path("customer dependent action detector prompt.txt").write_text(
-            builder.build()
-        )  # TODO End delete
-
         return builder
 
     async def _generate_customer_dependent(

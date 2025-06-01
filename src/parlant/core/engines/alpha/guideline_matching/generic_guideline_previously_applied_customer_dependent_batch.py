@@ -77,8 +77,6 @@ class GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(GuidelineM
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            with open("output_prev_apply_customer_dependent_matcher.txt", "a") as f:
-                f.write(f"{inference.content.model_dump_json(indent=2)}")
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         matches = []
@@ -171,7 +169,7 @@ class GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(GuidelineM
 
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
-        builder.add_section(  # TODO Hadar pass the 'task description' section through GPT to improve phrasing and grammar
+        builder.add_section(
             name="guideline-previously-applied-general-instructions",
             template="""
 GENERAL INSTRUCTIONS
@@ -191,47 +189,26 @@ For example, the action "get the customer's ID number" requires the agent to ask
 
 Task Description
 ----------------
-Your task is to evaluate the relevance and applicability of a set of provided guidelines to the most recent state of an interaction between yourself (an AI agent) and a user.
-Specifically, you will be given a set of "customer dependent" guidelines after we know that the agent part was fulfilled  (i.e., the agent has already performed its part of the action) at least once at 
-some point during the interaction. 
 
-The guideline should be apply if either of the following is true:
-1. The condition still holds, the reason that triggered the agent to make it's part of the action is still relevant (evaluated via condition_still_met), AND the customer has not yet fulfilled their 
-side of the action (evaluated via customer_should_reply).
-    Example: The agent asked for the user’s ID, but the user has not responded yet, and the current conversation is still about accessing their account.
-2. The condition arises again (evaluated via condition_met_again) in a new context and the associated action should be repeated (by the agent and the user) (evaluated via action_wasnt_taken)
-    Example: The user switches to asking about a second account, and the agent needs to ask for another ID.
+Your task is to evaluate whether a set of "customer dependent" guidelines should be applied to the current state of a conversation between an AI agent and a user.
 
+You will be given guidelines where the agent has already performed their part of the action at least once during the interaction. Now you need to determine if each guideline should be reapplied based on the conversation's current state.
 
-Additional KeyRules:
+A guideline should be applied if either of the following conditions is true:
 
-Avoid Repeating Actions With Static Outcomes:
-If an action requests information from the user that is unlikely to change — such as their ID, name, or date of birth—do not reapply the guideline, even if the condition arises again (evaluated via action_should_reapply). 
-Repeating the request would be unnecessary and redundant.
-However, if the action also includes components that might change (e.g., “ask for the user’s name and their preferred appointment time”), and the potentially changed part becomes relevant again, 
-it’s appropriate to reapply the guideline to address the changing part of the request.
+   1. Incomplete Action: The original condition still holds, the reason that triggered the agent's initial action remains relevant, AND the customer has not yet fulfilled their part of the action. Example: The agent asked for the user's ID, but the user hasn't responded yet, and the conversation is still about accessing their account.
+   2. New Context for Same Condition: The condition arises again in a new context, requiring the action to be repeated by both agent and customer. Example: The user switches to asking about a second account, so the agent needs to ask for another ID.
 
-Conditions May Arise Multiple Times:
-    As said before, if the same condition comes up again later in a new context, and the associated action should be repeated (e.g., asking for a different account ID), the guideline should be reapplied.
-    - We will want to repeat the action only if the current application refers to a new or subtly different context or information.
-    - We will also want to make sure the nre context justify to retake the action. For example, a guideline “get the item title when the customer wants to purchase an item” should be reapplied each time the customer asks 
-    to buy something. In contrast, guidelines involving constant information (e.g., “ask for the user ID”) should not be apply again since this information has not changed.
+Key Evaluation Rules:
 
-Focus on the most recent context:
-When evaluating whether a guideline should be reapplied, the most recent part of the conversation, specifically the last user message, is what matters. A guideline should only be reapplied if its condition is clearly met 
-again in that latest message.
-Always base your decision on the current context to avoid unnecessary repetition and to keep the response aligned with the user’s present needs.
+- Avoid Repeating Static Information Requests: Do not reapply guidelines that request static information (ID, name, date of birth) unless there's a genuinely new context. However, if an action combines static and dynamic components (e.g., "ask for name and preferred appointment time"), reapply the guideline when the dynamic component becomes relevant again.
 
-Context May Shift:
-    Sometimes, the user may briefly raise an issue that would normally trigger a guideline, but then shift the topic within the same message or shortly after. In such cases, the condition should NOT be considered active, 
-    and the guideline should not be reapplied.
+- Focus on Most Recent Context: Base your evaluation primarily on the last user message. A guideline should only be reapplied if its condition is clearly met in that latest message, not based on earlier parts of the conversation.
 
-Conditions Can Arise and Resolve Multiple Times:
-    A condition may be met more than once over the course of a conversation and may also be resolved multiple times (the action was taken). If the most recent instance of the condition has already been addressed and resolved,
-    there is no need to reapply the guideline. However, if the user is still clearly engaging with the same unresolved issue, or if a new instance of the condition arises, reapplying the guideline may be appropriate.
+- Handle Context Shifts: If a user briefly mentions something that would trigger a guideline but then shifts topics within the same message, do NOT consider the condition active.
 
+- Track Resolution Status: If the most recent instance of a condition has been addressed and resolved, there's no need to reapply the guideline. However, if the user is still engaging with an unresolved issue or a new instance arises, reapplication may be appropriate.
 
-The conversation and guidelines will follow. Instructions on how to format your response will be provided after that.
 
 """,
             props={},
@@ -283,8 +260,6 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
-        with open("customer dependent previously applied batch prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:

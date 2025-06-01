@@ -445,9 +445,7 @@ def match_preparation(
         )
         for g in previously_matched_guidelines
         if g.id not in session.agent_state["applied_guideline_ids"]
-        and not g.metadata.get(
-            "continuous", False
-        )  # TODO - evaluate if guideline is continuous in tests
+        and not g.metadata.get("continuous", False)
     ]
 
     interaction_history_for_preparation = (

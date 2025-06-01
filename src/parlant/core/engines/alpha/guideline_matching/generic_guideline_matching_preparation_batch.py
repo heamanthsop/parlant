@@ -344,11 +344,6 @@ OUTPUT FORMAT
                 "guidelines_len": len(guidelines),
             },
         )
-        import pathlib
-
-        pathlib.Path("generic guideline matching preparation batch.txt").write_text(
-            builder.build()
-        )  # TODO End delete
 
         return builder
 

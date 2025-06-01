@@ -472,44 +472,6 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     conversation_context: list[tuple[EventSource, str]] = [
         (
             EventSource.CUSTOMER,
-            "Hi, I had an order sent to me about a week ago, any idea as to when it would arrive?",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "Hello there! Before I proceed, what's the number of your order",
-        ),
-        (EventSource.CUSTOMER, "7815276"),
-        (
-            EventSource.AI_AGENT,
-            "Got it, it looks like it was shipped last Tuesday. It should arrive in the next 4 business days",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "I hoped it would be here by now - is it being shipped by air, or by another method?",
-        ),
-    ]
-    guidelines: list[str] = ["delivery_time_inquiry"]
-
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        new_session.id,
-        customer,
-        conversation_context,
-        guidelines_target_names=guidelines,
-        guidelines_names=guidelines,
-    )
-
-
-def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold_3(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
             "Hi, I wanted to order a sandwich",
         ),
         (

@@ -72,8 +72,6 @@ class GenericPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            with open("output_prev_apply_matcher.txt", "a") as f:
-                f.write(f"{inference.content.model_dump_json(indent=2)}")
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         matches = []
@@ -257,8 +255,6 @@ OUTPUT FORMAT
             },
         )
 
-        with open("prompt_prev_applied_matcher.txt", "a") as f:
-            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:

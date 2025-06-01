@@ -26,7 +26,7 @@ from parlant.core.shots import Shot, ShotCollection
 class GenericNotPreviouslyAppliedBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
-    action: str  # TODO Hadar try to remove
+    action: str
     rationale: str
     applies: bool
 
@@ -70,8 +70,6 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
-            with open("output_not_prev_apply_matcher.txt", "a") as f:
-                f.write(f"{inference.content.model_dump_json(indent=2)}")  # TODO End remove
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         matches = []
@@ -132,7 +130,8 @@ class GenericNotPreviouslyAppliedGuidelineMatchingBatch(GuidelineMatchingBatch):
 """
         if shot.guidelines:
             formatted_guidelines = "\n".join(
-                f"{i}) {g.condition}" for i, g in enumerate(shot.guidelines, start=1)
+                f"{i}) Condition {g.condition}. Action: {g.action}"
+                for i, g in enumerate(shot.guidelines, start=1)
             )
             formatted_shot += f"""
 - **Guidelines**:
@@ -189,10 +188,13 @@ if it is relevant to the sub-issue, as it is part of the ongoing discussion.
 In contrast, if the conversation has clearly moved on to an entirely new topic, previous guidelines should not be marked as applicable.
 This ensures that applicability is tied to the current context, but still respects the continuity of a discussion when diving deeper into subtopics.
 
+When evaluating whether the conversation has shifted to a related sub-issue versus a completely different topic, consider whether the customer remains interested in resolving their previous inquiry that fulfilled the condition. 
+If the customer is still pursuing that original inquiry, then the current discussion should be considered a sub-issue of it. Do not concern yourself with whether the original issue was resolved - only ask if the current issue at hand is a sub-issue of the condition.
+
 
 The exact format of your response will be provided later in this prompt.
 
-""",  # TODO Talk about who is doing this - add sentence and shot about subissue
+""",
             props={},
         )
         builder.add_section(
@@ -215,7 +217,7 @@ Examples of Guideline Match Evaluations:
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
             template="""
-- Conditions List: ###
+- Guidelines List: ###
 {guidelines_text}
 ###
 """,
@@ -388,7 +390,7 @@ example_1_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer ask for activities recommendations",
             action="Guide them in refining their preferences and suggest options that match what they're looking for",
-            rationale="In the most recent message the customer talk about visas or documents and not about recommendations which is a new topic",
+            rationale="The customer has moved from seeking activity recommendations to asking about legal requirements. Since they are no longer pursuing their original inquiry about activities, this represents a new topic rather than a sub-issue",
             applies=False,
         ),
         GenericNotPreviouslyAppliedBatch(
@@ -513,7 +515,7 @@ example_3_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the user is having a problem with login.",
             action="Help then identify the problem and solve it",
-            rationale="In the most recent message the customer mentions a problem to access their mail, which a sub issue of the login problem",
+            rationale="The customer is still pursuing their login problem, making the mail access problem a sub-issue rather than a new topic",
             applies=True,
         ),
     ]
@@ -551,11 +553,12 @@ example_4_expected = GenericNotPreviouslyAppliedGuidelineMatchesSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the customer asks about how to return an item.",
             action="Mention both in-store and delivery service return options.",
-            rationale="In the most recent message the customer about what happens when they wore the item, which related to return an item",
+            rationale="In the most recent message the customer about what happens when they wore the item, which an inquiry regarding returning an item",
             applies=True,
         ),
     ]
 )
+
 
 _baseline_shots: Sequence[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot] = [
     GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot(

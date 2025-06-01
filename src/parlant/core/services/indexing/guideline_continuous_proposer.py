@@ -123,11 +123,6 @@ Expected output (JSON):
 ```
 """,
         )
-        import pathlib
-
-        pathlib.Path("continuous proposer prompt.txt").write_text(
-            builder.build()
-        )  # TODO End delete
 
         return builder
 
