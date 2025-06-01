@@ -55,9 +55,6 @@ from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
 from parlant.core.glossary import Term
 from parlant.core.nlp.generation import SchematicGenerator
 
-from parlant.core.engines.alpha.guideline_matching.generic_actionable_batch import (
-    GenericActionableGuidelineMatchesSchema,
-)
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     GuidelinePreviouslyApplied,
@@ -272,7 +269,6 @@ class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
     guidelines: list[Guideline]
-    schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema]
     logger: Logger
 
 
@@ -286,7 +282,6 @@ def context(
         sync_await,
         guidelines=list(),
         logger=container[Logger],
-        schematic_generator=container[SchematicGenerator[GenericActionableGuidelineMatchesSchema]],
     )
 
 

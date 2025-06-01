@@ -38,6 +38,9 @@ from parlant.core.engines.alpha.guideline_matching import (
     generic_guideline_previously_applied_batch,
     generic_guideline_previously_applied_customer_dependent_batch,
 )
+from parlant.core.engines.alpha.guideline_matching import (
+    generic_guideline_matching_preparation_batch,
+)
 from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
     DefaultGuidelineMatchingStrategyResolver,
 )
@@ -45,6 +48,11 @@ from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_
     GenericPreviouslyAppliedGuidelineMatchesSchema,
     GenericPreviouslyAppliedGuidelineMatching,
     GenericPreviouslyAppliedGuidelineGuidelineMatchingShot,
+)
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
+    GenericGuidelineMatchingPreparationSchema,
+    GenericGuidelineMatchingPreparationBatch,
+    GenericGuidelineMatchingPreparationShot,
 )
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
     GenericNotPreviouslyAppliedGuidelineMatchesSchema,
@@ -367,6 +375,9 @@ async def setup_container() -> AsyncIterator[Container]:
     web_socket_logger = WebSocketLogger(CORRELATOR, LogLevel.INFO)
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
+    c[ShotCollection[GenericGuidelineMatchingPreparationShot]] = (
+        generic_guideline_matching_preparation_batch.shot_collection
+    )
     c[ShotCollection[GenericPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
         generic_guideline_previously_applied_batch.shot_collection
     )
@@ -577,6 +588,7 @@ async def initialize_container(
         )
 
     for schema in (
+        GenericGuidelineMatchingPreparationSchema,
         GenericPreviouslyAppliedGuidelineMatchesSchema,
         GenericNotPreviouslyAppliedGuidelineMatchesSchema,
         GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
@@ -600,6 +612,11 @@ async def initialize_container(
             SchematicGenerator[schema],  # type: ignore
             await nlp_service_instance.get_schematic_generator(schema),
         )
+
+    try_define(
+        GenericGuidelineMatchingPreparationBatch,
+        Singleton(GenericGuidelineMatchingPreparationBatch),
+    )
 
     try_define(
         GenericObservationalGuidelineMatching,
