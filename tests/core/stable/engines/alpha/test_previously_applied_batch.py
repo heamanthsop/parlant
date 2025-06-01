@@ -40,11 +40,15 @@ GUIDELINES_DICT = {
     },
     "confirm_reservation": {
         "condition": "The customer has placed a reservation, submitted an order, or added items to an order.",
-        "action": "Politely confirm the details and ask whether the customer would like to add anything else before finalizing the reservation or order",
+        "action": "ask whether the customer would like to add anything else before finalizing the reservation or order",
     },
     "order_status": {
         "condition": "The customer is asking about a status of an order.",
         "action": "retrieve it's status and inform the customer",
+    },
+    "return_conditions": {
+        "condition": "The customer is asking about return terms.",
+        "action": "refer them to the company's website",
     },
 }
 
@@ -194,98 +198,7 @@ def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_
     )
 
 
-# def test_that_guideline_action_that_was_performed_but_result_in_an_error_is_matched_again(
-#     context: ContextOfTest,
-#     agent: Agent,
-#     new_session: Session,
-#     customer: Customer,
-# ) -> None:
-#     conversation_context: list[tuple[EventSource, str]] = [
-#         (
-#             EventSource.CUSTOMER,
-#             "Hey, can you reset my password?",
-#         ),
-#         (
-#             EventSource.AI_AGENT,
-#             "Sure, for that I will need your email please so I will send you the password",
-#         ),
-#         (
-#             EventSource.CUSTOMER,
-#             "111@emcie.co",
-#         ),
-#     ]
-#     tool_result = cast(
-#         JSONSerializable,
-#         {
-#             "tool_calls": [
-#                 {
-#                     "tool_id": "local:reset_password",
-#                     "arguments": {"email": "111@emcie.co"},
-#                     "result": {
-#                         "data": ["error with reset - unknown mail"],
-#                         "metadata": {},
-#                         "control": {},
-#                     },
-#                 }
-#             ]
-#         },
-#     )
-
-#     staged_events = [
-#         EmittedEvent(
-#             source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result
-#         ),
-#     ]
-
-#     guidelines: list[str] = ["reset_password"]
-
-#     base_test_that_correct_guidelines_are_matched(
-#         context,
-#         agent,
-#         new_session.id,
-#         customer,
-#         conversation_context,
-#         guidelines_target_names=guidelines,
-#         guidelines_names=guidelines,
-#         staged_events=staged_events,
-#     )
-
-
-# def test_that_guideline_action_that_was_performed_but_result_in_undesired_user_response_is_matched_again(
-#     context: ContextOfTest,
-#     agent: Agent,
-#     new_session: Session,
-#     customer: Customer,
-# ) -> None:
-#     conversation_context: list[tuple[EventSource, str]] = [
-#         (
-#             EventSource.CUSTOMER,
-#             "Hey, can you reset my password?",
-#         ),
-#         (
-#             EventSource.AI_AGENT,
-#             "Sure, for that I will need your email please so I will send you the password. What's your email address?",
-#         ),
-#         (
-#             EventSource.CUSTOMER,
-#             "I think I have an email address but let me check what it is.",
-#         ),
-#     ]
-
-#     guidelines: list[str] = ["reset_password"]
-
-#     base_test_that_correct_guidelines_are_matched(
-#         context,
-#         agent,
-#         new_session.id,
-#         customer,
-#         conversation_context,
-#         guidelines_target_names=guidelines,
-#         guidelines_names=guidelines,
-#     )
-
-
-def test_that_partially_fulfilled_action_with_missing_cosmetic_part_is_not_matched_again(
+def test_that_partially_fulfilled_action_with_missing_behavioral_part_is_not_matched_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -414,7 +327,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
         ),
     ]
 
-    guidelines: list[str] = ["frustrated_so_discount"]  # TODO Hadar - is this the wrong guideline?
+    guidelines: list[str] = ["order_status"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
@@ -456,9 +369,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
         ),
     ]
 
-    guidelines: list[str] = [
-        "confirm_reservation"
-    ]  # TODO Hadar this seems customer dependent, maybe we should change it a little?
+    guidelines: list[str] = ["confirm_reservation"]
 
     base_test_that_correct_guidelines_are_matched(
         context,
