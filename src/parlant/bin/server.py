@@ -80,7 +80,7 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
+from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ServerOutdated
 from parlant.core.shots import ShotCollection
@@ -458,7 +458,7 @@ async def initialize_container(
             (CustomerStore, CustomerDocumentStore, "customers.json"),
             (EvaluationStore, EvaluationDocumentStore, "evaluations.json"),
             (TagStore, TagDocumentStore, "tags.json"),
-            (UtteranceStore, UtteranceDocumentStore, "utterances.json"),
+            (UtteranceStore, UtteranceVectorStore, "utterances.json"),
             (GuidelineStore, GuidelineDocumentStore, "guidelines.json"),
             (
                 GuidelineToolAssociationStore,

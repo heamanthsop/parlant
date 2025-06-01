@@ -57,7 +57,7 @@ from parlant.core.sessions import (
     StatusEventData,
     ToolEventData,
 )
-from parlant.core.utterances import UtteranceDocumentStore, UtteranceId, UtteranceStore
+from parlant.core.utterances import UtteranceVectorStore, UtteranceId, UtteranceStore
 from parlant.core.evaluations import EvaluationDocumentStore, EvaluationStore
 from parlant.core.guidelines import GuidelineDocumentStore, GuidelineId, GuidelineStore
 from parlant.core.journeys import JourneyDocumentStore, JourneyId, JourneyStore
@@ -452,7 +452,7 @@ class Server:
                 (CustomerStore, CustomerDocumentStore),
                 (EvaluationStore, EvaluationDocumentStore),
                 (TagStore, TagDocumentStore),
-                (UtteranceStore, UtteranceDocumentStore),
+                (UtteranceStore, UtteranceVectorStore),
                 (GuidelineStore, GuidelineDocumentStore),
                 (GuidelineToolAssociationStore, GuidelineToolAssociationDocumentStore),
                 (JourneyStore, JourneyDocumentStore),

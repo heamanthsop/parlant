@@ -22,7 +22,7 @@ from typing_extensions import override, TypedDict, Self
 from parlant.core.async_utils import ReaderWriterLock
 from parlant.core.persistence.document_database_helper import DocumentStoreMigrationHelper
 from parlant.core.tags import TagId
-from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
+from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id, md5_checksum
 from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.persistence.document_database import (
     BaseDocument,
@@ -114,10 +114,20 @@ class _UtteranceFieldDocument(TypedDict):
     examples: list[str]
 
 
+class UtteranceDocument_v_0_1_0(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    value: str
+    fields: Sequence[_UtteranceFieldDocument]
+
+
 class _UtteranceDocument(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
+    content: str
+    checksum: str
     value: str
     fields: Sequence[_UtteranceFieldDocument]
 
@@ -130,8 +140,8 @@ class _UtteranceTagAssociationDocument(TypedDict, total=False):
     tag_id: TagId
 
 
-class UtteranceDocumentStore(UtteranceStore):
-    VERSION = Version.from_string("0.1.0")
+class UtteranceVectorStore(UtteranceStore):
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
         self._database = database
@@ -144,15 +154,24 @@ class UtteranceDocumentStore(UtteranceStore):
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[_UtteranceDocument]:
         if doc["version"] == "0.1.0":
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
+            )
+        if doc["version"] == "0.2.0":
             return cast(_UtteranceDocument, doc)
-
         return None
 
     async def _association_document_loader(
         self, doc: BaseDocument
     ) -> Optional[_UtteranceTagAssociationDocument]:
         if doc["version"] == "0.1.0":
+            raise Exception(
+                "This code should not be reached! Please run the 'parlant-prepare-migration' script."
+            )
+
+        if doc["version"] == "0.2.0":
             return cast(_UtteranceTagAssociationDocument, doc)
+
         return None
 
     async def __aenter__(self) -> Self:
@@ -186,16 +205,30 @@ class UtteranceDocumentStore(UtteranceStore):
         return False
 
     def _serialize_utterance(self, utterance: Utterance) -> _UtteranceDocument:
+        content = self.assemble_content(utterance.value, utterance.fields)
+
         return _UtteranceDocument(
             id=ObjectId(utterance.id),
             version=self.VERSION.to_string(),
             creation_utc=utterance.creation_utc.isoformat(),
+            content=content,
+            checksum=md5_checksum(content),
             value=utterance.value,
             fields=[
                 {"name": s.name, "description": s.description, "examples": s.examples}
                 for s in utterance.fields
             ],
         )
+
+    @staticmethod
+    def assemble_content(
+        value: str,
+        fields: Sequence[UtteranceField],
+    ) -> str:
+        field_str = "; ".join(
+            f"{f.name}: {f.description} (examples: {', '.join(f.examples)})" for f in fields
+        )
+        return f"{value}\n{field_str}"
 
     async def _deserialize_utterance(self, utterance_document: _UtteranceDocument) -> Utterance:
         tags = [
@@ -281,6 +314,8 @@ class UtteranceDocumentStore(UtteranceStore):
             if not utterance_document:
                 raise ItemNotFoundError(item_id=UniqueId(utterance_id))
 
+            content = self.assemble_content(params["value"], params["fields"])
+
             result = await self._utterances_collection.update_one(
                 filters={"id": {"$eq": utterance_id}},
                 params={
@@ -289,6 +324,8 @@ class UtteranceDocumentStore(UtteranceStore):
                         {"name": s.name, "description": s.description, "examples": s.examples}
                         for s in params["fields"]
                     ],
+                    "content": content,
+                    "checksum": md5_checksum(content),
                 },
             )
 

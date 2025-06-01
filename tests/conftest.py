@@ -72,7 +72,7 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceDocumentStore, UtteranceStore
+from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.nlp.generation import T, SchematicGenerator
 from parlant.core.relationships import (
@@ -269,7 +269,7 @@ async def container(
             CustomerDocumentStore(TransientDocumentDatabase())
         )
         container[UtteranceStore] = await stack.enter_async_context(
-            UtteranceDocumentStore(TransientDocumentDatabase())
+            UtteranceVectorStore(TransientDocumentDatabase())
         )
         container[GuidelineToolAssociationStore] = await stack.enter_async_context(
             GuidelineToolAssociationDocumentStore(TransientDocumentDatabase())
