@@ -4,20 +4,20 @@ from typing_extensions import override
 
 
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
-    ActionableGuidelineMatchesSchema,
-    ActionableGuidelineMatchingBatch,
+    GenericActionableGuidelineMatchesSchema,
+    GenericActionableGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_batch import (
-    PreviouslyAppliedActionableGuidelineMatchesSchema,
-    PreviouslyAppliedActionableGuidelineMatchingBatch,
+    GenericPreviouslyAppliedActionableGuidelineMatchesSchema,
+    GenericPreviouslyAppliedActionableGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_customer_dependent_batch import (
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.observational_batch import (
-    ObservationalGuidelineMatchesSchema,
-    ObservationalGuidelineMatchingBatch,
+    GenericObservationalGuidelineMatchesSchema,
+    GenericObservationalGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
     GenericResponseAnalysisBatch,
@@ -42,16 +42,16 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         logger: Logger,
         observational_guideline_schematic_generator: SchematicGenerator[
-            ObservationalGuidelineMatchesSchema
+            GenericObservationalGuidelineMatchesSchema
         ],
         previously_applied_actionable_guideline_schematic_generator: SchematicGenerator[
-            PreviouslyAppliedActionableGuidelineMatchesSchema
+            GenericPreviouslyAppliedActionableGuidelineMatchesSchema
         ],
         previously_applied_actionable_customer_dependent_guideline_schematic_generator: SchematicGenerator[
-            PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
+            GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
         ],
         actionable_guideline_schematic_generator: SchematicGenerator[
-            ActionableGuidelineMatchesSchema
+            GenericActionableGuidelineMatchesSchema
         ],
         report_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
     ) -> None:
@@ -164,8 +164,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> ObservationalGuidelineMatchingBatch:
-        return ObservationalGuidelineMatchingBatch(
+    ) -> GenericObservationalGuidelineMatchingBatch:
+        return GenericObservationalGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._observational_guideline_schematic_generator,
             guidelines=guidelines,
@@ -201,8 +201,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> PreviouslyAppliedActionableGuidelineMatchingBatch:
-        return PreviouslyAppliedActionableGuidelineMatchingBatch(
+    ) -> GenericPreviouslyAppliedActionableGuidelineMatchingBatch:
+        return GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._previously_applied_actionable_guideline_schematic_generator,
             guidelines=guidelines,
@@ -238,8 +238,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
-        return PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
+    ) -> GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
+        return GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._previously_applied_actionable_customer_dependent_guideline_schematic_generator,
             guidelines=guidelines,
@@ -275,8 +275,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> ActionableGuidelineMatchingBatch:
-        return ActionableGuidelineMatchingBatch(
+    ) -> GenericActionableGuidelineMatchingBatch:
+        return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._actionable_guideline_schematic_generator,
             guidelines=guidelines,

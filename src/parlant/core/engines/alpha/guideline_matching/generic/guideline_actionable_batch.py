@@ -23,7 +23,7 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-class ActionableBatch(DefaultBaseModel):
+class GenericActionableBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
     action: str
@@ -31,22 +31,22 @@ class ActionableBatch(DefaultBaseModel):
     applies: bool
 
 
-class ActionableGuidelineMatchesSchema(DefaultBaseModel):
-    checks: Sequence[ActionableBatch]
+class GenericActionableGuidelineMatchesSchema(DefaultBaseModel):
+    checks: Sequence[GenericActionableBatch]
 
 
 @dataclass
-class ActionableGuidelineGuidelineMatchingShot(Shot):
+class GenericActionableGuidelineGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: ActionableGuidelineMatchesSchema
+    expected_result: GenericActionableGuidelineMatchesSchema
 
 
-class ActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
+class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[ActionableGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> None:
@@ -94,15 +94,17 @@ class ActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
             generation_info=inference.info,
         )
 
-    async def shots(self) -> Sequence[ActionableGuidelineGuidelineMatchingShot]:
+    async def shots(self) -> Sequence[GenericActionableGuidelineGuidelineMatchingShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[ActionableGuidelineGuidelineMatchingShot]) -> str:
+    def _format_shots(
+        self, shots: Sequence[GenericActionableGuidelineGuidelineMatchingShot]
+    ) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: ActionableGuidelineGuidelineMatchingShot) -> str:
+    def _format_shot(self, shot: GenericActionableGuidelineGuidelineMatchingShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 EventSource.CUSTOMER: "user",
@@ -148,7 +150,7 @@ class ActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
 
     def _build_prompt(
         self,
-        shots: Sequence[ActionableGuidelineGuidelineMatchingShot],
+        shots: Sequence[GenericActionableGuidelineGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
             f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
@@ -260,11 +262,11 @@ OUTPUT FORMAT
         return json.dumps(result, indent=4)
 
 
-class ActionableGuidelineMatching(GuidelineMatchingStrategy):
+class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[ActionableGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
@@ -311,8 +313,8 @@ class ActionableGuidelineMatching(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> ActionableGuidelineMatchingBatch:
-        return ActionableGuidelineMatchingBatch(
+    ) -> GenericActionableGuidelineMatchingBatch:
+        return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
@@ -371,23 +373,23 @@ example_1_guidelines = [
     ),
 ]
 
-example_1_expected = ActionableGuidelineMatchesSchema(
+example_1_expected = GenericActionableGuidelineMatchesSchema(
     checks=[
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer is looking for flight or accommodation booking assistance",
             action="Provide links or suggestions for flight aggregators and hotel booking platforms.",
             rationale="There’s no mention of booking logistics like flights or hotels",
             applies=False,
         ),
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer ask for activities recommendations",
             action="Guide them in refining their preferences and suggest options that match what they're looking for",
             rationale="The customer has moved from seeking activity recommendations to asking about legal requirements. Since they are no longer pursuing their original inquiry about activities, this represents a new topic rather than a sub-issue",
             applies=False,
         ),
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer asks for logistical or legal requirements.",
             action="Provide a clear answer or direct them to a trusted official source if uncertain.",
@@ -441,23 +443,23 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = ActionableGuidelineMatchesSchema(
+example_2_expected = GenericActionableGuidelineMatchesSchema(
     checks=[
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer mentions a constraint that related to commitment to the course",
             action="Emphasize flexible learning options",
             rationale="The customer mentions that they work full time which is a constraint",
             applies=True,
         ),
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The user expresses hesitation or self-doubt.",
             action="Affirm that it’s okay to be uncertain and provide confidence-building context",
             rationale="The user still sounds hesitating about their fit to the course",
             applies=True,
         ),
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The user asks about certification or course completion benefits.",
             action="Clearly explain what the user receives",
@@ -503,9 +505,9 @@ example_3_guidelines = [
     ),
 ]
 
-example_3_expected = ActionableGuidelineMatchesSchema(
+example_3_expected = GenericActionableGuidelineMatchesSchema(
     checks=[
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the user is having a problem with login.",
             action="Help then identify the problem and solve it",
@@ -541,9 +543,9 @@ example_4_guidelines = [
     ),
 ]
 
-example_4_expected = ActionableGuidelineMatchesSchema(
+example_4_expected = GenericActionableGuidelineMatchesSchema(
     checks=[
-        ActionableBatch(
+        GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the customer asks about how to return an item.",
             action="Mention both in-store and delivery service return options.",
@@ -554,26 +556,26 @@ example_4_expected = ActionableGuidelineMatchesSchema(
 )
 
 
-_baseline_shots: Sequence[ActionableGuidelineGuidelineMatchingShot] = [
-    ActionableGuidelineGuidelineMatchingShot(
+_baseline_shots: Sequence[GenericActionableGuidelineGuidelineMatchingShot] = [
+    GenericActionableGuidelineGuidelineMatchingShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    ActionableGuidelineGuidelineMatchingShot(
+    GenericActionableGuidelineGuidelineMatchingShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    ActionableGuidelineGuidelineMatchingShot(
+    GenericActionableGuidelineGuidelineMatchingShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    ActionableGuidelineGuidelineMatchingShot(
+    GenericActionableGuidelineGuidelineMatchingShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
@@ -581,4 +583,4 @@ _baseline_shots: Sequence[ActionableGuidelineGuidelineMatchingShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[ActionableGuidelineGuidelineMatchingShot](_baseline_shots)
+shot_collection = ShotCollection[GenericActionableGuidelineGuidelineMatchingShot](_baseline_shots)

@@ -23,7 +23,7 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-class PreviouslyAppliedActionableCustomerDependentBatch(DefaultBaseModel):
+class GenericPreviouslyAppliedActionableCustomerDependentBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
     action: str
@@ -36,23 +36,25 @@ class PreviouslyAppliedActionableCustomerDependentBatch(DefaultBaseModel):
     should_apply: bool
 
 
-class PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(DefaultBaseModel):
-    checks: Sequence[PreviouslyAppliedActionableCustomerDependentBatch]
+class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(DefaultBaseModel):
+    checks: Sequence[GenericPreviouslyAppliedActionableCustomerDependentBatch]
 
 
 @dataclass
-class PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(Shot):
+class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
+    expected_result: GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
 
 
-class PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(GuidelineMatchingBatch):
+class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
+    GuidelineMatchingBatch
+):
     def __init__(
         self,
         logger: Logger,
         schematic_generator: SchematicGenerator[
-            PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
+            GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
         ],
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
@@ -103,18 +105,19 @@ class PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(Guideli
 
     async def shots(
         self,
-    ) -> Sequence[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot]:
+    ) -> Sequence[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot]:
         return await shot_collection.list()
 
     def _format_shots(
-        self, shots: Sequence[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot]
+        self,
+        shots: Sequence[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
     ) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
     def _format_shot(
-        self, shot: PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot
+        self, shot: GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot
     ) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
@@ -160,7 +163,7 @@ class PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(Guideli
 
     def _build_prompt(
         self,
-        shots: Sequence[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
+        shots: Sequence[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
             f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
@@ -282,12 +285,14 @@ OUTPUT FORMAT
         return json.dumps(result, indent=4)
 
 
-class PreviouslyAppliedActionableCustomerDependentGuidelineMatching(GuidelineMatchingStrategy):
+class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching(
+    GuidelineMatchingStrategy
+):
     def __init__(
         self,
         logger: Logger,
         schematic_generator: SchematicGenerator[
-            PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
+            GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
         ],
     ) -> None:
         self._logger = logger
@@ -335,8 +340,8 @@ class PreviouslyAppliedActionableCustomerDependentGuidelineMatching(GuidelineMat
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
-        return PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
+    ) -> GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
+        return GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
@@ -378,9 +383,9 @@ example_1_guidelines = [
     ),
 ]
 
-example_1_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_1_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
@@ -412,9 +417,9 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_2_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
@@ -452,9 +457,9 @@ example_3_guidelines = [
     ),
 ]
 
-example_3_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_3_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
@@ -501,9 +506,9 @@ example_4_guidelines = [
     ),
 ]
 
-example_4_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_4_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
@@ -546,9 +551,9 @@ example_5_guidelines = [
     ),
 ]
 
-example_5_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_5_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer wants recommendations for a trip",
             action="Ask for their preferred activities and recommend accordingly",
@@ -583,9 +588,9 @@ example_6_guidelines = [
     ),
 ]
 
-example_6_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
+example_6_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema(
     checks=[
-        PreviouslyAppliedActionableCustomerDependentBatch(
+        GenericPreviouslyAppliedActionableCustomerDependentBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer is asking for account-related help",
             action="Ask for their account ID to verify their identity",
@@ -599,38 +604,40 @@ example_6_expected = PreviouslyAppliedActionableCustomerDependentGuidelineMatche
     ]
 )
 
-_baseline_shots: Sequence[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot] = [
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+_baseline_shots: Sequence[
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot
+] = [
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
         expected_result=example_4_expected,
     ),
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_5_events,
         guidelines=example_5_guidelines,
         expected_result=example_5_expected,
     ),
-    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot(
         description="",
         interaction_events=example_6_events,
         guidelines=example_6_guidelines,
@@ -638,6 +645,6 @@ _baseline_shots: Sequence[PreviouslyAppliedActionableCustomerDependentGuidelineM
     ),
 ]
 
-shot_collection = ShotCollection[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot](
-    _baseline_shots
-)
+shot_collection = ShotCollection[
+    GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot
+](_baseline_shots)
