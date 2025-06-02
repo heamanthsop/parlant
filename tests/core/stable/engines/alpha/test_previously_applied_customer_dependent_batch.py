@@ -8,8 +8,8 @@ from parlant.core.common import generate_id
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch,
+    PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
+    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -47,7 +47,7 @@ class ContextOfTest:
     sync_await: SyncAwaiter
     guidelines: list[Guideline]
     schematic_generator: SchematicGenerator[
-        GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema
+        PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema
     ]
     logger: Logger
 
@@ -63,7 +63,7 @@ def context(
         guidelines=list(),
         logger=container[Logger],
         schematic_generator=container[
-            SchematicGenerator[GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema]
+            SchematicGenerator[PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema]
         ],
     )
 
@@ -143,7 +143,7 @@ def base_test_that_correct_guidelines_are_matched(
     )
 
     guideline_previously_applied_matcher = (
-        GenericPreviouslyAppliedCustomerDependentGuidelineMatchingBatch(
+        PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=context.container[Logger],
             schematic_generator=context.schematic_generator,
             guidelines=context.guidelines,

@@ -9,13 +9,13 @@ from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
-    GenericGuidelineMatchingPreparationBatch,
-    GenericGuidelineMatchingPreparationSchema,
+from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
+    ResponseAnalysisBatch,
+    ResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingPreparationContext,
+    ReportAnalysisContext,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -73,7 +73,7 @@ class ContextOfTest:
     sync_await: SyncAwaiter
     guidelines: list[Guideline]
     guidelines_to_tools: Mapping[Guideline, list[ToolId]]
-    schematic_generator: SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
+    schematic_generator: SchematicGenerator[ResponseAnalysisSchema]
     logger: Logger
 
 
@@ -87,9 +87,7 @@ def context(
         sync_await,
         guidelines=list(),
         guidelines_to_tools=dict(),
-        schematic_generator=container[
-            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
-        ],
+        schematic_generator=container[SchematicGenerator[ResponseAnalysisSchema]],
         logger=container[Logger],
     )
 
@@ -212,12 +210,10 @@ def base_test_that_correct_guidelines_are_detected_as_previously_applied(
         for guideline in context.guidelines
     ]
 
-    guideline_matching_preparation = GenericGuidelineMatchingPreparationBatch(
+    response_analysis = ResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[
-            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
-        ],
-        context=GuidelineMatchingPreparationContext(
+        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        context=ReportAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,
@@ -231,7 +227,7 @@ def base_test_that_correct_guidelines_are_detected_as_previously_applied(
 
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
 
-    result = context.sync_await(guideline_matching_preparation.process())
+    result = context.sync_await(response_analysis.process())
 
     assert set(
         [p.guideline for p in result.previously_applied_guidelines if p.is_previously_applied]

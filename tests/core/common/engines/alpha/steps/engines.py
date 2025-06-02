@@ -27,12 +27,12 @@ from parlant.core.context_variables import (
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
-    GenericGuidelineMatchingPreparationBatch,
-    GenericGuidelineMatchingPreparationSchema,
+from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
+    ResponseAnalysisBatch,
+    ResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingPreparationContext,
+    ReportAnalysisContext,
 )
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.utils import context_variables_to_json
@@ -229,12 +229,10 @@ def when_detection_and_processing_are_triggered(
         context.events[:-1] if context.events[-1].source == EventSource.CUSTOMER else context.events
     )
 
-    matching_preparation = GenericGuidelineMatchingPreparationBatch(
+    matching_preparation = ResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[
-            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
-        ],
-        context=GuidelineMatchingPreparationContext(
+        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        context=ReportAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,

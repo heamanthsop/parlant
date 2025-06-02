@@ -8,9 +8,9 @@ from parlant.core.common import generate_id
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
-    GenericNotPreviouslyAppliedGuidelineMatchesSchema,
-    GenericNotPreviouslyAppliedGuidelineMatchingBatch,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_actionable_batch import (
+    ActionableGuidelineMatchesSchema,
+    ActionableGuidelineMatchingBatch,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -70,7 +70,7 @@ class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
     guidelines: list[Guideline]
-    schematic_generator: SchematicGenerator[GenericNotPreviouslyAppliedGuidelineMatchesSchema]
+    schematic_generator: SchematicGenerator[ActionableGuidelineMatchesSchema]
     logger: Logger
 
 
@@ -84,9 +84,7 @@ def context(
         sync_await,
         guidelines=list(),
         logger=container[Logger],
-        schematic_generator=container[
-            SchematicGenerator[GenericNotPreviouslyAppliedGuidelineMatchesSchema]
-        ],
+        schematic_generator=container[SchematicGenerator[ActionableGuidelineMatchesSchema]],
     )
 
 
@@ -173,14 +171,14 @@ def base_test_that_correct_guidelines_are_matched(
         staged_events=staged_events,
     )
 
-    guideline_not_previously_applied_matcher = GenericNotPreviouslyAppliedGuidelineMatchingBatch(
+    guideline_actionable_matcher = ActionableGuidelineMatchingBatch(
         logger=context.container[Logger],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
         context=guideline_matching_context,
     )
 
-    result = context.sync_await(guideline_not_previously_applied_matcher.process())
+    result = context.sync_await(guideline_actionable_matcher.process())
 
     matched_guidelines = [p.guideline for p in result.matches]
 

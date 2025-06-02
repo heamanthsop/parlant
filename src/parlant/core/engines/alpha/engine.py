@@ -969,7 +969,7 @@ class AlphaEngine(Engine):
         session: Session,
         guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
-        matches_to_prepare = [
+        matches_to_analyze = [
             match
             for match in guideline_matches
             if match.guideline.id not in session.agent_state["applied_guideline_ids"]
@@ -977,7 +977,7 @@ class AlphaEngine(Engine):
             and match.guideline.content.action
         ]
 
-        preparation_result = await self._guideline_matcher.match_guideline_preparation(
+        analysis_result = await self._guideline_matcher.analyze_response(
             agent=context.agent,
             session=session,
             customer=context.customer,
@@ -985,12 +985,12 @@ class AlphaEngine(Engine):
             interaction_history=context.interaction.history,
             terms=list(context.state.glossary_terms),
             staged_events=context.state.tool_events,
-            guideline_matches=matches_to_prepare,
+            guideline_matches=matches_to_analyze,
         )
 
         applied_guideline_ids = [
             p.guideline.id
-            for p in preparation_result.previously_applied_guidelines
+            for p in analysis_result.previously_applied_guidelines
             if p.is_previously_applied
         ]
 

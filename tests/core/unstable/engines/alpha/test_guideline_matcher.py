@@ -30,13 +30,13 @@ from parlant.core.context_variables import (
 )
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
-    GenericGuidelineMatchingPreparationBatch,
-    GenericGuidelineMatchingPreparationSchema,
+from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
+    ResponseAnalysisBatch,
+    ResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
-    GuidelineMatchingPreparationContext,
+    ReportAnalysisContext,
 )
 from parlant.core.entity_cq import EntityCommands
 from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
@@ -409,7 +409,7 @@ def update_previously_applied_guidelines(
     )
 
 
-def match_preparation(
+def analyze_response(
     context: ContextOfTest,
     agent: Agent,
     session: Session,
@@ -420,7 +420,7 @@ def match_preparation(
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
-    matches_to_prepare = [
+    matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
             rationale="",
@@ -431,31 +431,29 @@ def match_preparation(
         and not g.metadata.get("continuous", False)
     ]
 
-    interaction_history_for_preparation = (
+    interaction_history_for_analysis = (
         interaction_history[:-1] if len(interaction_history) > 1 else interaction_history
     )  # assume the last message is customer's
 
-    generic_matching_preparation_batch = GenericGuidelineMatchingPreparationBatch(
+    generic_response_analysis_batch = ResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[
-            SchematicGenerator[GenericGuidelineMatchingPreparationSchema]
-        ],
-        context=GuidelineMatchingPreparationContext(
+        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        context=ReportAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,
-            interaction_history=interaction_history_for_preparation,
+            interaction_history=interaction_history_for_analysis,
             context_variables=context_variables,
             terms=terms,
             staged_events=staged_events,
         ),
-        guideline_matches=matches_to_prepare,
+        guideline_matches=matches_to_analyze,
     )
 
     applied_guideline_ids = [
         g.guideline.id
         for g in (
-            context.sync_await(generic_matching_preparation_batch.process())
+            context.sync_await(generic_response_analysis_batch.process())
         ).previously_applied_guidelines
         if g.is_previously_applied
     ]
@@ -517,7 +515,7 @@ def base_test_that_correct_guidelines_are_matched(
         applied_guideline_ids=previously_applied_guidelines,
     )
 
-    match_preparation(
+    analyze_response(
         context=context,
         agent=agent,
         session=session,

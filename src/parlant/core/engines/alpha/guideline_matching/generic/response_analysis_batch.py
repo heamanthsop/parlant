@@ -2,11 +2,12 @@ from dataclasses import dataclass
 import json
 from itertools import chain
 from typing import Optional, Sequence
+from typing_extensions import override
 from more_itertools import chunked
 
 from parlant.core import async_utils
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
+from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
     _make_event,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
@@ -14,9 +15,9 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelinePreviouslyApplied,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingPreparationBatch,
-    GuidelineMatchingPreparationBatchResult,
-    GuidelineMatchingPreparationContext,
+    ResponseAnalysisBatch,
+    ResponseAnalysisBatchResult,
+    ReportAnalysisContext,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -27,39 +28,39 @@ from parlant.core.sessions import Event, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
+class SegmentPreviouslyAppliedActionableRationale(DefaultBaseModel):
     action_segment: str
     action_applied_rationale: str
 
 
-class GuidelinePreviouslyAppliedDetectionSchema(DefaultBaseModel):
+class GuidelinePreviouslyAppliedActionableDetectionSchema(DefaultBaseModel):
     guideline_id: str
     condition: Optional[str] = None
     action: str
-    guideline_applied_rationale: Optional[list[SegmentPreviouslyAppliedRationale]] = None
+    guideline_applied_rationale: Optional[list[SegmentPreviouslyAppliedActionableRationale]] = None
     guideline_applied_degree: Optional[str] = None
     is_missing_part_functional_or_behavioral_rational: Optional[str] = None
     is_missing_part_functional_or_behavioral: Optional[str] = None
     guideline_applied: bool
 
 
-class GenericGuidelineMatchingPreparationSchema(DefaultBaseModel):
-    checks: Sequence[GuidelinePreviouslyAppliedDetectionSchema]
+class GenericResponseAnalysisSchema(DefaultBaseModel):
+    checks: Sequence[GuidelinePreviouslyAppliedActionableDetectionSchema]
 
 
 @dataclass
-class GenericGuidelineMatchingPreparationShot(Shot):
+class GenericResponseAnalysisShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: GenericGuidelineMatchingPreparationSchema
+    expected_result: GenericResponseAnalysisSchema
 
 
-class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch):
+class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GenericGuidelineMatchingPreparationSchema],
-        context: GuidelineMatchingPreparationContext,
+        schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
+        context: ReportAnalysisContext,
         guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
         self._logger = logger
@@ -69,15 +70,16 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
         self._context = context
         self._guideline_matches = guideline_matches
 
+    @override
     async def process(
         self,
-    ) -> GuidelineMatchingPreparationBatchResult:
+    ) -> ResponseAnalysisBatchResult:
         all_guidelines = [m.guideline for m in self._guideline_matches]
 
         guideline_batches = list(chunked(all_guidelines, self._batch_size))
 
         with self._logger.operation(
-            f"GenericGuidelineMatchingPreparationBatch: {len(all_guidelines)} guidelines "
+            f"ResponseAnalysisBatch: {len(all_guidelines)} guidelines "
             f"in {len(guideline_batches)} batches (batch size={self._batch_size})"
         ):
             batch_tasks = [
@@ -110,7 +112,7 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
                 )
             )
 
-            return GuidelineMatchingPreparationBatchResult(
+            return ResponseAnalysisBatchResult(
                 previously_applied_guidelines=all_applied_guidelines,
                 generation_info=generation_info,
             )
@@ -118,7 +120,7 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
     async def _process_batch(
         self,
         batch: Sequence[Guideline],
-    ) -> GuidelineMatchingPreparationBatchResult:
+    ) -> ResponseAnalysisBatchResult:
         batch_guideline_ids = {g.id for g in batch}
 
         batch_guidelines = [
@@ -158,20 +160,20 @@ class GenericGuidelineMatchingPreparationBatch(GuidelineMatchingPreparationBatch
                     )
                 )
 
-        return GuidelineMatchingPreparationBatchResult(
+        return ResponseAnalysisBatchResult(
             previously_applied_guidelines=previously_applied_guidelines,
             generation_info=inference.info,
         )
 
-    async def shots(self) -> Sequence[GenericGuidelineMatchingPreparationShot]:
+    async def shots(self) -> Sequence[GenericResponseAnalysisShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[GenericGuidelineMatchingPreparationShot]) -> str:
+    def _format_shots(self, shots: Sequence[GenericResponseAnalysisShot]) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GenericGuidelineMatchingPreparationShot) -> str:
+    def _format_shot(self, shot: GenericResponseAnalysisShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 EventSource.CUSTOMER: "user",
@@ -237,7 +239,7 @@ Guidelines:
 
     def _build_prompt(
         self,
-        shots: Sequence[GenericGuidelineMatchingPreparationShot],
+        shots: Sequence[GenericResponseAnalysisShot],
         guidelines: dict[GuidelineId, Guideline],
     ) -> PromptBuilder:
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
@@ -408,14 +410,14 @@ example_1_guidelines = [
 ]
 
 
-example_1_expected = GenericGuidelineMatchingPreparationSchema(
+example_1_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer initiates a purchase.",
             action="Open a new cart for the customer",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="OPEN a new cart for the customer",
                     action_applied_rationale="No cart was opened",
                 )
@@ -423,12 +425,12 @@ example_1_expected = GenericGuidelineMatchingPreparationSchema(
             guideline_applied_degree="no",
             guideline_applied=False,
         ),
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer asks about data security",
             action="Refer the customer to our privacy policy page",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="REFER the customer to our privacy policy page",
                     action_applied_rationale="The customer has been REFERRED to the privacy policy page.",
                 )
@@ -465,18 +467,18 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = GenericGuidelineMatchingPreparationSchema(
+example_2_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer indicates that they are looking for a job.",
             action="ask the customer for their location and what kind of role they are looking for",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="ASK the customer for their location",
                     action_applied_rationale="The agent ASKED for the customer's location earlier in the interaction.",
                 ),
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="ASK the customer what kind of role they are looking for",
                     action_applied_rationale="The agent ASKED what kind of role they customer is interested in.",
                 ),
@@ -484,16 +486,16 @@ example_2_expected = GenericGuidelineMatchingPreparationSchema(
             guideline_applied_degree="fully",
             guideline_applied=True,
         ),
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer asks about job openings.",
             action="emphasize that we have plenty of positions relevant to the customer, and over 10,000 openings overall",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="EMPHASIZE we have plenty of relevant positions",
                     action_applied_rationale="The agent already has EMPHASIZED (i.e. clearly stressed) that we have open positions",
                 ),
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="EMPHASIZE we have over 10,000 openings overall",
                     action_applied_rationale="The agent neglected to EMPHASIZE (i.e. clearly stressed) that we offer 10k openings overall.",
                 ),
@@ -523,18 +525,18 @@ example_3_guidelines = [
     ),
 ]
 
-example_3_expected = GenericGuidelineMatchingPreparationSchema(
+example_3_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer indicates that they are looking for a job.",
             action="ask the customer for their location and what kind of role they are looking for",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="ASK the customer for their location",
                     action_applied_rationale="The agent ASKED for the customer's location earlier in the interaction.",
                 ),
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="ASK the customer what kind of role they are looking for",
                     action_applied_rationale="The agent did not ASK what kind of role the customer is interested in.",
                 ),
@@ -564,14 +566,14 @@ example_4_guidelines = [
     ),
 ]
 
-example_4_expected = GenericGuidelineMatchingPreparationSchema(
+example_4_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="the customer says they forgot their password",
             action="Offer to reset the password.",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="OFFER to reset the password",
                     action_applied_rationale="The agent indeed OFFERED to reset the password.",
                 ),
@@ -603,18 +605,18 @@ example_5_guidelines = [
     ),
 ]
 
-example_5_expected = GenericGuidelineMatchingPreparationSchema(
+example_5_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="there is a problem with the order",
             action="Acknowledge the issue and thank the user for their patience.",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="ACKNOWLEDGE the issue",
                     action_applied_rationale="The agent ACKNOWLEDGED the issue by saying they are checking it",
                 ),
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="THANK the user for their patience.",
                     action_applied_rationale="The agent didn't thank the customer for their patient",
                 ),
@@ -649,14 +651,14 @@ example_6_guidelines = [
     ),
 ]
 
-example_6_expected = GenericGuidelineMatchingPreparationSchema(
+example_6_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="The customer reports that a product arrived damaged",
             action="Offer a $20 refund on the purchase.",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="OFFER a $20 refund on the purchase.",
                     action_applied_rationale="The agent OFFERED $20 refund for the delay, although not for damaged item.",
                 ),
@@ -687,18 +689,18 @@ example_7_guidelines = [
     ),
 ]
 
-example_7_expected = GenericGuidelineMatchingPreparationSchema(
+example_7_expected = GenericResponseAnalysisSchema(
     checks=[
-        GuidelinePreviouslyAppliedDetectionSchema(
+        GuidelinePreviouslyAppliedActionableDetectionSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             # condition="The customer said they don't need any other help",
             action="Wish the customer a great day at the end of the interaction.",
             guideline_applied_rationale=[
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="Wish the customer a great day",
                     action_applied_rationale="The agent didn't WISH a great day",
                 ),
-                SegmentPreviouslyAppliedRationale(
+                SegmentPreviouslyAppliedActionableRationale(
                     action_segment="END of the interaction.",
                     action_applied_rationale="The agent END the interaction by saying goodbye.",
                 ),
@@ -711,44 +713,44 @@ example_7_expected = GenericGuidelineMatchingPreparationSchema(
     ]
 )
 
-_baseline_shots: Sequence[GenericGuidelineMatchingPreparationShot] = [
-    GenericGuidelineMatchingPreparationShot(
+_baseline_shots: Sequence[GenericResponseAnalysisShot] = [
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_3_events,
         guidelines=example_3_guidelines,
         expected_result=example_3_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_4_events,
         guidelines=example_4_guidelines,
         expected_result=example_4_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_5_events,
         guidelines=example_5_guidelines,
         expected_result=example_5_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_6_events,
         guidelines=example_6_guidelines,
         expected_result=example_6_expected,
     ),
-    GenericGuidelineMatchingPreparationShot(
+    GenericResponseAnalysisShot(
         description="",
         interaction_events=example_7_events,
         guidelines=example_7_guidelines,
@@ -756,4 +758,4 @@ _baseline_shots: Sequence[GenericGuidelineMatchingPreparationShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[GenericGuidelineMatchingPreparationShot](_baseline_shots)
+shot_collection = ShotCollection[GenericResponseAnalysisShot](_baseline_shots)

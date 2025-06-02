@@ -3,9 +3,9 @@ __all__ = [
     "GuidelineMatchingBatch",
     "GuidelineMatchingBatchResult",
     "GuidelineMatchingContext",
-    "GuidelineMatchingPreparationBatch",
-    "GuidelineMatchingPreparationBatchResult",
-    "GuidelineMatchingPreparationContext",
+    "ResponseAnalysisBatch",
+    "ResponseAnalysisBatchResult",
+    "ReportAnalysisContext",
     "GuidelineMatchingStrategy",
     "GuidelineMatchingStrategyResolver",
 ]
@@ -38,7 +38,7 @@ from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.nlp.generation_info import GenerationInfo
 
-# Removed circular import of GuidelineMatchingPreparationBatch and GuidelineMatchingPreparationBatchResult
+
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     GuidelinePreviouslyApplied,
@@ -61,7 +61,7 @@ class GuidelineMatchingContext:
 
 
 @dataclass(frozen=True)
-class GuidelineMatchingPreparationContext:
+class ReportAnalysisContext:
     agent: Agent
     session: Session
     customer: Customer
@@ -84,7 +84,7 @@ class GuidelineMatchingResult:
 
 
 @dataclass(frozen=True)
-class GuidelineMatchingPreparationResult:
+class ResponseAnalysisResult:
     total_duration: float
     batch_count: int
     batch_generations: Sequence[GenerationInfo]
@@ -102,12 +102,9 @@ class GuidelineMatchingBatchResult:
 
 
 @dataclass(frozen=True)
-class GuidelineMatchingPreparationBatchResult:
+class ResponseAnalysisBatchResult:
     previously_applied_guidelines: Sequence[GuidelinePreviouslyApplied]
     generation_info: GenerationInfo
-
-
-# (Moved below GuidelineMatchingPreparationBatch definition)
 
 
 class GuidelineMatchingBatch(ABC):
@@ -115,9 +112,9 @@ class GuidelineMatchingBatch(ABC):
     async def process(self) -> GuidelineMatchingBatchResult: ...
 
 
-class GuidelineMatchingPreparationBatch(ABC):
+class ResponseAnalysisBatch(ABC):
     @abstractmethod
-    async def process(self) -> GuidelineMatchingPreparationBatchResult: ...
+    async def process(self) -> ResponseAnalysisBatchResult: ...
 
 
 class GuidelineMatchingStrategy(ABC):
@@ -129,11 +126,11 @@ class GuidelineMatchingStrategy(ABC):
     ) -> Sequence[GuidelineMatchingBatch]: ...
 
     @abstractmethod
-    async def create_matching_preparation_batches(
+    async def create_report_analysis_batches(
         self,
         guideline_matches: Sequence[GuidelineMatch],
-        context: GuidelineMatchingPreparationContext,
-    ) -> Sequence[GuidelineMatchingPreparationBatch]: ...
+        context: ReportAnalysisContext,
+    ) -> Sequence[ResponseAnalysisBatch]: ...
 
 
 class GuidelineMatchingStrategyResolver(ABC):
@@ -171,9 +168,9 @@ class GuidelineMatcher:
             )
         ]
     )
-    async def _process_preparation_batch_with_retry(
-        self, batch: GuidelineMatchingPreparationBatch
-    ) -> GuidelineMatchingPreparationBatchResult:
+    async def _process_report_analysis_batch_with_retry(
+        self, batch: ResponseAnalysisBatch
+    ) -> ResponseAnalysisBatchResult:
         return await batch.process()
 
     async def match_guidelines(
@@ -243,7 +240,7 @@ class GuidelineMatcher:
             batches=[result.matches for result in batch_results],
         )
 
-    async def match_guideline_preparation(
+    async def analyze_response(
         self,
         agent: Agent,
         session: Session,
@@ -253,9 +250,9 @@ class GuidelineMatcher:
         terms: Sequence[Term],
         staged_events: Sequence[EmittedEvent],
         guideline_matches: Sequence[GuidelineMatch],
-    ) -> GuidelineMatchingPreparationResult:
+    ) -> ResponseAnalysisResult:
         if not guideline_matches:
-            return GuidelineMatchingPreparationResult(
+            return ResponseAnalysisResult(
                 total_duration=0.0,
                 batch_count=0,
                 batch_generations=[],
@@ -264,8 +261,8 @@ class GuidelineMatcher:
 
         t_start = time.time()
 
-        with self._logger.scope("GuidelineMatcherPreparation"):
-            with self._logger.operation("Creating preparation batches"):
+        with self._logger.scope("ResponseAnalysis"):
+            with self._logger.operation("Creating report analysis batches"):
                 guideline_strategies: dict[
                     str, tuple[GuidelineMatchingStrategy, list[GuidelineMatch]]
                 ] = {}
@@ -278,9 +275,9 @@ class GuidelineMatcher:
 
                 batches = await async_utils.safe_gather(
                     *[
-                        strategy.create_matching_preparation_batches(
+                        strategy.create_report_analysis_batches(
                             guideline_matches,
-                            context=GuidelineMatchingPreparationContext(
+                            context=ReportAnalysisContext(
                                 agent,
                                 session,
                                 customer,
@@ -294,9 +291,9 @@ class GuidelineMatcher:
                     ]
                 )
 
-            with self._logger.operation("Processing preparation batches"):
+            with self._logger.operation("Analyze response batches"):
                 batch_tasks = [
-                    self._process_preparation_batch_with_retry(batch)
+                    self._process_report_analysis_batch_with_retry(batch)
                     for strategy_batches in batches
                     for batch in strategy_batches
                 ]
@@ -304,7 +301,7 @@ class GuidelineMatcher:
 
         t_end = time.time()
 
-        return GuidelineMatchingPreparationResult(
+        return ResponseAnalysisResult(
             total_duration=t_end - t_start,
             batch_count=len(batch_results),
             batch_generations=[result.generation_info for result in batch_results],

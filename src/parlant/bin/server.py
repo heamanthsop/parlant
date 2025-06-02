@@ -33,42 +33,40 @@ import uvicorn
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.core.engines.alpha import message_generator
-from parlant.core.engines.alpha.guideline_matching import (
-    generic_guideline_not_previously_applied_batch,
-    generic_guideline_previously_applied_batch,
-    generic_guideline_previously_applied_customer_dependent_batch,
+from parlant.core.engines.alpha.guideline_matching.generic import (
+    guideline_actionable_batch,
+    guideline_previously_applied_actionable_batch,
+    guideline_previously_applied_actionable_customer_dependent_batch,
+    response_analysis_batch,
 )
-from parlant.core.engines.alpha.guideline_matching import (
-    generic_guideline_matching_preparation_batch,
+from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
+    GenericGuidelineMatchingStrategyResolver,
 )
-from parlant.core.engines.alpha.guideline_matching.default_guideline_matching_strategy import (
-    DefaultGuidelineMatchingStrategyResolver,
+from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_batch import (
+    PreviouslyAppliedActionableGuidelineMatchesSchema,
+    PreviouslyAppliedActionableGuidelineMatching,
+    PreviouslyAppliedActionableGuidelineGuidelineMatchingShot,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_batch import (
-    GenericPreviouslyAppliedGuidelineMatchesSchema,
-    GenericPreviouslyAppliedGuidelineMatching,
-    GenericPreviouslyAppliedGuidelineGuidelineMatchingShot,
+from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
+    GenericResponseAnalysisSchema,
+    GenericResponseAnalysisBatch,
+    GenericResponseAnalysisShot,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_preparation_batch import (
-    GenericGuidelineMatchingPreparationSchema,
-    GenericGuidelineMatchingPreparationBatch,
-    GenericGuidelineMatchingPreparationShot,
+from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
+    ActionableGuidelineMatchesSchema,
+    ActionableGuidelineMatching,
+    ActionableGuidelineGuidelineMatchingShot,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_not_previously_applied_batch import (
-    GenericNotPreviouslyAppliedGuidelineMatchesSchema,
-    GenericNotPreviouslyAppliedGuidelineMatching,
-    GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot,
+from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_customer_dependent_batch import (
+    PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
+    PreviouslyAppliedActionableCustomerDependentGuidelineMatching,
+    PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_customer_dependent_batch import (
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatching,
-    GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot,
-)
-from parlant.core.engines.alpha.guideline_matching import generic_observational_batch
-from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
-    GenericObservationalGuidelineMatchesSchema,
-    GenericObservationalGuidelineMatching,
-    GenericObservationalGuidelineMatchingShot,
+from parlant.core.engines.alpha.guideline_matching.generic import observational_batch
+from parlant.core.engines.alpha.guideline_matching.generic.observational_batch import (
+    ObservationalGuidelineMatchesSchema,
+    ObservationalGuidelineMatching,
+    ObservationalGuidelineMatchingShot,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
@@ -375,21 +373,17 @@ async def setup_container() -> AsyncIterator[Container]:
     web_socket_logger = WebSocketLogger(CORRELATOR, LogLevel.INFO)
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
-    c[ShotCollection[GenericGuidelineMatchingPreparationShot]] = (
-        generic_guideline_matching_preparation_batch.shot_collection
+    c[ShotCollection[GenericResponseAnalysisShot]] = response_analysis_batch.shot_collection
+    c[ShotCollection[PreviouslyAppliedActionableGuidelineGuidelineMatchingShot]] = (
+        guideline_previously_applied_actionable_batch.shot_collection
     )
-    c[ShotCollection[GenericPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
-        generic_guideline_previously_applied_batch.shot_collection
+    c[ShotCollection[ActionableGuidelineGuidelineMatchingShot]] = (
+        guideline_actionable_batch.shot_collection
     )
-    c[ShotCollection[GenericNotPreviouslyAppliedGuidelineGuidelineMatchingShot]] = (
-        generic_guideline_not_previously_applied_batch.shot_collection
+    c[ShotCollection[PreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot]] = (
+        guideline_previously_applied_actionable_customer_dependent_batch.shot_collection
     )
-    c[ShotCollection[GenericPreviouslyAppliedCustomerDependentGuidelineMatchingShot]] = (
-        generic_guideline_previously_applied_customer_dependent_batch.shot_collection
-    )
-    c[ShotCollection[GenericObservationalGuidelineMatchingShot]] = (
-        generic_observational_batch.shot_collection
-    )
+    c[ShotCollection[ObservationalGuidelineMatchingShot]] = observational_batch.shot_collection
     c[ShotCollection[SingleToolBatchShot]] = single_tool_batch.shot_collection
     c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
 
@@ -588,11 +582,11 @@ async def initialize_container(
         )
 
     for schema in (
-        GenericGuidelineMatchingPreparationSchema,
-        GenericPreviouslyAppliedGuidelineMatchesSchema,
-        GenericNotPreviouslyAppliedGuidelineMatchesSchema,
-        GenericPreviouslyAppliedCustomerDependentGuidelineMatchesSchema,
-        GenericObservationalGuidelineMatchesSchema,
+        GenericResponseAnalysisSchema,
+        PreviouslyAppliedActionableGuidelineMatchesSchema,
+        ActionableGuidelineMatchesSchema,
+        PreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
+        ObservationalGuidelineMatchesSchema,
         MessageSchema,
         UtteranceDraftSchema,
         UtteranceSelectionSchema,
@@ -614,38 +608,38 @@ async def initialize_container(
         )
 
     try_define(
-        GenericGuidelineMatchingPreparationBatch,
-        Singleton(GenericGuidelineMatchingPreparationBatch),
+        GenericResponseAnalysisBatch,
+        Singleton(GenericResponseAnalysisBatch),
     )
 
     try_define(
-        GenericObservationalGuidelineMatching,
-        Singleton(GenericObservationalGuidelineMatching),
+        ObservationalGuidelineMatching,
+        Singleton(ObservationalGuidelineMatching),
     )
 
     try_define(
-        GenericPreviouslyAppliedGuidelineMatching,
-        Singleton(GenericPreviouslyAppliedGuidelineMatching),
+        PreviouslyAppliedActionableGuidelineMatching,
+        Singleton(PreviouslyAppliedActionableGuidelineMatching),
     )
 
     try_define(
-        GenericNotPreviouslyAppliedGuidelineMatching,
-        Singleton(GenericNotPreviouslyAppliedGuidelineMatching),
+        ActionableGuidelineMatching,
+        Singleton(ActionableGuidelineMatching),
     )
 
     try_define(
-        GenericPreviouslyAppliedCustomerDependentGuidelineMatching,
-        Singleton(GenericPreviouslyAppliedCustomerDependentGuidelineMatching),
+        PreviouslyAppliedActionableCustomerDependentGuidelineMatching,
+        Singleton(PreviouslyAppliedActionableCustomerDependentGuidelineMatching),
     )
 
     try_define(
-        DefaultGuidelineMatchingStrategyResolver,
-        Singleton(DefaultGuidelineMatchingStrategyResolver),
+        GenericGuidelineMatchingStrategyResolver,
+        Singleton(GenericGuidelineMatchingStrategyResolver),
     )
 
     try_define(
         GuidelineMatchingStrategyResolver,
-        lambda container: container[DefaultGuidelineMatchingStrategyResolver],
+        lambda container: container[GenericGuidelineMatchingStrategyResolver],
     )
 
     try_define(GuidelineMatcher, Singleton(GuidelineMatcher))
