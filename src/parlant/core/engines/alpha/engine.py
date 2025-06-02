@@ -51,6 +51,7 @@ from parlant.core.guidelines import Guideline, GuidelineId, GuidelineContent
 from parlant.core.glossary import Term
 from parlant.core.journeys import Journey
 from parlant.core.sessions import (
+    AgentState,
     ContextVariable as StoredContextVariable,
     EventKind,
     GuidelineMatch as StoredGuidelineMatch,
@@ -59,6 +60,7 @@ from parlant.core.sessions import (
     PreparationIteration,
     PreparationIterationGenerations,
     Session,
+    SessionUpdateParams,
     Term as StoredTerm,
     ToolEventData,
 )
@@ -286,6 +288,17 @@ class AlphaEngine(Engine):
                     correlation_id=self._correlator.correlation_id,
                     preparation_iterations=preparation_iteration_inspections,
                     message_generations=message_generation_inspections,
+                )
+
+                await self._add_agent_state(
+                    context=context,
+                    session=context.session,
+                    guideline_matches=list(
+                        chain(
+                            context.state.ordinary_guideline_matches,
+                            context.state.tool_enabled_guideline_matches,
+                        )
+                    ),
                 )
 
                 await self._hooks.call_on_generated_messages(context)
@@ -771,6 +784,7 @@ class AlphaEngine(Engine):
         # Step 3: Filter the best matches out of those.
         matching_result = await self._guideline_matcher.match_guidelines(
             agent=context.agent,
+            session=context.session,
             customer=context.customer,
             context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
@@ -948,6 +962,46 @@ class AlphaEngine(Engine):
             return problematic_parameters
 
         return [m for m in problematic_parameters if m.precedence == min(precedence_values)]
+
+    async def _add_agent_state(
+        self,
+        context: LoadedContext,
+        session: Session,
+        guideline_matches: Sequence[GuidelineMatch],
+    ) -> None:
+        matches_to_analyze = [
+            match
+            for match in guideline_matches
+            if match.guideline.id not in session.agent_state["applied_guideline_ids"]
+            and not match.guideline.metadata.get("continuous", False)
+            and match.guideline.content.action
+        ]
+
+        analysis_result = await self._guideline_matcher.analyze_response(
+            agent=context.agent,
+            session=session,
+            customer=context.customer,
+            context_variables=context.state.context_variables,
+            interaction_history=context.interaction.history,
+            terms=list(context.state.glossary_terms),
+            staged_events=context.state.tool_events,
+            guideline_matches=matches_to_analyze,
+        )
+
+        applied_guideline_ids = [
+            p.guideline.id
+            for p in analysis_result.previously_applied_guidelines
+            if p.is_previously_applied
+        ]
+
+        applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
+
+        await self._entity_commands.update_session(
+            session_id=session.id,
+            params=SessionUpdateParams(
+                agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+            ),
+        )
 
 
 # This is module-level and public for isolated testability purposes.

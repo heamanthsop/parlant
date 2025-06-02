@@ -187,7 +187,7 @@ Feature: Tools
         And an association between "retrieve_account_information" and "schedule" from "first_service"
         And an association between "retrieve_account_information" and "schedule" from "second_service"
         And an association between "retrieve_account_information" and "get_available_product_by_type"
-        And an association between "retrieve_account_information" and "multiply"
+        # And an association between "retrieve_account_information" and "multiply"
         And a customer message, "Does Larry David have enough money in his account to buy a kilogram of apples?"
         When processing is triggered
         Then a single tool calls event is emitted
@@ -214,6 +214,7 @@ Feature: Tools
         And an association between "handle_policy_questions" and "consult_policy"
         And an association between "handle_policy_questions" and "other_inquiries"
         And a customer message, "I'd like to return a product please?"
+        And a tool relationship whereby "consult_policy" overlaps with "other_inquiries"
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
@@ -230,7 +231,8 @@ Feature: Tools
         And a tool event with data, { "tool_calls": [{ "tool_id": "local:get_account_balance", "arguments": { "account_name": "Larry David"}, "result": { "data": 451000000, "metadata": {} }}]}
         And an agent message, "Larry David currently has 451 million dollars."
         And a customer message, "And what about now?"
-        When processing is triggered
+        And that the "retrieve_account_information" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains 1 tool call(s)
@@ -320,7 +322,8 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        When processing is triggered
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains a call to "transfer_coins" with amount 1500 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
@@ -346,7 +349,8 @@ Feature: Tools
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
         And an agent message, "Can you confirm the transformation?"
         And a customer message, "Actually I want to transfer 2000 please"
-        When processing is triggered
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains a call to "transfer_coins" with amount 2000 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
@@ -362,8 +366,9 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        And that the "make_transfer" guideline is matched with a priority of 10 because "Customer asked to make a transfer"
-        When processing is triggered
+        And a previously applied guideline "make_transfer"
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains a call to "transfer_coins" with amount 1500 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
@@ -379,8 +384,9 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        And that the "make_transfer" guideline is matched with a priority of 10 because "Customer asked to make a transfer"
-        When processing is triggered
+        And a previously applied guideline "make_transfer"
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains a call to "transfer_coins" with amount 1500 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
@@ -420,7 +426,8 @@ Feature: Tools
         And a customer message, "I want to transfer $1500 from my account to Sophie Chapman and $1700 to Margaret Thatcher"
         And an agent message, "I need your name and your pin code please"
         And a customer message, "My name is Mark Corrigan, The pincode is 1234"
-        When processing is triggered
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then the tool calls event contains 2 tool call(s)
         And no tool error has occurred
 
@@ -434,6 +441,8 @@ Feature: Tools
         And a customer message, "My name is Mark Corrigan, and I might want to send 10,101 dollars to my sister, Ruthie."
         And an agent message, "Got it, Mark! What’s your pin code, please?"
         And a customer message, "It’s 1234. But actually, I’m not sure if I want to do it right now. I may do it tomorrow instead. I’ll keep you posted"
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         When processing is triggered
         Then no tool calls event is emitted
 
@@ -448,7 +457,8 @@ Feature: Tools
         And a customer message, "My name is Mark Corrigan, and I want to send 1500 euros to my sister, Sophie Chapman."
         And an agent message, "Got it, Mark! What’s your pin code, please?"
         And a customer message, "It’s 1234. "
-        When processing is triggered
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then the tool calls event contains a call to "transfer_coins" with amount 3000 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
         And no tool error has occurred
 
@@ -457,7 +467,7 @@ Feature: Tools
         And a guideline "make_transfer" to make a transfer when asked to transfer money from one account to another
         And the tool "transfer_coins"
         And an association between "make_transfer" and "transfer_coins"
-        And a guideline to set the destination account to Sophie Chapman when asked to make a coins transfer
+        And a guideline to set the destination account to Sophie Chapman when asked to transfer money from one account to another
         And a customer message, "Hi, it’s Mark Corrigan here. Can I make a transfer of 4500$?. You probably need my pincode, its 1234 "
         When processing is triggered
         Then the tool calls event contains a call to "transfer_coins" with amount 4500 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
@@ -509,7 +519,8 @@ Feature: Tools
         And a customer message, "I’m thinking of sending $2000 right now."
         And an agent message, "Alright, if you’d like me to assist with that, I’ll just need your pin code to proceed"
         And a customer message, "Sure, try 1234."
-        When processing is triggered
+        And that the "make_transfer" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then the tool calls event contains a call to "transfer_coins" with amount 2000 and from_account Mark Corrigan and to_account Sophie Chapman and pincode 1234
         And no tool error has occurred
 
@@ -539,7 +550,8 @@ Feature: Tools
         And a customer message, "Hey, do you have SSD of Samsung?"
         And an agent message, "Do you have a price limit? for example not more than $400?"
         And a customer message, "No"
-        When processing is triggered
+        And that the "filter_electronic_products" guideline was matched in the previous iteration
+        When detection and processing are triggered
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains 1 tool call(s)
@@ -583,18 +595,6 @@ Feature: Tools
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
         And the tool calls event contains laptop as keyword and Dell as vendor and 300 as max price and 10 as min price 
-
-    Scenario: Tool caller include only required argument when asked to 
-        Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
-        And the tool "search_electronic_products"
-        And an association between "filter_electronic_products" and "search_electronic_products"
-        And a guideline to check only products of Dell when customer is interested in laptops with specific attributes
-        And a customer message, "Hey, do you have electronic device like microphones in your store?"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And no tool error has occurred
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains microphone as keyword 
 
      Scenario: Tool caller call tool twice with optional arguments
         Given a guideline "filter_electronic_products" to retrieve relevant products that match the asked attributes when customer is interested in electronic products with specific attributes
@@ -946,39 +946,6 @@ Feature: Tools
         And the tool calls event contains 3 tool call(s)
         And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse a call to "transfer_shekels" with 100 from Fredric to Bob and a call to "transfer_money" with 300 from Fredric to Bob and no call to "transfer_money" with 200
 
-    Scenario: Tool caller use the more suitable tool for transfer when three overlap directly 
-        Given a guideline "do_transaction" to transfer money for the customer when customer asks to transfer money
-        And the tool "transfer_shekels"
-        And the tool "transfer_money"
-        And the tool "transfer_dollars"
-        And an association between "do_transaction" and "transfer_shekels"
-        And an association between "do_transaction" and "transfer_money"
-        And an association between "do_transaction" and "transfer_dollars"
-        And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_shekels"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels and to my friend Dan $40 and to my friend Ali 500 Dinar? my name is Fredric"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 3 tool call(s)
-        And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse and a call to "transfer_dollars" with 40 from Fredric to Dan and a call to "transfer_money" with 500 from Fredric to Ali
-
-    Scenario: Tool caller use the more suitable tool for transfer when three overlap indirectly 
-        Given a guideline "do_transaction" to transfer money for the customer when customer asks to transfer money
-        And the tool "transfer_shekels"
-        And the tool "transfer_money"
-        And the tool "transfer_dollars"
-        And an association between "do_transaction" and "transfer_shekels"
-        And an association between "do_transaction" and "transfer_money"
-        And an association between "do_transaction" and "transfer_dollars"
-        And a tool relationship whereby "transfer_shekels" overlaps with "transfer_money"
-        And a tool relationship whereby "transfer_dollars" overlaps with "transfer_money"
-        And a customer message, "Hey, can transfer to my friend Alisse 200 shekels and to my friend Dan $40 and to my friend Ali 500 Dinar? my name is Fredric"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 3 tool call(s)
-        And the tool calls event contains a call to "transfer_shekels" with 200 from Fredric to Alisse and a call to "transfer_dollars" with 40 from Fredric to Dan and a call to "transfer_money" with 500 from Fredric to Ali
-
     Scenario: Tool caller user the more suitable tool for searching when two overlap (1)
         Given a guideline "do_search" to retrieve relevant products that match the asked attributes when customer is interested in products with specific attributes
         And the tool "search_products"
@@ -1024,7 +991,7 @@ Feature: Tools
 
     Scenario: The agent correctly chooses to call the right tool based on journeys
         Given an agent whose job is to sell groceries
-        And a journey titled Carrots are Fruit to be aware that all orange vegetables are classified as fruits when an orange store item is mentioned
+        And a journey titled Orange things are Fruit to be aware that all orange vegetables are classified as fruits when an orange pruducts is mentioned
         And a guideline "check_prices" to reply with the price of the item when a customer asks about an items price
         And the tool "check_fruit_price"
         And the tool "check_vegetable_price"

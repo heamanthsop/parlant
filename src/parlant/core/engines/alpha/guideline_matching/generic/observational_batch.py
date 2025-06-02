@@ -24,34 +24,34 @@ from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
 
 
-class SegmentPreviouslyAppliedRationale(DefaultBaseModel):
+class SegmentPreviouslyAppliedActionableRationale(DefaultBaseModel):
     action_segment: str
     rationale: str
 
 
-class GenericObservationalGuidelineMatchSchema(DefaultBaseModel):
+class ObservationalGuidelineMatchSchema(DefaultBaseModel):
     guideline_id: str
     condition: str
     rationale: str
     applies: bool
 
 
-class GenericObservationalGuidelineMatchesSchema(DefaultBaseModel):
-    checks: Sequence[GenericObservationalGuidelineMatchSchema]
+class ObservationalGuidelineMatchesSchema(DefaultBaseModel):
+    checks: Sequence[ObservationalGuidelineMatchSchema]
 
 
 @dataclass
-class GenericObservationalGuidelineMatchingShot(Shot):
+class ObservationalGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     guidelines: Sequence[GuidelineContent]
-    expected_result: GenericObservationalGuidelineMatchesSchema
+    expected_result: ObservationalGuidelineMatchesSchema
 
 
-class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
+class ObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GenericObservationalGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[ObservationalGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> None:
@@ -64,9 +64,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     async def process(self) -> GuidelineMatchingBatchResult:
         prompt = self._build_prompt(shots=await self.shots())
 
-        with self._logger.operation(
-            f"GenericGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
-        ):
+        with self._logger.operation(f"GuidelineMatchingBatch: {len(self._guidelines)} guidelines"):
             inference = await self._schematic_generator.generate(
                 prompt=prompt,
                 hints={"temperature": 0.15},
@@ -87,10 +85,8 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
                     GuidelineMatch(
                         guideline=self._guidelines[GuidelineId(match.guideline_id)],
                         score=10 if match.applies else 1,
-                        rationale=f'''Condition Application: "{match.rationale}"''',
-                        guideline_previously_applied=PreviouslyAppliedType("irrelevant"),
-                        guideline_is_continuous=True,
-                        should_reapply=True,
+                        rationale=f'''Condition Application Rationale: "{match.rationale}"''',
+                        guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
                     )
                 )
             else:
@@ -101,15 +97,15 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
             generation_info=inference.info,
         )
 
-    async def shots(self) -> Sequence[GenericObservationalGuidelineMatchingShot]:
+    async def shots(self) -> Sequence[ObservationalGuidelineMatchingShot]:
         return await shot_collection.list()
 
-    def _format_shots(self, shots: Sequence[GenericObservationalGuidelineMatchingShot]) -> str:
+    def _format_shots(self, shots: Sequence[ObservationalGuidelineMatchingShot]) -> str:
         return "\n".join(
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GenericObservationalGuidelineMatchingShot) -> str:
+    def _format_shot(self, shot: ObservationalGuidelineMatchingShot) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 EventSource.CUSTOMER: "user",
@@ -154,7 +150,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
 
     def _build_prompt(
         self,
-        shots: Sequence[GenericObservationalGuidelineMatchingShot],
+        shots: Sequence[ObservationalGuidelineMatchingShot],
     ) -> PromptBuilder:
         result_structure = [
             {
@@ -252,20 +248,21 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
+
         return builder
 
 
-class GenericObservationalGuidelineMatching(GuidelineMatchingStrategy):
+class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[GenericObservationalGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[ObservationalGuidelineMatchesSchema],
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
 
     @override
-    async def create_batches(
+    async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
@@ -306,8 +303,8 @@ class GenericObservationalGuidelineMatching(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
-    ) -> GenericObservationalGuidelineMatchingBatch:
-        return GenericObservationalGuidelineMatchingBatch(
+    ) -> ObservationalGuidelineMatchingBatch:
+        return ObservationalGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
@@ -371,21 +368,21 @@ example_1_guidelines = [
     ),
 ]
 
-example_1_expected = GenericObservationalGuidelineMatchesSchema(
+example_1_expected = ObservationalGuidelineMatchesSchema(
     checks=[
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer is a senior citizen",
             rationale="there is no indication regarding the customer's age.",
             applies=False,
         ),
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asks about data security",
             rationale="The customer specifically inquired about data security policies.",
             applies=True,
         ),
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="our pro plan was discussed or mentioned",
             rationale="The customer asked to subscribe to the pro plan",
@@ -453,21 +450,21 @@ example_2_guidelines = [
     ),
 ]
 
-example_2_expected = GenericObservationalGuidelineMatchesSchema(
+example_2_expected = ObservationalGuidelineMatchesSchema(
     checks=[
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="food allergies are discussed",
             rationale="nut allergies were discussed earlier in the interaction",
             applies=True,
         ),
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer is allergic to almonds",
             rationale="While the customer has some nut allergies, we do not know if they are for almonds specifically",
             applies=False,
         ),
-        GenericObservationalGuidelineMatchSchema(
+        ObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the conversation is currently about peanut allergies",
             rationale="peanut allergies were discussed, but the conversation has moved on from the subject",
@@ -477,14 +474,14 @@ example_2_expected = GenericObservationalGuidelineMatchesSchema(
 )
 
 
-_baseline_shots: Sequence[GenericObservationalGuidelineMatchingShot] = [
-    GenericObservationalGuidelineMatchingShot(
+_baseline_shots: Sequence[ObservationalGuidelineMatchingShot] = [
+    ObservationalGuidelineMatchingShot(
         description="",
         interaction_events=example_1_events,
         guidelines=example_1_guidelines,
         expected_result=example_1_expected,
     ),
-    GenericObservationalGuidelineMatchingShot(
+    ObservationalGuidelineMatchingShot(
         description="",
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
@@ -492,4 +489,4 @@ _baseline_shots: Sequence[GenericObservationalGuidelineMatchingShot] = [
     ),
 ]
 
-shot_collection = ShotCollection[GenericObservationalGuidelineMatchingShot](_baseline_shots)
+shot_collection = ShotCollection[ObservationalGuidelineMatchingShot](_baseline_shots)

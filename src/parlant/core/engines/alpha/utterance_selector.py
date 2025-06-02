@@ -1086,6 +1086,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 ],
             },
         )
+
         return builder
 
     def _get_draft_output_format(
@@ -1212,7 +1213,6 @@ Output a JSON object with three properties:
                 "composition_mode": context.agent.composition_mode,
             },
         )
-
         return builder
 
     async def _generate_utterance(
