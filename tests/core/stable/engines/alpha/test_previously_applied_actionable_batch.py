@@ -8,7 +8,7 @@ from parlant.core.common import generate_id
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
-from parlant.core.engines.alpha.guideline_matching.generic_guideline_previously_applied_batch import (
+from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_batch import (
     PreviouslyAppliedActionableGuidelineMatchesSchema,
     PreviouslyAppliedActionableGuidelineMatchingBatch,
 )

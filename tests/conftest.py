@@ -71,8 +71,8 @@ from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_
 )
 from parlant.core.engines.alpha.tool_calling import overlapping_tools_batch, single_tool_batch
 from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
+    GenericResponseAnalysisBatch,
     GenericResponseAnalysisSchema,
-    ResponseAnalysisBatch,
     GenericResponseAnalysisShot,
 )
 from parlant.core.engines.alpha import message_generator
@@ -133,9 +133,10 @@ from parlant.core.glossary import GlossaryStore, GlossaryVectorStore
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingStrategyResolver,
+    ResponseAnalysisBatch,
 )
 
-from parlant.core.engines.alpha.guideline_matching.generic_observational_batch import (
+from parlant.core.engines.alpha.guideline_matching.generic.observational_batch import (
     ObservationalGuidelineMatchesSchema,
     ObservationalGuidelineMatchingShot,
     ObservationalGuidelineMatching,
@@ -424,7 +425,7 @@ async def container(
         container[PreviouslyAppliedActionableCustomerDependentGuidelineMatching] = Singleton(
             PreviouslyAppliedActionableCustomerDependentGuidelineMatching
         )
-        container[ResponseAnalysisBatch] = Singleton(ResponseAnalysisBatch)
+        container[ResponseAnalysisBatch] = Singleton(GenericResponseAnalysisBatch)
         container[GuidelineMatcher] = Singleton(GuidelineMatcher)
         container[GuidelineEvaluator] = Singleton(GuidelineEvaluator)
 

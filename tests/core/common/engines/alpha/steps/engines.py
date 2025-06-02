@@ -27,9 +27,9 @@ from parlant.core.context_variables import (
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
-    ResponseAnalysisBatch,
-    ResponseAnalysisSchema,
+from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
+    GenericResponseAnalysisBatch,
+    GenericResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     ReportAnalysisContext,
@@ -229,9 +229,9 @@ def when_detection_and_processing_are_triggered(
         context.events[:-1] if context.events[-1].source == EventSource.CUSTOMER else context.events
     )
 
-    matching_preparation = ResponseAnalysisBatch(
+    response_analysis = GenericResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
         context=ReportAnalysisContext(
             agent=agent,
             session=session,
@@ -246,7 +246,7 @@ def when_detection_and_processing_are_triggered(
 
     applied_guideline_ids = [
         p.guideline.id
-        for p in (context.sync_await(matching_preparation.process())).previously_applied_guidelines
+        for p in (context.sync_await(response_analysis.process())).previously_applied_guidelines
     ]
 
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

@@ -30,9 +30,9 @@ from parlant.core.context_variables import (
 )
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
-    ResponseAnalysisBatch,
-    ResponseAnalysisSchema,
+from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
+    GenericResponseAnalysisBatch,
+    GenericResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
@@ -435,9 +435,9 @@ def analyze_response(
         interaction_history[:-1] if len(interaction_history) > 1 else interaction_history
     )  # assume the last message is customer's
 
-    generic_response_analysis_batch = ResponseAnalysisBatch(
+    generic_response_analysis_batch = GenericResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
         context=ReportAnalysisContext(
             agent=agent,
             session=session,

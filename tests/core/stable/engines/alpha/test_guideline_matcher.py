@@ -35,15 +35,16 @@ from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
 )
-from parlant.core.engines.alpha.guideline_matching.generic_response_analysis_batch import (
-    ResponseAnalysisBatch,
-    ResponseAnalysisSchema,
+from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
+    GenericResponseAnalysisBatch,
+    GenericResponseAnalysisSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
     GuidelineMatchingContext,
+    ResponseAnalysisBatch,
     ResponseAnalysisBatchResult,
     ReportAnalysisContext,
     GuidelineMatchingStrategy,
@@ -56,8 +57,8 @@ from parlant.core.nlp.generation import SchematicGenerator
 
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    GuidelinePreviouslyAppliedActionable,
-    PreviouslyAppliedActionableType,
+    GuidelinePreviouslyApplied,
+    PreviouslyAppliedType,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
@@ -407,7 +408,7 @@ def create_guideline_by_name(
     return guideline
 
 
-def update_previously_applied_actionable_guidelines(
+def update_previously_applied_guidelines(
     context: ContextOfTest,
     session: Session,
     applied_guideline_ids: list[GuidelineId],
@@ -451,9 +452,9 @@ def analyze_response_and_update_session(
         interaction_history[:-1] if len(interaction_history) > 1 else interaction_history
     )  # assume the last message is customer's
 
-    generic_response_analysis_batch = ResponseAnalysisBatch(
+    generic_response_analysis_batch = GenericResponseAnalysisBatch(
         logger=context.container[Logger],
-        schematic_generator=context.container[SchematicGenerator[ResponseAnalysisSchema]],
+        schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
         context=ReportAnalysisContext(
             agent=agent,
             session=session,
@@ -470,11 +471,11 @@ def analyze_response_and_update_session(
         g.guideline.id
         for g in (
             context.sync_await(generic_response_analysis_batch.process())
-        ).previously_applied_actionable_guidelines
-        if g.is_previously_applied_actionable
+        ).previously_applied_guidelines
+        if g.is_previously_applied
     ]
 
-    update_previously_applied_actionable_guidelines(context, session, applied_guideline_ids)
+    update_previously_applied_guidelines(context, session, applied_guideline_ids)
 
 
 def base_test_that_correct_guidelines_are_matched(
@@ -485,7 +486,7 @@ def base_test_that_correct_guidelines_are_matched(
     conversation_context: list[tuple[EventSource, str]],
     conversation_guideline_names: list[str],
     relevant_guideline_names: list[str],
-    previously_applied_actionable_guidelines_names: list[str] = [],
+    previously_applied_guidelines_names: list[str] = [],
     previously_matched_guidelines_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
@@ -511,26 +512,24 @@ def base_test_that_correct_guidelines_are_matched(
         for name in previously_matched_guidelines_names
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
-    previously_applied_actionable_guidelines = [
+    previously_applied_guidelines = [
         guideline.id
-        for name in previously_applied_actionable_guidelines_names
+        for name in previously_applied_guidelines_names
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_actionable_guidelines(
-        context, session, previously_applied_actionable_guidelines
-    )
+    update_previously_applied_guidelines(context, session, previously_applied_guidelines)
 
-    previously_applied_actionable_guidelines = [
+    previously_applied_guidelines = [
         guideline.id
-        for name in previously_applied_actionable_guidelines_names
+        for name in previously_applied_guidelines_names
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_actionable_guidelines(
+    update_previously_applied_guidelines(
         context=context,
         session=session,
-        applied_guideline_ids=previously_applied_actionable_guidelines,
+        applied_guideline_ids=previously_applied_guidelines,
     )
 
     analyze_response_and_update_session(
@@ -679,7 +678,7 @@ def test_that_irrelevant_guidelines_are_not_matched_parametrized_1(
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names=[],
-        previously_applied_actionable_guidelines_names=previously_applied_actionable_guidelines_names,
+        previously_applied_guidelines_names=previously_applied_actionable_guidelines_names,
     )
 
 
@@ -1118,7 +1117,7 @@ def test_that_already_addressed_guidelines_are_not_matched(
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names=[],
-        previously_applied_actionable_guidelines_names=previously_applied_actionable_guidelines_names,
+        previously_applied_guidelines_names=previously_applied_actionable_guidelines_names,
     )
 
 
@@ -1191,7 +1190,7 @@ def test_that_guideline_with_already_addressed_condition_but_unaddressed_action_
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
-        previously_applied_actionable_guidelines_names=previously_applied_actionable_guidelines_names,
+        previously_applied_guidelines_names=previously_applied_actionable_guidelines_names,
         previously_matched_guidelines_names=previously_matched_guidelines_names,
     )
 
@@ -1253,7 +1252,7 @@ def test_that_guideline_with_fulfilled_action_regardless_of_condition_can_be_rea
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
-        previously_applied_actionable_guidelines_names=previously_applied_actionable_guidelines_names,
+        previously_applied_guidelines_names=previously_applied_actionable_guidelines_names,
         previously_matched_guidelines_names=previously_matched_guidelines_names,
     )
 
@@ -1314,7 +1313,7 @@ def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_a_few_
         conversation_context,
         conversation_guideline_names,
         [],
-        previously_applied_actionable_guidelines_names=previously_applied_actionable_guidelines_names,
+        previously_applied_guidelines_names=previously_applied_actionable_guidelines_names,
         previously_matched_guidelines_names=previously_matched_guidelines_names,
     )
 
@@ -1331,7 +1330,7 @@ class ActivateEveryGuidelineBatch(GuidelineMatchingBatch):
                     guideline=g,
                     score=10,
                     rationale="",
-                    guideline_previously_applied_actionable=PreviouslyAppliedActionableType.NO,
+                    guideline_previously_applied=PreviouslyAppliedType.NO,
                 )
                 for g in self.guidelines
             ],
@@ -2150,7 +2149,7 @@ def analyze_response(
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
-) -> Sequence[GuidelinePreviouslyAppliedActionable]:
+) -> Sequence[GuidelinePreviouslyApplied]:
     matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
@@ -2175,7 +2174,7 @@ def analyze_response(
         )
     )
 
-    return list(response_analysis_result.previously_applied_actionable_guidelines)
+    return list(response_analysis_result.previously_applied_guidelines)
 
 
 def test_that_response_analysis_returns_empty_result_for_no_guidelines(
@@ -2209,7 +2208,7 @@ def test_that_response_analysis_returns_empty_result_for_no_guidelines(
     assert response_analysis_result.batch_count == 0
     assert len(response_analysis_result.batch_generations) == 0
     assert len(response_analysis_result.batches) == 0
-    assert len(response_analysis_result.previously_applied_actionable_guidelines) == 0
+    assert len(response_analysis_result.previously_applied_guidelines) == 0
 
 
 def test_that_response_analysis_processes_guideline(
@@ -2267,10 +2266,10 @@ def test_that_response_analysis_strategy_can_be_overridden(
         @override
         async def process(self) -> ResponseAnalysisBatchResult:
             return ResponseAnalysisBatchResult(
-                previously_applied_actionable_guidelines=[
-                    GuidelinePreviouslyAppliedActionable(
+                previously_applied_guidelines=[
+                    GuidelinePreviouslyApplied(
                         guideline=m.guideline,
-                        is_previously_applied_actionable=True,
+                        is_previously_applied=True,
                     )
                     for m in self.guideline_matches
                 ],
@@ -2336,7 +2335,7 @@ def test_that_response_analysis_strategy_can_be_overridden(
     )
 
     assert len(response_analysis_result) == 1
-    assert all(pa.is_previously_applied_actionable for pa in response_analysis_result)
+    assert all(pa.is_previously_applied for pa in response_analysis_result)
 
 
 def test_that_batch_processing_retries_on_key_error(
@@ -2363,7 +2362,7 @@ def test_that_batch_processing_retries_on_key_error(
                         guideline=g,
                         score=10,
                         rationale="Success after retry",
-                        guideline_previously_applied_actionable=PreviouslyAppliedActionableType.NO,
+                        guideline_previously_applied=PreviouslyAppliedType.NO,
                     )
                     for g in self.guidelines
                 ],
@@ -2392,10 +2391,10 @@ def test_that_batch_processing_retries_on_key_error(
                 raise KeyError(f"Simulated failure on attempt {self.attempt_count}")
 
             return ResponseAnalysisBatchResult(
-                previously_applied_actionable_guidelines=[
-                    GuidelinePreviouslyAppliedActionable(
+                previously_applied_guidelines=[
+                    GuidelinePreviouslyApplied(
                         guideline=m.guideline,
-                        is_previously_applied_actionable=True,
+                        is_previously_applied=True,
                     )
                     for m in self.guideline_matches
                 ],
