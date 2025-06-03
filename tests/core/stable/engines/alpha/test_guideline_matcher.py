@@ -2544,3 +2544,27 @@ def test_that_batch_processing_fails_after_max_retries(
             new_session.id,
             [],
         )
+
+def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (EventSource.CUSTOMER, "Could you add some pretzels to my order?"),
+        (EventSource.AI_AGENT, "Pretzels have been added to your order. Anything else?"),
+        (EventSource.CUSTOMER, "Do you have Coke? I'd like one, please."),
+        (EventSource.AI_AGENT, "Coke has been added to your order."),
+        (EventSource.CUSTOMER, "Great, where are you located at?"),
+    ]
+    conversation_guideline_names: list[str] = ["check_drinks_in_stock"]
+    base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        conversation_guideline_names,
+        [],
+    )

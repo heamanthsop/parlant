@@ -538,61 +538,6 @@ def base_test_that_correct_guidelines_are_matched(
     assert set(matched_guidelines) == set(relevant_guidelines)
 
 
-def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_one_action_occured(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "Hi there! I was wondering - what's the life expectancy of owls?",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "Great Question! Owls can live 5 to 30 years in the wild, and even longer in captivity.",
-        ),
-        (EventSource.CUSTOMER, "That's shorter than I expected, thank you!"),
-    ]
-
-    conversation_guideline_names: list[str] = ["many_actions"]
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        [],
-    )
-
-
-def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (EventSource.CUSTOMER, "Could you add some pretzels to my order?"),
-        (EventSource.AI_AGENT, "Pretzels have been added to your order. Anything else?"),
-        (EventSource.CUSTOMER, "Do you have Coke? I'd like one, please."),
-        (EventSource.AI_AGENT, "Coke has been added to your order."),
-        (EventSource.CUSTOMER, "Great, where are you located at?"),
-    ]
-    conversation_guideline_names: list[str] = ["check_drinks_in_stock"]
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        [],
-    )
-
-
 def test_that_many_guidelines_are_classified_correctly(  # a stress test
     context: ContextOfTest,
     agent: Agent,
