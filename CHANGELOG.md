@@ -9,6 +9,7 @@ All notable changes to Parlant will be documented here.
 - Add ability to update session mode directly from API
 - Add an improved support for tool parameter types: date, datetime, optional (bug fix) and lists of other allowed types
 - Add integration with MCP servers for tools (currently only tools, limited MCP types support)
+- Refactor UtteranceStore to be implemented as a VectorStore rather than a DocumentStore
 
 ## [2.2.0] - 2025-05-20
 
