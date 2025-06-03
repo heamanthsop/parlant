@@ -282,6 +282,9 @@ class AlphaEngine(Engine):
                 # all of the information we have prepared.
                 message_generation_inspections = await self._generate_messages(context, latch)
 
+                # Mark that the agent is ready to receive and respond to new events.
+                await self._emit_ready_event(context)
+
                 # Save results for later inspection.
                 await self._entity_commands.create_inspection(
                     session_id=context.session.id,
@@ -311,7 +314,7 @@ class AlphaEngine(Engine):
             self._logger.warning("Processing cancelled")
             await self._emit_cancellation_event(context)
             raise
-        finally:
+        except Exception:
             # Mark that the agent is ready to receive and respond to new events.
             await self._emit_ready_event(context)
 
