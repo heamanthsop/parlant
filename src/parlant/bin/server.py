@@ -457,13 +457,13 @@ async def initialize_container(
     async def try_define_vector_store(
         store_type: type,
         store_class: type,
-        vector_db: Callable[[], Awaitable[VectorDatabase]],
+        vector_db_factory: Callable[[], Awaitable[VectorDatabase]],
         document_db_filename: str,
         embedder_type_provider: Callable[[], Awaitable[type[Embedder]]],
         embedder_factory: EmbedderFactory,
     ) -> None:
         if store_type not in c.defined_types:
-            vector_db = await vector_db()
+            vector_db = await vector_db_factory()
             document_db = await EXIT_STACK.enter_async_context(
                 JSONFileDocumentDatabase(
                     c[Logger],
@@ -551,16 +551,21 @@ async def initialize_container(
 
         embedder_factory = EmbedderFactory(c)
 
-        async def get_shared_chroma_db() -> VectorDatabase:
-            from parlant.adapters.vector_db.chroma import ChromaDatabase
+        shared_chroma_db: VectorDatabase | None = None
 
-            return await EXIT_STACK.enter_async_context(
-                ChromaDatabase(
-                    c[Logger],
-                    PARLANT_HOME_DIR,
-                    embedder_factory,
-                ),
-            )
+        async def get_shared_chroma_db() -> VectorDatabase:
+            nonlocal shared_chroma_db
+            if shared_chroma_db is None:
+                from parlant.adapters.vector_db.chroma import ChromaDatabase
+
+                shared_chroma_db = await EXIT_STACK.enter_async_context(
+                    ChromaDatabase(
+                        c[Logger],
+                        PARLANT_HOME_DIR,
+                        embedder_factory,
+                    ),
+                )
+            return cast(VectorDatabase, shared_chroma_db)
 
         async def get_embedder_type() -> type[Embedder]:
             return type(await nlp_service_instance.get_embedder())
@@ -572,7 +577,7 @@ async def initialize_container(
             await try_define_vector_store(
                 store_type,
                 store_class,
-                get_shared_chroma_db,
+                lambda: get_shared_chroma_db(),
                 document_db_filename,
                 get_embedder_type,
                 embedder_factory,
