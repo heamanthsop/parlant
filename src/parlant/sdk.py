@@ -452,7 +452,6 @@ class Server:
                 (CustomerStore, CustomerDocumentStore),
                 (EvaluationStore, EvaluationDocumentStore),
                 (TagStore, TagDocumentStore),
-                (UtteranceStore, UtteranceVectorStore),
                 (GuidelineStore, GuidelineDocumentStore),
                 (GuidelineToolAssociationStore, GuidelineToolAssociationDocumentStore),
                 (JourneyStore, JourneyDocumentStore),
@@ -509,6 +508,15 @@ class Server:
 
             c[GlossaryStore] = await self._exit_stack.enter_async_context(
                 GlossaryVectorStore(
+                    vector_db=TransientVectorDatabase(c[Logger], embedder_factory),
+                    document_db=TransientDocumentDatabase(),
+                    embedder_factory=embedder_factory,
+                    embedder_type_provider=get_embedder_type,
+                )
+            )
+
+            c[UtteranceStore] = await self._exit_stack.enter_async_context(
+                UtteranceVectorStore(
                     vector_db=TransientVectorDatabase(c[Logger], embedder_factory),
                     document_db=TransientDocumentDatabase(),
                     embedder_factory=embedder_factory,
