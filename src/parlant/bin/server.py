@@ -454,6 +454,31 @@ async def initialize_container(
                 )
             )
 
+    async def try_define_vector_store(
+        store_type: type,
+        store_class: type,
+        vector_db_factory: Callable[[], Awaitable[VectorDatabase]],
+        document_db_filename: str,
+        embedder_type_provider: Callable[[], Awaitable[type[Embedder]]],
+        embedder_factory: EmbedderFactory,
+    ) -> None:
+        if store_type not in c.defined_types:
+            vector_db = await vector_db_factory()
+            document_db = await EXIT_STACK.enter_async_context(
+                JSONFileDocumentDatabase(
+                    c[Logger],
+                    PARLANT_HOME_DIR / document_db_filename,
+                )
+            )
+            c[store_type] = await EXIT_STACK.enter_async_context(
+                store_class(
+                    vector_db=vector_db,
+                    document_db=document_db,
+                    embedder_type_provider=embedder_type_provider,
+                    embedder_factory=embedder_factory,
+                )
+            )
+
     await EXIT_STACK.enter_async_context(c[BackgroundTaskService])
 
     c[Logger].set_level(
@@ -540,39 +565,18 @@ async def initialize_container(
         async def get_embedder_type() -> type[Embedder]:
             return type(await nlp_service_instance.get_embedder())
 
-        async def make_glossary_store() -> GlossaryStore:
-            return await EXIT_STACK.enter_async_context(
-                GlossaryVectorStore(
-                    vector_db=await get_shared_chroma_db(),
-                    document_db=await EXIT_STACK.enter_async_context(
-                        JSONFileDocumentDatabase(
-                            c[Logger],
-                            PARLANT_HOME_DIR / "glossary_tags.json",
-                        )
-                    ),
-                    embedder_type_provider=get_embedder_type,
-                    embedder_factory=embedder_factory,
-                )
+        for store_type, store_class, document_db_filename in [
+            (GlossaryStore, GlossaryVectorStore, "glossary_tags.json"),
+            (UtteranceStore, UtteranceVectorStore, "utterance_tags.json"),
+        ]:
+            await try_define_vector_store(
+                store_type,
+                store_class,
+                get_shared_chroma_db,
+                document_db_filename,
+                get_embedder_type,
+                embedder_factory,
             )
-
-        await try_define_func(GlossaryStore, make_glossary_store)
-
-        async def make_utterances_store() -> UtteranceStore:
-            return await EXIT_STACK.enter_async_context(
-                UtteranceVectorStore(
-                    vector_db=await get_shared_chroma_db(),
-                    document_db=await EXIT_STACK.enter_async_context(
-                        JSONFileDocumentDatabase(
-                            c[Logger],
-                            PARLANT_HOME_DIR / "utterance_tags.json",
-                        )
-                    ),
-                    embedder_type_provider=get_embedder_type,
-                    embedder_factory=embedder_factory,
-                )
-            )
-
-        await try_define_func(UtteranceStore, make_utterances_store)
 
     except MigrationRequired as e:
         c[Logger].critical(str(e))
