@@ -457,13 +457,13 @@ async def initialize_container(
     async def try_define_vector_store(
         store_type: type,
         store_class: type,
-        vector_db_factory: Callable[[], Awaitable[VectorDatabase]],
+        vector_db: Callable[[], Awaitable[VectorDatabase]],
         document_db_filename: str,
         embedder_type_provider: Callable[[], Awaitable[type[Embedder]]],
         embedder_factory: EmbedderFactory,
     ) -> None:
         if store_type not in c.defined_types:
-            vector_db = await vector_db_factory()
+            vector_db = await vector_db()
             document_db = await EXIT_STACK.enter_async_context(
                 JSONFileDocumentDatabase(
                     c[Logger],
