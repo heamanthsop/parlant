@@ -392,6 +392,9 @@ async def setup_container() -> AsyncIterator[Container]:
     c[EngineHooks] = EngineHooks()
     c[EventEmitterFactory] = Singleton(EventPublisherFactory)
 
+    c[EntityQueries] = Singleton(EntityQueries)
+    c[EntityCommands] = Singleton(EntityCommands)
+
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
     c[UtteranceSelector] = Singleton(UtteranceSelector)
@@ -407,9 +410,6 @@ async def setup_container() -> AsyncIterator[Container]:
     c[LegacyBehavioralChangeEvaluator] = Singleton(LegacyBehavioralChangeEvaluator)
     c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
     c[EvaluationListener] = Singleton(PollingEvaluationListener)
-
-    c[EntityQueries] = Singleton(EntityQueries)
-    c[EntityCommands] = Singleton(EntityCommands)
 
     c[Engine] = Singleton(AlphaEngine)
     c[Application] = lambda rc: Application(rc)

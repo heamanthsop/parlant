@@ -349,6 +349,7 @@ async def container(
 
         container[EntityQueries] = Singleton(EntityQueries)
         container[EntityCommands] = Singleton(EntityCommands)
+
         for generation_schema in (
             GenericObservationalGuidelineMatchesSchema,
             GenericActionableGuidelineMatchesSchema,

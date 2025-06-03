@@ -110,7 +110,8 @@ class GlossaryStore:
     async def find_relevant_terms(
         self,
         query: str,
-        tags: Optional[Sequence[TagId]] = None,
+        available_terms: Sequence[Term],
+        max_terms: int = 20,
     ) -> Sequence[Term]: ...
 
     @abstractmethod
@@ -451,17 +452,16 @@ class GlossaryVectorStore(GlossaryStore):
     async def find_relevant_terms(
         self,
         query: str,
-        tags: Optional[Sequence[TagId]] = None,
+        available_terms: Sequence[Term],
         max_terms: int = 20,
     ) -> Sequence[Term]:
+        if not available_terms:
+            return []
+
         async with self._lock.reader_lock:
             queries = await self._query_chunks(query)
 
-            filters: Where = {}
-
-            terms = await self.list_terms(tags=tags)
-            if terms:
-                filters = {"id": {"$in": [str(t.id) for t in terms]}}
+            filters: Where = {"id": {"$in": [str(t.id) for t in available_terms]}}
 
             tasks = [
                 self._collection.find_similar_documents(

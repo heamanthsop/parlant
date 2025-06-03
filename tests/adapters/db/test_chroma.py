@@ -388,29 +388,14 @@ async def test_that_glossary_chroma_store_correctly_finds_relevant_terms_from_la
                     description="a type of horse",
                 )
 
-                await glossary_chroma_store.upsert_tag(
-                    term_id=kazoo.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-
-                await glossary_chroma_store.upsert_tag(
-                    term_id=shazoo.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-
-                await glossary_chroma_store.upsert_tag(
-                    term_id=bazoo.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-
                 terms = await glossary_chroma_store.find_relevant_terms(
-                    ("walla " * 5000)
+                    query=("walla " * 5000)
                     + "Kazoo"
                     + ("balla " * 5000)
                     + "Shazoo"
                     + ("kalla " * 5000)
                     + "Bazoo",
-                    tags=[Tag.for_agent_id(agent_id)],
+                    available_terms=[bazoo, shazoo, kazoo],
                     max_terms=3,
                 )
 
@@ -876,22 +861,9 @@ async def test_that_utterance_chroma_store_correctly_finds_relevant_utterances_f
                     ],
                 )
 
-                await utterance_chroma_store.upsert_tag(
-                    utterance_id=foo.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-                await utterance_chroma_store.upsert_tag(
-                    utterance_id=bar.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-                await utterance_chroma_store.upsert_tag(
-                    utterance_id=baz.id,
-                    tag_id=Tag.for_agent_id(agent_id),
-                )
-
                 utterances = await utterance_chroma_store.find_relevant_utterances(
                     ("hello " * 5000) + "Baz" + ("bye " * 5000) + "Bar" + ("ask " * 5000) + "Foo",
-                    tags=[Tag.for_agent_id(agent_id)],
+                    available_utterances=[foo, bar, baz],
                     max_utterances=3,
                 )
 

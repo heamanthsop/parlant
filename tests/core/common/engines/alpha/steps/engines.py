@@ -55,7 +55,6 @@ from parlant.core.sessions import (
     SessionUpdateParams,
 )
 
-from parlant.core.tags import Tag
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
 
@@ -183,9 +182,9 @@ def _load_glossary_terms(
         )
     if query:
         return context.sync_await(
-            context.container[EntityQueries].find_relevant_glossary_terms(
+            context.container[EntityQueries].find_glossary_terms_for_agent(
+                agent_id=agent_id,
                 query=query,
-                tags=[Tag.for_agent_id(agent_id)],
             )
         )
 

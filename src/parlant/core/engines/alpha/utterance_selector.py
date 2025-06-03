@@ -41,8 +41,8 @@ from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPerformancePolicy
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.engines.alpha.utils import context_variables_to_json
+from parlant.core.entity_cq import EntityQueries
 from parlant.core.journeys import Journey
-from parlant.core.tags import Tag
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
@@ -405,6 +405,7 @@ class UtteranceSelector(MessageEventComposer):
         utterance_store: UtteranceStore,
         field_extractor: UtteranceFieldExtractor,
         message_generator: MessageGenerator,
+        entity_queries: EntityQueries,
     ) -> None:
         self._logger = logger
         self._correlator = correlator
@@ -417,6 +418,7 @@ class UtteranceSelector(MessageEventComposer):
         self._field_extractor = field_extractor
         self._message_generator = message_generator
         self._cached_utterance_fields: dict[UtteranceId, set[str]] = {}
+        self._entity_queries = entity_queries
 
     async def shots(
         self, composition_mode: CompositionMode
@@ -587,13 +589,8 @@ You will now be given the current state of the interaction to which you must gen
         if context.staged_events:
             query += str([e.data for e in context.staged_events])
 
-        tags = [Tag.for_agent_id(context.agent.id)]
-
-        stored_utterances = list(
-            await self._utterance_store.find_relevant_utterances(
-                query,
-                tags=tags,
-            )
+        stored_utterances = await self._entity_queries.find_utterances_for_agent(
+            agent_id=context.agent.id, query=query
         )
 
         # Add utterances from staged tool events (transient)

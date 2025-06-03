@@ -47,9 +47,9 @@ from parlant.core.sessions import (
     SessionUpdateParams,
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.tags import Tag, TagId
+from parlant.core.tags import Tag
 from parlant.core.tools import ToolService
-from parlant.core.utterances import UtteranceStore
+from parlant.core.utterances import Utterance, UtteranceStore
 
 
 class EntityQueries:
@@ -124,6 +124,7 @@ class EntityQueries:
                 guidelines_for_journeys,
             )
         )
+
         return list(all_guidelines)
 
     async def find_context_variables_for_agent(
@@ -164,12 +165,23 @@ class EntityQueries:
     ) -> Sequence[GuidelineToolAssociation]:
         return await self._guideline_tool_association_store.list_associations()
 
-    async def find_relevant_glossary_terms(
+    async def find_glossary_terms_for_agent(
         self,
+        agent_id: AgentId,
         query: str,
-        tags: Sequence[TagId],
     ) -> Sequence[Term]:
-        return await self._glossary_store.find_relevant_terms(query, tags)
+        agent_terms = await self._glossary_store.list_terms(
+            tags=[Tag.for_agent_id(agent_id)],
+        )
+        global_terms = await self._glossary_store.list_terms(tags=[])
+        agent = await self._agent_store.read_agent(agent_id)
+        glossary_for_agent_tags = await self._glossary_store.list_terms(
+            tags=[tag for tag in agent.tags]
+        )
+
+        all_terms = set(chain(agent_terms, global_terms, glossary_for_agent_tags))
+
+        return await self._glossary_store.find_relevant_terms(query, list(all_terms))
 
     async def read_tool_service(
         self,
@@ -194,6 +206,25 @@ class EntityQueries:
         )
 
         return list(set(chain(agent_journeys, global_journeys, journeys_for_agent_tags)))
+
+    async def find_utterances_for_agent(
+        self,
+        agent_id: AgentId,
+        query: str,
+    ) -> Sequence[Utterance]:
+        agent_utterances = await self._utterance_store.list_utterances(
+            tags=[Tag.for_agent_id(agent_id)],
+        )
+        global_utterances = await self._utterance_store.list_utterances(tags=[])
+
+        agent = await self._agent_store.read_agent(agent_id)
+        utterances_for_agent_tags = await self._utterance_store.list_utterances(
+            tags=[tag for tag in agent.tags]
+        )
+
+        all_utterances = set(chain(agent_utterances, global_utterances, utterances_for_agent_tags))
+
+        return await self._utterance_store.find_relevant_utterances(query, list(all_utterances))
 
 
 class EntityCommands:
