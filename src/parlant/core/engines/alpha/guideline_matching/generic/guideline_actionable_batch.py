@@ -65,8 +65,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
                 prompt=prompt,
                 hints={"temperature": 0.15},
             )
-        with open("output_not_prev_apply_matcher.txt", "a") as f:
-            f.write(inference.content.model_dump_json(indent=2))
+
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
