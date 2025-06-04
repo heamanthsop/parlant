@@ -589,8 +589,10 @@ You will now be given the current state of the interaction to which you must gen
         if context.staged_events:
             query += str([e.data for e in context.staged_events])
 
-        stored_utterances = await self._entity_queries.find_utterances_for_agent(
-            agent_id=context.agent.id, query=query
+        stored_utterances = await self._entity_queries.find_utterances_for_agent_and_journey(
+            agent_id=context.agent.id,
+            journeys=context.journeys,
+            query=query,
         )
 
         # Add utterances from staged tool events (transient)

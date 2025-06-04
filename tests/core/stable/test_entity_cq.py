@@ -206,7 +206,11 @@ async def test_that_find_utterances_for_agent_returns_global_utterances(
         fields=[],
     )
 
-    results = await entity_queries.find_utterances_for_agent(agent_id=agent.id, query="Hello")
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[],
+        query="Hello",
+    )
     assert len(results) == 1
     assert results[0].id == untagged_utterance.id
 
@@ -226,8 +230,41 @@ async def test_that_find_utterances_for_agent_returns_none_for_non_matching_tag(
 
     await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
 
-    results = await entity_queries.find_utterances_for_agent(agent_id=agent.id, query="Tagged")
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[],
+        query="Tagged",
+    )
     assert len(results) == 0
+
+
+async def test_that_find_utterances_for_agent_and_journey_returns_journey_utterances(
+    container: Container, agent: Agent
+) -> None:
+    utterance_store: UtteranceStore = container[UtteranceStore]
+    journey_store = container[JourneyStore]
+    entity_queries = container[EntityQueries]
+
+    journey = await journey_store.create_journey(
+        title="Test Journey",
+        description="A test journey",
+        conditions=[],
+    )
+
+    journey_tag = Tag.for_journey_id(journey.id)
+    journey_utterance = await utterance_store.create_utterance(
+        value="Journey utterance",
+        fields=[],
+        tags=[journey_tag],
+    )
+
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[journey],
+        query="Journey",
+    )
+    assert len(results) == 1
+    assert results[0].id == journey_utterance.id
 
 
 async def test_that_find_glossary_terms_for_agent_returns_all_when_no_tags(

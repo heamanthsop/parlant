@@ -207,9 +207,10 @@ class EntityQueries:
 
         return list(set(chain(agent_journeys, global_journeys, journeys_for_agent_tags)))
 
-    async def find_utterances_for_agent(
+    async def find_utterances_for_agent_and_journey(
         self,
         agent_id: AgentId,
+        journeys: Sequence[Journey],
         query: str,
     ) -> Sequence[Utterance]:
         agent_utterances = await self._utterance_store.list_utterances(
@@ -222,7 +223,18 @@ class EntityQueries:
             tags=[tag for tag in agent.tags]
         )
 
-        all_utterances = set(chain(agent_utterances, global_utterances, utterances_for_agent_tags))
+        journey_utterances = await self._utterance_store.list_utterances(
+            tags=[Tag.for_journey_id(journey.id) for journey in journeys]
+        )
+
+        all_utterances = set(
+            chain(
+                agent_utterances,
+                global_utterances,
+                utterances_for_agent_tags,
+                journey_utterances,
+            )
+        )
 
         return await self._utterance_store.find_relevant_utterances(query, list(all_utterances))
 
