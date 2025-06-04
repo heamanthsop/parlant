@@ -41,7 +41,7 @@ from parlant.core.nlp.generation_info import GenerationInfo
 
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    GuidelinePreviouslyApplied,
+    AnalyzedGuideline,
 )
 from parlant.core.glossary import Term
 from parlant.core.guidelines import Guideline
@@ -88,10 +88,10 @@ class ResponseAnalysisResult:
     total_duration: float
     batch_count: int
     batch_generations: Sequence[GenerationInfo]
-    batches: Sequence[Sequence[GuidelinePreviouslyApplied]]
+    batches: Sequence[Sequence[AnalyzedGuideline]]
 
     @cached_property
-    def previously_applied_guidelines(self) -> Sequence[GuidelinePreviouslyApplied]:
+    def analyzed_guidelines(self) -> Sequence[AnalyzedGuideline]:
         return list(chain.from_iterable(self.batches))
 
 
@@ -103,7 +103,7 @@ class GuidelineMatchingBatchResult:
 
 @dataclass(frozen=True)
 class ResponseAnalysisBatchResult:
-    previously_applied_guidelines: Sequence[GuidelinePreviouslyApplied]
+    analyzed_guidelines: Sequence[AnalyzedGuideline]
     generation_info: GenerationInfo
 
 
@@ -305,5 +305,5 @@ class GuidelineMatcher:
             total_duration=t_end - t_start,
             batch_count=len(batch_results),
             batch_generations=[result.generation_info for result in batch_results],
-            batches=[result.previously_applied_guidelines for result in batch_results],
+            batches=[result.analyzed_guidelines for result in batch_results],
         )

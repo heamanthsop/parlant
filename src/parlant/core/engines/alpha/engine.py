@@ -992,9 +992,7 @@ class AlphaEngine(Engine):
         )
 
         applied_guideline_ids = [
-            p.guideline.id
-            for p in analysis_result.previously_applied_guidelines
-            if p.is_previously_applied
+            p.guideline.id for p in analysis_result.analyzed_guidelines if p.is_previously_applied
         ]
 
         applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

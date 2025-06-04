@@ -57,7 +57,7 @@ from parlant.core.nlp.generation import SchematicGenerator
 
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    GuidelinePreviouslyApplied,
+    AnalyzedGuideline,
     PreviouslyAppliedType,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -469,9 +469,7 @@ def analyze_response_and_update_session(
 
     applied_guideline_ids = [
         g.guideline.id
-        for g in (
-            context.sync_await(generic_response_analysis_batch.process())
-        ).previously_applied_guidelines
+        for g in (context.sync_await(generic_response_analysis_batch.process())).analyzed_guidelines
         if g.is_previously_applied
     ]
 
@@ -2149,7 +2147,7 @@ def analyze_response(
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
-) -> Sequence[GuidelinePreviouslyApplied]:
+) -> Sequence[AnalyzedGuideline]:
     matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
@@ -2174,7 +2172,7 @@ def analyze_response(
         )
     )
 
-    return list(response_analysis_result.previously_applied_guidelines)
+    return list(response_analysis_result.analyzed_guidelines)
 
 
 def test_that_response_analysis_returns_empty_result_for_no_guidelines(
@@ -2208,7 +2206,7 @@ def test_that_response_analysis_returns_empty_result_for_no_guidelines(
     assert response_analysis_result.batch_count == 0
     assert len(response_analysis_result.batch_generations) == 0
     assert len(response_analysis_result.batches) == 0
-    assert len(response_analysis_result.previously_applied_guidelines) == 0
+    assert len(response_analysis_result.analyzed_guidelines) == 0
 
 
 def test_that_response_analysis_processes_guideline(
@@ -2266,8 +2264,8 @@ def test_that_response_analysis_strategy_can_be_overridden(
         @override
         async def process(self) -> ResponseAnalysisBatchResult:
             return ResponseAnalysisBatchResult(
-                previously_applied_guidelines=[
-                    GuidelinePreviouslyApplied(
+                analyzed_guidelines=[
+                    AnalyzedGuideline(
                         guideline=m.guideline,
                         is_previously_applied=True,
                     )
@@ -2391,8 +2389,8 @@ def test_that_batch_processing_retries_on_key_error(
                 raise KeyError(f"Simulated failure on attempt {self.attempt_count}")
 
             return ResponseAnalysisBatchResult(
-                previously_applied_guidelines=[
-                    GuidelinePreviouslyApplied(
+                analyzed_guidelines=[
+                    AnalyzedGuideline(
                         guideline=m.guideline,
                         is_previously_applied=True,
                     )

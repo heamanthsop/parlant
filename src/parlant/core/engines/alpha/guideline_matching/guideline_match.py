@@ -36,6 +36,6 @@ class GuidelineMatch:
 
 
 @dataclass(frozen=True)
-class GuidelinePreviouslyApplied:
+class AnalyzedGuideline:
     guideline: Guideline
     is_previously_applied: bool

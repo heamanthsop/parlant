@@ -452,9 +452,7 @@ def analyze_response(
 
     applied_guideline_ids = [
         g.guideline.id
-        for g in (
-            context.sync_await(generic_response_analysis_batch.process())
-        ).previously_applied_guidelines
+        for g in (context.sync_await(generic_response_analysis_batch.process())).analyzed_guidelines
         if g.is_previously_applied
     ]
 
