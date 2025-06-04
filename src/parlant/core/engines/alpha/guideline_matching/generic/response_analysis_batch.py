@@ -125,7 +125,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
             m.guideline for m in self._guideline_matches if m.guideline.id in batch_guideline_ids
         ]
 
-        guidelines = {g.id: g for g in batch_guidelines}
+        guidelines = {str(i): g for i, g in enumerate(batch_guidelines, start=1)}
 
         prompt = self._build_prompt(
             shots=await self.shots(),
@@ -145,7 +145,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
                 self._logger.debug(f"Completion::Activated:\n{check.model_dump_json(indent=2)}")
                 analyzed_guidelines.append(
                     AnalyzedGuideline(
-                        guideline=guidelines[GuidelineId(check.guideline_id)],
+                        guideline=guidelines[check.guideline_id],
                         is_previously_applied=True,
                     )
                 )
@@ -217,7 +217,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
     def _add_guideline_matches_section(
         self,
-        guidelines: dict[GuidelineId, Guideline],
+        guidelines: dict[str, Guideline],
     ) -> str:
         guidelines_text = "\n".join(
             f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
@@ -238,7 +238,7 @@ Guidelines:
     def _build_prompt(
         self,
         shots: Sequence[GenericResponseAnalysisShot],
-        guidelines: dict[GuidelineId, Guideline],
+        guidelines: dict[str, Guideline],
     ) -> PromptBuilder:
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
@@ -344,16 +344,17 @@ OUTPUT FORMAT
                 "guidelines_len": len(guidelines),
             },
         )
-
+        with open("response analysis batch prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(
         self,
-        guidelines: dict[GuidelineId, Guideline],
+        guidelines: dict[str, Guideline],
     ) -> str:
         result_structure = [
             {
-                "guideline_id": g.id,
+                "guideline_id": i,
                 # "condition": g.content.condition,
                 "action": g.content.action,
                 "guideline_applied_rationale": [
@@ -367,7 +368,7 @@ OUTPUT FORMAT
                 "is_missing_part_functional_or_behavioral": "<str: only included if guideline_applied is 'partially'.>",
                 "guideline_applied": "<bool>",
             }
-            for g in guidelines.values()
+            for i, g in guidelines.items()
         ]
         result = {"checks": result_structure}
         return json.dumps(result, indent=4)

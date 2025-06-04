@@ -56,7 +56,7 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {g.id: g for g in guidelines}
+        self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._context = context
 
     @override
@@ -84,7 +84,7 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
 
                 matches.append(
                     GuidelineMatch(
-                        guideline=self._guidelines[GuidelineId(match.guideline_id)],
+                        guideline=self._guidelines[match.guideline_id],
                         score=10 if match.should_reapply else 1,
                         rationale='''reapply rational: ""''',
                         guideline_previously_applied=PreviouslyAppliedType.FULLY,
@@ -260,21 +260,21 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
-
+        with open("previously applied prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
         result_structure = [
             {
-                "guideline_id": g.id,
+                "guideline_id": i,
                 "condition": g.content.condition,
                 "action": g.content.action,
                 "condition_met_again": "<BOOL. Whether the condition met again in a new or subtly different context or information>",
                 "action_wasnt_taken": "<BOOL. include only condition_met_again is True if The action wasn't already taken for this new reason>",
-                # "tldr": "<str, Explanation for why the guideline condition is met AGAIN and should reapply when focusing on the MOST RECENT interaction>",
                 "should_reapply": "<BOOL>",
             }
-            for g in self._guidelines.values()
+            for i, g in self._guidelines.items()
         ]
         result = {"checks": result_structure}
         return json.dumps(result, indent=4)

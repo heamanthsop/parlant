@@ -61,7 +61,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {g.id: g for g in guidelines}
+        self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._context = context
 
     @override
@@ -89,7 +89,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
 
                 matches.append(
                     GuidelineMatch(
-                        guideline=self._guidelines[GuidelineId(match.guideline_id)],
+                        guideline=self._guidelines[match.guideline_id],
                         score=10 if match.should_apply else 1,
                         rationale=f'''reapply rational: "{match.tldr}"''',
                         guideline_previously_applied=PreviouslyAppliedType.FULLY,
@@ -263,12 +263,14 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+        with open("customer dependent prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
         result_structure = [
             {
-                "guideline_id": g.id,
+                "guideline_id": i,
                 "condition": g.content.condition,
                 "action": g.content.action,
                 "condition_still_met": "<BOOL, whether the condition that raised the guideline still relevant in the most recent interaction and subject hasn't changed>",
@@ -279,7 +281,7 @@ OUTPUT FORMAT
                 "tldr": "<str, Explanation for why the guideline should apply in the most recent context>",
                 "should_apply": "<BOOL>",
             }
-            for g in self._guidelines.values()
+            for i, g in self._guidelines.items()
         ]
         result = {"checks": result_structure}
         return json.dumps(result, indent=4)

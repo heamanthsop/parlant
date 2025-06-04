@@ -51,7 +51,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {str(i): g for i, g in enumerate(guidelines)}
+        self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._context = context
 
     @override
@@ -243,6 +243,8 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+        with open("guideline actionable prompt.txt", "w") as f:
+            f.write(builder.build())
 
         return builder
 
