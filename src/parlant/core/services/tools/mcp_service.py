@@ -281,5 +281,9 @@ def parse_enum_def(def_: dict[str, Any]) -> ToolParameterDescriptor:
         raise FormatError("Only enum references are supported")
     if def_.get("type", None) != "string":
         raise FormatError("Only string enums are supported")
-    description = def_.get("description", None)
-    return ToolParameterDescriptor(type="string", description=description, enum=def_["enum"])
+    description = def_.get("description", "")
+    return ToolParameterDescriptor(
+        type="string",
+        description=description,
+        enum=def_["enum"],
+    )
