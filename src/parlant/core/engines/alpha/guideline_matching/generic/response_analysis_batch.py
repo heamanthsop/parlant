@@ -344,8 +344,6 @@ OUTPUT FORMAT
                 "guidelines_len": len(guidelines),
             },
         )
-        with open("response analysis batch prompt.txt", "w") as f:
-            f.write(builder.build())
         return builder
 
     def _format_of_guideline_check_json_description(

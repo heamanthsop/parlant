@@ -248,7 +248,7 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
-        with open("observational batch prompt.txt", "w") as f:
+        with open(f"observational batch prompt {datetime.now()}.txt", "w") as f:
             f.write(builder.build())
         return builder
 

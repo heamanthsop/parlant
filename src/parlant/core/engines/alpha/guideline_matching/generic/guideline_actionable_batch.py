@@ -243,8 +243,6 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
-        with open("guideline actionable prompt.txt", "w") as f:
-            f.write(builder.build())
 
         return builder
 
