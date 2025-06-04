@@ -51,7 +51,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {g.id: g for g in guidelines}
+        self._guidelines = {str(i): g for i, g in enumerate(guidelines)}
         self._context = context
 
     @override
@@ -79,7 +79,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
 
                 matches.append(
                     GuidelineMatch(
-                        guideline=self._guidelines[GuidelineId(match.guideline_id)],
+                        guideline=self._guidelines[match.guideline_id],
                         score=10 if match.applies else 1,
                         rationale=f'''Not previously applied matcher rationale: "{match.rationale}"''',
                         guideline_previously_applied=PreviouslyAppliedType.NO,
@@ -249,12 +249,12 @@ OUTPUT FORMAT
     def _format_of_guideline_check_json_description(self) -> str:
         result_structure = [
             {
-                "guideline_id": g.id,
+                "guideline_id": i,
                 "condition": g.content.condition,
                 "rationale": "<Explanation for why the condition is or isn't met when focusing on the most recent interaction>",
                 "applies": "<BOOL>",
             }
-            for g in self._guidelines.values()
+            for i, g in self._guidelines.items()
         ]
         result = {"checks": result_structure}
         return json.dumps(result, indent=4)
