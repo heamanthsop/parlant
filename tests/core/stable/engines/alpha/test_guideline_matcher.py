@@ -521,14 +521,6 @@ def base_test_that_correct_guidelines_are_matched(
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_guidelines(context, session, previously_applied_guidelines)
-
-    previously_applied_guidelines = [
-        guideline.id
-        for name in previously_applied_guidelines_names
-        if (guideline := conversation_guidelines.get(name)) is not None
-    ]
-
     update_previously_applied_guidelines(
         context=context,
         session=session,
