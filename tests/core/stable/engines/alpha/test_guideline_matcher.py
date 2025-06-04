@@ -2545,6 +2545,7 @@ def test_that_batch_processing_fails_after_max_retries(
             [],
         )
 
+
 def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
     context: ContextOfTest,
     agent: Agent,
@@ -2562,8 +2563,8 @@ def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         [],
