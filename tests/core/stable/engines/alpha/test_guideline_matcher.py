@@ -413,10 +413,10 @@ def create_guideline_by_name(
 
 def update_previously_applied_guidelines(
     context: ContextOfTest,
-    session: Session,
+    session_id: SessionId,
     applied_guideline_ids: list[GuidelineId],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session.id))
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
 
     context.sync_await(
@@ -432,14 +432,16 @@ def update_previously_applied_guidelines(
 def analyze_response_and_update_session(
     context: ContextOfTest,
     agent: Agent,
-    session: Session,
     customer: Customer,
+    session_id: SessionId,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
     staged_events: Sequence[EmittedEvent],
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+
     matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
@@ -476,7 +478,7 @@ def analyze_response_and_update_session(
         if g.is_previously_applied
     ]
 
-    update_previously_applied_guidelines(context, session, applied_guideline_ids)
+    update_previously_applied_guidelines(context, session_id, applied_guideline_ids)
 
 
 def base_test_that_correct_guidelines_are_matched(
@@ -493,8 +495,6 @@ def base_test_that_correct_guidelines_are_matched(
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
-
     interaction_history = [
         create_event_message(
             offset=i,
@@ -523,14 +523,14 @@ def base_test_that_correct_guidelines_are_matched(
 
     update_previously_applied_guidelines(
         context=context,
-        session=session,
+        session_id=session_id,
         applied_guideline_ids=previously_applied_guidelines,
     )
 
     analyze_response_and_update_session(
         context=context,
         agent=agent,
-        session=session,
+        session_id=session_id,
         customer=customer,
         context_variables=context_variables,
         terms=terms,
@@ -543,7 +543,7 @@ def base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         customer=customer,
-        session_id=session.id,
+        session_id=session_id,
         interaction_history=interaction_history,
         context_variables=context_variables,
         terms=terms,
@@ -2144,13 +2144,15 @@ def test_that_both_observational_and_actionable_guidelines_are_matched_together(
 def analyze_response(
     context: ContextOfTest,
     agent: Agent,
-    session: Session,
     customer: Customer,
+    session_id: SessionId,
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[AnalyzedGuideline]:
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+
     matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
@@ -2240,7 +2242,7 @@ def test_that_response_analysis_processes_guideline(
     response_analysis_result = analyze_response(
         context=context,
         agent=agent,
-        session=new_session,
+        session_id=new_session.id,
         customer=customer,
         interaction_history=interaction_history,
         context_variables=[],
@@ -2327,7 +2329,7 @@ def test_that_response_analysis_strategy_can_be_overridden(
     response_analysis_result = analyze_response(
         context=context,
         agent=agent,
-        session=new_session,
+        session_id=new_session.id,
         customer=customer,
         interaction_history=interaction_history,
         context_variables=[],
