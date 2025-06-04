@@ -229,9 +229,9 @@ def base_test_that_correct_guidelines_are_detected_as_previously_applied(
 
     result = context.sync_await(response_analysis.process())
 
-    assert set(
-        [p.guideline for p in result.previously_applied_guidelines if p.is_previously_applied]
-    ) == set(previously_applied_target_guidelines)
+    assert set([p.guideline for p in result.analyzed_guidelines if p.is_previously_applied]) == set(
+        previously_applied_target_guidelines
+    )
 
 
 def test_that_correct_guidelines_detect_as_previously_applied(

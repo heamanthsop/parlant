@@ -980,7 +980,7 @@ class AlphaEngine(Engine):
             and match.guideline.content.action
         ]
 
-        analysis_result = await self._guideline_matcher.analyze_response(
+        result = await self._guideline_matcher.analyze_response(
             agent=context.agent,
             session=session,
             customer=context.customer,
@@ -992,9 +992,7 @@ class AlphaEngine(Engine):
         )
 
         applied_guideline_ids = [
-            p.guideline.id
-            for p in analysis_result.previously_applied_guidelines
-            if p.is_previously_applied
+            a.guideline.id for a in result.analyzed_guidelines if a.is_previously_applied
         ]
 
         applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

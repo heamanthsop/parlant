@@ -245,8 +245,9 @@ def when_detection_and_processing_are_triggered(
     )
 
     applied_guideline_ids = [
-        p.guideline.id
-        for p in (context.sync_await(response_analysis.process())).previously_applied_guidelines
+        a.guideline.id
+        for a in (context.sync_await(response_analysis.process())).analyzed_guidelines
+        if a.is_previously_applied
     ]
 
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])

@@ -52,6 +52,7 @@ from parlant.core.sessions import (
     EventKind,
     EventSource,
     Session,
+    SessionId,
     SessionStore,
     SessionUpdateParams,
 )
@@ -271,13 +272,15 @@ def context(
 def match_guidelines(
     context: ContextOfTest,
     agent: Agent,
-    session: Session,
     customer: Customer,
+    session_id: SessionId,
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+
     guideline_matching_result = context.sync_await(
         context.container[GuidelineMatcher].match_guidelines(
             agent=agent,
@@ -393,10 +396,10 @@ def create_guideline_by_name(
 
 def update_previously_applied_guidelines(
     context: ContextOfTest,
-    session: Session,
+    session_id: SessionId,
     applied_guideline_ids: list[GuidelineId],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session.id))
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
 
     context.sync_await(
@@ -409,17 +412,19 @@ def update_previously_applied_guidelines(
     )
 
 
-def analyze_response(
+def analyze_response_and_update_session(
     context: ContextOfTest,
     agent: Agent,
-    session: Session,
     customer: Customer,
+    session_id: SessionId,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
     staged_events: Sequence[EmittedEvent],
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
+    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+
     matches_to_analyze = [
         GuidelineMatch(
             guideline=g,
@@ -452,20 +457,18 @@ def analyze_response(
 
     applied_guideline_ids = [
         g.guideline.id
-        for g in (
-            context.sync_await(generic_response_analysis_batch.process())
-        ).previously_applied_guidelines
+        for g in (context.sync_await(generic_response_analysis_batch.process())).analyzed_guidelines
         if g.is_previously_applied
     ]
 
-    update_previously_applied_guidelines(context, session, applied_guideline_ids)
+    update_previously_applied_guidelines(context, session_id, applied_guideline_ids)
 
 
 def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
-    session: Session,
     customer: Customer,
+    session_id: SessionId,
     conversation_context: list[tuple[EventSource, str]],
     conversation_guideline_names: list[str],
     relevant_guideline_names: list[str],
@@ -501,24 +504,16 @@ def base_test_that_correct_guidelines_are_matched(
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_guidelines(context, session, previously_applied_guidelines)
-
-    previously_applied_guidelines = [
-        guideline.id
-        for name in previously_applied_guidelines_names
-        if (guideline := conversation_guidelines.get(name)) is not None
-    ]
-
     update_previously_applied_guidelines(
         context=context,
-        session=session,
+        session_id=session_id,
         applied_guideline_ids=previously_applied_guidelines,
     )
 
-    analyze_response(
+    analyze_response_and_update_session(
         context=context,
         agent=agent,
-        session=session,
+        session_id=session_id,
         customer=customer,
         context_variables=context_variables,
         terms=terms,
@@ -530,8 +525,8 @@ def base_test_that_correct_guidelines_are_matched(
     guideline_matches = match_guidelines(
         context=context,
         agent=agent,
-        session=session,
         customer=customer,
+        session_id=session_id,
         interaction_history=interaction_history,
         context_variables=context_variables,
         terms=terms,
@@ -565,8 +560,8 @@ def test_that_guideline_with_multiple_actions_is_partially_fulfilled_when_one_ac
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         [],
@@ -590,8 +585,8 @@ def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         [],
@@ -668,8 +663,8 @@ def test_that_many_guidelines_are_classified_correctly(  # a stress test
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
@@ -714,8 +709,8 @@ def test_that_relevant_guidelines_are_matched_parametrized_1(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
@@ -775,8 +770,8 @@ def test_that_guideline_that_needs_to_be_reapplied_is_matched(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
@@ -843,8 +838,8 @@ def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         [],
@@ -873,8 +868,8 @@ def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         ["pay_cc_bill"],
@@ -933,8 +928,8 @@ def test_that_observational_guidelines_arent_wrongly_implied(
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
@@ -1050,8 +1045,8 @@ def test_that_observational_guidelines_are_detected_correctly_when_lots_of_data_
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
-        new_session,
         customer,
+        new_session.id,
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,

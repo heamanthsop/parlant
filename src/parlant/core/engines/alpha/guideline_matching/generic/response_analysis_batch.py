@@ -12,7 +12,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    GuidelinePreviouslyApplied,
+    AnalyzedGuideline,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     ResponseAnalysisBatch,
@@ -91,10 +91,8 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
             batch_results = await async_utils.safe_gather(*batch_tasks)
 
-            all_applied_guidelines = list(
-                chain.from_iterable(
-                    result.previously_applied_guidelines for result in batch_results
-                )
+            all_analyzed_guidelines = list(
+                chain.from_iterable(result.analyzed_guidelines for result in batch_results)
             )
 
             generation_info = (
@@ -113,7 +111,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
             )
 
             return ResponseAnalysisBatchResult(
-                previously_applied_guidelines=all_applied_guidelines,
+                analyzed_guidelines=all_analyzed_guidelines,
                 generation_info=generation_info,
             )
 
@@ -140,28 +138,28 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
                 hints={"temperature": 0.15},
             )
 
-        previously_applied_guidelines: list[GuidelinePreviouslyApplied] = []
+        analyzed_guidelines: list[AnalyzedGuideline] = []
 
         for check in inference.content.checks:
             if check.guideline_applied:
                 self._logger.debug(f"Completion::Activated:\n{check.model_dump_json(indent=2)}")
-                previously_applied_guidelines.append(
-                    GuidelinePreviouslyApplied(
+                analyzed_guidelines.append(
+                    AnalyzedGuideline(
                         guideline=guidelines[GuidelineId(check.guideline_id)],
                         is_previously_applied=True,
                     )
                 )
             else:
                 self._logger.debug(f"Completion::Skipped:\n{check.model_dump_json(indent=2)}")
-                previously_applied_guidelines.append(
-                    GuidelinePreviouslyApplied(
+                analyzed_guidelines.append(
+                    AnalyzedGuideline(
                         guideline=guidelines[GuidelineId(check.guideline_id)],
                         is_previously_applied=False,
                     )
                 )
 
         return ResponseAnalysisBatchResult(
-            previously_applied_guidelines=previously_applied_guidelines,
+            analyzed_guidelines=analyzed_guidelines,
             generation_info=inference.info,
         )
 
