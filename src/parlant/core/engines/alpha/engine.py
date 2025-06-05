@@ -313,10 +313,12 @@ class AlphaEngine(Engine):
             #      processing context is likely to be obsolete
             self._logger.warning("Processing cancelled")
             await self._emit_cancellation_event(context)
+            await self._emit_ready_event(context)
             raise
         except Exception:
             # Mark that the agent is ready to receive and respond to new events.
             await self._emit_ready_event(context)
+            raise
 
     async def _do_utter(
         self,
