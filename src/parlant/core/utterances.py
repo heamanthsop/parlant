@@ -57,6 +57,9 @@ class Utterance:
     fields: Sequence[UtteranceField]
     tags: Sequence[TagId]
 
+    def __hash__(self) -> int:
+        return hash(self.id)
+
 
 class UtteranceUpdateParams(TypedDict, total=True):
     value: str
@@ -102,7 +105,7 @@ class UtteranceStore(ABC):
     async def find_relevant_utterances(
         self,
         query: str,
-        tags: Optional[Sequence[TagId]] = None,
+        available_utterances: Sequence[Utterance],
         max_utterances: int = 5,
     ) -> Sequence[Utterance]: ...
 
@@ -517,17 +520,16 @@ class UtteranceVectorStore(UtteranceStore):
     async def find_relevant_utterances(
         self,
         query: str,
-        tags: Optional[Sequence[TagId]] = None,
+        available_utterances: Sequence[Utterance],
         max_utterances: int = 5,
     ) -> Sequence[Utterance]:
+        if not available_utterances:
+            return []
+
         async with self._lock.reader_lock:
             queries = await self._query_chunks(query)
 
-            filters: Where = {}
-
-            utterances = await self.list_utterances(tags=tags)
-            if utterances:
-                filters = {"id": {"$in": [str(t.id) for t in utterances]}}
+            filters: Where = {"id": {"$in": [str(t.id) for t in available_utterances]}}
 
             tasks = [
                 self._utterances_collection.find_similar_documents(

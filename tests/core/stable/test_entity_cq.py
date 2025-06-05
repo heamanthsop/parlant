@@ -16,6 +16,8 @@ from lagom import Container
 
 from parlant.core.agents import Agent, AgentStore
 from parlant.core.entity_cq import EntityQueries
+from parlant.core.glossary import GlossaryStore
+from parlant.core.utterances import UtteranceStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
 from parlant.core.tags import Tag, TagId
@@ -191,3 +193,120 @@ async def test_that_guideline_tagged_with_disabled_journey_is_filtered_out_when_
     )
 
     assert len(result) == 0
+
+
+async def test_that_find_utterances_for_agent_returns_global_utterances(
+    container: Container, agent: Agent
+) -> None:
+    utterance_store: UtteranceStore = container[UtteranceStore]
+    entity_queries = container[EntityQueries]
+
+    untagged_utterance = await utterance_store.create_utterance(
+        value="Hello world",
+        fields=[],
+    )
+
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[],
+        query="Hello",
+    )
+    assert len(results) == 1
+    assert results[0].id == untagged_utterance.id
+
+
+async def test_that_find_utterances_for_agent_returns_none_for_non_matching_tag(
+    container: Container, agent: Agent
+) -> None:
+    utterance_store: UtteranceStore = container[UtteranceStore]
+    entity_queries = container[EntityQueries]
+
+    tag1 = TagId("tag1")
+    await utterance_store.create_utterance(
+        value="Tagged utterance",
+        fields=[],
+        tags=[tag1],
+    )
+
+    await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
+
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[],
+        query="Tagged",
+    )
+    assert len(results) == 0
+
+
+async def test_that_find_utterances_for_agent_and_journey_returns_journey_utterances(
+    container: Container, agent: Agent
+) -> None:
+    utterance_store: UtteranceStore = container[UtteranceStore]
+    journey_store = container[JourneyStore]
+    entity_queries = container[EntityQueries]
+
+    journey = await journey_store.create_journey(
+        title="Test Journey",
+        description="A test journey",
+        conditions=[],
+    )
+
+    journey_tag = Tag.for_journey_id(journey.id)
+    journey_utterance = await utterance_store.create_utterance(
+        value="Journey utterance",
+        fields=[],
+        tags=[journey_tag],
+    )
+
+    results = await entity_queries.find_utterances_for_agent_and_journey(
+        agent_id=agent.id,
+        journeys=[journey],
+        query="Journey",
+    )
+    assert len(results) == 1
+    assert results[0].id == journey_utterance.id
+
+
+async def test_that_find_glossary_terms_for_agent_returns_all_when_no_tags(
+    container: Container,
+    agent: Agent,
+) -> None:
+    glossary_store = container[GlossaryStore]
+    entity_queries = container[EntityQueries]
+
+    untagged_term = await glossary_store.create_term(
+        name="Hello world",
+        description="A greeting",
+        tags=[],
+    )
+
+    tag = TagId("tag1")
+    await glossary_store.create_term(
+        name="Tagged term",
+        description="A tagged glossary entry",
+        tags=[tag],
+    )
+
+    results = await entity_queries.find_glossary_terms_for_agent(agent_id=agent.id, query="Hello")
+    assert len(results) == 1
+    assert results[0].id == untagged_term.id
+
+
+async def test_that_find_glossary_terms_for_agent_returns_none_for_non_matching_tag(
+    container: Container,
+    agent: Agent,
+) -> None:
+    glossary_store = container[GlossaryStore]
+    entity_queries = container[EntityQueries]
+
+    tag1 = TagId("tag1")
+    await glossary_store.create_term(
+        name="Tagged term",
+        description="A tagged glossary entry",
+        tags=[tag1],
+    )
+
+    await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
+
+    results = await entity_queries.find_glossary_terms_for_agent(agent_id=agent.id, query="Tagged")
+    assert len(results) == 0
