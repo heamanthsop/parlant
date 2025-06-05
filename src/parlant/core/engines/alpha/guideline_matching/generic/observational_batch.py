@@ -57,7 +57,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {g.id: g for g in guidelines}
+        self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._context = context
 
     @override
@@ -83,7 +83,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
 
                 matches.append(
                     GuidelineMatch(
-                        guideline=self._guidelines[GuidelineId(match.guideline_id)],
+                        guideline=self._guidelines[match.guideline_id],
                         score=10 if match.applies else 1,
                         rationale=f'''Condition Application Rationale: "{match.rationale}"''',
                         guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
@@ -154,12 +154,12 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     ) -> PromptBuilder:
         result_structure = [
             {
-                "guideline_id": g.id,
+                "guideline_id": i,
                 "condition": g.content.condition,
                 "rationale": "<Explanation for why the condition is or isn't met>",
                 "applies": "<BOOL>",
             }
-            for g in self._guidelines.values()
+            for i, g in self._guidelines.items()
         ]
         conditions_text = "\n".join(
             f"{i}) {g.content.condition}." for i, g in self._guidelines.items()
@@ -248,7 +248,6 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
-
         return builder
 
 

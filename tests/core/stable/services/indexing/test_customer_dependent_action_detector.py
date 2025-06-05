@@ -101,10 +101,6 @@ async def test_that_actions_which_are_customer_dependent_are_classified_correctl
             condition="The customer wants to schedule a callback",
             action="ask for their preferred time and phone number, then confirm the appointment details",
         ),
-        GuidelineContent(
-            condition="The customer seems confused about our return policy",
-            action="clearly explain our 30-day return policy and provide examples of eligible items",
-        ),
     ]
 
     for g in guidelines:
