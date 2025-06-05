@@ -99,8 +99,8 @@ Feature: Conversation
         Then a single message event is emitted
         And the message contains a recommendation of a Pepsi
 
-    Scenario: The agent doesnt hallucinate services that it cannot offer 1
-        Given an agent whose job is to assist customers in transfering money and stocks between accounts for HSBC UK
+    Scenario: The agent does not hallucinate services that it cannot offer 1
+        Given an agent whose job is to assist customers in transferring money and stocks between accounts for HSBC UK
         And an empty session
         And a guideline to ask for the recipients account number and amount to transfer if it wasnt provided already when the customer asks you to make a transfer
         And a customer message, "How can I reach out to one of your representatives?"
