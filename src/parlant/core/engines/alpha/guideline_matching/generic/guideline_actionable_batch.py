@@ -26,7 +26,6 @@ from parlant.core.shots import Shot, ShotCollection
 class GenericActionableBatch(DefaultBaseModel):
     guideline_id: str
     condition: str
-    action: str
     rationale: str
     applies: bool
 
@@ -252,7 +251,6 @@ OUTPUT FORMAT
             {
                 "guideline_id": g.id,
                 "condition": g.content.condition,
-                "action": g.content.action,
                 "rationale": "<Explanation for why the condition is or isn't met when focusing on the most recent interaction>",
                 "applies": "<BOOL>",
             }
@@ -378,21 +376,18 @@ example_1_expected = GenericActionableGuidelineMatchesSchema(
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer is looking for flight or accommodation booking assistance",
-            action="Provide links or suggestions for flight aggregators and hotel booking platforms.",
             rationale="There’s no mention of booking logistics like flights or hotels",
             applies=False,
         ),
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer ask for activities recommendations",
-            action="Guide them in refining their preferences and suggest options that match what they're looking for",
             rationale="The customer has moved from seeking activity recommendations to asking about legal requirements. Since they are no longer pursuing their original inquiry about activities, this represents a new topic rather than a sub-issue",
             applies=False,
         ),
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer asks for logistical or legal requirements.",
-            action="Provide a clear answer or direct them to a trusted official source if uncertain.",
             rationale="The customer now asked about visas and documents which are legal requirements",
             applies=True,
         ),
@@ -448,21 +443,18 @@ example_2_expected = GenericActionableGuidelineMatchesSchema(
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The customer mentions a constraint that related to commitment to the course",
-            action="Emphasize flexible learning options",
-            rationale="The customer mentions that they work full time which is a constraint",
+            rationale="In the most recent message the customer mentions that they work full time which is a constraint",
             applies=True,
         ),
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The user expresses hesitation or self-doubt.",
-            action="Affirm that it’s okay to be uncertain and provide confidence-building context",
-            rationale="The user still sounds hesitating about their fit to the course",
+            rationale="In the most recent message the user still sounds hesitating about their fit to the course",
             applies=True,
         ),
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="The user asks about certification or course completion benefits.",
-            action="Clearly explain what the user receives",
             rationale="The user didn't ask about certification or course completion benefits",
             applies=False,
         ),
@@ -510,8 +502,7 @@ example_3_expected = GenericActionableGuidelineMatchesSchema(
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the user is having a problem with login.",
-            action="Help then identify the problem and solve it",
-            rationale="The customer is still pursuing their login problem, making the mail access problem a sub-issue rather than a new topic",
+            rationale="In the most recent message the customer is still pursuing their login problem, making the mail access problem a sub-issue rather than a new topic",
             applies=True,
         ),
     ]
@@ -548,8 +539,7 @@ example_4_expected = GenericActionableGuidelineMatchesSchema(
         GenericActionableBatch(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="When the customer asks about how to return an item.",
-            action="Mention both in-store and delivery service return options.",
-            rationale="In the most recent message the customer about what happens when they wore the item, which an inquiry regarding returning an item",
+            rationale="In the most recent message the customer asks about what happens when they wore the item, which an inquiry regarding returning an item",
             applies=True,
         ),
     ]
