@@ -58,7 +58,7 @@ async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.find_guidelines_for_agent(agent.id, [])
+    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id
@@ -76,7 +76,7 @@ async def test_that_list_guidelines_global_guideline_is_returned(
         action="action 1",
     )
 
-    result = await entity_queries.find_guidelines_for_agent(agent.id, [])
+    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == global_guideline.id
@@ -109,7 +109,7 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.find_guidelines_for_agent(agent.id, [])
+    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id
@@ -147,7 +147,7 @@ async def test_that_guideline_matches_are_not_filtered_by_enabled_journeys(
         tag_id=Tag.for_journey_id(journey.id),
     )
 
-    result = await entity_queries.find_guidelines_for_agent(
+    result = await entity_queries.find_guidelines_for_agent_and_journeys(
         agent.id,
         [journey],
     )
@@ -189,7 +189,7 @@ async def test_that_guideline_tagged_with_disabled_journey_is_filtered_out_when_
         tag_id=Tag.for_journey_id(journey.id),
     )
 
-    result = await entity_queries.find_guidelines_for_agent(
+    result = await entity_queries.find_guidelines_for_agent_and_journeys(
         agent.id,
         [],
     )
