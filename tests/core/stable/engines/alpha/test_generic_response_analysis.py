@@ -8,7 +8,7 @@ from pytest import fixture
 from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer
-from parlant.core.emissions import EmittedEvent
+from parlant.core.emissions import EngineEvent
 from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
     GenericResponseAnalysisSchema,
     GenericResponseAnalysisBatch,
@@ -168,7 +168,7 @@ async def base_test_that_correct_guidelines_are_detected_as_previously_applied(
     conversation_context: list[tuple[EventSource, str]],
     guidelines_target_names: list[str] = [],
     guidelines_names: list[str] = [],
-    staged_events: Sequence[EmittedEvent] = [],
+    staged_events: Sequence[EngineEvent] = [],
 ) -> None:
     conversation_guidelines: dict[str, Guideline] = defaultdict()
     if guidelines_names:

@@ -39,7 +39,7 @@ from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
-from parlant.core.emissions import EmittedEvent, EventEmitter
+from parlant.core.emissions import EngineEvent, EventEmitter
 from parlant.core.sessions import Event, EventKind, EventSource
 from parlant.core.common import CancellationSuppressionLatch, DefaultBaseModel
 from parlant.core.loggers import Logger
@@ -141,7 +141,7 @@ class MessageGenerator(MessageEventComposer):
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
     ) -> Sequence[MessageEventComposition]:
         return []
 
@@ -158,7 +158,7 @@ class MessageGenerator(MessageEventComposer):
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
@@ -181,8 +181,8 @@ class MessageGenerator(MessageEventComposer):
 
     def _format_staged_events(
         self,
-        staged_events: Sequence[EmittedEvent],
-    ) -> Sequence[EmittedEvent]:
+        staged_events: Sequence[EngineEvent],
+    ) -> Sequence[EngineEvent]:
         for event in staged_events:
             if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
@@ -205,7 +205,7 @@ class MessageGenerator(MessageEventComposer):
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         if (
@@ -359,7 +359,7 @@ Do not disregard a guideline because you believe its 'when' condition or rationa
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
     ) -> PromptBuilder:

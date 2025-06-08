@@ -23,7 +23,7 @@ from parlant.core.customers import Customer
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.glossary import Term
-from parlant.core.emissions import EmittedEvent, EventEmitter
+from parlant.core.emissions import EngineEvent, EventEmitter
 from parlant.core.journeys import Journey
 from parlant.core.sessions import Event
 from parlant.core.tools import ToolId
@@ -33,7 +33,7 @@ from parlant.core.nlp.generation_info import GenerationInfo
 @dataclass(frozen=True)
 class MessageEventComposition:
     generation_info: Mapping[str, GenerationInfo]
-    events: Sequence[Optional[EmittedEvent]]
+    events: Sequence[Optional[EngineEvent]]
 
 
 class MessageCompositionError(Exception):
@@ -55,7 +55,7 @@ class MessageEventComposer:
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
     ) -> Sequence[MessageEventComposition]: ...
 
     @abstractmethod
@@ -71,6 +71,6 @@ class MessageEventComposer:
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]: ...

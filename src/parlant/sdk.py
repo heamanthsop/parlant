@@ -22,7 +22,7 @@ from parlant.core.agents import (
 from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
-from parlant.core.emissions import EmittedEvent, EventEmitterFactory
+from parlant.core.emissions import EngineEvent, EmittedEvent, EventEmitterFactory
 from parlant.core.engines.alpha.hooks import EngineHook, EngineHookResult, EngineHooks
 from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore
@@ -583,6 +583,7 @@ __all__ = [
     "Embedder",
     "EmbedderFactory",
     "EmbeddingResult",
+    "EngineEvent",
     "EmittedEvent",
     "EngineHook",
     "EngineHookResult",

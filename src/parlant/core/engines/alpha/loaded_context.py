@@ -20,7 +20,7 @@ from parlant.core.agents import Agent
 from parlant.core.common import JSONSerializable
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
-from parlant.core.emissions import EmittedEvent, EventEmitter
+from parlant.core.emissions import EngineEvent, EventEmitter
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.types import Context
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
@@ -57,11 +57,11 @@ class ResponseState:
     ordinary_guideline_matches: list[GuidelineMatch]
     tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]]
     journeys: list[Journey]
-    tool_events: list[EmittedEvent]
+    tool_events: list[EngineEvent]
     tool_insights: ToolInsights
     iterations_completed: int
     prepared_to_respond: bool
-    message_events: list[EmittedEvent]
+    message_events: list[EngineEvent]
 
     @property
     def ordinary_guidelines(self) -> list[Guideline]:
@@ -76,7 +76,7 @@ class ResponseState:
         return self.ordinary_guidelines + self.tool_enabled_guidelines
 
     @property
-    def all_events(self) -> list[EmittedEvent]:
+    def all_events(self) -> list[EngineEvent]:
         return self.tool_events + self.message_events
 
 
@@ -116,10 +116,11 @@ class LoadedContext:
         tool_id: ToolId,
         arguments: dict[str, JSONSerializable],
         result: ToolResult,
+        should_publish: bool = True,
     ) -> None:
         """Adds a staged tool event to the loaded context"""
         self.state.tool_events.append(
-            EmittedEvent(
+            EngineEvent(
                 source=EventSource.SYSTEM,
                 kind=EventKind.TOOL,
                 correlation_id=self.correlation_id,
@@ -131,6 +132,7 @@ class LoadedContext:
                             {
                                 "tool_id": tool_id.to_string(),
                                 "arguments": arguments,
+                                "should_publish": should_publish,
                                 "result": {
                                     "data": result.data,
                                     "metadata": result.metadata,

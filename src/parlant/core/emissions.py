@@ -28,11 +28,16 @@ from parlant.core.sessions import (
 
 
 @dataclass(frozen=True)
-class EmittedEvent:
+class EngineEvent:
     source: EventSource
     kind: EventKind
     correlation_id: str
     data: JSONSerializable
+
+
+@dataclass(frozen=True)
+class EmittedEvent(EngineEvent):
+    pass
 
 
 class EventEmitter(ABC):

@@ -76,7 +76,7 @@ from parlant.core.engines.alpha.tool_event_generator import (
 )
 from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.engines.types import Context, Engine, UtteranceReason, UtteranceRequest
-from parlant.core.emissions import EventEmitter, EmittedEvent
+from parlant.core.emissions import EventEmitter, EngineEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
 from parlant.core.entity_cq import EntityQueries, EntityCommands
@@ -884,7 +884,7 @@ class AlphaEngine(Engine):
         self,
         context: LoadedContext,
         preexecution_state: ToolPreexecutionState,
-    ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
+    ) -> tuple[ToolEventGenerationResult, list[EngineEvent], ToolInsights] | None:
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
             event_emitter=context.event_emitter,

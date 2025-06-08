@@ -24,7 +24,7 @@ from parlant.core import async_utils
 from parlant.core.agents import Agent
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
-from parlant.core.emissions import EmittedEvent
+from parlant.core.emissions import EngineEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.glossary import Term
 from parlant.core.journeys import Journey
@@ -108,7 +108,7 @@ class ToolCallContext:
     ordinary_guideline_matches: Sequence[GuidelineMatch]
     journeys: Sequence[Journey]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
-    staged_events: Sequence[EmittedEvent]
+    staged_events: Sequence[EngineEvent]
 
 
 @dataclass(frozen=True)
@@ -152,7 +152,7 @@ class ToolCaller:
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         tool_context: ToolContext,
     ) -> ToolCallInferenceResult:
         with self._logger.scope("ToolCaller"):

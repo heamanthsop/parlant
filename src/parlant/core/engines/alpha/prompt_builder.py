@@ -27,7 +27,7 @@ from parlant.core.glossary import Term
 from parlant.core.engines.alpha.utils import (
     context_variables_to_json,
 )
-from parlant.core.emissions import EmittedEvent
+from parlant.core.emissions import EngineEvent
 from parlant.core.guidelines import Guideline
 
 
@@ -120,7 +120,7 @@ class PromptBuilder:
             return SectionStatus.NONE
 
     @staticmethod
-    def adapt_event(e: Event | EmittedEvent) -> str:
+    def adapt_event(e: Event | EngineEvent) -> str:
         data = e.data
 
         if e.kind == EventKind.MESSAGE:
@@ -299,7 +299,7 @@ and let the user know if/when you assume they meant a term by their typo: ###
 
     def add_staged_events(
         self,
-        events: Sequence[EmittedEvent],
+        events: Sequence[EngineEvent],
     ) -> PromptBuilder:
         if events:
             staged_events_as_dict = [

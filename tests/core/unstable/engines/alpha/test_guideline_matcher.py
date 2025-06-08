@@ -29,7 +29,7 @@ from parlant.core.context_variables import (
     ContextVariableValueId,
 )
 from parlant.core.customers import Customer
-from parlant.core.emissions import EmittedEvent
+from parlant.core.emissions import EngineEvent
 from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
     GenericResponseAnalysisBatch,
     GenericResponseAnalysisSchema,
@@ -277,7 +277,7 @@ async def match_guidelines(
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
-    staged_events: Sequence[EmittedEvent] = [],
+    staged_events: Sequence[EngineEvent] = [],
 ) -> Sequence[GuidelineMatch]:
     session = await context.container[SessionStore].read_session(session_id)
 
@@ -413,7 +413,7 @@ async def analyze_response_and_update_session(
     session_id: SessionId,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
-    staged_events: Sequence[EmittedEvent],
+    staged_events: Sequence[EngineEvent],
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
@@ -470,7 +470,7 @@ async def base_test_that_correct_guidelines_are_matched(
     previously_matched_guidelines_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
-    staged_events: Sequence[EmittedEvent] = [],
+    staged_events: Sequence[EngineEvent] = [],
 ) -> None:
     interaction_history = [
         create_event_message(
@@ -857,7 +857,7 @@ async def test_that_observational_guidelines_arent_wrongly_implied(
         },
     )
     staged_events = [
-        EmittedEvent(
+        EngineEvent(
             source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result
         ),
     ]
@@ -915,7 +915,7 @@ async def test_that_observational_guidelines_are_detected_correctly_when_lots_of
         },
     )
     staged_events = [
-        EmittedEvent(
+        EngineEvent(
             source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result
         ),
     ]

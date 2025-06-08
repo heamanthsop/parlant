@@ -49,7 +49,7 @@ from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
 from parlant.core.glossary import Term
-from parlant.core.emissions import EmittedEvent, EventEmitter
+from parlant.core.emissions import EngineEvent, EventEmitter
 from parlant.core.sessions import (
     Event,
     EventKind,
@@ -123,7 +123,7 @@ class UtteranceContext:
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     journeys: Sequence[Journey]
     tool_insights: ToolInsights
-    staged_events: Sequence[EmittedEvent]
+    staged_events: Sequence[EngineEvent]
 
     @property
     def guidelines(self) -> Sequence[GuidelineMatch]:
@@ -440,7 +440,7 @@ class UtteranceSelector(MessageEventComposer):
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
     ) -> Sequence[MessageEventComposition]:
         if agent.composition_mode not in [
             # TODO: Add support for fluid and strict mode (and adjust the tests accordingly)
@@ -527,7 +527,7 @@ You will now be given the current state of the interaction to which you must gen
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
@@ -664,7 +664,7 @@ You will now be given the current state of the interaction to which you must gen
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         if (
@@ -870,7 +870,7 @@ Example {i} - {shot.description}: ###
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EmittedEvent],
+        staged_events: Sequence[EngineEvent],
         tool_insights: ToolInsights,
         utterances: Sequence[Utterance],
         shots: Sequence[UtteranceSelectorDraftShot],
