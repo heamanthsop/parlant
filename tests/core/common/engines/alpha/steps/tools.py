@@ -557,18 +557,6 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "type": "string",
                 "description": "The name of the city the user is flighting to",
             },
-            "departure_date": {
-                "type": "string",
-                "description": "The departure date given in format DD-MM-YYYY",
-            },
-            "return_date": {
-                "type": "string",
-                "description": "The return date given in format DD-MM-YYYY",
-            },
-            "passenger_name": {
-                "type": "string",
-                "description": "The name of the passenger",
-            },
         },
         "required": ["departure_city", "destination_city", "departure_date"],
     },
@@ -796,6 +784,13 @@ TOOLS: dict[str, dict[str, Any]] = {
         "module_path": "tests.tool_utilities",
         "parameters": {},
         "required": [],
+        "class_eligibility_checker": {
+            "name": "class_eligibility_checker",
+            "description": "Checks if the traveler is eligible for business class (21+), else restricts to economy.",
+            "module_path": "tests.tool_utilities",
+            "parameters": {"age": {"type": "integer", "description": "The age of the traveler"}},
+            "required": ["age"],
+        },
     },
 }
 

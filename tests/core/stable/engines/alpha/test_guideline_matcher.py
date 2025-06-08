@@ -87,6 +87,7 @@ from parlant.core.tags import TagId, Tag
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import SyncAwaiter
 
+
 OBSERVATIONAL_GUIDELINES_DICT = {
     "vegetarian_customer": {
         "condition": "the customer is vegetarian or vegan",
