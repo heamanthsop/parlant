@@ -786,16 +786,32 @@ class AlphaEngine(Engine):
         all_journeys = await self._load_journeys(context)
 
         # Step 2:
-        all_stored_guidelines = [
-            g
+        all_stored_guidelines = {
+            g.id: g
             for g in await self._entity_queries.find_guidelines_for_agent_and_journeys(
                 agent_id=context.agent.id,
                 journeys=all_journeys,
             )
             if g.enabled
+        }
+
+        # Step 3: Exclude guidelines whose prerequisite journeys are less likely to be activated
+        # (everything beyond the first journey). Removing these low-probability
+        # dependencies up-front keeps the first matching pass fast and focused.
+        top_k = 1
+        low_prob_journey_dependent_ids = set(
+            chain.from_iterable(
+                [
+                    await self._entity_queries.list_guidelines_dependent_on_journey(j)
+                    for j in all_journeys[top_k:]
+                ]
+            )
+        )
+        filtered_guidelines = [
+            g for id, g in all_stored_guidelines.items() if id not in low_prob_journey_dependent_ids
         ]
 
-        # Step 3: Filter the best matches out of those.
+        # Step 4: Filter the best matches out of those.
         matching_result = await self._guideline_matcher.match_guidelines(
             agent=context.agent,
             session=context.session,
@@ -805,22 +821,70 @@ class AlphaEngine(Engine):
             terms=list(context.state.glossary_terms),
             capabilities=context.state.capabilities,
             staged_events=context.state.tool_events,
-            guidelines=all_stored_guidelines,
+            guidelines=filtered_guidelines,
         )
 
-        # Step 4: Filter the journeys that are activated by the matched guidelines.
+        # Step 5: Filter the journeys that are activated by the matched guidelines.
         match_ids = set(map(lambda g: g.guideline.id, matching_result.matches))
         journeys = [j for j in all_journeys if set(j.conditions).intersection(match_ids)]
 
-        # Step 5: Resolve guideline matches by loading related guidelines that may not have
+        # Step 6: If any of the lower-probability journeys (those originally filtered out)
+        # have in fact been activated, run an additional matching pass for the guidelines
+        # that depend on them so we don’t miss relevant behavior.
+        activated_low_priority_dep_ids = set(
+            chain.from_iterable(
+                [
+                    await self._entity_queries.list_guidelines_dependent_on_journey(j)
+                    for j in [
+                        activated_journey
+                        for activated_journey in journeys
+                        if activated_journey in all_journeys[top_k:]
+                    ]
+                ]
+            )
+        )
+
+        if activated_low_priority_dep_ids:
+            self._logger.operation(
+                "Second-pass: matching guidelines dependent on activated low-priority journeys"
+            )
+            additional_matching_result = await self._guideline_matcher.match_guidelines(
+                agent=context.agent,
+                session=context.session,
+                customer=context.customer,
+                context_variables=context.state.context_variables,
+                interaction_history=context.interaction.history,
+                terms=list(context.state.glossary_terms),
+                staged_events=context.state.tool_events,
+                guidelines=[
+                    g
+                    for id, g in all_stored_guidelines.items()
+                    if id in activated_low_priority_dep_ids
+                ],
+            )
+
+            matching_result = GuidelineMatchingResult(
+                total_duration=matching_result.total_duration
+                + additional_matching_result.total_duration,
+                batch_count=matching_result.batch_count + additional_matching_result.batch_count,
+                batch_generations=list(
+                    chain(
+                        matching_result.batch_generations,
+                        additional_matching_result.batch_generations,
+                    )
+                ),
+                batches=list(chain(matching_result.batches, additional_matching_result.batches)),
+            )
+
+        # Step 7: Resolve guideline matches by loading related guidelines that may not have
         # been inferrable just by looking at the interaction.
         all_relevant_guidelines = await self._relational_guideline_resolver.resolve(
-            usable_guidelines=all_stored_guidelines,
+            usable_guidelines=list(all_stored_guidelines.values()),
             matches=matching_result.matches,
             journeys=journeys,
         )
 
-        # Step 6: Distinguish between ordinary and tool-enabled guidelines.
+        # Step 8: Distinguish between ordinary and tool-enabled guidelines.
         # We do this here as it creates a better subsequent control flow in the engine.
         tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
             guideline_matches=all_relevant_guidelines,
