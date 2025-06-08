@@ -388,7 +388,13 @@ class GlossaryVectorStore(GlossaryStore):
                         doc["term_id"]
                         for doc in await self._association_collection.find(filters={})
                     }
-                    filters = {"$and": [{"id": {"$ne": id}} for id in term_ids]} if term_ids else {}
+                    if not term_ids:
+                        filters = {}
+                    elif len(term_ids) == 1:
+                        filters = {"id": {"$ne": term_ids.pop()}}
+                    else:
+                        filters = {"$and": [{"id": {"$ne": id}} for id in term_ids]}
+
                 else:
                     tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
                     tag_associations = await self._association_collection.find(filters=tag_filters)
