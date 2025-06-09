@@ -152,8 +152,7 @@ Expected output (JSON):
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
             self._logger.debug(f"Completion:\n{response.content.model_dump_json(indent=2)}")
-        with open("output_agent_intention.txt", "a") as f:
-            f.write(response.content.model_dump_json(indent=2))
+
         return response.content
 
     def _format_shots(self, shots: Sequence[AgentIntentionProposerShot]) -> str:

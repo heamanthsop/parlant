@@ -66,9 +66,6 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
                 hints={"temperature": 0.15},
             )
 
-        with open("output_intention_checks.txt", "a") as f:
-            f.write(inference.content.model_dump_json(indent=2))
-
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
