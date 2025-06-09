@@ -82,8 +82,8 @@ Any instruction described here applies only to the agent, and not to the user.
             template="""
 TASK DESCRIPTION
 -----------------
-Your task is to determine whether a guideline condition describes the agent’s intention - that is, whether it refers to something the agent is doing or planning to do (e.g., "The agent discusses a patient's medical record" or "The agent 
-explains the conditions and terms"). Note: If the condition refers to something the agent has already done, it should not be considered an agent intention.
+Your task is to determine whether a guideline condition reflects the agent’s intention. That is, whether it describes something the agent is doing or is about to do (e.g., "The agent discusses a patient's 
+medical record" or "The agent explains the conditions and terms"). Note: If the condition refers to something the agent has already done, it should not be considered an agent intention.
 
 If the condition reflects agent intention, rephrase it to describe what the agent is likely to do next, using the following format:
 "The agent is likely to (do something)."
@@ -92,8 +92,9 @@ For example:
 Original: "The agent discusses a patient's medical record"
 Rewritten: "The agent is likely to discuss a patient's medical record"
 
-Why:
-Although the condition is written in the present tense, we evaluate whether it applies before the agent's next message. Therefore, we want the phrasing to reflect the agent’s probable next action, based on the current customer message.
+Why this matters:
+Although the original condition can be written in present tense, guideline matching happens before the agent replies. So we need the condition to reflect the agent’s probable upcoming behavior, based on the customer's latest message.
+
 
 
 
@@ -219,19 +220,32 @@ example_4_guideline = GuidelineContent(
 )
 example_4_shot = AgentIntentionShot(
     description="",
-    guideline=example_3_guideline,
+    guideline=example_4_guideline,
     expected_result=AgentIntentionSchema(
-        condition=example_3_guideline.condition,
+        condition=example_4_guideline.condition,
         is_agent_intention=True,
         rewritten_condition="The agent is likely to interpret a contract or legal term",
     ),
 )
 
+example_5_guideline = GuidelineContent(
+    condition="The customer is asking about the opening hours",
+    action="Provide our opening hours as described on out website",
+)
+example_5_shot = AgentIntentionShot(
+    description="",
+    guideline=example_5_guideline,
+    expected_result=AgentIntentionSchema(
+        condition=example_5_guideline.condition,
+        is_agent_intention=False,
+    ),
+)
 _baseline_shots: Sequence[AgentIntentionShot] = [
     example_1_shot,
     example_2_shot,
     example_3_shot,
     example_4_shot,
+    example_5_shot,
 ]
 
 shot_collection = ShotCollection[AgentIntentionShot](_baseline_shots)
