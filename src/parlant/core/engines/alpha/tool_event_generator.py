@@ -168,16 +168,16 @@ class ToolEventGenerator:
             ]
         }
 
-        event_data_to_emit = [
+        tool_calls_to_emit = [
             tc
             for tc in event_data_all["tool_calls"]
-            if tc["result"]["control"]["lifespan"] == "session"
+            if tc["result"]["control"].get("lifespan", "session") == "session"
         ]
 
-        if event_data_to_emit:
+        if tool_calls_to_emit:
             await event_emitter.emit_tool_event(
                 correlation_id=self._correlator.correlation_id,
-                data=event_data_to_emit,
+                data={"tool_calls": tool_calls_to_emit},
             )
 
         event = EngineEvent(
