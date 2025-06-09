@@ -602,7 +602,7 @@ def then_the_staged_event_contains_n_tool_calls(
     ), pformat(staged_tool_events, indent=2)
 
 
-@step(then, parsers.parse("the tool calls event contains {expected_content}"))
+@step(then, parsers.parse("the staged tool calls event contains {expected_content}"))
 def then_the_tool_calls_staged_event_contains_expected_content(
     context: ContextOfTest,
     expected_content: str,

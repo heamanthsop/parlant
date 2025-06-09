@@ -168,7 +168,11 @@ class ToolEventGenerator:
             ]
         }
 
-        event_data_to_emit = [tc for tc in event_data_all["tool_calls"] if tc["should_publish"]]
+        event_data_to_emit = [
+            tc
+            for tc in event_data_all["tool_calls"]
+            if tc["result"]["control"]["lifespan"] == "session"
+        ]
 
         if event_data_to_emit:
             await event_emitter.emit_tool_event(

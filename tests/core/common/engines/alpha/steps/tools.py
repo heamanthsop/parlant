@@ -783,6 +783,13 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "required": ["boolean"],
     },
+    "check_current_time": {
+        "name": "check_current_time",
+        "description": "Check the current time",
+        "module_path": "tests.tool_utilities",
+        "parameters": {},
+        "required": [],
+    },
 }
 
 

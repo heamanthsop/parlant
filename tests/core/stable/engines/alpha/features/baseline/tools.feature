@@ -1057,3 +1057,14 @@ Scenario: Tool caller calls a tool with list of booleans and optional boolean
         Then a single tool calls event is emitted
         And no tool error has occurred
         And the tool calls event contains 1 tool call(s)
+
+Scenario: Tool returns a result with transient lifespan and its event is not emitted
+        Given a guideline "current_time" to get the current time when a customer wants to know the time
+        And the tool "check_current_time"
+        And an association between "current_time" and "check_current_time"
+        And a customer message, "Hey, I have a meeting in 10:00, but I lost my watch. Am I late for the meeting ?"
+        When processing is triggered
+        Then the message contains the text "you are late"
+        And a single event is staged
+        And no tool calls event is emitted
+        And the staged tool calls event contains "18:03"

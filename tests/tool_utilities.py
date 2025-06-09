@@ -487,3 +487,7 @@ def give_boolean_types(
     return ToolResult(
         f"Types for boolean is: {type(boolean[0])} and optional boolean: {type(optional_boolean)}"
     )
+
+
+def check_current_time() -> ToolResult:
+    return ToolResult(data="Current time is 18:03", control={"lifespan": "response"})
