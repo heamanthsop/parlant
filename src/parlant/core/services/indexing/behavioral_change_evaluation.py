@@ -556,7 +556,9 @@ class GuidelineEvaluator:
                 if payload_customer_dependent
                 else None,
                 "internal_condition": agent_intention.rewritten_condition
-                if agent_intention.rewritten_condition and agent_intention.is_agent_intention
+                if agent_intention
+                and agent_intention.rewritten_condition
+                and agent_intention.is_agent_intention
                 else None,
             }
 
@@ -591,7 +593,7 @@ class GuidelineEvaluator:
             payloads, action_propositions, progress_report
         )
 
-        agent_intention_proposition = await self._agent_intention_proposer(
+        agent_intention_propositions = await self._propose_agent_intention(
             payloads, progress_report
         )
 
@@ -599,7 +601,7 @@ class GuidelineEvaluator:
             action_propositions,
             continuous_propositions,
             customer_dependant_action_detections,
-            agent_intention_proposition,
+            agent_intention_propositions,
         )
 
     async def _propose_actions(
@@ -704,8 +706,8 @@ class GuidelineEvaluator:
         self,
         payloads: Sequence[Payload],
         progress_report: Optional[ProgressReport] = None,
-    ) -> Sequence[Optional[GuidelineContinuousProposition]]:
-        tasks: list[asyncio.Task[GuidelineContinuousProposition]] = []
+    ) -> Sequence[Optional[AgentIntentionProposition]]:
+        tasks: list[asyncio.Task[AgentIntentionProposition]] = []
         indices: list[int] = []
 
         for i, p in enumerate(payloads):
@@ -720,7 +722,7 @@ class GuidelineEvaluator:
             indices.append(i)
             tasks.append(
                 asyncio.create_task(
-                    self._guideline_continuous_proposer.propose_agent_intention(
+                    self._agent_intention_proposer.propose_agent_intention(
                         guideline=guideline_content,
                         progress_report=progress_report,
                     )
@@ -728,7 +730,7 @@ class GuidelineEvaluator:
             )
 
         sparse_results = await async_utils.safe_gather(*tasks)
-        results: list[Optional[GuidelineContinuousProposition]] = [None] * len(payloads)
+        results: list[Optional[AgentIntentionProposition]] = [None] * len(payloads)
         for i, res in zip(indices, sparse_results):
             results[i] = res
         return results
