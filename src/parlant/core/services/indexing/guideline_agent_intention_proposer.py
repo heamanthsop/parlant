@@ -223,7 +223,7 @@ example_4_shot = AgentIntentionShot(
     expected_result=AgentIntentionSchema(
         condition=example_3_guideline.condition,
         is_agent_intention=True,
-        rewritten_condition="Add a disclaimer clarifying that the response is not legal advice",
+        rewritten_condition="The agent is likely to interpret a contract or legal term",
     ),
 )
 
