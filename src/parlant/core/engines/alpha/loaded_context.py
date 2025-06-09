@@ -116,7 +116,6 @@ class LoadedContext:
         tool_id: ToolId,
         arguments: dict[str, JSONSerializable],
         result: ToolResult,
-        should_publish: bool = True,
     ) -> None:
         """Adds a staged tool event to the loaded context"""
         self.state.tool_events.append(
@@ -132,7 +131,6 @@ class LoadedContext:
                             {
                                 "tool_id": tool_id.to_string(),
                                 "arguments": arguments,
-                                "should_publish": should_publish,
                                 "result": {
                                     "data": result.data,
                                     "metadata": result.metadata,

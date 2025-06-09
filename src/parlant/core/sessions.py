@@ -218,7 +218,7 @@ ConsumerId: TypeAlias = Literal["client"]
 """In the future we may support multiple consumer IDs"""
 
 SessionMode: TypeAlias = Literal["auto", "manual"]
-LifeSpan: TypeAlias = Literal["response ", "session"]
+LifeSpan: TypeAlias = Literal["response", "session"]
 
 
 class AgentState(TypedDict):
