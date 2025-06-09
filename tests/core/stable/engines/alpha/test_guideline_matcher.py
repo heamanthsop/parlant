@@ -271,7 +271,7 @@ ACTIONABLE_GUIDELINES_DICT = {
         "action": "Ensure the message includes a disclaimer that it is not a substitute for professional medical advice.",
     },
     "confirm_order": {
-        "condition": "The agent is likely to confirm an order or payment",
+        "condition": "The agent is likely to confirm a new order or a payment",
         "action": "Re-verify item, price, and customer consent before proceeding",
     },
     "discuss_money": {
