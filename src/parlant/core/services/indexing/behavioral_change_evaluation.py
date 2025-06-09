@@ -48,6 +48,10 @@ from parlant.core.services.indexing.guideline_action_proposer import (
     GuidelineActionProposer,
     GuidelineActionProposition,
 )
+from parlant.core.services.indexing.guideline_agent_intention_proposer import (
+    AgentIntentionProposer,
+    AgentIntentionProposition,
+)
 from parlant.core.services.indexing.guideline_connection_proposer import (
     GuidelineConnectionProposer,
 )
@@ -519,12 +523,14 @@ class GuidelineEvaluator:
         guideline_action_proposer: GuidelineActionProposer,
         guideline_continuous_proposer: GuidelineContinuousProposer,
         customer_dependent_action_detector: CustomerDependentActionDetector,
+        agent_intention_proposer: AgentIntentionProposer,
     ) -> None:
         self._logger = logger
         self._entity_queries = entity_queries
         self._guideline_action_proposer = guideline_action_proposer
         self._guideline_continuous_proposer = guideline_continuous_proposer
         self._customer_dependent_action_detector = customer_dependent_action_detector
+        self._agent_intention_proposer = agent_intention_proposer
 
     def _build_invoice_data(
         self,
@@ -533,10 +539,14 @@ class GuidelineEvaluator:
         customer_dependant_action_detections: Sequence[
             Optional[CustomerDependentActionProposition]
         ],
+        agent_intention_propositions: Sequence[Optional[AgentIntentionProposition]],
     ) -> Sequence[InvoiceGuidelineData]:
         results = []
-        for payload_action, payload_continuous, payload_customer_dependent in zip(
-            action_propositions, continuous_propositions, customer_dependant_action_detections
+        for payload_action, payload_continuous, payload_customer_dependent, agent_intention in zip(
+            action_propositions,
+            continuous_propositions,
+            customer_dependant_action_detections,
+            agent_intention_propositions,
         ):
             action_prop = payload_action.content.action if payload_action else None
 
@@ -544,6 +554,9 @@ class GuidelineEvaluator:
                 "continuous": payload_continuous.is_continuous if payload_continuous else None,
                 "customer_dependent_action_data": payload_customer_dependent.model_dump()
                 if payload_customer_dependent
+                else None,
+                "internal_condition": agent_intention.rewritten_condition
+                if agent_intention.rewritten_condition and agent_intention.is_agent_intention
                 else None,
             }
 
@@ -578,10 +591,15 @@ class GuidelineEvaluator:
             payloads, action_propositions, progress_report
         )
 
+        agent_intention_proposition = await self._agent_intention_proposer(
+            payloads, progress_report
+        )
+
         return self._build_invoice_data(
             action_propositions,
             continuous_propositions,
             customer_dependant_action_detections,
+            agent_intention_proposition,
         )
 
     async def _propose_actions(
@@ -682,6 +700,39 @@ class GuidelineEvaluator:
             results[i] = res
         return results
 
+    async def _propose_agent_intention(
+        self,
+        payloads: Sequence[Payload],
+        progress_report: Optional[ProgressReport] = None,
+    ) -> Sequence[Optional[GuidelineContinuousProposition]]:
+        tasks: list[asyncio.Task[GuidelineContinuousProposition]] = []
+        indices: list[int] = []
+
+        for i, p in enumerate(payloads):
+            if not p.properties_proposition:
+                continue
+
+            guideline_content = GuidelineContent(
+                condition=p.content.condition,
+                action=p.content.action,
+            )
+
+            indices.append(i)
+            tasks.append(
+                asyncio.create_task(
+                    self._guideline_continuous_proposer.propose_agent_intention(
+                        guideline=guideline_content,
+                        progress_report=progress_report,
+                    )
+                )
+            )
+
+        sparse_results = await async_utils.safe_gather(*tasks)
+        results: list[Optional[GuidelineContinuousProposition]] = [None] * len(payloads)
+        for i, res in zip(indices, sparse_results):
+            results[i] = res
+        return results
+
 
 class BehavioralChangeEvaluator:
     def __init__(
@@ -694,6 +745,7 @@ class BehavioralChangeEvaluator:
         guideline_action_proposer: GuidelineActionProposer,
         guideline_continuous_proposer: GuidelineContinuousProposer,
         customer_dependent_action_detector: CustomerDependentActionDetector,
+        agent_intention_proposer: AgentIntentionProposer,
     ) -> None:
         self._logger = logger
         self._background_task_service = background_task_service
@@ -706,6 +758,7 @@ class BehavioralChangeEvaluator:
             guideline_action_proposer=guideline_action_proposer,
             guideline_continuous_proposer=guideline_continuous_proposer,
             customer_dependent_action_detector=customer_dependent_action_detector,
+            agent_intention_proposer=agent_intention_proposer,
         )
 
     async def validate_payloads(
