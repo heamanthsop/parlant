@@ -166,7 +166,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
         shots: Sequence[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
+            f"{i}) Condition: {g.internal_condition}. Action: {g.content.action}"
             for i, g in self._guidelines.items()
         )
 

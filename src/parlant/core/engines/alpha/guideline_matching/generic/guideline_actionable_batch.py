@@ -66,6 +66,9 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
                 hints={"temperature": 0.15},
             )
 
+        with open("output_intention_checks.txt", "a") as f:
+            f.write(inference.content.model_dump_json(indent=2))
+
         if not inference.content.checks:
             self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
         else:
@@ -152,7 +155,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
         shots: Sequence[GenericActionableGuidelineGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
+            f"{i}) Condition: {g.internal_condition}. Action: {g.content.action}"
             for i, g in self._guidelines.items()
         )
 
