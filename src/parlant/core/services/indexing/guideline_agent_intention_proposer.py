@@ -16,23 +16,23 @@ class AgentIntentionProposition(DefaultBaseModel):
     rewritten_condition: Optional[str] = ""
 
 
-class AgentIntentionSchema(DefaultBaseModel):
+class AgentIntentionProposerSchema(DefaultBaseModel):
     condition: str
     is_agent_intention: bool
     rewritten_condition: Optional[str] = ""
 
 
 @dataclass
-class AgentIntentionShot(Shot):
+class AgentIntentionProposerShot(Shot):
     guideline: GuidelineContent
-    expected_result: AgentIntentionSchema
+    expected_result: AgentIntentionProposerSchema
 
 
 class AgentIntentionProposer:
     def __init__(
         self,
         logger: Logger,
-        schematic_generator: SchematicGenerator[AgentIntentionSchema],
+        schematic_generator: SchematicGenerator[AgentIntentionProposerSchema],
         service_registry: ServiceRegistry,
     ) -> None:
         self._logger = logger
@@ -59,7 +59,7 @@ class AgentIntentionProposer:
         )
 
     async def _build_prompt(
-        self, guideline: GuidelineContent, shots: Sequence[AgentIntentionShot]
+        self, guideline: GuidelineContent, shots: Sequence[AgentIntentionProposerShot]
     ) -> PromptBuilder:
         builder = PromptBuilder()
 
@@ -141,7 +141,7 @@ Expected output (JSON):
     async def _generate_agent_intention(
         self,
         guideline: GuidelineContent,
-    ) -> AgentIntentionSchema:
+    ) -> AgentIntentionProposerSchema:
         prompt = await self._build_prompt(guideline, _baseline_shots)
 
         response = await self._schematic_generator.generate(
@@ -156,7 +156,7 @@ Expected output (JSON):
             f.write(response.content.model_dump_json(indent=2))
         return response.content
 
-    def _format_shots(self, shots: Sequence[AgentIntentionShot]) -> str:
+    def _format_shots(self, shots: Sequence[AgentIntentionProposerShot]) -> str:
         return "\n".join(
             [
                 f"""Example {i}: {shot.description}
@@ -177,10 +177,10 @@ example_1_guideline = GuidelineContent(
     condition="The agent discusses a patient's medical record",
     action="Do not send any personal information",
 )
-example_1_shot = AgentIntentionShot(
+example_1_shot = AgentIntentionProposerShot(
     description="",
     guideline=example_1_guideline,
-    expected_result=AgentIntentionSchema(
+    expected_result=AgentIntentionProposerSchema(
         condition=example_1_guideline.condition,
         is_agent_intention=True,
         rewritten_condition="The agent is likely to discuss a patient's medical record",
@@ -191,10 +191,10 @@ example_2_guideline = GuidelineContent(
     condition="The agent intends to interpret a contract or legal term",
     action="Add a disclaimer clarifying that the response is not legal advice",
 )
-example_2_shot = AgentIntentionShot(
+example_2_shot = AgentIntentionProposerShot(
     description="",
     guideline=example_2_guideline,
-    expected_result=AgentIntentionSchema(
+    expected_result=AgentIntentionProposerSchema(
         condition=example_2_guideline.condition,
         is_agent_intention=True,
         rewritten_condition="The agent is likely to interpret a contract or legal term",
@@ -205,10 +205,10 @@ example_3_guideline = GuidelineContent(
     condition="the agent just confirmed that the order will be shipped to the customer",
     action="provide the package's tracking information",
 )
-example_3_shot = AgentIntentionShot(
+example_3_shot = AgentIntentionProposerShot(
     description="",
     guideline=example_3_guideline,
-    expected_result=AgentIntentionSchema(
+    expected_result=AgentIntentionProposerSchema(
         condition=example_3_guideline.condition,
         is_agent_intention=False,
     ),
@@ -218,10 +218,10 @@ example_4_guideline = GuidelineContent(
     condition="The agent is likely to interpret a contract or legal term",
     action="Add a disclaimer clarifying that the response is not legal advice",
 )
-example_4_shot = AgentIntentionShot(
+example_4_shot = AgentIntentionProposerShot(
     description="",
     guideline=example_4_guideline,
-    expected_result=AgentIntentionSchema(
+    expected_result=AgentIntentionProposerSchema(
         condition=example_4_guideline.condition,
         is_agent_intention=True,
         rewritten_condition="The agent is likely to interpret a contract or legal term",
@@ -232,15 +232,15 @@ example_5_guideline = GuidelineContent(
     condition="The customer is asking about the opening hours",
     action="Provide our opening hours as described on out website",
 )
-example_5_shot = AgentIntentionShot(
+example_5_shot = AgentIntentionProposerShot(
     description="",
     guideline=example_5_guideline,
-    expected_result=AgentIntentionSchema(
+    expected_result=AgentIntentionProposerSchema(
         condition=example_5_guideline.condition,
         is_agent_intention=False,
     ),
 )
-_baseline_shots: Sequence[AgentIntentionShot] = [
+_baseline_shots: Sequence[AgentIntentionProposerShot] = [
     example_1_shot,
     example_2_shot,
     example_3_shot,
@@ -248,4 +248,4 @@ _baseline_shots: Sequence[AgentIntentionShot] = [
     example_5_shot,
 ]
 
-shot_collection = ShotCollection[AgentIntentionShot](_baseline_shots)
+shot_collection = ShotCollection[AgentIntentionProposerShot](_baseline_shots)
