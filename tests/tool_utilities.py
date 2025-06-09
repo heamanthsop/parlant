@@ -386,7 +386,7 @@ def book_flight(
     )
 
 
-def class_eligibility_checker(age: int) -> ToolResult:
+def class_access_validator(age: int) -> ToolResult:
     if age >= 21:
         return ToolResult(data={"class": "business class"})
     else:

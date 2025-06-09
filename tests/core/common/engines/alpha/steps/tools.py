@@ -778,6 +778,13 @@ TOOLS: dict[str, dict[str, Any]] = {
         "parameters": {},
         "required": [],
     },
+    "class_access_validator": {
+        "name": "class_access_validator",
+        "description": "Checks if the traveler is eligible for business class (21+), else restricts to economy.",
+        "module_path": "tests.tool_utilities",
+        "parameters": {},
+        "required": [],
+    },
     "check_current_time_emit": {
         "name": "check_current_time_emit",
         "description": "Check the current time",

@@ -134,18 +134,18 @@ Feature: Journeys
         And the message contains asking asking what green base the customer wants for their salad 
 
     Scenario: Dependent guidelines on multiple journeys are getting matched when journeys are activated
-        Given a journey titled "Book Flight" to ask for the source and destination airport first, the date second, economy or business class third, and finally to ask for the name of the traveler. You may skip steps that are inapplicable due to other contextual reasons. when a customer wants to book a flight
-        And a journey titled "Business Adult Only" to know that travelers under the age of 21 are illegible for business class, and may only use economy when booking a flight
-        And a guideline "book_flight_guideline" to collect the source and destination airport, date, class, and traveler name, and then use the book_flight tool when the customer wants to book a flight
-        And a guideline "business_class_age_restriction" to check that the traveler is at least 21 years old before allowing business class, otherwise restrict to economy, using the class_eligibility_checker tool when booking a flight
+        Given a journey titled "Book Flight" to ask for the source and destination airport. You may skip steps that are inapplicable due to other contextual reasons. when a customer wants to book a flight
+        And a journey titled "Business Adult Only" to ensure that travelers under the age of 21 are ineligible for business class. If a traveler is under 21, they should be informed that only economy class is available. If the traveler is 21 or older, they may choose between economy and business class when a customer wants to book a flight
+        And a guideline "book_flight_guideline" to collect the source and destination airport, and then use the book_flight tool when a customer wants to book a flight
+        And a guideline "business_class_age_restriction" to check that the traveler is at least 21 years old before allowing business class, otherwise restrict to economy, using the class_access_validator tool when a customer wants to book a flight
         And the tool "book_flight"
-        And the tool "class_eligibility_checker"
+        And the tool "class_access_validator"
         And an association between "book_flight_guideline" and "book_flight"
-        And an association between "business_class_age_restriction" and "class_eligibility_checker"
+        And an association between "business_class_age_restriction" and "class_access_validator"
         And a dependency relationship between the guideline "book_flight_guideline" and the "Book Flight" journey
         And a dependency relationship between the guideline "business_class_age_restriction" and the "Business Adult Only" journey
-        And a customer message, "Hi, I'd like to book a flight for myself from Tel Aviv to New York. I'm 19 if that affects anything."
+        And a customer message, "Hi, my name is John Smith and I'd like to book a flight for myself from Ben Gurion airport to JFK. I'm 19 if that affects anything."
         When processing is triggered
         Then the tool calls event contains 2 tool call(s)
-        And the tool calls event contains a call to "class_eligibility_checker"
+        And the tool calls event contains a call to "class_access_validator"
         And the tool calls event contains a call to "book_flight"
