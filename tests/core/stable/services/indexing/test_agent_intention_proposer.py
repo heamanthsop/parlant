@@ -42,7 +42,7 @@ GUIDELINES_DICT = {
         "action": "Include a disclaimer that this is not medical advice",
     },
     "recommend_product": {
-        "condition": "The agent recommends a product or service",
+        "condition": "The agent recommends on a product or a service",
         "action": "Ensure that the recommendation is unbiased and based on reliable information",
     },
     "international_transaction": {
@@ -103,8 +103,6 @@ def create_guideline(
     condition: str,
     action: str | None = None,
 ) -> Guideline:
-    agent_intention_detector = context.container[AgentIntentionProposer]
-
     metadata: dict[str, JSONSerializable] = {}
     if action:
         guideline_evaluator = context.container[GuidelineEvaluator]
@@ -128,17 +126,6 @@ def create_guideline(
         )
 
         metadata = guideline_evaluation_data[0].properties_proposition or {}
-
-    result = context.sync_await(
-        agent_intention_detector.propose_agent_intention(
-            guideline=GuidelineContent(
-                condition,
-                action,
-            ),
-        )
-    )
-    if result.is_agent_intention:
-        condition = result.rewritten_condition if result.rewritten_condition else condition
 
     guideline = Guideline(
         id=GuidelineId(generate_id()),
