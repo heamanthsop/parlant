@@ -58,11 +58,10 @@ class Guideline:
 
     @property
     def internal_condition(self) -> str:
-        return (
-            self.metadata["internal_condition"]
-            if self.metadata["internal_condition"]
-            else self.content.condition
-        )
+        val = self.metadata.get("internal_condition")
+        if isinstance(val, str):
+            return val
+        return self.content.condition
 
 
 class GuidelineUpdateParams(TypedDict, total=False):
