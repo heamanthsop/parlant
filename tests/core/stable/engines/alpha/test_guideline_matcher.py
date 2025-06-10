@@ -2612,8 +2612,12 @@ def test_that_guideline_with_agent_intention_is_matched_2(
             "I've had a sore throat and a fever for three days. Do you think it’s strep?",
         ),
     ]
-    conversation_guideline_names: list[str] = ["provide_diagnosis"]
-    relevant_guideline_names = conversation_guideline_names
+    conversation_guideline_names: list[str] = [
+        "provide_diagnosis",
+        "confirm_order",
+        "discuss_money",
+    ]
+    relevant_guideline_names = ["provide_diagnosis"]
 
     base_test_that_correct_guidelines_are_matched(
         context,

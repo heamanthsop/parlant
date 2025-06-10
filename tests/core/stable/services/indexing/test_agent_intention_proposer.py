@@ -347,6 +347,10 @@ async def test_that_actions_which_are_not_agent_intention_are_classified_correct
             condition="The customer asked about return policies",
             action="Provide a link to the official return policy page",
         ),
+        GuidelineContent(
+            condition="Customer indicated the agent's behavior is likely to cause them harm",
+            action="Apologize and ask about what worries the customer",
+        ),
     ]
 
     for g in guidelines:
