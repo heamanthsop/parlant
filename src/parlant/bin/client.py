@@ -773,13 +773,10 @@ class Actions:
         client = cast(ParlantClient, ctx.obj.client)
 
         tag_id = Actions._fetch_tag_id(ctx, tag) if tag else None
-        _ = (
+        if tool_id:
             Actions._fetch_tool_id(
                 ctx, ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1])
             )
-            if tool_id
-            else None
-        )
 
         return client.relationships.list(
             guideline_id=guideline_id,
@@ -1144,8 +1141,14 @@ class Actions:
         tool_id: str,
     ) -> Tool:
         client = cast(ParlantClient, ctx.obj.client)
-        tool_id_obj = Actions._fetch_tool_id(ctx, ToolId(service_name=tool_id, tool_name=tool_id))
+
+        tool_id_obj = Actions._fetch_tool_id(
+            ctx,
+            ToolId(service_name=tool_id.split(":")[0], tool_name=tool_id.split(":")[1]),
+        )
+
         service = client.services.retrieve(tool_id_obj.service_name)
+
         if tool := next((t for t in service.tools or [] if t.name == tool_id_obj.tool_name), None):
             return tool
         else:
@@ -1911,54 +1914,59 @@ class Interface:
             return result
 
         def to_indirect_relationship_item(rel: Relationship) -> dict[str, str]:
-            result = {
+            result: dict[str, str] = {
                 "Relationship ID": rel.id,
                 "Kind": rel.kind,
-                "Source ID": rel.source_guideline.id
-                if rel.source_guideline
-                else cast(Tag, rel.source_tag).id,
-                "Source Type": "Guideline" if rel.source_guideline else "Tag",
             }
 
             if rel.source_guideline:
                 result.update(
                     {
+                        "Source ID": rel.source_guideline.id,
+                        "Source Type": "Guideline",
                         "Source Condition": rel.source_guideline.condition,
-                        "Source Action": rel.source_guideline.action,
+                        "Source Action": rel.source_guideline.action or "",
                     }
                 )
             elif rel.source_tag:
-                assert rel.source_tag is not None
                 result.update(
                     {
+                        "Source ID": rel.source_tag.id,
+                        "Source Type": "Tag",
                         "Source Name": rel.source_tag.name,
                     }
                 )
-
-            result.update(
-                {
-                    "Target ID": rel.target_guideline.id
-                    if rel.target_guideline
-                    else cast(Tag, rel.target_tag).id,
-                    "Target Type": "Guideline" if rel.target_guideline else "Tag",
-                }
-            )
-
+            elif rel.source_tool:
+                result.update(
+                    {
+                        "Source Type": "Tool",
+                        "Source Name": rel.source_tool.name,
+                    }
+                )
             if rel.target_guideline:
                 result.update(
                     {
+                        "Target ID": rel.target_guideline.id,
+                        "Target Type": "Guideline",
                         "Target Condition": rel.target_guideline.condition,
                         "Target Action": rel.target_guideline.action or "",
                     }
                 )
             elif rel.target_tag:
-                assert rel.target_tag is not None
                 result.update(
                     {
+                        "Target ID": rel.target_tag.id,
+                        "Target Type": "Tag",
                         "Target Name": rel.target_tag.name,
                     }
                 )
-
+            elif rel.target_tool:
+                result.update(
+                    {
+                        "Target Type": "Tool",
+                        "Target Name": rel.target_tool.name,
+                    }
+                )
             return result
 
         if relationships:
