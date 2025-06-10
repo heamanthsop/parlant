@@ -1970,7 +1970,7 @@ class Interface:
             return result
 
         if relationships:
-            direct = direct = [
+            direct = [
                 r
                 for r in relationships
                 if entity
@@ -1979,19 +1979,12 @@ class Interface:
                     r.target_guideline,
                     r.source_tag,
                     r.target_tag,
+                    r.source_tool,
+                    r.target_tool,
                 )
             ]
-            indirect = [
-                r
-                for r in relationships
-                if entity
-                not in (
-                    r.source_guideline,
-                    r.target_guideline,
-                    r.source_tag,
-                    r.target_tag,
-                )
-            ]
+
+            indirect = [r for r in relationships if r not in direct]
 
             if direct:
                 rich.print("\nDirect Relationships:")
@@ -2371,6 +2364,7 @@ class Interface:
                 kind=kind,
                 indirect=indirect,
             )
+            rich.print(f"relationships: {relationships}")
 
             if not relationships:
                 rich.print(Text("No data available", style="bold yellow"))
