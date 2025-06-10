@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Sequence, cast
+from typing import Optional, Sequence, cast
 
 from parlant.core.agents import Agent
 from parlant.core.capabilities import Capability
@@ -115,6 +115,12 @@ class LoadedContext:
 
     state: ResponseState
     """The current state of the response being processed"""
+
+    guideline_matching_examined_guidelines: Optional[
+        tuple[Sequence[Guideline], Sequence[Guideline]]
+    ] = ([], [])
+
+    guideline_matching_duration: Optional[tuple[float, float]] = (-1.0, -1.0)
 
     async def add_tool_event(
         self,

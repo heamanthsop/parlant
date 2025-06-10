@@ -812,7 +812,7 @@ class AlphaEngine(Engine):
         ]
 
         # Step 4: Filter the best matches out of those.
-        matching_result = await self._guideline_matcher.match_guidelines(
+        matching_result = await self._guideline_matcher.match_guidelines(  # TODO HERE BAR
             agent=context.agent,
             session=context.session,
             customer=context.customer,
@@ -823,6 +823,10 @@ class AlphaEngine(Engine):
             staged_events=context.state.tool_events,
             guidelines=filtered_guidelines,
         )
+
+        # Update guideline matching metrics
+        context.guideline_matching_examined_guidelines = (filtered_guidelines, [])
+        context.guideline_matching_duration = (matching_result.total_duration, 0.0)
 
         # Step 5: Filter the journeys that are activated by the matched guidelines.
         match_ids = set(map(lambda g: g.guideline.id, matching_result.matches))
@@ -848,6 +852,9 @@ class AlphaEngine(Engine):
             self._logger.operation(
                 "Second-pass: matching guidelines dependent on activated low-priority journeys"
             )
+            additional_matching_guidelines = [
+                g for id, g in all_stored_guidelines.items() if id in activated_low_priority_dep_ids
+            ]
             additional_matching_result = await self._guideline_matcher.match_guidelines(
                 agent=context.agent,
                 session=context.session,
@@ -856,11 +863,17 @@ class AlphaEngine(Engine):
                 interaction_history=context.interaction.history,
                 terms=list(context.state.glossary_terms),
                 staged_events=context.state.tool_events,
-                guidelines=[
-                    g
-                    for id, g in all_stored_guidelines.items()
-                    if id in activated_low_priority_dep_ids
-                ],
+                guidelines=additional_matching_guidelines,
+            )
+
+            # Update guideline matching metrics
+            context.guideline_matching_examined_guidelines = (
+                context.guideline_matching_examined_guidelines[0],
+                additional_matching_guidelines,
+            )
+            context.guideline_matching_duration = (
+                context.guideline_matching_duration[0],
+                additional_matching_result.total_duration,
             )
 
             matching_result = GuidelineMatchingResult(
