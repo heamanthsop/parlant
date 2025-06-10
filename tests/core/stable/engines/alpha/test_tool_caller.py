@@ -15,7 +15,7 @@
 from datetime import date, datetime, timezone, timedelta
 import enum
 from itertools import chain
-from typing import Annotated, Any, Mapping, Optional, Sequence
+from typing import Annotated, Any, Mapping, Optional, Sequence, List
 import uuid
 from pathlib import Path
 from lagom import Container
@@ -360,6 +360,79 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
     @tool
     def available_products_by_category(
         context: ToolContext, categories: list[ProductCategory]
+    ) -> ToolResult:
+        products_by_category = {
+            ProductCategory.LAPTOPS: ["Lenovo", "Dell"],
+            ProductCategory.PERIPHERALS: ["Razer Keyboard", "Logitech Mouse"],
+        }
+
+        return ToolResult([products_by_category[category] for category in categories])
+
+    conversation_context = [
+        (EventSource.CUSTOMER, "Are you selling computers products?"),
+        (EventSource.AI_AGENT, "Yes"),
+        (EventSource.CUSTOMER, "What available keyboards and laptops do you have?"),
+    ]
+
+    interaction_history = create_interaction_history(conversation_context)
+
+    tool_enabled_guideline_matches = {
+        create_guideline_match(
+            condition="get all products by a specific category",
+            action="a customer asks for the availability of products from a certain category",
+            score=9,
+            rationale="customer asks for keyboards availability",
+            tags=[Tag.for_agent_id(agent.id)],
+        ): [ToolId(service_name="my_sdk_service", tool_name="available_products_by_category")]
+    }
+
+    async with run_service_server([available_products_by_category]) as server:
+        await service_registry.update_tool_service(
+            name="my_sdk_service",
+            kind="sdk",
+            url=server.url,
+        )
+
+        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+            agent=agent,
+            context_variables=[],
+            interaction_history=interaction_history,
+            terms=[],
+            ordinary_guideline_matches=[],
+            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+            journeys=[],
+            staged_events=[],
+            tool_context=await tool_context(container, agent),
+        )
+
+    tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
+    assert len(tool_calls) == 1
+    tool_call = tool_calls[0]
+
+    assert "categories" in tool_call.arguments
+    assert isinstance(tool_call.arguments["categories"], str)
+    assert literal_eval(tool_call.arguments["categories"]) == [
+        ProductCategory.LAPTOPS.value,
+        ProductCategory.PERIPHERALS.value,
+    ]
+    assert ProductCategory.LAPTOPS.value in tool_call.arguments["categories"]
+    assert ProductCategory.PERIPHERALS.value in tool_call.arguments["categories"]
+
+
+async def test_that_a_tool_is_called_with_typing_lists(
+    container: Container,
+    agent: Agent,
+) -> None:
+    tool_caller = container[ToolCaller]
+    service_registry = container[ServiceRegistry]
+
+    class ProductCategory(enum.Enum):
+        LAPTOPS = "laptops"
+        PERIPHERALS = "peripherals"
+
+    @tool
+    def available_products_by_category(
+        context: ToolContext, categories: List[ProductCategory]
     ) -> ToolResult:
         products_by_category = {
             ProductCategory.LAPTOPS: ["Lenovo", "Dell"],
