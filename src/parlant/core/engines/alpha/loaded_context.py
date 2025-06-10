@@ -119,8 +119,14 @@ class LoadedContext:
     guideline_matching_examined_guidelines: Optional[
         tuple[Sequence[Guideline], Sequence[Guideline]]
     ] = ([], [])
+    """A tuple with two lists of guidelines. The first list are the guidelines that were examined in the first guideline matching. 
+        The second contains the guidelines for the additional matching that may be required due to incorrect journey-guessing 
+    """
 
     guideline_matching_duration: Optional[tuple[float, float]] = (-1.0, -1.0)
+    """
+        A tuple that holds the duration of each guideline matching stage in seconds. 
+    """
 
     async def add_tool_event(
         self,
