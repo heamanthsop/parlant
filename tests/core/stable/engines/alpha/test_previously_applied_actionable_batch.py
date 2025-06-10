@@ -115,7 +115,7 @@ def create_guideline(
     return guideline
 
 
-def base_test_that_correct_guidelines_are_matched(
+async def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     session_id: SessionId,
@@ -140,7 +140,7 @@ def base_test_that_correct_guidelines_are_matched(
         for i, (source, message) in enumerate(conversation_context)
     ]
 
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
 
     guideline_matching_context = GuidelineMatchingContext(
         agent=agent,
@@ -159,14 +159,14 @@ def base_test_that_correct_guidelines_are_matched(
         context=guideline_matching_context,
     )
 
-    result = context.sync_await(guideline_previously_applied_matcher.process())
+    result = await guideline_previously_applied_matcher.process()
 
     matched_guidelines = [p.guideline for p in result.matches]
 
     assert set(matched_guidelines) == set(target_guidelines)
 
 
-def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_reason(
+async def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_reason(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -189,7 +189,7 @@ def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_
 
     guidelines: list[str] = ["problem_so_restart"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -200,7 +200,7 @@ def test_that_previously_matched_guideline_are_not_matched_when_there_is_no_new_
     )
 
 
-def test_that_partially_fulfilled_action_with_missing_behavioral_part_is_not_matched_again(
+async def test_that_partially_fulfilled_action_with_missing_behavioral_part_is_not_matched_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -223,7 +223,7 @@ def test_that_partially_fulfilled_action_with_missing_behavioral_part_is_not_mat
 
     guidelines: list[str] = ["calm_and_reset_password"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -234,7 +234,7 @@ def test_that_partially_fulfilled_action_with_missing_behavioral_part_is_not_mat
     )
 
 
-def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_1(
+async def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_1(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -273,7 +273,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
 
     guidelines: list[str] = ["frustrated_so_discount"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -284,7 +284,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
     )
 
 
-def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_2(
+async def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_on_the_most_recent_interaction_is_not_matched_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -331,7 +331,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
 
     guidelines: list[str] = ["order_status"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -342,7 +342,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_not_reapply_based_
     )
 
 
-def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_based_on_the_most_recent_interaction_is_matched(
+async def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_based_on_the_most_recent_interaction_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -373,7 +373,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
 
     guidelines: list[str] = ["confirm_reservation"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -384,7 +384,7 @@ def test_that_guideline_that_was_reapplied_earlier_and_should_reapply_again_base
     )
 
 
-def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_the_last_several_messages(
+async def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_the_last_several_messages(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -415,7 +415,7 @@ def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_t
 
     guidelines: list[str] = ["confirm_reservation"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -426,7 +426,7 @@ def test_that_guideline_that_should_reapply_is_matched_when_condition_holds_in_t
     )
 
 
-def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_subissue(
+async def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_subissue(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -457,7 +457,7 @@ def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_subi
 
     guidelines: list[str] = ["confirm_reservation"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,

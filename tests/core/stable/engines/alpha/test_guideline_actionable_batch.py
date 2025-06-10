@@ -123,7 +123,7 @@ def create_guideline(
     return guideline
 
 
-def base_test_that_correct_guidelines_are_matched(
+async def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     session_id: SessionId,
@@ -149,17 +149,15 @@ def base_test_that_correct_guidelines_are_matched(
     ]
 
     for e in interaction_history:
-        context.sync_await(
-            context.container[SessionStore].create_event(
-                session_id=session_id,
-                source=e.source,
-                kind=e.kind,
-                correlation_id=e.correlation_id,
-                data=e.data,
-            )
+        await context.container[SessionStore].create_event(
+            session_id=session_id,
+            source=e.source,
+            kind=e.kind,
+            correlation_id=e.correlation_id,
+            data=e.data,
         )
 
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
 
     guideline_matching_context = GuidelineMatchingContext(
         agent=agent,
@@ -178,14 +176,14 @@ def base_test_that_correct_guidelines_are_matched(
         context=guideline_matching_context,
     )
 
-    result = context.sync_await(guideline_actionable_matcher.process())
+    result = await guideline_actionable_matcher.process()
 
     matched_guidelines = [p.guideline for p in result.matches]
 
     assert set(matched_guidelines) == set(target_guidelines)
 
 
-def test_that_a_guideline_whose_condition_is_partially_satisfied_not_matched(
+async def test_that_a_guideline_whose_condition_is_partially_satisfied_not_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -208,7 +206,7 @@ def test_that_a_guideline_whose_condition_is_partially_satisfied_not_matched(
 
     guidelines: list[str] = ["first_order_and_order_more_than_2"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -219,7 +217,7 @@ def test_that_a_guideline_whose_condition_is_partially_satisfied_not_matched(
     )
 
 
-def test_that_guideline_whose_condition_was_partially_fulfilled_now_matches(
+async def test_that_guideline_whose_condition_was_partially_fulfilled_now_matches(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -250,7 +248,7 @@ def test_that_guideline_whose_condition_was_partially_fulfilled_now_matches(
 
     guidelines: list[str] = ["first_order_and_order_more_than_2"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -261,7 +259,7 @@ def test_that_guideline_whose_condition_was_partially_fulfilled_now_matches(
     )
 
 
-def test_that_conflicting_actions_with_similar_conditions_are_both_matched(
+async def test_that_conflicting_actions_with_similar_conditions_are_both_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -277,7 +275,7 @@ def test_that_conflicting_actions_with_similar_conditions_are_both_matched(
 
     guidelines: list[str] = ["transfer_to_manager", "don't_transfer_to_manager"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -288,7 +286,7 @@ def test_that_conflicting_actions_with_similar_conditions_are_both_matched(
     )
 
 
-def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_not_matched_when_conversation_was_drifted(
+async def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_not_matched_when_conversation_was_drifted(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -311,7 +309,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
 
     guidelines: list[str] = ["cancel_subscription"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -322,7 +320,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
     )
 
 
-def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_not_matched_when_conversation_was_drifted_2(
+async def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is_not_matched_when_conversation_was_drifted_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -345,7 +343,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
 
     guidelines: list[str] = ["identify_problem"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context=context,
         agent=agent,
         session_id=new_session.id,
@@ -356,7 +354,7 @@ def test_that_guideline_with_already_applied_condition_but_unaddressed_action_is
     )
 
 
-def test_that_guideline_with_already_matched_condition_but_unaddressed_action_is_matched(
+async def test_that_guideline_with_already_matched_condition_but_unaddressed_action_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -383,7 +381,7 @@ def test_that_guideline_with_already_matched_condition_but_unaddressed_action_is
     ]
     guidelines: list[str] = ["frustrated_customer"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -394,7 +392,7 @@ def test_that_guideline_with_already_matched_condition_but_unaddressed_action_is
     )
 
 
-def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_topic_that_made_condition_hold(
+async def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_topic_that_made_condition_hold(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -421,7 +419,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_top
     ]
     guidelines: list[str] = ["do_payment"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -432,7 +430,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_the_same_top
     )
 
 
-def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold(
+async def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -450,7 +448,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     ]
     guidelines: list[str] = ["problem_with_order"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -461,7 +459,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     )
 
 
-def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold_2(
+async def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_that_made_condition_hold_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -480,7 +478,7 @@ def test_that_guideline_is_still_matched_when_conversation_still_on_sub_topic_th
     ]
     guidelines: list[str] = ["ordering_sandwich"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
