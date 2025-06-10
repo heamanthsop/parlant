@@ -269,7 +269,7 @@ def context(
     )
 
 
-def match_guidelines(
+async def match_guidelines(
     context: ContextOfTest,
     agent: Agent,
     customer: Customer,
@@ -279,25 +279,23 @@ def match_guidelines(
     terms: Sequence[Term] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
 
-    guideline_matching_result = context.sync_await(
-        context.container[GuidelineMatcher].match_guidelines(
-            agent=agent,
-            session=session,
-            customer=customer,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            terms=terms,
-            staged_events=staged_events,
-            guidelines=context.guidelines,
-        )
+    guideline_matching_result = await context.container[GuidelineMatcher].match_guidelines(
+        agent=agent,
+        session=session,
+        customer=customer,
+        context_variables=context_variables,
+        interaction_history=interaction_history,
+        terms=terms,
+        staged_events=staged_events,
+        guidelines=context.guidelines,
     )
 
     return list(chain.from_iterable(guideline_matching_result.batches))
 
 
-def create_guideline(
+async def create_guideline(
     context: ContextOfTest,
     condition: str,
     action: str | None = None,
@@ -306,23 +304,21 @@ def create_guideline(
     metadata: dict[str, JSONSerializable] = {}
     if action:
         guideline_evaluator = context.container[GuidelineEvaluator]
-        guideline_evaluation_data = context.sync_await(
-            guideline_evaluator.evaluate(
-                payloads=[
-                    GuidelinePayload(
-                        content=GuidelineContent(
-                            condition=condition,
-                            action=action,
-                        ),
-                        tool_ids=[],
-                        operation=GuidelinePayloadOperation.ADD,
-                        coherence_check=False,
-                        connection_proposition=False,
-                        action_proposition=True,
-                        properties_proposition=True,
-                    )
-                ],
-            )
+        guideline_evaluation_data = await guideline_evaluator.evaluate(
+            payloads=[
+                GuidelinePayload(
+                    content=GuidelineContent(
+                        condition=condition,
+                        action=action,
+                    ),
+                    tool_ids=[],
+                    operation=GuidelinePayloadOperation.ADD,
+                    coherence_check=False,
+                    connection_proposition=False,
+                    action_proposition=True,
+                    properties_proposition=True,
+                )
+            ],
         )
 
         metadata = guideline_evaluation_data[0].properties_proposition or {}
@@ -374,18 +370,18 @@ def create_context_variable(
     )
 
 
-def create_guideline_by_name(
+async def create_guideline_by_name(
     context: ContextOfTest,
     guideline_name: str,
 ) -> Guideline | None:
     if guideline_name in ACTIONABLE_GUIDELINES_DICT:
-        guideline = create_guideline(
+        guideline = await create_guideline(
             context=context,
             condition=ACTIONABLE_GUIDELINES_DICT[guideline_name]["condition"],
             action=ACTIONABLE_GUIDELINES_DICT[guideline_name]["action"],
         )
     elif guideline_name in OBSERVATIONAL_GUIDELINES_DICT:
-        guideline = create_guideline(
+        guideline = await create_guideline(
             context=context,
             condition=OBSERVATIONAL_GUIDELINES_DICT[guideline_name]["condition"],
         )
@@ -394,25 +390,23 @@ def create_guideline_by_name(
     return guideline
 
 
-def update_previously_applied_guidelines(
+async def update_previously_applied_guidelines(
     context: ContextOfTest,
     session_id: SessionId,
     applied_guideline_ids: list[GuidelineId],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
     applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
 
-    context.sync_await(
-        context.container[EntityCommands].update_session(
-            session_id=session.id,
-            params=SessionUpdateParams(
-                agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
-            ),
-        )
+    await context.container[EntityCommands].update_session(
+        session_id=session.id,
+        params=SessionUpdateParams(
+            agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+        ),
     )
 
 
-def analyze_response_and_update_session(
+async def analyze_response_and_update_session(
     context: ContextOfTest,
     agent: Agent,
     customer: Customer,
@@ -423,7 +417,7 @@ def analyze_response_and_update_session(
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
 
     matches_to_analyze = [
         GuidelineMatch(
@@ -457,14 +451,14 @@ def analyze_response_and_update_session(
 
     applied_guideline_ids = [
         g.guideline.id
-        for g in (context.sync_await(generic_response_analysis_batch.process())).analyzed_guidelines
+        for g in (await generic_response_analysis_batch.process()).analyzed_guidelines
         if g.is_previously_applied
     ]
 
-    update_previously_applied_guidelines(context, session_id, applied_guideline_ids)
+    await update_previously_applied_guidelines(context, session_id, applied_guideline_ids)
 
 
-def base_test_that_correct_guidelines_are_matched(
+async def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     customer: Customer,
@@ -488,7 +482,7 @@ def base_test_that_correct_guidelines_are_matched(
     ]
 
     conversation_guidelines = {
-        name: create_guideline_by_name(context, name) for name in conversation_guideline_names
+        name: await create_guideline_by_name(context, name) for name in conversation_guideline_names
     }
 
     relevant_guidelines = [conversation_guidelines[name] for name in relevant_guideline_names]
@@ -504,13 +498,13 @@ def base_test_that_correct_guidelines_are_matched(
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
 
-    update_previously_applied_guidelines(
+    await update_previously_applied_guidelines(
         context=context,
         session_id=session_id,
         applied_guideline_ids=previously_applied_guidelines,
     )
 
-    analyze_response_and_update_session(
+    await analyze_response_and_update_session(
         context=context,
         agent=agent,
         session_id=session_id,
@@ -522,7 +516,7 @@ def base_test_that_correct_guidelines_are_matched(
         interaction_history=interaction_history,
     )
 
-    guideline_matches = match_guidelines(
+    guideline_matches = await match_guidelines(
         context=context,
         agent=agent,
         customer=customer,
@@ -538,7 +532,7 @@ def base_test_that_correct_guidelines_are_matched(
     assert set(matched_guidelines) == set(relevant_guidelines)
 
 
-def test_that_many_guidelines_are_classified_correctly(  # a stress test
+async def test_that_many_guidelines_are_classified_correctly(  # a stress test
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -605,7 +599,7 @@ def test_that_many_guidelines_are_classified_correctly(  # a stress test
         if guideline_name not in exceptions
     ]
     relevant_guideline_names = ["announce_shipment", "second_thanks"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -616,7 +610,7 @@ def test_that_many_guidelines_are_classified_correctly(  # a stress test
     )
 
 
-def test_that_relevant_guidelines_are_matched_parametrized_1(
+async def test_that_relevant_guidelines_are_matched_parametrized_1(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -651,7 +645,7 @@ def test_that_relevant_guidelines_are_matched_parametrized_1(
     relevant_guideline_names: list[str] = [
         "address_location",
     ]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -662,7 +656,7 @@ def test_that_relevant_guidelines_are_matched_parametrized_1(
     )
 
 
-def test_that_guideline_that_needs_to_be_reapplied_is_matched(
+async def test_that_guideline_that_needs_to_be_reapplied_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -712,7 +706,7 @@ def test_that_guideline_that_needs_to_be_reapplied_is_matched(
 
     conversation_guideline_names: list[str] = ["large_pizza_crust"]
     relevant_guideline_names = conversation_guideline_names
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -724,7 +718,7 @@ def test_that_guideline_that_needs_to_be_reapplied_is_matched(
     )
 
 
-def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
+async def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -780,7 +774,7 @@ def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
     ]
 
     conversation_guideline_names: list[str] = ["summer_sale"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -792,7 +786,7 @@ def test_that_guidelines_based_on_context_variables_arent_matched_repetitively(
     )
 
 
-def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
+async def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -810,7 +804,7 @@ def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
 
     conversation_guideline_names: list[str] = ["pay_cc_bill"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -821,7 +815,7 @@ def test_that_guidelines_are_not_considered_done_when_they_strictly_arent(
     )
 
 
-def test_that_observational_guidelines_arent_wrongly_implied(
+async def test_that_observational_guidelines_arent_wrongly_implied(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -870,7 +864,7 @@ def test_that_observational_guidelines_arent_wrongly_implied(
 
     conversation_guideline_names: list[str] = ["season_is_winter"]
     relevant_guideline_names: list[str] = []
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -883,7 +877,7 @@ def test_that_observational_guidelines_arent_wrongly_implied(
     )
 
 
-def test_that_observational_guidelines_are_detected_correctly_when_lots_of_data_is_available(
+async def test_that_observational_guidelines_are_detected_correctly_when_lots_of_data_is_available(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -987,7 +981,7 @@ def test_that_observational_guidelines_are_detected_correctly_when_lots_of_data_
         "frustrated_customer_observational",
         "unanswered_questions",
     ]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,

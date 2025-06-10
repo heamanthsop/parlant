@@ -105,7 +105,7 @@ def create_guideline(
     return guideline
 
 
-def base_test_that_correct_guidelines_are_matched(
+async def base_test_that_correct_guidelines_are_matched(
     context: ContextOfTest,
     agent: Agent,
     session_id: SessionId,
@@ -132,7 +132,7 @@ def base_test_that_correct_guidelines_are_matched(
         for i, (source, message) in enumerate(conversation_context)
     ]
 
-    session = context.sync_await(context.container[SessionStore].read_session(session_id))
+    session = await context.container[SessionStore].read_session(session_id)
 
     guideline_matching_context = GuidelineMatchingContext(
         agent=agent,
@@ -153,14 +153,14 @@ def base_test_that_correct_guidelines_are_matched(
         )
     )
 
-    result = context.sync_await(guideline_previously_applied_matcher.process())
+    result = await guideline_previously_applied_matcher.process()
 
     matched_guidelines = [p.guideline for p in result.matches]
 
     assert set(matched_guidelines) == set(previously_applied_target_guidelines)
 
 
-def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side(
+async def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -183,7 +183,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
 
     guidelines: list[str] = ["reservation_location"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -194,7 +194,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
     )
 
 
-def test_that_customer_dependent_guideline_is_not_matched_when_customer_has_completed_their_side(
+async def test_that_customer_dependent_guideline_is_not_matched_when_customer_has_completed_their_side(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -217,7 +217,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_customer_has_comp
 
     guidelines: list[str] = ["reservation_location"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -228,7 +228,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_customer_has_comp
     )
 
 
-def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side_over_several_messages(
+async def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side_over_several_messages(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -259,7 +259,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
 
     guidelines: list[str] = ["reservation_location"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -270,7 +270,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
     )
 
 
-def test_that_customer_dependent_guideline_is_not_matched_when_customer_hasnt_completed_their_side_but_change_subject(
+async def test_that_customer_dependent_guideline_is_not_matched_when_customer_hasnt_completed_their_side_but_change_subject(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -293,7 +293,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_customer_hasnt_co
 
     guidelines: list[str] = ["issue_reporting"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -304,7 +304,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_customer_hasnt_co
     )
 
 
-def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side_on_the_second_time(
+async def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_completed_their_side_on_the_second_time(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -342,7 +342,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
     ]
 
     guidelines: list[str] = ["order_lookup"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -353,7 +353,7 @@ def test_that_customer_dependent_guideline_is_matched_when_customer_hasnt_comple
     )
 
 
-def test_that_customer_dependent_guideline_is_matched_when_condition_arises_for_the_second_time(
+async def test_that_customer_dependent_guideline_is_matched_when_condition_arises_for_the_second_time(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -384,7 +384,7 @@ def test_that_customer_dependent_guideline_is_matched_when_condition_arises_for_
 
     guidelines: list[str] = ["order_lookup"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -395,7 +395,7 @@ def test_that_customer_dependent_guideline_is_matched_when_condition_arises_for_
     )
 
 
-def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_completed(
+async def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_completed(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -434,7 +434,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_
 
     guidelines: list[str] = ["order_lookup"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
@@ -445,7 +445,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_
     )
 
 
-def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_dont_need_to_take_the_action_again(
+async def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_for_the_second_time_but_dont_need_to_take_the_action_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -476,7 +476,7 @@ def test_that_customer_dependent_guideline_is_not_matched_when_condition_arises_
 
     guidelines: list[str] = ["order_alcohol"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         new_session.id,
