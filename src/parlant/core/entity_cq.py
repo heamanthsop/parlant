@@ -103,7 +103,7 @@ class EntityQueries:
     ) -> Customer:
         return await self._customer_store.read_customer(customer_id)
 
-    async def list_guidelines_for_context(
+    async def find_guidelines_for_context(
         self,
         agent_id: AgentId,
         journeys: Sequence[Journey],
@@ -133,7 +133,7 @@ class EntityQueries:
 
         return list(all_guidelines)
 
-    async def list_journey_scoped_guidelines(
+    async def find_journey_scoped_guidelines(
         self,
         journey: Journey,
     ) -> Sequence[GuidelineId]:
@@ -173,7 +173,7 @@ class EntityQueries:
 
         return list(guideline_ids)
 
-    async def list_context_variables_for_context(
+    async def find_context_variables_for_context(
         self,
         agent_id: AgentId,
     ) -> Sequence[ContextVariable]:
@@ -202,7 +202,7 @@ class EntityQueries:
     ) -> Optional[ContextVariableValue]:
         return await self._context_variable_store.read_value(variable_id, key)
 
-    async def list_events(
+    async def find_events(
         self,
         session_id: SessionId,
     ) -> Sequence[Event]:
@@ -267,7 +267,7 @@ class EntityQueries:
     ) -> ToolService:
         return await self._service_registry.read_tool_service(service_name)
 
-    async def list_journeys_for_context(
+    async def finds_journeys_for_context(
         self,
         agent_id: AgentId,
     ) -> Sequence[Journey]:
@@ -292,7 +292,7 @@ class EntityQueries:
     ) -> Sequence[Journey]:
         return await self._journey_store.find_relevant_journeys(
             query=query,
-            available_journeys=await self.list_journeys_for_context(agent_id),
+            available_journeys=await self.finds_journeys_for_context(agent_id),
         )
 
     async def find_utterances_for_context(

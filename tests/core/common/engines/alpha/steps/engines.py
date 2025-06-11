@@ -130,7 +130,7 @@ def _load_context_variables(
     )
     # TODO The function need to be replaced by AlphaEngine._load_context_variables once will be public
     variables_supported_by_agent = context.sync_await(
-        context.container[EntityQueries].list_context_variables_for_context(
+        context.container[EntityQueries].find_context_variables_for_context(
             agent_id=agent_id,
         )
     )

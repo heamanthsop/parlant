@@ -209,7 +209,7 @@ class AlphaEngine(Engine):
             raise
 
     async def _load_interaction_state(self, context: Context) -> Interaction:
-        history = await self._entity_queries.list_events(context.session_id)
+        history = await self._entity_queries.find_events(context.session_id)
         last_known_event_offset = history[-1].offset if history else -1
 
         return Interaction(
@@ -736,7 +736,7 @@ class AlphaEngine(Engine):
         context: LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
         variables_supported_by_agent = (
-            await self._entity_queries.list_context_variables_for_context(
+            await self._entity_queries.find_context_variables_for_context(
                 agent_id=context.agent.id,
             )
         )
@@ -790,7 +790,7 @@ class AlphaEngine(Engine):
         # Step 2:
         all_stored_guidelines = {
             g.id: g
-            for g in await self._entity_queries.list_guidelines_for_context(
+            for g in await self._entity_queries.find_guidelines_for_context(
                 agent_id=context.agent.id,
                 journeys=all_journeys,
             )
@@ -804,7 +804,7 @@ class AlphaEngine(Engine):
         low_prob_journey_dependent_ids = set(
             chain.from_iterable(
                 [
-                    await self._entity_queries.list_journey_scoped_guidelines(j)
+                    await self._entity_queries.find_journey_scoped_guidelines(j)
                     for j in all_journeys[top_k:]
                 ]
             )
@@ -840,7 +840,7 @@ class AlphaEngine(Engine):
         activated_low_priority_dep_ids = set(
             chain.from_iterable(
                 [
-                    await self._entity_queries.list_journey_scoped_guidelines(j)
+                    await self._entity_queries.find_journey_scoped_guidelines(j)
                     for j in [
                         activated_journey
                         for activated_journey in journeys
