@@ -11,7 +11,7 @@ class GuidelineInternalRepresentation:
 
 
 def internal_representation(g: Guideline) -> GuidelineInternalRepresentation:
-    condition = g.metadata.get("internal_condition")
+    condition = g.metadata.get("agent_intention_condition")
     if isinstance(condition, str):
         return GuidelineInternalRepresentation(condition, g.content.action)
     return GuidelineInternalRepresentation(g.content.condition, g.content.action)

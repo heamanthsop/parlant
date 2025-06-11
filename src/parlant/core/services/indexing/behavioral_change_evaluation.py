@@ -555,7 +555,7 @@ class GuidelineEvaluator:
                 "customer_dependent_action_data": payload_customer_dependent.model_dump()
                 if payload_customer_dependent
                 else None,
-                "internal_condition": agent_intention.rewritten_condition
+                "agent_intention_condition": agent_intention.rewritten_condition
                 if agent_intention
                 and agent_intention.rewritten_condition
                 and agent_intention.is_agent_intention
