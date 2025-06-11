@@ -35,7 +35,7 @@ from parlant.core.nlp.policies import policy, retry
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
-from parlant.core.emissions import EngineEvent
+from parlant.core.emissions import EmittedEvent
 from parlant.core.nlp.generation_info import GenerationInfo
 
 
@@ -57,7 +57,7 @@ class GuidelineMatchingContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
-    staged_events: Sequence[EngineEvent]
+    staged_events: Sequence[EmittedEvent]
 
 
 @dataclass(frozen=True)
@@ -68,7 +68,7 @@ class ReportAnalysisContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
-    staged_events: Sequence[EngineEvent]
+    staged_events: Sequence[EmittedEvent]
 
 
 @dataclass(frozen=True)
@@ -181,7 +181,7 @@ class GuidelineMatcher:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
         guidelines: Sequence[Guideline],
     ) -> GuidelineMatchingResult:
         if not guidelines:
@@ -248,7 +248,7 @@ class GuidelineMatcher:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
         guideline_matches: Sequence[GuidelineMatch],
     ) -> ResponseAnalysisResult:
         if not guideline_matches:

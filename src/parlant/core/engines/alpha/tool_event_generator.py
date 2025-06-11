@@ -14,9 +14,7 @@
 
 from dataclasses import dataclass
 from itertools import chain
-from typing import Mapping, Optional, Sequence, cast
-
-from parlant.core.common import JSONSerializable
+from typing import Mapping, Optional, Sequence
 from parlant.core.customers import Customer
 from parlant.core.journeys import Journey
 from parlant.core.tools import ToolContext
@@ -26,21 +24,22 @@ from parlant.core.loggers import Logger
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.sessions import Event, SessionId, ToolEventData, EventKind, EventSource
+from parlant.core.sessions import Event, SessionId, ToolEventData
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolCaller,
     ToolInsights,
 )
-from parlant.core.emissions import EngineEvent, EventEmitter
+from parlant.core.emissions import EmittedEvent, EventEmitter
+from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.tools import ToolId
 
 
 @dataclass(frozen=True)
 class ToolEventGenerationResult:
     generations: Sequence[GenerationInfo]
-    events: Sequence[Optional[EngineEvent]]
+    events: Sequence[Optional[EmittedEvent]]
     insights: ToolInsights
 
 
@@ -55,7 +54,7 @@ class ToolPreexecutionState:
     terms: Sequence[Term]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
-    staged_events: Sequence[EngineEvent]
+    staged_events: Sequence[EmittedEvent]
 
 
 class ToolEventGenerator:
@@ -82,7 +81,7 @@ class ToolEventGenerator:
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
     ) -> ToolPreexecutionState:
         return ToolPreexecutionState(
             event_emitter,
@@ -110,7 +109,7 @@ class ToolEventGenerator:
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
     ) -> ToolEventGenerationResult:
         _ = preexecution_state  # Not used for now, but good to have for extensibility
 
@@ -157,38 +156,35 @@ class ToolEventGenerator:
                 insights=inference_result.insights,
             )
 
-        event_data_all: ToolEventData = {
-            "tool_calls": [
-                {
-                    "tool_id": r.tool_call.tool_id.to_string(),
-                    "arguments": r.tool_call.arguments,
-                    "result": r.result,
-                }
-                for r in tool_results
-            ]
-        }
-
-        tool_calls_to_emit = [
-            tc
-            for tc in event_data_all["tool_calls"]
-            if tc["result"]["control"].get("lifespan", "session") == "session"
-        ]
-
-        if tool_calls_to_emit:
-            await event_emitter.emit_tool_event(
-                correlation_id=self._correlator.correlation_id,
-                data={"tool_calls": tool_calls_to_emit},
-            )
-
-        event = EngineEvent(
-            source=EventSource.SYSTEM,
-            kind=EventKind.TOOL,
-            correlation_id=self._correlator.correlation_id,
-            data=cast(JSONSerializable, event_data_all),
-        )
+        transient_emitter = EventBuffer(agent)
+        events = []
+        for r in tool_results:
+            event_data: ToolEventData = {
+                "tool_calls": [
+                    {
+                        "tool_id": r.tool_call.tool_id.to_string(),
+                        "arguments": r.tool_call.arguments,
+                        "result": r.result,
+                    }
+                ]
+            }
+            if r.result["control"].get("lifespan", "session") == "session":
+                events.append(
+                    await event_emitter.emit_tool_event(
+                        correlation_id=self._correlator.correlation_id,
+                        data=event_data,
+                    )
+                )
+            else:
+                events.append(
+                    await transient_emitter.emit_tool_event(
+                        correlation_id=self._correlator.correlation_id,
+                        data=event_data,
+                    )
+                )
 
         return ToolEventGenerationResult(
             generations=inference_result.batch_generations,
-            events=[event],
+            events=events,
             insights=inference_result.insights,
         )

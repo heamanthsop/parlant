@@ -8,7 +8,7 @@ from typing_extensions import override
 from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
-from parlant.core.emissions import EngineEvent
+from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
@@ -148,7 +148,7 @@ class SingleToolBatch(ToolCallBatch):
         journeys: Sequence[Journey],
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
     ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData], list[InvalidToolData]]:
         inference_prompt = self._build_tool_call_inference_prompt(
             agent,
@@ -347,7 +347,7 @@ Example #{i}: ###
         journeys: Sequence[Journey],
         batch: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
         shots: Sequence[SingleToolBatchShot],
     ) -> PromptBuilder:
         staged_calls = self._get_staged_calls(staged_events)
@@ -705,7 +705,7 @@ Guidelines:
 
     def _get_staged_calls(
         self,
-        mixed_events: Sequence[EngineEvent],
+        mixed_events: Sequence[EmittedEvent],
     ) -> Optional[str]:
         staged_calls = [
             PromptBuilder.adapt_event(e) for e in mixed_events if e.kind == EventKind.TOOL

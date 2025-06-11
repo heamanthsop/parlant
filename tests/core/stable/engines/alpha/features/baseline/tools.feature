@@ -1068,3 +1068,12 @@ Scenario: Tool returns a result with transient lifespan and its event is not emi
         And a single event is staged
         And no tool calls event is emitted
         And the staged tool calls event contains "18:03"
+
+Scenario: Tool returns a result with explicit long-term lifespan and its event is emitted
+        Given a guideline "current_time" to get the current time when a customer wants to know the time
+        And the tool "check_current_time_emit"
+        And an association between "current_time" and "check_current_time_emit"
+        And a customer message, "Hey, I have a meeting in 10:00, but I lost my watch. Am I late for the meeting ?"
+        When processing is triggered
+        Then a single tool calls event is emitted
+        And the message contains the text "9:59"

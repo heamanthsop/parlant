@@ -76,7 +76,7 @@ from parlant.core.engines.alpha.tool_event_generator import (
 )
 from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.engines.types import Context, Engine, UtteranceReason, UtteranceRequest
-from parlant.core.emissions import EventEmitter, EngineEvent
+from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import Logger
 from parlant.core.entity_cq import EntityQueries, EntityCommands
@@ -145,7 +145,7 @@ class AlphaEngine(Engine):
 
         try:
             with self._logger.operation(f"Processing context for session {context.session_id}"):
-                await self._do_process(loaded_context, event_emitter)
+                await self._do_process(loaded_context)
             return True
         except asyncio.CancelledError:
             return False
@@ -217,7 +217,6 @@ class AlphaEngine(Engine):
     async def _do_process(
         self,
         context: LoadedContext,
-        event_emitter: EventEmitter,
     ) -> None:
         if not await self._hooks.call_on_acknowledging(context):
             return  # Hook requested to bail out
@@ -884,7 +883,7 @@ class AlphaEngine(Engine):
         self,
         context: LoadedContext,
         preexecution_state: ToolPreexecutionState,
-    ) -> tuple[ToolEventGenerationResult, list[EngineEvent], ToolInsights] | None:
+    ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
             event_emitter=context.event_emitter,

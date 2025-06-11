@@ -6,7 +6,7 @@ from pytest import fixture
 from parlant.core.agents import Agent
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer
-from parlant.core.emissions import EngineEvent
+from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_customer_dependent_batch import (
     GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
     GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
@@ -113,7 +113,7 @@ async def base_test_that_correct_guidelines_are_matched(
     conversation_context: list[tuple[EventSource, str]],
     guidelines_target_names: list[str],
     guidelines_names: list[str],
-    staged_events: Sequence[EngineEvent] = [],
+    staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     conversation_guidelines = {
         name: create_guideline_by_name(context, name) for name in guidelines_names

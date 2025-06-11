@@ -491,3 +491,7 @@ def give_boolean_types(
 
 def check_current_time() -> ToolResult:
     return ToolResult(data="Current time is 18:03", control={"lifespan": "response"})
+
+
+def check_current_time_emit() -> ToolResult:
+    return ToolResult(data="Current time is 9:59", control={"lifespan": "session"})

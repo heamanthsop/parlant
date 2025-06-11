@@ -17,7 +17,7 @@ from typing import Any, Optional, Sequence
 from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
-from parlant.core.emissions import EngineEvent
+from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
@@ -127,7 +127,7 @@ class OverlappingToolsBatch(ToolCallBatch):
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         overlapping_tools_batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
     ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
         inference_prompt = self._build_tool_call_inference_prompt(
             agent,
@@ -297,7 +297,7 @@ Example #{i}: ###
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
-        staged_events: Sequence[EngineEvent],
+        staged_events: Sequence[EmittedEvent],
         shots: Sequence[OverlappingToolsBatchShot],
     ) -> PromptBuilder:
         staged_calls = self._get_staged_calls(staged_events)
@@ -596,7 +596,7 @@ Guidelines:
 
     def _get_staged_calls(
         self,
-        mixed_events: Sequence[EngineEvent],
+        mixed_events: Sequence[EmittedEvent],
     ) -> Optional[str]:
         staged_calls = [
             PromptBuilder.adapt_event(e) for e in mixed_events if e.kind == EventKind.TOOL
