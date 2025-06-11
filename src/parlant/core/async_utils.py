@@ -181,13 +181,16 @@ def completed_task(value: _TResult0 | None = None) -> asyncio.Task[_TResult0 | N
 
 
 def default_done_callback(
-    logger: Logger,
+    logger: Logger | None = None,
 ) -> Callable[[asyncio.Task[_TResult0]], object]:
     def done_callback(task: asyncio.Task[_TResult0]) -> object:
         try:
             return task.result()
+        except asyncio.CancelledError:
+            return None
         except Exception as e:
-            logger.error(f"Exception encountered in background task: {e}")
+            if logger:
+                logger.error(f"Exception encountered in background task: {e}")
             return None
 
     return done_callback
