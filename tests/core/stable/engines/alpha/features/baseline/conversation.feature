@@ -109,3 +109,70 @@ Feature: Conversation
         When processing is triggered
         Then a single message event is emitted
         And the message contains no specific information about how to reach out, like a phone number or an exact address. 
+
+    Scenario: The agent follows a guideline with agent intention 
+        Given an agent
+        And an empty session
+        Given a guideline to do not provide any personal medical information even if you have it when the agent discusses a patient's medical record
+        And a customer named "Alex Smith"
+        And an empty session with "Alex Smith"
+        And a context variable "medical_record" set to "Amoxicillin and Lisinopril" for "Alex Smith" 
+        And a customer message, "Hi, I need to know what medications I was prescribed during my visit last month. Can you pull up my medical record?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no prescription of medications 
+        And the message contains explanation that can't provide personal medical information
+
+    Scenario: The agent ignores a matched agent intention guideline when the agent doesn't intend to do its condition
+        Given an agent
+        And an empty session
+        Given a guideline to remind that we have a special sale if they book today when the agent recommends on flights options
+        Given a guideline to suggest only ground based travel options when the customer asks about travel options
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with bus or train but not with a flight
+        And the message contains no sale option
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline
+        Given an agent
+        And an empty session
+        Given a guideline to suggest direct flights when the agent recommends on travel options
+        Given a guideline to suggest only ground-based travel options when the customer asks about domestic US travel options 
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with ground-based travel options but not with a flight
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2
+        Given an agent
+        And an empty session
+        Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend only on the vegetarian toppings options when the customer asks for pizza topping recommendation and they are vegetarian
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a recommendation only on pineapple as topping  
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline
+        Given an agent
+        And an empty session
+        Given a guideline to suggest direct flights when the agent recommends on travel options
+        Given a guideline to suggest only ground-based travel options when the agent recommends on domestic US travel options 
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with ground-based travel options but not with a flight
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2
+        Given an agent
+        And an empty session
+        Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend only on the vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a recommendation on pineapple pizza only
+        And the message contains no recommendation on pepperoni pizza 
+
+    
