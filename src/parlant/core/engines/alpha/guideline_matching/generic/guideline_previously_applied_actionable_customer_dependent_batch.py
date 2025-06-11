@@ -5,6 +5,7 @@ import math
 from typing import Optional, Sequence
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     PreviouslyAppliedType,
@@ -166,7 +167,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
         shots: Sequence[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {g.internal_condition}. Action: {g.content.action}"
+            f"{i}) Condition: {internal_representation(g).condition}. Action: {g.content.action}"
             for i, g in self._guidelines.items()
         )
 

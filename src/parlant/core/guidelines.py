@@ -56,13 +56,6 @@ class Guideline:
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @property
-    def internal_condition(self) -> str:
-        val = self.metadata.get("internal_condition")
-        if isinstance(val, str):
-            return val
-        return self.content.condition
-
 
 class GuidelineUpdateParams(TypedDict, total=False):
     condition: str

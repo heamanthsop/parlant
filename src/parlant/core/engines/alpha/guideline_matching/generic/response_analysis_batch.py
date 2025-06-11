@@ -7,6 +7,7 @@ from more_itertools import chunked
 
 from parlant.core import async_utils
 from parlant.core.common import DefaultBaseModel, JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
     _make_event,
 )
@@ -220,7 +221,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
         guidelines: dict[str, Guideline],
     ) -> str:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {g.internal_condition}. Action: {g.content.action}"
+            f"{i}) Condition: {internal_representation(g).condition}. Action: {g.content.action}"
             for i, g in guidelines.items()
         )
 
