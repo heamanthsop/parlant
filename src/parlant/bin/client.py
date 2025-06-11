@@ -2937,6 +2937,10 @@ class Interface:
         try:
             journeys = Actions.list_journeys(ctx, tag)
 
+            if not journeys:
+                rich.print(Text("No data available", style="bold yellow"))
+                return
+
             Interface._render_journeys(journeys)
 
         except Exception as e:
