@@ -64,7 +64,7 @@ class SDKTest:
                 if attempts > 10:
                     raise RuntimeError("Server did not start in time")
 
-                await asyncio.sleep(0.333)
+                await asyncio.sleep(3)
 
     async def create_server(self, port: int) -> tuple[p.Server, Callable[[], p.Container]]:
         test_container: p.Container = p.Container()

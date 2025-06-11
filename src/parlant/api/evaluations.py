@@ -247,7 +247,7 @@ class InvoiceDataDTO(
     """
     Contains the relevant invoice data.
 
-    At this point only `guideline` is suppoerted.
+    At this point only `guideline` is supported.
     """
 
     guideline: Optional[GuidelineInvoiceDataDTO] = None

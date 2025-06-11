@@ -1,6 +1,9 @@
 from textwrap import dedent
 
 from parlant.core.capabilities import CapabilityStore
+from parlant.core.guidelines import GuidelineStore
+from parlant.core.journeys import JourneyStore
+from parlant.core.tags import Tag
 import parlant.sdk as p
 
 from tests.sdk.utils import Context, SDKTest, get_message
@@ -44,6 +47,69 @@ class Test_that_a_capability_can_be_created(SDKTest):
         assert capability.title == self.capability.title
         assert capability.description == self.capability.description
         assert capability.queries == self.capability.queries
+
+
+class Test_that_condition_guidelines_are_tagged_for_created_journey(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Store agent",
+            description="You work at a store and help customers",
+            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Greeting the customer",
+            conditions=["the customer greets you", "customer say Howdy"],
+            description=dedent("""\
+                1. Offer the customer a Pepsi
+            """),
+        )
+
+    async def run(self, ctx: Context) -> None:
+        journey_store = ctx.container[JourneyStore]
+        guideline_store = ctx.container[GuidelineStore]
+
+        journey = await journey_store.read_journey(journey_id=self.journey.id)
+
+        assert journey
+
+        condition_guidelines = [
+            await guideline_store.read_guideline(guideline_id=g_id) for g_id in journey.conditions
+        ]
+
+        assert all(g.tags == [Tag.for_journey_id(self.journey.id)] for g in condition_guidelines)
+
+
+class Test_that_condition_guidelines_are_evaluated_in_journey_creation(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Store agent",
+            description="You work at a store and help customers",
+            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Greeting the customer",
+            conditions=["the customer greets you", "customer say Howdy"],
+            description=dedent("""\
+                1. Offer the customer a Pepsi
+            """),
+        )
+
+    async def run(self, ctx: Context) -> None:
+        journey_store = ctx.container[JourneyStore]
+        guideline_store = ctx.container[GuidelineStore]
+
+        journey = await journey_store.read_journey(journey_id=self.journey.id)
+
+        assert journey
+
+        condition_guidelines = [
+            await guideline_store.read_guideline(guideline_id=g_id) for g_id in journey.conditions
+        ]
+
+        assert all("continuous" in g.metadata for g in condition_guidelines)
+        assert all("customer_dependent_action_data" in g.metadata for g in condition_guidelines)
 
 
 class Test_that_a_created_journey_is_followed(SDKTest):

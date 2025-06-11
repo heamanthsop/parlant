@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -49,6 +50,7 @@ from parlant.core.relationships import (
     RelationshipKind,
     RelationshipStore,
 )
+from parlant.core.services.indexing.behavioral_change_evaluation import BehavioralChangeEvaluator
 from parlant.core.services.tools.service_registry import ServiceDocumentRegistry, ServiceRegistry
 from parlant.core.sessions import (
     EventKind,
@@ -61,8 +63,21 @@ from parlant.core.sessions import (
     ToolEventData,
 )
 from parlant.core.utterances import UtteranceVectorStore, UtteranceId, UtteranceStore
-from parlant.core.evaluations import EvaluationDocumentStore, EvaluationStore
-from parlant.core.guidelines import GuidelineDocumentStore, GuidelineId, GuidelineStore
+from parlant.core.evaluations import (
+    EvaluationDocumentStore,
+    EvaluationStatus,
+    EvaluationStore,
+    GuidelinePayload,
+    GuidelinePayloadOperation,
+    PayloadDescriptor,
+    PayloadKind,
+)
+from parlant.core.guidelines import (
+    GuidelineContent,
+    GuidelineDocumentStore,
+    GuidelineId,
+    GuidelineStore,
+)
 from parlant.core.journeys import JourneyId, JourneyStore, JourneyVectorStore
 from parlant.core.loggers import LogLevel, Logger
 from parlant.core.nlp.service import NLPService
@@ -494,9 +509,51 @@ class Server:
     ) -> Journey:
         condition_ids = []
 
-        for c in conditions:
+        evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
+            payload_descriptors=[
+                PayloadDescriptor(
+                    PayloadKind.GUIDELINE,
+                    GuidelinePayload(
+                        content=GuidelineContent(
+                            condition=c,
+                            action=None,
+                        ),
+                        tool_ids=[],
+                        operation=GuidelinePayloadOperation.ADD,
+                        coherence_check=False,  # Legacy and will be removed in the future
+                        connection_proposition=False,  # Legacy and will be removed in the future
+                        action_proposition=False,
+                        properties_proposition=True,
+                    ),
+                )
+                for c in conditions
+            ]
+        )
+
+        evaluation = await self._container[EvaluationStore].read_evaluation(
+            evaluation_id=evaluation_id
+        )
+        while evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
+            await asyncio.sleep(0.1)
+            evaluation = await self._container[EvaluationStore].read_evaluation(
+                evaluation_id=evaluation_id
+            )
+
+        if evaluation.status == EvaluationStatus.FAILED:
+            raise SDKError(f"Evaluation failed during journey creation: {evaluation.error}")
+
+        for invoice in evaluation.invoices:
+            assert invoice.approved
+            assert invoice.data
+            assert invoice.data.properties_proposition
+
             condition_ids.append(
-                (await self._container[GuidelineStore].create_guideline(condition=c)).id
+                (
+                    await self._container[GuidelineStore].create_guideline(
+                        condition=invoice.payload.content.condition,
+                        metadata=invoice.data.properties_proposition,
+                    )
+                ).id
             )
 
         journey = await self._container[JourneyStore].create_journey(
@@ -504,6 +561,12 @@ class Server:
             description,
             condition_ids,
         )
+
+        for c_id in condition_ids:
+            await self._container[GuidelineStore].upsert_tag(
+                guideline_id=c_id,
+                tag_id=Tag.for_journey_id(journey_id=journey.id),
+            )
 
         return Journey(
             id=journey.id,
