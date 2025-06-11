@@ -2364,7 +2364,6 @@ class Interface:
                 kind=kind,
                 indirect=indirect,
             )
-            rich.print(f"relationships: {relationships}")
 
             if not relationships:
                 rich.print(Text("No data available", style="bold yellow"))
