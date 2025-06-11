@@ -129,3 +129,33 @@ class DefaultPerceivedPerformancePolicy(PerceivedPerformancePolicy):
             result.append(customer_wait_time.total_seconds())
 
         return result
+
+
+class NullPerceivedPerformancePolicy(PerceivedPerformancePolicy):
+    @override
+    async def get_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return 0
+
+    @override
+    async def get_follow_up_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return 0
+
+    @override
+    async def get_preamble_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return 0
+
+    @override
+    async def is_preamble_required(
+        self,
+        context: LoadedContext | None = None,
+    ) -> bool:
+        return False
