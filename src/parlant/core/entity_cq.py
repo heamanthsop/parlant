@@ -103,7 +103,7 @@ class EntityQueries:
     ) -> Customer:
         return await self._customer_store.read_customer(customer_id)
 
-    async def find_guidelines_for_agent_and_journeys(
+    async def list_guidelines_for_context(
         self,
         agent_id: AgentId,
         journeys: Sequence[Journey],
@@ -133,7 +133,7 @@ class EntityQueries:
 
         return list(all_guidelines)
 
-    async def list_guidelines_dependent_on_journey(
+    async def list_journey_scoped_guidelines(
         self,
         journey: Journey,
     ) -> Sequence[GuidelineId]:
@@ -173,7 +173,7 @@ class EntityQueries:
 
         return list(guideline_ids)
 
-    async def find_context_variables_for_agent(
+    async def list_context_variables_for_context(
         self,
         agent_id: AgentId,
     ) -> Sequence[ContextVariable]:
@@ -202,7 +202,7 @@ class EntityQueries:
     ) -> Optional[ContextVariableValue]:
         return await self._context_variable_store.read_value(variable_id, key)
 
-    async def find_events(
+    async def list_events(
         self,
         session_id: SessionId,
     ) -> Sequence[Event]:
@@ -243,7 +243,7 @@ class EntityQueries:
 
         return result
 
-    async def find_glossary_terms_for_agent(
+    async def find_glossary_terms_for_context(
         self,
         agent_id: AgentId,
         query: str,
@@ -267,7 +267,7 @@ class EntityQueries:
     ) -> ToolService:
         return await self._service_registry.read_tool_service(service_name)
 
-    async def find_journeys_for_agent(
+    async def list_journeys_for_context(
         self,
         agent_id: AgentId,
     ) -> Sequence[Journey]:
@@ -285,17 +285,17 @@ class EntityQueries:
 
         return list(set(chain(agent_journeys, global_journeys, journeys_for_agent_tags)))
 
-    async def find_relevant_journeys_for_agent(
+    async def find_relevant_journeys_for_context(
         self,
         agent_id: AgentId,
         query: str,
     ) -> Sequence[Journey]:
         return await self._journey_store.find_relevant_journeys(
             query=query,
-            available_journeys=await self.find_journeys_for_agent(agent_id),
+            available_journeys=await self.list_journeys_for_context(agent_id),
         )
 
-    async def find_utterances_for_agent_and_journey(
+    async def find_utterances_for_context(
         self,
         agent_id: AgentId,
         journeys: Sequence[Journey],

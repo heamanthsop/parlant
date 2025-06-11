@@ -209,7 +209,7 @@ class AlphaEngine(Engine):
             raise
 
     async def _load_interaction_state(self, context: Context) -> Interaction:
-        history = await self._entity_queries.find_events(context.session_id)
+        history = await self._entity_queries.list_events(context.session_id)
         last_known_event_offset = history[-1].offset if history else -1
 
         return Interaction(
@@ -735,8 +735,10 @@ class AlphaEngine(Engine):
         self,
         context: LoadedContext,
     ) -> list[tuple[ContextVariable, ContextVariableValue]]:
-        variables_supported_by_agent = await self._entity_queries.find_context_variables_for_agent(
-            agent_id=context.agent.id,
+        variables_supported_by_agent = (
+            await self._entity_queries.list_context_variables_for_context(
+                agent_id=context.agent.id,
+            )
         )
 
         result = []
@@ -788,7 +790,7 @@ class AlphaEngine(Engine):
         # Step 2:
         all_stored_guidelines = {
             g.id: g
-            for g in await self._entity_queries.find_guidelines_for_agent_and_journeys(
+            for g in await self._entity_queries.list_guidelines_for_context(
                 agent_id=context.agent.id,
                 journeys=all_journeys,
             )
@@ -802,7 +804,7 @@ class AlphaEngine(Engine):
         low_prob_journey_dependent_ids = set(
             chain.from_iterable(
                 [
-                    await self._entity_queries.list_guidelines_dependent_on_journey(j)
+                    await self._entity_queries.list_journey_scoped_guidelines(j)
                     for j in all_journeys[top_k:]
                 ]
             )
@@ -838,7 +840,7 @@ class AlphaEngine(Engine):
         activated_low_priority_dep_ids = set(
             chain.from_iterable(
                 [
-                    await self._entity_queries.list_guidelines_dependent_on_journey(j)
+                    await self._entity_queries.list_journey_scoped_guidelines(j)
                     for j in [
                         activated_journey
                         for activated_journey in journeys
@@ -981,7 +983,7 @@ class AlphaEngine(Engine):
             query += str([e.data for e in context.state.tool_events])
 
         if query:
-            return await self._entity_queries.find_glossary_terms_for_agent(
+            return await self._entity_queries.find_glossary_terms_for_context(
                 agent_id=context.agent.id,
                 query=query,
             )
@@ -1019,7 +1021,7 @@ class AlphaEngine(Engine):
             query += str([t.name for t in context.state.glossary_terms])
 
         if query:
-            return await self._entity_queries.find_relevant_journeys_for_agent(
+            return await self._entity_queries.find_relevant_journeys_for_context(
                 agent_id=context.agent.id,
                 query=query,
             )

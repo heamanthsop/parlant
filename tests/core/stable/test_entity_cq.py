@@ -64,7 +64,7 @@ async def test_that_list_guidelines_with_mutual_agent_tag_are_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
+    result = await entity_queries.list_guidelines_for_context(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id
@@ -82,7 +82,7 @@ async def test_that_list_guidelines_global_guideline_is_returned(
         action="action 1",
     )
 
-    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
+    result = await entity_queries.list_guidelines_for_context(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == global_guideline.id
@@ -115,7 +115,7 @@ async def test_that_guideline_with_not_hierarchy_tag_is_not_returned(
         tag_id=TagId("tag_2"),
     )
 
-    result = await entity_queries.find_guidelines_for_agent_and_journeys(agent.id, [])
+    result = await entity_queries.list_guidelines_for_context(agent.id, [])
 
     assert len(result) == 1
     assert result[0].id == first_guideline.id
@@ -153,7 +153,7 @@ async def test_that_guideline_matches_are_not_filtered_by_enabled_journeys(
         tag_id=Tag.for_journey_id(journey.id),
     )
 
-    result = await entity_queries.find_guidelines_for_agent_and_journeys(
+    result = await entity_queries.list_guidelines_for_context(
         agent.id,
         [journey],
     )
@@ -195,7 +195,7 @@ async def test_that_guideline_tagged_with_disabled_journey_is_filtered_out_when_
         tag_id=Tag.for_journey_id(journey.id),
     )
 
-    result = await entity_queries.find_guidelines_for_agent_and_journeys(
+    result = await entity_queries.list_guidelines_for_context(
         agent.id,
         [],
     )
@@ -214,7 +214,7 @@ async def test_that_find_utterances_for_agent_returns_global_utterances(
         fields=[],
     )
 
-    results = await entity_queries.find_utterances_for_agent_and_journey(
+    results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[],
         query="Hello",
@@ -238,7 +238,7 @@ async def test_that_find_utterances_for_agent_returns_none_for_non_matching_tag(
 
     await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
 
-    results = await entity_queries.find_utterances_for_agent_and_journey(
+    results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[],
         query="Tagged",
@@ -266,7 +266,7 @@ async def test_that_find_utterances_for_agent_and_journey_returns_journey_uttera
         tags=[journey_tag],
     )
 
-    results = await entity_queries.find_utterances_for_agent_and_journey(
+    results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[journey],
         query="Journey",
@@ -295,7 +295,7 @@ async def test_that_find_glossary_terms_for_agent_returns_all_when_no_tags(
         tags=[tag],
     )
 
-    results = await entity_queries.find_glossary_terms_for_agent(agent_id=agent.id, query="Hello")
+    results = await entity_queries.find_glossary_terms_for_context(agent_id=agent.id, query="Hello")
     assert len(results) == 1
     assert results[0].id == untagged_term.id
 
@@ -316,7 +316,9 @@ async def test_that_find_glossary_terms_for_agent_returns_none_for_non_matching_
 
     await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
 
-    results = await entity_queries.find_glossary_terms_for_agent(agent_id=agent.id, query="Tagged")
+    results = await entity_queries.find_glossary_terms_for_context(
+        agent_id=agent.id, query="Tagged"
+    )
     assert len(results) == 0
 
 
@@ -381,7 +383,7 @@ async def test_find_relevant_journeys_for_agent_returns_most_relevant(
         conditions=[],
     )
 
-    results = await entity_queries.find_relevant_journeys_for_agent(
+    results = await entity_queries.find_relevant_journeys_for_context(
         agent.id, "I'd like to reset my password"
     )
 
@@ -421,7 +423,7 @@ async def test_list_guidelines_dependent_directly_on_journey(
         kind=GuidelineRelationshipKind.DEPENDENCY,
     )
 
-    result = await entity_queries.list_guidelines_dependent_on_journey(journey)
+    result = await entity_queries.list_journey_scoped_guidelines(journey)
 
     assert len(result) == 1
     assert result[0] == guideline1.id
@@ -483,7 +485,7 @@ async def test_list_guidelines_dependent_indirectly_on_journey(
         kind=GuidelineRelationshipKind.DEPENDENCY,
     )
 
-    result = await entity_queries.list_guidelines_dependent_on_journey(journey)
+    result = await entity_queries.list_journey_scoped_guidelines(journey)
 
     assert len(result) == 3
 

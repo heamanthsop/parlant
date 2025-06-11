@@ -93,8 +93,8 @@ class LegacyGuidelineEvaluator:
         payloads: Sequence[Payload],
         progress_report: ProgressReport,
     ) -> Sequence[InvoiceGuidelineData]:
-        journeys = await self._entity_queries.find_journeys_for_agent(agent.id)
-        existing_guidelines = await self._entity_queries.find_guidelines_for_agent_and_journeys(
+        journeys = await self._entity_queries.list_journeys_for_context(agent.id)
+        existing_guidelines = await self._entity_queries.list_guidelines_for_context(
             agent.id, journeys
         )
 
@@ -393,11 +393,9 @@ class LegacyBehavioralChangeEvaluator:
                         "Duplicate guideline found among the provided guidelines."
                     )
 
-                journeys = await self._entity_queries.find_journeys_for_agent(agent.id)
-                existing_guidelines = (
-                    await self._entity_queries.find_guidelines_for_agent_and_journeys(
-                        agent.id, journeys
-                    )
+                journeys = await self._entity_queries.list_journeys_for_context(agent.id)
+                existing_guidelines = await self._entity_queries.list_guidelines_for_context(
+                    agent.id, journeys
                 )
 
                 if guideline := next(
