@@ -1987,7 +1987,7 @@ class Interface:
             indirect = [r for r in relationships if r not in direct]
 
             if direct:
-                rich.print("\nDirect Relationships:")
+                rich.print("Direct Relationships:")
 
                 # Pre-calculate dictionary view of the relationships.
                 direct_items = list(map(lambda r: to_direct_relationship_item(r), direct))
