@@ -106,3 +106,16 @@ Feature: Journeys
         When processing is triggered
         Then a single message event is emitted
         And the message contains recommendations for either mushrooms or tomatoes, but not pepperoni
+
+    Scenario: Journey returns to earlier step when the conversation justifies doing so 1
+        Given a journey titled Book Taxi Ride to follow these steps to book a customer a taxi ride: 1. Ask for the pickup location. 2. Ask for the drop-off location. 3. Ask for the desired pickup time. 4. Confirm all details with the customer before booking. Each step should be handled in a separate message. when the customer wants to book a taxi
+        And a customer message, "Hi, I'd like to book a taxi for myself"
+        And an agent message, "Great! What's your pickup location?"
+        And a customer message, "Main street 1234"
+        And an agent message, "Got it. What's your drop-off location?"
+        And a customer message, "3rd Avenue by the river"
+        And an agent message, "Got it. What time would you like to pick up?"
+        And a customer message, "Oh hold up, my plans have changed. I'm actually going to need pickup from JFK airport."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains asking the customer for the drop-off location
