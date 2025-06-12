@@ -509,57 +509,64 @@ class Server:
     ) -> Journey:
         condition_ids = []
 
-        evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
-            payload_descriptors=[
-                PayloadDescriptor(
-                    PayloadKind.GUIDELINE,
-                    GuidelinePayload(
-                        content=GuidelineContent(
-                            condition=c,
-                            action=None,
+        if conditions:
+            evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
+                payload_descriptors=[
+                    PayloadDescriptor(
+                        PayloadKind.GUIDELINE,
+                        GuidelinePayload(
+                            content=GuidelineContent(
+                                condition=c,
+                                action=None,
+                            ),
+                            tool_ids=[],
+                            operation=GuidelinePayloadOperation.ADD,
+                            coherence_check=False,  # Legacy and will be removed in the future
+                            connection_proposition=False,  # Legacy and will be removed in the future
+                            action_proposition=False,
+                            properties_proposition=True,
                         ),
-                        tool_ids=[],
-                        operation=GuidelinePayloadOperation.ADD,
-                        coherence_check=False,  # Legacy and will be removed in the future
-                        connection_proposition=False,  # Legacy and will be removed in the future
-                        action_proposition=False,
-                        properties_proposition=True,
-                    ),
-                )
-                for c in conditions
-            ]
-        )
+                    )
+                    for c in conditions
+                ]
+            )
 
-        evaluation = await self._container[EvaluationStore].read_evaluation(
-            evaluation_id=evaluation_id
-        )
-        while evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
-            await asyncio.sleep(0.1)
             evaluation = await self._container[EvaluationStore].read_evaluation(
                 evaluation_id=evaluation_id
             )
 
-        if evaluation.status == EvaluationStatus.FAILED:
-            raise SDKError(f"Evaluation failed during journey creation: {evaluation.error}")
+            while evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
+                await asyncio.sleep(0.1)
+                evaluation = await self._container[EvaluationStore].read_evaluation(
+                    evaluation_id=evaluation_id
+                )
 
-        for invoice in evaluation.invoices:
-            assert invoice.approved
-            assert invoice.data
-            assert invoice.data.properties_proposition
+            if evaluation.status == EvaluationStatus.FAILED:
+                raise SDKError(f"Evaluation failed during journey creation: {evaluation.error}")
 
-            condition_ids.append(
-                (
-                    await self._container[GuidelineStore].create_guideline(
-                        condition=invoice.payload.content.condition,
-                        metadata=invoice.data.properties_proposition,
+            for invoice in evaluation.invoices:
+                if not invoice.approved:
+                    raise SDKError("Invoice was not approved during journey creation.")
+                if not invoice.data:
+                    raise SDKError("Invoice has no data during journey creation.")
+                if not invoice.data.properties_proposition:
+                    raise SDKError(
+                        "Invoice is missing properties_proposition during journey creation."
                     )
-                ).id
-            )
+
+                condition_ids.append(
+                    (
+                        await self._container[GuidelineStore].create_guideline(
+                            condition=invoice.payload.content.condition,
+                            metadata=invoice.data.properties_proposition,
+                        )
+                    ).id
+                )
 
         journey = await self._container[JourneyStore].create_journey(
             title,
             description,
-            condition_ids,
+            condition_ids if conditions else [],
         )
 
         for c_id in condition_ids:

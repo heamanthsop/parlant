@@ -49,6 +49,30 @@ class Test_that_a_capability_can_be_created(SDKTest):
         assert capability.queries == self.capability.queries
 
 
+class Test_that_journey_can_be_created_without_conditions(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Store agent",
+            description="You work at a store and help customers",
+            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Greeting the customer",
+            conditions=[],
+            description=dedent("""\
+                1. Offer the customer a Pepsi
+            """),
+        )
+
+    async def run(self, ctx: Context) -> None:
+        journey_store = ctx.container[JourneyStore]
+
+        journey = await journey_store.read_journey(journey_id=self.journey.id)
+
+        assert journey.id == self.journey.id
+
+
 class Test_that_condition_guidelines_are_tagged_for_created_journey(SDKTest):
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(
