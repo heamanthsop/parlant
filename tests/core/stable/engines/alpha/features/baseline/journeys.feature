@@ -115,7 +115,7 @@ Feature: Journeys
         And an agent message, "Got it. What's your drop-off location?"
         And a customer message, "3rd Avenue by the river"
         And an agent message, "Got it. What time would you like to pick up?"
-        And a customer message, "Oh hold up, my plans have changed. I'm actually going to need a cab for my son, he'll be waiting at JFK airport."
+        And a customer message, "Oh hold up, my plans have changed. I'm actually going to need a cab for my son, he'll be waiting at JFK airport, at the taxi stand."
         When processing is triggered
         Then a single message event is emitted
         And the message contains asking the customer for the drop-off location
