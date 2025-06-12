@@ -57,28 +57,6 @@ Traditional LLMs often struggle with **attention drift** and **inconsistency in 
   * **Purposeful Interactions:** Guide agents to achieve specific objectives, making every conversation efficient and impactful.
   * **Rapid & Iterative Development:** Quickly tailor and iteratively shape conversational agents through continuous conversation and response refinement, leveraging either a code-driven or CLI-based configuration approach.
 
-## 🛠️ Key Features
-
-  * **Behavioral Guidelines:** Easily define rules and guardrails for agent interactions and **dictate and enforce exact conversation behavior**.
-  * **Semantic Relationships:** Define how different guidelines relate to each other (dependencies, prioritization, etc.), creating sophisticated and adaptive conversational flows.
-  * **Tool Integration:** Seamlessly attach external tools (APIs, databases, etc.) with specific guidance for agent usage.
-  * **Context Awareness:** Intelligently tracks conversation progress, understanding what instructions need to apply at each point, and when required actions have already been taken.
-  * **Dynamic Guideline Matching:** Ensures contextually relevant instruction execution, eliminating irrelevant instructions at any point in the conversation — solving LLM attention drift.
-  * **Utterance Templates:** Sanitize LLM outputs, preventing unpredictable or inaccurate messages and ensuring compliance and accuracy.
-  * **Glossary Management:** Control and manage the agent's vocabulary for consistent and accurate communication.
-  * **Contextual Information:** Inject customer-specific or domain-specific information for personalized and relevant responses.
-  * **Continuous Re-evaluation:** The Parlant engine constantly assesses the conversational situation, checks relevant guidelines, gathers necessary information, and re-evaluates its approach.
-
-## 🚀 Getting Started
-
-Getting Parlant up and running is straightforward.
-
-### Installation
-
-```bash
-pip install parlant
-```
-
 ### Quick Example
 
 Here’s a basic example to demonstrate how Parlant can be used to define a simple conversational car sales agent.
@@ -166,6 +144,29 @@ if __name__ == "__main__":
 ```
 
 **For more detailed installation instructions and advanced usage, please refer to our [Official Documentation](https://parlant.io).**
+
+## 🛠️ Key Features
+
+  * **Behavioral Guidelines:** Easily define rules and guardrails for agent interactions and **dictate and enforce exact conversation behavior**.
+  * **Semantic Relationships:** Define how different guidelines relate to each other (dependencies, prioritization, etc.), creating sophisticated and adaptive conversational flows.
+  * **Tool Integration:** Seamlessly attach external tools (APIs, databases, etc.) with specific guidance for agent usage.
+  * **Context Awareness:** Intelligently tracks conversation progress, understanding what instructions need to apply at each point, and when required actions have already been taken.
+  * **Dynamic Guideline Matching:** Ensures contextually relevant instruction execution, eliminating irrelevant instructions at any point in the conversation — solving LLM attention drift.
+  * **Utterance Templates:** Sanitize LLM outputs, preventing unpredictable or inaccurate messages and ensuring compliance and accuracy.
+  * **Glossary Management:** Control and manage the agent's vocabulary for consistent and accurate communication.
+  * **Contextual Information:** Inject customer-specific or domain-specific information for personalized and relevant responses.
+  * **Continuous Re-evaluation:** The Parlant engine constantly assesses the conversational situation, checks relevant guidelines, gathers necessary information, and re-evaluates its approach.
+
+## 🚀 Getting Started
+
+Getting Parlant up and running is straightforward.
+
+### Installation
+
+```bash
+pip install parlant
+```
+
 
 ## React Widget
 Please see https://github.com/emcie-co/parlant-chat-react for our official, highly-customizable React widget to interact with your Parlant server on your app.
