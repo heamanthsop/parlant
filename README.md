@@ -32,7 +32,7 @@
 
 </div>
 
-# The Deliberate Conversation Modeling Engine for Agentic AI 🚀
+# The Conversation Modeling Engine for Great Agentic UX 🚀
 
 [](https://pypi.org/project/parlant/)
 [](https://opensource.org/licenses/MIT)
