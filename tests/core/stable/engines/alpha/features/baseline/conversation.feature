@@ -137,7 +137,7 @@ Feature: Conversation
     Scenario: The agent follows a regular guideline when it overrides an agent intention guideline
         Given an agent
         And an empty session
-        Given a guideline to suggest direct flights when the agent recommends on travel options
+        Given a guideline to suggest direct flights or ground-based transportation when the agent recommends on travel options
         Given a guideline to suggest only ground-based travel options when the customer asks about domestic US travel options 
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         When processing is triggered
@@ -148,16 +148,17 @@ Feature: Conversation
         Given an agent
         And an empty session
         Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the vegetarian toppings options when the customer asks for pizza topping recommendation and they are vegetarian
+        Given a guideline to recommend only on the recommended vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
         When processing is triggered
         Then a single message event is emitted
         And the message contains a recommendation only on pineapple as topping  
+        And the message contains no recommendation on pepperoni pizza 
 
     Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline
         Given an agent
         And an empty session
-        Given a guideline to suggest direct flights when the agent recommends on travel options
+        Given a guideline to suggest direct flights or ground-based transportation when the agent recommends on travel options
         Given a guideline to suggest only ground-based travel options when the agent recommends on domestic US travel options 
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         When processing is triggered
@@ -168,11 +169,11 @@ Feature: Conversation
         Given an agent
         And an empty session
         Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
+        Given a guideline to recommend only on the recommended vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
         When processing is triggered
         Then a single message event is emitted
-        And the message contains a recommendation on pineapple pizza only
+        And the message contains a recommendation only on pineapple as topping  
         And the message contains no recommendation on pepperoni pizza 
 
     
