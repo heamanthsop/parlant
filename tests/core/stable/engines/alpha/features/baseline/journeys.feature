@@ -127,8 +127,7 @@ Feature: Journeys
         And a customer message, "I'd like a sandwich"
         And an agent message, "Got it. What kind of bread would you like?"
         And a customer message, "I'd like a baguette"
-        And an agent message, "Got it. What main filling would you like? We have either peanut butter, jam or pesto."
-        
+        And an agent message, "Got it. What main filling would you like? We have either peanut butter, jam or pesto."        
         When processing is triggered
         Then a single message event is emitted
         And the message contains asking asking what green base the customer wants for their salad 
