@@ -1,10 +1,10 @@
 
 <div align="center">
-<!--<img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />-->
 
-
-  <img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/banner.png?raw=true" />
-  <h2>Hello, Conversation Modeling!</h2>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/emcie-co/parlant/blob/develop/LogoTransparentLight.png?raw=true">
+  <img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/LogoTransparentDark.png?raw=true" width=400 />
+</picture>
 
 Parlant is the open-source conversation modeling engine for building better, deliberate Agentic UX — giving you the power of LLMs without the unpredictability, to create controlled, compliant, and purposeful conversations..
 
@@ -20,7 +20,7 @@ Parlant is the open-source conversation modeling engine for building better, del
   </p>
 
 
-  
+
   <p>
     <a href="https://pypi.org/project/parlant/" alt="Parlant on PyPi"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/parlant"></a>
     <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/parlant">
