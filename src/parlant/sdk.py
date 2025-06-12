@@ -584,7 +584,6 @@ __all__ = [
     "EmbedderFactory",
     "EmbeddingResult",
     "EmittedEvent",
-    "EmittedEvent",
     "EngineHook",
     "EngineHookResult",
     "EngineHooks",
