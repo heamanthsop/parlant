@@ -135,7 +135,7 @@ class JourneyStore(ABC):
         self,
         query: str,
         available_journeys: Sequence[Journey],
-        max_journeys: int = 3,
+        max_journeys: int = 5,
     ) -> Sequence[Journey]: ...
 
 
@@ -599,7 +599,7 @@ class JourneyVectorStore(JourneyStore):
         self,
         query: str,
         available_journeys: Sequence[Journey],
-        max_journeys: int = 3,
+        max_journeys: int = 5,
     ) -> Sequence[Journey]:
         if not available_journeys:
             return []
