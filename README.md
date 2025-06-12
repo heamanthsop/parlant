@@ -57,6 +57,17 @@ Traditional LLMs often struggle with **attention drift** and **inconsistency in 
   * **Purposeful Interactions:** Guide agents to achieve specific objectives, making every conversation efficient and impactful.
   * **Rapid & Iterative Development:** Quickly tailor and iteratively shape conversational agents through continuous conversation and response refinement, leveraging either a code-driven or CLI-based configuration approach.
 
+## 🚀 Getting Started
+
+Getting Parlant up and running is straightforward.
+
+### Installation
+
+```bash
+pip install parlant
+```
+
+
 ### Quick Example
 
 Here’s a basic example to demonstrate how Parlant can be used to define a simple conversational car sales agent.
@@ -156,16 +167,6 @@ if __name__ == "__main__":
   * **Glossary Management:** Control and manage the agent's vocabulary for consistent and accurate communication.
   * **Contextual Information:** Inject customer-specific or domain-specific information for personalized and relevant responses.
   * **Continuous Re-evaluation:** The Parlant engine constantly assesses the conversational situation, checks relevant guidelines, gathers necessary information, and re-evaluates its approach.
-
-## 🚀 Getting Started
-
-Getting Parlant up and running is straightforward.
-
-### Installation
-
-```bash
-pip install parlant
-```
 
 
 ## React Widget
