@@ -483,16 +483,21 @@ def then_the_tool_calls_event_contains_n_tool_calls(
     number_of_tool_calls: int,
     emitted_events: list[EmittedEvent],
 ) -> None:
-    tool_calls_event = next(e for e in emitted_events if e.kind == EventKind.TOOL)
-    assert number_of_tool_calls == len(
-        cast(ToolEventData, tool_calls_event.data)["tool_calls"]
-    ), pformat(tool_calls_event, indent=2)
+    tool_calls = [
+        cast(ToolEventData, e.data)["tool_calls"]
+        for e in emitted_events
+        if e.kind == EventKind.TOOL
+    ]
+    assert number_of_tool_calls == len(tool_calls), pformat(tool_calls, indent=2)
 
 
 def _get_tool_calls(emitted_events: list[EmittedEvent]) -> list[ToolCall]:
-    tool_calls_event = next(e for e in emitted_events if e.kind == EventKind.TOOL)
-    tool_calls = cast(ToolEventData, tool_calls_event.data)["tool_calls"]
-    return tool_calls
+    return [
+        tool_call
+        for e in emitted_events
+        if e.kind == EventKind.TOOL
+        for tool_call in cast(ToolEventData, e.data)["tool_calls"]
+    ]
 
 
 @step(then, parsers.parse("the tool calls event contains {expected_content}"))
