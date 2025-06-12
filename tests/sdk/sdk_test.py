@@ -3,6 +3,7 @@ from textwrap import dedent
 from parlant.core.capabilities import CapabilityStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
+from parlant.core.relationships import GuidelineRelationshipKind, RelationshipStore
 from parlant.core.tags import Tag
 import parlant.sdk as p
 
@@ -134,6 +135,40 @@ class Test_that_condition_guidelines_are_evaluated_in_journey_creation(SDKTest):
 
         assert all("continuous" in g.metadata for g in condition_guidelines)
         assert all("customer_dependent_action_data" in g.metadata for g in condition_guidelines)
+
+
+class Test_that_guideline_creation_from_journey_creates_dependency_relationship(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Store agent",
+            description="You work at a store and help customers",
+            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Greeting the customer",
+            conditions=["the customer greets you", "customer say Howdy"],
+            description=dedent("""\
+                1. Offer the customer a Pepsi
+            """),
+        )
+
+        self.guideline = await self.journey.create_guideline(
+            condition="Greeting the user",
+            action="Get Pepsi price",
+        )
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationships = await relationship_store.list_relationships(
+            kind=GuidelineRelationshipKind.DEPENDENCY,
+            source_id=self.guideline.id,
+        )
+
+        assert relationships
+        assert len(relationships) == 1
+        assert relationships[0].target.id == Tag.for_journey_id(self.journey.id)
 
 
 class Test_that_a_created_journey_is_followed(SDKTest):

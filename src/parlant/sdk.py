@@ -259,7 +259,18 @@ class Journey:
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=action,
-            tags=[Tag.for_journey_id(self.id)],
+        )
+
+        await self._container[RelationshipStore].create_relationship(
+            source=RelationshipEntity(
+                id=guideline.id,
+                kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            target=RelationshipEntity(
+                id=Tag.for_journey_id(self.id),
+                kind=RelationshipEntityKind.TAG,
+            ),
+            kind=GuidelineRelationshipKind.DEPENDENCY,
         )
 
         for t in list(tools):
