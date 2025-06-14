@@ -23,7 +23,7 @@ from parlant.core.capabilities import (
     CapabilityStore,
     CapabilityUpdateParams,
 )
-from parlant.core.tags import TagId
+from parlant.core.tags import TagId, TagStore
 
 API_GROUP = "capabilities"
 
@@ -40,7 +40,7 @@ CapabilityTitleField: TypeAlias = Annotated[
     str,
     Field(
         description="The title of the capability",
-        examples=["Search", "Summarization"],
+        examples=["Reset password", "Replace phone"],
         min_length=1,
         max_length=100,
     ),
@@ -50,7 +50,7 @@ CapabilityDescriptionField: TypeAlias = Annotated[
     str,
     Field(
         description="Detailed description of the capability's purpose",
-        examples=["Performs semantic search over documents."],
+        examples=["Provide a weather update"],
     ),
 ]
 
@@ -58,7 +58,7 @@ CapabilityQueriesField: TypeAlias = Annotated[
     Sequence[str],
     Field(
         description="Example queries that this capability can handle",
-        examples=[["What is the weather?", "Find all invoices"]],
+        examples=[["I thought I remembered my password", "My phone just broke"]],
     ),
 ]
 
@@ -73,9 +73,9 @@ CapabilityTagsField: TypeAlias = Annotated[
 
 capability_example: ExampleJson = {
     "id": "cap_123abc",
-    "title": "Search",
-    "description": "Performs semantic search over documents.",
-    "queries": ["What is the weather?", "Find all invoices"],
+    "title": "Provide Replacement Phone",
+    "description": "Provide a replacement phone when a customer needs repair for their phone.",
+    "queries": ["My phone is broken", "I need a replacement while my phone is being repaired"],
     "tags": ["tag1", "tag2"],
 }
 
@@ -171,6 +171,7 @@ TagIdQuery: TypeAlias = Annotated[
 
 def create_router(
     capability_store: CapabilityStore,
+    tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -195,13 +196,24 @@ def create_router(
     ) -> CapabilityDTO:
         """
         Creates a new capability in the system.
+
+        The capability will be initialized with the provided title, description, queries, and optional tags.
+        A unique identifier will be automatically generated.
+
+        Default behaviors:
+        - `queries` defaults to an empty list if not provided
         """
+        if params.tags:
+            for tag_id in params.tags:
+                _ = await tag_store.read_tag(tag_id=tag_id)
+
         capability = await capability_store.create_capability(
             title=params.title,
             description=params.description,
             queries=params.queries,
-            tags=params.tags,
+            tags=params.tags if params.tags else None,
         )
+
         return CapabilityDTO(
             id=capability.id,
             title=capability.title,
@@ -227,6 +239,9 @@ def create_router(
     ) -> Sequence[CapabilityDTO]:
         """
         Retrieves a list of all capabilities in the system.
+
+        Returns an empty list if no capabilities exist.
+        Capabilities are returned in no guaranteed order.
         """
         if tag_id:
             capabilities = await capability_store.list_capabilities(
@@ -235,18 +250,16 @@ def create_router(
         else:
             capabilities = await capability_store.list_capabilities()
 
-        result = []
-        for capability in capabilities:
-            result.append(
-                CapabilityDTO(
-                    id=capability.id,
-                    title=capability.title,
-                    description=capability.description,
-                    queries=capability.queries,
-                    tags=capability.tags,
-                )
+        return [
+            CapabilityDTO(
+                id=capability.id,
+                title=capability.title,
+                description=capability.description,
+                queries=capability.queries,
+                tags=capability.tags,
             )
-        return result
+            for capability in capabilities
+        ]
 
     @router.get(
         "/{capability_id}",
@@ -268,6 +281,8 @@ def create_router(
     ) -> CapabilityDTO:
         """
         Retrieves details of a specific capability by ID.
+
+        Returns the complete capability object.
         """
         capability = await capability_store.read_capability(capability_id=capability_id)
         return CapabilityDTO(
@@ -302,7 +317,9 @@ def create_router(
     ) -> CapabilityDTO:
         """
         Updates an existing capability's attributes.
+
         Only the provided attributes will be updated; others will remain unchanged.
+        The capability's ID and creation timestamp cannot be modified.
         """
         update_params: CapabilityUpdateParams = {}
         if params.title:
@@ -317,16 +334,19 @@ def create_router(
                 capability_id=capability_id,
                 params=update_params,
             )
+
         else:
             capability = await capability_store.read_capability(capability_id=capability_id)
 
         if params.tags:
             if params.tags.add:
-                for tag in params.tags.add:
-                    await capability_store.upsert_tag(capability_id=capability_id, tag_id=tag)
+                for tag_id in params.tags.add:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
+                    await capability_store.upsert_tag(capability_id=capability_id, tag_id=tag_id)
+
             if params.tags.remove:
-                for tag in params.tags.remove:
-                    await capability_store.remove_tag(capability_id=capability_id, tag_id=tag)
+                for tag_id in params.tags.remove:
+                    await capability_store.remove_tag(capability_id=capability_id, tag_id=tag_id)
 
         capability = await capability_store.read_capability(capability_id=capability_id)
         return CapabilityDTO(
@@ -356,6 +376,7 @@ def create_router(
     ) -> None:
         """
         Deletes a capability from the system.
+
         Deleting a non-existent capability will return 404.
         No content will be returned from a successful deletion.
         """

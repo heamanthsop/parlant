@@ -320,7 +320,10 @@ async def create_api_app(container: Container) -> ASGIApplication:
 
     api_app.include_router(
         prefix="/capabilities",
-        router=capabilities.create_router(capability_store=capability_store),
+        router=capabilities.create_router(
+            capability_store=capability_store,
+            tag_store=tag_store,
+        ),
     )
 
     api_app.include_router(

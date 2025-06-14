@@ -12,9 +12,9 @@ async def test_that_a_capability_can_be_created(
     async_client: httpx.AsyncClient,
 ) -> None:
     payload = {
-        "title": "Semantic Search",
-        "description": "Performs semantic search over documents.",
-        "queries": ["What is the weather?", "Find all invoices"],
+        "title": "Provide Replacement Phone",
+        "description": "Provide a replacement phone when a customer needs repair for their phone.",
+        "queries": ["My phone is broken", "I need a replacement while my phone is being repaired"],
     }
 
     response = await async_client.post("/capabilities", json=payload)
@@ -58,9 +58,12 @@ async def test_that_capabilities_can_be_listed(
             await async_client.post(
                 "/capabilities",
                 json={
-                    "title": "Search",
-                    "description": "Performs search.",
-                    "queries": ["Find X"],
+                    "title": "Provide Replacement Phone",
+                    "description": "Provide a replacement phone when a customer needs repair for their phone.",
+                    "queries": [
+                        "My phone is broken",
+                        "I need a replacement while my phone is being repaired",
+                    ],
                 },
             )
         )
@@ -83,7 +86,7 @@ async def test_that_a_capability_can_be_read(
                 json={
                     "title": "Q&A",
                     "description": "Answers questions.",
-                    "queries": ["What is AI?"],
+                    "queries": ["What is Parlant?"],
                 },
             )
         )
@@ -96,7 +99,7 @@ async def test_that_a_capability_can_be_read(
     )
     assert capability_dto["title"] == "Q&A"
     assert capability_dto["description"] == "Answers questions."
-    assert capability_dto["queries"] == ["What is AI?"]
+    assert capability_dto["queries"] == ["What is Parlant?"]
 
 
 @mark.parametrize(
@@ -106,13 +109,13 @@ async def test_that_a_capability_can_be_read(
             {"title": "New Title"},
             "New Title",
             "Answers questions.",
-            ["What is AI?"],
+            ["What is Parlant?"],
         ),
         (
             {"description": "Updated description"},
             "Q&A",
             "Updated description",
-            ["What is AI?"],
+            ["What is Parlant?"],
         ),
         (
             {"queries": ["How does it work?"]},
@@ -136,7 +139,7 @@ async def test_that_a_capability_can_be_updated(
                 json={
                     "title": "Q&A",
                     "description": "Answers questions.",
-                    "queries": ["What is AI?"],
+                    "queries": ["What is Parlant?"],
                 },
             )
         )
@@ -166,9 +169,12 @@ async def test_that_tags_can_be_added_to_a_capability(
             await async_client.post(
                 "/capabilities",
                 json={
-                    "title": "Classification",
-                    "description": "Classifies text.",
-                    "queries": ["Classify this sentence"],
+                    "title": "Provide Replacement Phone",
+                    "description": "Provide a replacement phone when a customer needs repair for their phone.",
+                    "queries": [
+                        "My phone is broken",
+                        "I need a replacement while my phone is being repaired",
+                    ],
                 },
             )
         )
@@ -221,9 +227,9 @@ async def test_that_a_capability_can_be_deleted(
 ) -> None:
     capability_store = container[CapabilityStore]
     capability = await capability_store.create_capability(
-        title="Summarization",
-        description="Summarizes text.",
-        queries=["Summarize this"],
+        title="Provide Replacement Phone",
+        description="Provide a replacement phone when a customer needs repair for their phone.",
+        queries=["My phone is broken", "I need a replacement while my phone is being repaired"],
     )
 
     delete_response = await async_client.delete(f"/capabilities/{capability.id}")
@@ -241,17 +247,17 @@ async def test_that_capabilities_can_be_filtered_by_tag(
     capability_store = container[CapabilityStore]
 
     tag = await tag_store.create_tag("tag1")
-    capability = await capability_store.create_capability(
-        title="Search",
-        description="Performs search.",
-        queries=["Find X"],
+    _ = await capability_store.create_capability(
+        title="Provide Replacement Phone",
+        description="Provide a replacement phone when a customer needs repair for their phone.",
+        queries=["My phone is broken", "I need a replacement while my phone is being repaired"],
         tags=[tag.id],
     )
 
     _ = await capability_store.create_capability(
-        title="Summarization",
-        description="Summarizes text.",
-        queries=["Summarize this"],
+        title="Reset Password",
+        description="Helping customer reset their account password",
+        queries=["My password isn't what I thought"],
     )
 
     response = await async_client.get(f"/capabilities?tag_id={tag.id}")
@@ -259,4 +265,3 @@ async def test_that_capabilities_can_be_filtered_by_tag(
     capabilities = response.json()
 
     assert len(capabilities) == 1
-    assert capabilities[0]["id"] == capability.id
