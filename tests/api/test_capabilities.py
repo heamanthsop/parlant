@@ -32,6 +32,7 @@ async def test_that_a_capability_can_be_created_with_tags(
     container: Container,
 ) -> None:
     tag_store = container[TagStore]
+
     tag1 = await tag_store.create_tag("tag1")
     tag2 = await tag_store.create_tag("tag2")
 
@@ -97,6 +98,7 @@ async def test_that_a_capability_can_be_read(
     capability_dto = (
         (await async_client.get(f"/capabilities/{capability['id']}")).raise_for_status().json()
     )
+
     assert capability_dto["title"] == "Q&A"
     assert capability_dto["description"] == "Answers questions."
     assert capability_dto["queries"] == ["What is Parlant?"]
@@ -161,6 +163,7 @@ async def test_that_tags_can_be_added_to_a_capability(
     container: Container,
 ) -> None:
     tag_store = container[TagStore]
+
     tag1 = await tag_store.create_tag("tag1")
     tag2 = await tag_store.create_tag("tag2")
 
@@ -226,6 +229,7 @@ async def test_that_a_capability_can_be_deleted(
     container: Container,
 ) -> None:
     capability_store = container[CapabilityStore]
+
     capability = await capability_store.create_capability(
         title="Provide Replacement Phone",
         description="Provide a replacement phone when a customer needs repair for their phone.",
@@ -247,6 +251,7 @@ async def test_that_capabilities_can_be_filtered_by_tag(
     capability_store = container[CapabilityStore]
 
     tag = await tag_store.create_tag("tag1")
+
     _ = await capability_store.create_capability(
         title="Provide Replacement Phone",
         description="Provide a replacement phone when a customer needs repair for their phone.",
