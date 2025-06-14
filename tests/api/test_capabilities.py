@@ -73,8 +73,9 @@ async def test_that_capabilities_can_be_listed(
     )
 
     capabilities = (await async_client.get("/capabilities")).raise_for_status().json()
-    assert len(capabilities) >= 1
-    assert any(c["title"] == "Search" for c in capabilities)
+
+    assert len(capabilities) == 1
+    assert capabilities[0]["title"] == "Provide Replacement Phone"
 
 
 async def test_that_a_capability_can_be_read(

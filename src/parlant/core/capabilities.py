@@ -125,18 +125,9 @@ class CapabilityStore:
     ) -> None: ...
 
 
-class CapabilityDocument(TypedDict, total=False):
-    id: ObjectId
-    version: Version.String
-    creation_utc: str
-    title: str
-    description: str
-    queries: list[str]
-    tags: list[TagId]
-
-
 class _CapabilityDocument(TypedDict, total=False):
     id: ObjectId
+    capability_id: ObjectId
     version: Version.String
     creation_utc: str
     content: str
@@ -231,15 +222,16 @@ class CapabilityVectorStore(CapabilityStore):
             content += "\nQueries: " + "; ".join(queries)
         return content
 
-    def _serialize(self, capability: Capability) -> _CapabilityDocument:
+    def _serialize(
+        self,
+        capability: Capability,
+        content: str,
+    ) -> _CapabilityDocument:
         queries_json = json.dumps(list(capability.queries))
 
-        content = self.assemble_content(
-            capability.title, capability.description, capability.queries
-        )
-
         return _CapabilityDocument(
-            id=ObjectId(capability.id),
+            id=ObjectId(generate_id()),
+            capability_id=ObjectId(capability.id),
             version=self.VERSION.to_string(),
             creation_utc=capability.creation_utc.isoformat(),
             title=capability.title,
@@ -253,17 +245,27 @@ class CapabilityVectorStore(CapabilityStore):
         tags = [
             d["tag_id"]
             for d in await self._tag_association_collection.find(
-                {"capability_id": {"$eq": doc["id"]}}
+                {"capability_id": {"$eq": doc["capability_id"]}}
             )
         ]
+
         return Capability(
-            id=CapabilityId(doc["id"]),
+            id=CapabilityId(doc["capability_id"]),
             creation_utc=datetime.fromisoformat(doc["creation_utc"]),
             title=doc["title"],
             description=doc["description"],
             queries=json.loads(doc["queries"]),
             tags=tags,
         )
+
+    async def _insert_capability(self, capability: Capability) -> _CapabilityDocument:
+        for content in chain(
+            [capability.title, capability.description], [q for q in capability.queries]
+        ):
+            doc = self._serialize(capability, content)
+            await self._collection.insert_one(document=doc)
+
+        return doc
 
     @override
     async def create_capability(
@@ -280,8 +282,9 @@ class CapabilityVectorStore(CapabilityStore):
             queries = list(queries) if queries else []
             tags = list(tags) if tags else []
 
+            capability_id = CapabilityId(generate_id())
             capability = Capability(
-                id=CapabilityId(generate_id()),
+                id=capability_id,
                 creation_utc=creation_utc,
                 title=title,
                 description=description,
@@ -289,7 +292,7 @@ class CapabilityVectorStore(CapabilityStore):
                 tags=tags,
             )
 
-            await self._collection.insert_one(document=self._serialize(capability))
+            await self._insert_capability(capability)
 
             for tag in tags:
                 await self._tag_association_collection.insert_one(
@@ -301,6 +304,7 @@ class CapabilityVectorStore(CapabilityStore):
                         "tag_id": tag,
                     }
                 )
+
         return capability
 
     @override
@@ -310,34 +314,33 @@ class CapabilityVectorStore(CapabilityStore):
         params: CapabilityUpdateParams,
     ) -> Capability:
         async with self._lock.writer_lock:
-            doc = await self._collection.find_one(filters={"id": {"$eq": capability_id}})
+            all_docs = await self._collection.find(
+                filters={"capability_id": {"$eq": capability_id}}
+            )
 
-            if not doc:
+            if not all_docs:
                 raise ItemNotFoundError(item_id=UniqueId(capability_id))
+
+            for doc in all_docs:
+                await self._collection.delete_one(filters={"id": {"$eq": doc["id"]}})
 
             title = params.get("title", doc["title"])
             description = params.get("description", doc["description"])
-
             queries = params.get("queries", json.loads(doc["queries"]))
-            queries_json = json.dumps(list(queries))
+            queries = list(queries)
 
-            content = self.assemble_content(title, description, queries)
-            checksum = md5_checksum(content)
-
-            update_result = await self._collection.update_one(
-                filters={"id": {"$eq": capability_id}},
-                params={
-                    "title": title,
-                    "description": description,
-                    "queries": queries_json,
-                    "content": content,
-                    "checksum": checksum,
-                },
+            capability = Capability(
+                id=capability_id,
+                creation_utc=datetime.fromisoformat(all_docs[0]["creation_utc"]),
+                title=title,
+                description=description,
+                queries=queries,
+                tags=[],
             )
 
-        assert update_result.updated_document
+            doc = await self._insert_capability(capability)
 
-        return await self._deserialize(update_result.updated_document)
+        return await self._deserialize(doc)
 
     @override
     async def read_capability(
@@ -345,7 +348,7 @@ class CapabilityVectorStore(CapabilityStore):
         capability_id: CapabilityId,
     ) -> Capability:
         async with self._lock.reader_lock:
-            doc = await self._collection.find_one(filters={"id": {"$eq": capability_id}})
+            doc = await self._collection.find_one(filters={"capability_id": {"$eq": capability_id}})
 
         if not doc:
             raise ItemNotFoundError(item_id=UniqueId(capability_id))
@@ -370,10 +373,12 @@ class CapabilityVectorStore(CapabilityStore):
                         filters = {}
 
                     elif len(capability_ids) == 1:
-                        filters = {"id": {"$ne": capability_ids.pop()}}
+                        filters = {"capability_id": {"$ne": capability_ids.pop()}}
 
                     else:
-                        filters = {"$and": [{"id": {"$ne": id}} for id in capability_ids]}
+                        filters = {
+                            "$and": [{"capability_id": {"$ne": id}} for id in capability_ids]
+                        }
 
                 else:
                     tag_filters: Where = {"$or": [{"tag_id": {"$eq": tag}} for tag in tags]}
@@ -386,14 +391,17 @@ class CapabilityVectorStore(CapabilityStore):
                         return []
 
                     if len(capability_ids) == 1:
-                        filters = {"id": {"$eq": capability_ids.pop()}}
+                        filters = {"capability_id": {"$eq": capability_ids.pop()}}
 
                     else:
-                        filters = {"$or": [{"id": {"$eq": id}} for id in capability_ids]}
+                        filters = {"$or": [{"capability_id": {"$eq": id}} for id in capability_ids]}
 
-            return [
-                await self._deserialize(d) for d in await self._collection.find(filters=filters)
-            ]
+            docs = {}
+            for d in await self._collection.find(filters=filters):
+                if d["capability_id"] not in docs:
+                    docs[d["capability_id"]] = d
+
+            return [await self._deserialize(d) for d in docs.values()]
 
     @override
     async def delete_capability(
@@ -401,16 +409,17 @@ class CapabilityVectorStore(CapabilityStore):
         capability_id: CapabilityId,
     ) -> None:
         async with self._lock.writer_lock:
-            doc = await self._collection.find_one(filters={"id": {"$eq": capability_id}})
+            docs = await self._collection.find(filters={"capability_id": {"$eq": capability_id}})
 
             tag_associations = await self._tag_association_collection.find(
                 filters={"capability_id": {"$eq": capability_id}}
             )
 
-            if not doc:
+            if not docs:
                 raise ItemNotFoundError(item_id=UniqueId(capability_id))
 
-            await self._collection.delete_one(filters={"id": {"$eq": capability_id}})
+            for doc in docs:
+                await self._collection.delete_one(filters={"id": {"$eq": doc["id"]}})
 
             for tag_assoc in tag_associations:
                 await self._tag_association_collection.delete_one(
@@ -429,7 +438,7 @@ class CapabilityVectorStore(CapabilityStore):
 
         async with self._lock.reader_lock:
             queries = [query]
-            filters: Where = {"id": {"$in": [str(c.id) for c in available_capabilities]}}
+            filters: Where = {"capability_id": {"$in": [str(c.id) for c in available_capabilities]}}
 
             tasks = [
                 self._collection.find_similar_documents(
@@ -441,8 +450,13 @@ class CapabilityVectorStore(CapabilityStore):
             ]
 
         all_results = chain.from_iterable(await async_utils.safe_gather(*tasks))
-        unique_results = list(set(all_results))
-        top_results = sorted(unique_results, key=lambda r: r.distance)[:max_capabilities]
+
+        s_docs = {}
+        for s_doc in all_results:
+            if s_doc.document["capability_id"] not in s_docs:
+                s_docs["capability_id"] = s_doc
+
+        top_results = sorted(s_docs.values(), key=lambda r: r.distance)[:max_capabilities]
 
         return [await self._deserialize(r.document) for r in top_results]
 
@@ -470,7 +484,7 @@ class CapabilityVectorStore(CapabilityStore):
             }
 
             _ = await self._tag_association_collection.insert_one(document=assoc_doc)
-            doc = await self._collection.find_one({"id": {"$eq": capability_id}})
+            doc = await self._collection.find_one({"capability_id": {"$eq": capability_id}})
 
         if not doc:
             raise ItemNotFoundError(item_id=UniqueId(capability_id))
@@ -494,7 +508,7 @@ class CapabilityVectorStore(CapabilityStore):
             if delete_result.deleted_count == 0:
                 raise ItemNotFoundError(item_id=UniqueId(tag_id))
 
-            doc = await self._collection.find_one({"id": {"$eq": capability_id}})
+            doc = await self._collection.find_one({"capability_id": {"$eq": capability_id}})
 
         if not doc:
             raise ItemNotFoundError(item_id=UniqueId(capability_id))
