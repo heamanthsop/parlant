@@ -784,15 +784,18 @@ class AlphaEngine(Engine):
         dict[GuidelineMatch, list[ToolId]],
         list[Journey],
     ]:
-        # Step 1: Retrieve all of the journeys for this agent.
-        all_journeys = await self._load_journeys(context)
+        # Step 1: Retrieve the journeys likely to be activated for this agent
+        all_journeys = await self._entity_queries.finds_journeys_for_context(
+            agent_id=context.agent.id,
+        )
+        relevant_journeys = await self._load_journeys(context, all_journeys)
 
         # Step 2:
         all_stored_guidelines = {
             g.id: g
             for g in await self._entity_queries.find_guidelines_for_context(
                 agent_id=context.agent.id,
-                journeys=all_journeys,
+                journeys=relevant_journeys,
             )
             if g.enabled
         }
@@ -801,16 +804,23 @@ class AlphaEngine(Engine):
         # (everything beyond the first journey). Removing these low-probability
         # dependencies up-front keeps the first matching pass fast and focused.
         top_k = 1
-        low_prob_journey_dependent_ids = set(
+        all_journey_dependent_ids = set(
+            chain.from_iterable(
+                [await self._entity_queries.find_journey_scoped_guidelines(j) for j in all_journeys]
+            )
+        )
+        high_prob_journey_dependent_ids = set(
             chain.from_iterable(
                 [
                     await self._entity_queries.find_journey_scoped_guidelines(j)
-                    for j in all_journeys[top_k:]
+                    for j in relevant_journeys[:top_k]
                 ]
             )
         )
         filtered_guidelines = [
-            g for id, g in all_stored_guidelines.items() if id not in low_prob_journey_dependent_ids
+            g
+            for id, g in all_stored_guidelines.items()
+            if id in high_prob_journey_dependent_ids or id not in all_journey_dependent_ids
         ]
 
         # Step 4: Filter the best matches out of those.
@@ -832,7 +842,7 @@ class AlphaEngine(Engine):
 
         # Step 5: Filter the journeys that are activated by the matched guidelines.
         match_ids = set(map(lambda g: g.guideline.id, matching_result.matches))
-        journeys = [j for j in all_journeys if set(j.conditions).intersection(match_ids)]
+        journeys = [j for j in relevant_journeys if set(j.conditions).intersection(match_ids)]
 
         # Step 6: If any of the lower-probability journeys (those originally filtered out)
         # have in fact been activated, run an additional matching pass for the guidelines
@@ -844,7 +854,7 @@ class AlphaEngine(Engine):
                     for j in [
                         activated_journey
                         for activated_journey in journeys
-                        if activated_journey in all_journeys[top_k:]
+                        if activated_journey in relevant_journeys[top_k:]
                     ]
                 ]
             )
@@ -990,7 +1000,11 @@ class AlphaEngine(Engine):
 
         return []
 
-    async def _load_journeys(self, context: LoadedContext) -> Sequence[Journey]:
+    async def _load_journeys(
+        self,
+        context: LoadedContext,
+        all_journeys: Sequence[Journey],
+    ) -> Sequence[Journey]:
         # Journeys are retrieved using semantic similarity.
         # The querying process is done with a text query, for which
         # the K most relevant terms are retrieved.
@@ -1022,7 +1036,7 @@ class AlphaEngine(Engine):
 
         if query:
             return await self._entity_queries.find_relevant_journeys_for_context(
-                agent_id=context.agent.id,
+                available_journeys=all_journeys,
                 query=query,
             )
 

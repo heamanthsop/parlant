@@ -384,7 +384,7 @@ async def test_find_relevant_journeys_for_agent_returns_most_relevant(
     )
 
     results = await entity_queries.find_relevant_journeys_for_context(
-        agent.id, "I'd like to reset my password"
+        [onboarding_journey, support_journey], "I'd like to reset my password"
     )
 
     assert len(results) == 2

@@ -287,12 +287,12 @@ class EntityQueries:
 
     async def find_relevant_journeys_for_context(
         self,
-        agent_id: AgentId,
+        available_journeys: Sequence[Journey],
         query: str,
     ) -> Sequence[Journey]:
         return await self._journey_store.find_relevant_journeys(
             query=query,
-            available_journeys=await self.finds_journeys_for_context(agent_id),
+            available_journeys=available_journeys,
         )
 
     async def find_utterances_for_context(
