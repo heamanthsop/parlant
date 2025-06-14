@@ -1,0 +1,364 @@
+# Copyright 2025 Emcie Co Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from fastapi import APIRouter, Path, Query, status
+from pydantic import Field
+from typing import Annotated, Optional, Sequence, TypeAlias
+
+from parlant.core.common import DefaultBaseModel
+from parlant.api.common import ExampleJson, apigen_config, example_json_content
+from parlant.core.capabilities import (
+    CapabilityId,
+    CapabilityStore,
+    CapabilityUpdateParams,
+)
+from parlant.core.tags import TagId
+
+API_GROUP = "capabilities"
+
+CapabilityIdPath: TypeAlias = Annotated[
+    CapabilityId,
+    Path(
+        description="Unique identifier for the capability",
+        examples=["cap_123abc"],
+        min_length=1,
+    ),
+]
+
+CapabilityTitleField: TypeAlias = Annotated[
+    str,
+    Field(
+        description="The title of the capability",
+        examples=["Search", "Summarization"],
+        min_length=1,
+        max_length=100,
+    ),
+]
+
+CapabilityDescriptionField: TypeAlias = Annotated[
+    str,
+    Field(
+        description="Detailed description of the capability's purpose",
+        examples=["Performs semantic search over documents."],
+    ),
+]
+
+CapabilityQueriesField: TypeAlias = Annotated[
+    Sequence[str],
+    Field(
+        description="Example queries that this capability can handle",
+        examples=[["What is the weather?", "Find all invoices"]],
+    ),
+]
+
+CapabilityTagsField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        default=None,
+        description="List of tag IDs associated with the capability",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+capability_example: ExampleJson = {
+    "id": "cap_123abc",
+    "title": "Search",
+    "description": "Performs semantic search over documents.",
+    "queries": ["What is the weather?", "Find all invoices"],
+    "tags": ["tag1", "tag2"],
+}
+
+
+class CapabilityDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": capability_example},
+):
+    """
+    A capability represents a functional feature or skill of the system.
+    """
+
+    id: CapabilityIdPath
+    title: CapabilityTitleField
+    description: CapabilityDescriptionField
+    queries: CapabilityQueriesField
+    tags: CapabilityTagsField
+
+
+class CapabilityCreationParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": capability_example},
+):
+    """
+    Parameters for creating a new capability.
+    """
+
+    title: CapabilityTitleField
+    description: CapabilityDescriptionField
+    queries: CapabilityQueriesField
+    tags: Optional[CapabilityTagsField] = None
+
+
+CapabilityTagUpdateAddField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        default=None,
+        description="List of tag IDs to add to the capability",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+CapabilityTagUpdateRemoveField: TypeAlias = Annotated[
+    list[TagId],
+    Field(
+        default=None,
+        description="List of tag IDs to remove from the capability",
+        examples=[["tag1", "tag2"]],
+    ),
+]
+
+capability_tag_update_params_example: ExampleJson = {
+    "add": ["tag1", "tag2"],
+    "remove": ["tag3"],
+}
+
+
+class CapabilityTagUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": capability_tag_update_params_example},
+):
+    """
+    Parameters for updating an existing capability's tags.
+    """
+
+    add: Optional[CapabilityTagUpdateAddField] = None
+    remove: Optional[CapabilityTagUpdateRemoveField] = None
+
+
+class CapabilityUpdateParamsDTO(
+    DefaultBaseModel,
+    json_schema_extra={"example": capability_example},
+):
+    """
+    Parameters for updating an existing capability.
+    All fields are optional. Only provided fields will be updated.
+    """
+
+    title: Optional[CapabilityTitleField] = None
+    description: Optional[CapabilityDescriptionField] = None
+    queries: Optional[CapabilityQueriesField] = None
+    tags: Optional[CapabilityTagUpdateParamsDTO] = None
+
+
+TagIdQuery: TypeAlias = Annotated[
+    Optional[TagId],
+    Query(
+        description="The tag ID to filter capabilities by",
+        examples=["tag:123"],
+    ),
+]
+
+
+def create_router(
+    capability_store: CapabilityStore,
+) -> APIRouter:
+    router = APIRouter()
+
+    @router.post(
+        "",
+        status_code=status.HTTP_201_CREATED,
+        operation_id="create_capability",
+        response_model=CapabilityDTO,
+        responses={
+            status.HTTP_201_CREATED: {
+                "description": "Capability successfully created. Returns the complete capability object including generated ID.",
+                "content": example_json_content(capability_example),
+            },
+            status.HTTP_422_UNPROCESSABLE_ENTITY: {
+                "description": "Validation error in request parameters"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="create"),
+    )
+    async def create_capability(
+        params: CapabilityCreationParamsDTO,
+    ) -> CapabilityDTO:
+        """
+        Creates a new capability in the system.
+        """
+        capability = await capability_store.create_capability(
+            title=params.title,
+            description=params.description,
+            queries=params.queries,
+            tags=params.tags,
+        )
+        return CapabilityDTO(
+            id=capability.id,
+            title=capability.title,
+            description=capability.description,
+            queries=capability.queries,
+            tags=capability.tags,
+        )
+
+    @router.get(
+        "",
+        operation_id="list_capabilities",
+        response_model=Sequence[CapabilityDTO],
+        responses={
+            status.HTTP_200_OK: {
+                "description": "List of all capabilities in the system",
+                "content": example_json_content([capability_example]),
+            }
+        },
+        **apigen_config(group_name=API_GROUP, method_name="list"),
+    )
+    async def list_capabilities(
+        tag_id: TagIdQuery = None,
+    ) -> Sequence[CapabilityDTO]:
+        """
+        Retrieves a list of all capabilities in the system.
+        """
+        if tag_id:
+            capabilities = await capability_store.list_capabilities(
+                tags=[tag_id],
+            )
+        else:
+            capabilities = await capability_store.list_capabilities()
+
+        result = []
+        for capability in capabilities:
+            result.append(
+                CapabilityDTO(
+                    id=capability.id,
+                    title=capability.title,
+                    description=capability.description,
+                    queries=capability.queries,
+                    tags=capability.tags,
+                )
+            )
+        return result
+
+    @router.get(
+        "/{capability_id}",
+        operation_id="read_capability",
+        response_model=CapabilityDTO,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Capability details successfully retrieved. Returns the complete capability object.",
+                "content": example_json_content(capability_example),
+            },
+            status.HTTP_404_NOT_FOUND: {
+                "description": "Capability not found. The specified `capability_id` does not exist"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="retrieve"),
+    )
+    async def read_capability(
+        capability_id: CapabilityIdPath,
+    ) -> CapabilityDTO:
+        """
+        Retrieves details of a specific capability by ID.
+        """
+        capability = await capability_store.read_capability(capability_id=capability_id)
+        return CapabilityDTO(
+            id=capability.id,
+            title=capability.title,
+            description=capability.description,
+            queries=capability.queries,
+            tags=capability.tags,
+        )
+
+    @router.patch(
+        "/{capability_id}",
+        operation_id="update_capability",
+        response_model=CapabilityDTO,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Capability successfully updated. Returns the updated capability.",
+                "content": example_json_content(capability_example),
+            },
+            status.HTTP_404_NOT_FOUND: {
+                "description": "Capability not found. The specified `capability_id` does not exist"
+            },
+            status.HTTP_422_UNPROCESSABLE_ENTITY: {
+                "description": "Validation error in update parameters"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="update"),
+    )
+    async def update_capability(
+        capability_id: CapabilityIdPath,
+        params: CapabilityUpdateParamsDTO,
+    ) -> CapabilityDTO:
+        """
+        Updates an existing capability's attributes.
+        Only the provided attributes will be updated; others will remain unchanged.
+        """
+        update_params: CapabilityUpdateParams = {}
+        if params.title:
+            update_params["title"] = params.title
+        if params.description:
+            update_params["description"] = params.description
+        if params.queries:
+            update_params["queries"] = params.queries
+
+        if update_params:
+            capability = await capability_store.update_capability(
+                capability_id=capability_id,
+                params=update_params,
+            )
+        else:
+            capability = await capability_store.read_capability(capability_id=capability_id)
+
+        if params.tags:
+            if params.tags.add:
+                for tag in params.tags.add:
+                    await capability_store.upsert_tag(capability_id=capability_id, tag_id=tag)
+            if params.tags.remove:
+                for tag in params.tags.remove:
+                    await capability_store.remove_tag(capability_id=capability_id, tag_id=tag)
+
+        capability = await capability_store.read_capability(capability_id=capability_id)
+        return CapabilityDTO(
+            id=capability.id,
+            title=capability.title,
+            description=capability.description,
+            queries=capability.queries,
+            tags=capability.tags,
+        )
+
+    @router.delete(
+        "/{capability_id}",
+        operation_id="delete_capability",
+        status_code=status.HTTP_204_NO_CONTENT,
+        responses={
+            status.HTTP_204_NO_CONTENT: {
+                "description": "Capability successfully deleted. No content returned."
+            },
+            status.HTTP_404_NOT_FOUND: {
+                "description": "Capability not found. The specified `capability_id` does not exist"
+            },
+        },
+        **apigen_config(group_name=API_GROUP, method_name="delete"),
+    )
+    async def delete_capability(
+        capability_id: CapabilityIdPath,
+    ) -> None:
+        """
+        Deletes a capability from the system.
+        Deleting a non-existent capability will return 404.
+        No content will be returned from a successful deletion.
+        """
+        await capability_store.delete_capability(capability_id=capability_id)
+
+    return router

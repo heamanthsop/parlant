@@ -19,6 +19,7 @@ from parlant.core.agents import (
     AgentUpdateParams,
     CompositionMode,
 )
+from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
 from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
@@ -517,6 +518,15 @@ class Server:
 
             c[UtteranceStore] = await self._exit_stack.enter_async_context(
                 UtteranceVectorStore(
+                    vector_db=TransientVectorDatabase(c[Logger], embedder_factory),
+                    document_db=TransientDocumentDatabase(),
+                    embedder_factory=embedder_factory,
+                    embedder_type_provider=get_embedder_type,
+                )
+            )
+
+            c[CapabilityStore] = await self._exit_stack.enter_async_context(
+                CapabilityVectorStore(
                     vector_db=TransientVectorDatabase(c[Logger], embedder_factory),
                     document_db=TransientDocumentDatabase(),
                     embedder_factory=embedder_factory,

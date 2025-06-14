@@ -27,6 +27,7 @@ from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.app import create_api_app, ASGIApplication
 from parlant.core.background_tasks import BackgroundTaskService
+from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
 from parlant.core.emission.event_publisher import EventPublisherFactory
@@ -344,6 +345,15 @@ async def container(
 
         container[UtteranceStore] = await stack.enter_async_context(
             UtteranceVectorStore(
+                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+                document_db=TransientDocumentDatabase(),
+                embedder_factory=embedder_factory,
+                embedder_type_provider=get_embedder_type,
+            )
+        )
+
+        container[CapabilityStore] = await stack.enter_async_context(
+            CapabilityVectorStore(
                 vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
