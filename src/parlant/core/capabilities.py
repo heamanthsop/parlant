@@ -258,10 +258,11 @@ class CapabilityVectorStore(CapabilityStore):
             tags=tags,
         )
 
+    def _list_capability_contents(self, capability: Capability) -> list[str]:
+        return [f"{capability.title}: {capability.description}"] + list(capability.queries)
+
     async def _insert_capability(self, capability: Capability) -> _CapabilityDocument:
-        for content in chain(
-            [capability.title, capability.description], [q for q in capability.queries]
-        ):
+        for content in self._list_capability_contents(capability):
             doc = self._serialize(capability, content)
             await self._collection.insert_one(document=doc)
 
@@ -436,6 +437,10 @@ class CapabilityVectorStore(CapabilityStore):
         if not available_capabilities:
             return []
 
+        n_result = len(
+            list(chain(self._list_capability_contents(c) for c in available_capabilities))
+        )
+
         async with self._lock.reader_lock:
             queries = [query]
             filters: Where = {"capability_id": {"$in": [str(c.id) for c in available_capabilities]}}
@@ -444,7 +449,7 @@ class CapabilityVectorStore(CapabilityStore):
                 self._collection.find_similar_documents(
                     filters=filters,
                     query=q,
-                    k=max_capabilities,
+                    k=n_result,
                 )
                 for q in queries
             ]
