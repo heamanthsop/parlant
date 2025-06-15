@@ -362,7 +362,8 @@ Feature: Strict Utterance
         And an utterance, "Got it. Would you want anything extra in your sandwich?"
         And an utterance, "Got it. What toppings would you like?"
         And an utterance, "Got it. What kind of dressing would you like?"
-        And an utterance, "Got it. Since you want a salad - what base greens would you like" 
+        And an utterance, "Got it. Since you want a salad - what base greens would you like"
+        And an utterance, "Got it. What base greens would you like for your salad?"
         When processing is triggered
         Then a single message event is emitted
         And the message contains asking asking what green base the customer wants for their salad 
