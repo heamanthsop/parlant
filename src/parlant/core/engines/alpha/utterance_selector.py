@@ -1113,8 +1113,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 ],
             },
         )
-        with open("prompt_draft.txt", "w") as f:
-            f.write(builder.build())
+
         return builder
 
     def _get_draft_output_format(
@@ -1286,8 +1285,7 @@ Output a JSON object with three properties:
             prompt=draft_prompt,
             hints={"temperature": temperature},
         )
-        with open("output_utterance_draft.txt", "a") as f:
-            f.write(draft_response.content.model_dump_json(indent=2))
+
         self._logger.debug(
             f"Utterance Draft Completion:\n{draft_response.content.model_dump_json(indent=2)}"
         )
@@ -1324,8 +1322,7 @@ Output a JSON object with three properties:
             ),
             hints={"temperature": 0.1},
         )
-        with open("output_utterance_selection.txt", "a") as f:
-            f.write(selection_response.content.model_dump_json(indent=2))
+
         self._logger.debug(
             f"Utterance Selection Completion:\n{selection_response.content.model_dump_json(indent=2)}"
         )

@@ -640,8 +640,7 @@ Produce a valid JSON object in the following format: ###
                 "guidelines": actionable_guidelines,
             },
         )
-        with open("prompt_message_generator.txt", "w") as f:
-            f.write(builder.build())
+
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:
@@ -784,8 +783,7 @@ Produce a valid JSON object in the following format: ###
             prompt=prompt,
             hints={"temperature": temperature},
         )
-        with open("output_message_generator.txt", "w") as f:
-            f.write(message_event_response.content.model_dump_json(indent=2))
+
         self._logger.debug(
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
