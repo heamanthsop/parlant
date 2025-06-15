@@ -90,6 +90,9 @@ from parlant.core.engines.alpha.utterance_selector import (
     UtteranceRevisionSchema,
     UtteranceSelector,
 )
+from parlant.core.services.indexing.guideline_agent_intention_proposer import (
+    AgentIntentionProposerSchema,
+)
 from parlant.core.journeys import JourneyDocumentStore, JourneyStore
 from parlant.core.persistence.vector_database import VectorDatabase
 from parlant.core.services.indexing.customer_dependent_action_detector import (
@@ -612,6 +615,7 @@ async def initialize_container(
         GuidelineActionPropositionSchema,
         GuidelineContinuousPropositionSchema,
         CustomerDependentActionSchema,
+        AgentIntentionProposerSchema,
     ):
         try_define(
             SchematicGenerator[schema],  # type: ignore
