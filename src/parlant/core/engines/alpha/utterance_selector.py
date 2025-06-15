@@ -812,30 +812,52 @@ In formulating your reply, you are normally required to follow a number of behav
 However, in this case, no special behavioral guidelines were provided.
 """
         guidelines = []
-
+        agent_intention_guidelines = []
         for i, p in enumerate(all_matches, start=1):
             if p.guideline.content.action:
                 guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
                 guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
-                guidelines.append(guideline)
+                if p.guideline.metadata.get("agent_intention_condition"):
+                    agent_intention_guidelines.append(guideline)
+                else:
+                    guidelines.append(guideline)
 
         guideline_list = "\n".join(guidelines)
+        agent_intention_guidelines_list = "\n".join(agent_intention_guidelines)
 
-        return f"""
+        guideline_instruction = """
 When crafting your reply, you must follow the behavioral guidelines provided below, which have been identified as relevant to the current state of the interaction.
-Each guideline includes a priority score to indicate its importance and a rationale for its relevance.
+"""
+        if agent_intention_guidelines_list:
+            guideline_instruction += f"""
+Some guidelines are tied to condition that related to you, the agent. These guidelines are considered relevant because it is likely that you intends to output
+a message that will trigger the associated condition. You should only follow these guidelines if you are actually going to output a message that activates the condition.
+- **Guidelines with agent intention condition**:
+{agent_intention_guidelines_list}
 
-You may choose not to follow a guideline only in the following cases:
-    - It conflicts with a previous user request.
-    - It contradicts another guideline of equal or higher priority.
-    - It is clearly inappropriate given the current context of the conversation.
-In all other situations, you are expected to adhere to the guidelines.
-These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
-Never disregard a guideline, even if you believe its 'when' condition or rationale does not apply. All of the guidelines necessarily apply right now.
+"""
+        if guideline_list:
+            guideline_instruction += f"""
 
+For any other guidelines, do not disregard a guideline because you believe its 'when' condition or rationale does not apply—this filtering has already been handled.
 - **Guidelines**:
 {guideline_list}
+
 """
+        guideline_instruction += """
+
+You may choose not to follow a guideline only in the following cases:
+    - It conflicts with a previous customer request.
+    - It is clearly inappropriate given the current context of the conversation.
+    - It lacks sufficient context or data to apply reliably.
+    - It conflicts with an insight.
+    - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
+    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
+        choosing the permitted alternative (i.e., do Y).
+In all other situations, you are expected to adhere to the guidelines.
+These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
+"""
+        return guideline_instruction
 
     def _format_shots(
         self,
@@ -961,11 +983,14 @@ The final output must be a JSON document detailing the message development proce
 
 PRIORITIZING INSTRUCTIONS (GUIDELINES VS. INSIGHTS)
 ---------------------------------------------------
-Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization, based on:
-    - Conflicts with a higher-priority guideline (according to their priority scores).
-    - Contradictions with a user request.
-    - Lack of sufficient context or data.
-    - Conflicts with an insight (see below).
+Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization. 
+Consider the following valid reasons for such deviations:
+    - The instruction contradicts a customer request.
+    - The instruction lacks sufficient context or data to apply reliably.
+    - The instruction conflicts with an insight (see below).
+    - The instruction depends on an agent intention condition that does not apply in the current situation.
+    - When a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), 
+    follow both by choosing the permitted alternative (i.e., do Y). 
 In all other cases, even if you believe that a guideline's condition does not apply, you must follow it.
 If fulfilling a guideline is not possible, explicitly justify why in your response.
 
@@ -1088,7 +1113,8 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 ],
             },
         )
-
+        with open("prompt_draft.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _get_draft_output_format(
@@ -1260,7 +1286,8 @@ Output a JSON object with three properties:
             prompt=draft_prompt,
             hints={"temperature": temperature},
         )
-
+        with open("output_utterance_draft.txt", "a") as f:
+            f.write(draft_response.content.model_dump_json(indent=2))
         self._logger.debug(
             f"Utterance Draft Completion:\n{draft_response.content.model_dump_json(indent=2)}"
         )
@@ -1297,7 +1324,8 @@ Output a JSON object with three properties:
             ),
             hints={"temperature": 0.1},
         )
-
+        with open("output_utterance_selection.txt", "a") as f:
+            f.write(selection_response.content.model_dump_json(indent=2))
         self._logger.debug(
             f"Utterance Selection Completion:\n{selection_response.content.model_dump_json(indent=2)}"
         )
