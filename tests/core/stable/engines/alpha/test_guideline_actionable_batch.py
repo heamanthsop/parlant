@@ -166,6 +166,7 @@ async def base_test_that_correct_guidelines_are_matched(
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
+        capabilities=[],
         staged_events=staged_events,
     )
 

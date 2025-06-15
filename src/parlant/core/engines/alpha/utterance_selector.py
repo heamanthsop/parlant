@@ -28,6 +28,7 @@ from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 from parlant.core.async_utils import safe_gather
+from parlant.core.capabilities import Capability
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent, CompositionMode
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -450,6 +451,7 @@ class UtteranceSelector(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -537,6 +539,7 @@ You will now be given the current state of the interaction to which you must gen
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -570,6 +573,7 @@ You will now be given the current state of the interaction to which you must gen
                     context_variables,
                     interaction_history,
                     terms,
+                    capabilities,
                     ordinary_guideline_matches,
                     tool_enabled_guideline_matches,
                     journeys,

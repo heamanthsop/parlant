@@ -16,6 +16,7 @@ from itertools import chain
 from typing import Optional, Sequence
 
 from parlant.core.agents import Agent, AgentId, AgentStore
+from parlant.core.capabilities import Capability, CapabilityStore
 from parlant.core.common import JSONSerializable
 from parlant.core.context_variables import (
     ContextVariable,
@@ -66,6 +67,7 @@ class EntityQueries:
         journey_store: JourneyStore,
         service_registry: ServiceRegistry,
         utterance_store: UtteranceStore,
+        capability_store: CapabilityStore,
     ) -> None:
         self._agent_store = agent_store
         self._session_store = session_store
@@ -76,6 +78,7 @@ class EntityQueries:
         self._guideline_tool_association_store = guideline_tool_association_store
         self._glossary_store = glossary_store
         self._journey_store = journey_store
+        self._capability_store = capability_store
         self._service_registry = service_registry
         self._utterance_store = utterance_store
 
@@ -164,6 +167,33 @@ class EntityQueries:
         self,
     ) -> Sequence[GuidelineToolAssociation]:
         return await self._guideline_tool_association_store.list_associations()
+
+    async def find_capabilities_for_agent(
+        self,
+        agent_id: AgentId,
+        query: str,
+    ) -> Sequence[Capability]:
+        agent_capabilities = await self._capability_store.list_capabilities(
+            tags=[Tag.for_agent_id(agent_id)],
+        )
+        global_capabilities = await self._capability_store.list_capabilities(tags=[])
+        agent = await self._agent_store.read_agent(agent_id)
+        capabilities_for_agent_tags = await self._capability_store.list_capabilities(
+            tags=[tag for tag in agent.tags]
+        )
+
+        all_capabilities = set(
+            chain(
+                agent_capabilities,
+                global_capabilities,
+                capabilities_for_agent_tags,
+            )
+        )
+
+        return await self._capability_store.find_relevant_capabilities(
+            query,
+            list(all_capabilities),
+        )
 
     async def find_glossary_terms_for_agent(
         self,

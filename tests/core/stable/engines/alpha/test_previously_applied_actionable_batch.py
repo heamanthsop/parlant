@@ -149,6 +149,7 @@ async def base_test_that_correct_guidelines_are_matched(
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
+        capabilities=[],
         staged_events=staged_events,
     )
 
@@ -426,7 +427,7 @@ async def test_that_guideline_that_should_reapply_is_matched_when_condition_hold
     )
 
 
-async def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_subissue(
+async def test_that_reapplied_guideline_is_still_applied_when_handling_conditions_sub_issue(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,

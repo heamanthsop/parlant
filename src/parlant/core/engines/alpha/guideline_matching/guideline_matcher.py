@@ -31,6 +31,7 @@ import time
 from typing import Sequence
 
 from parlant.core import async_utils
+from parlant.core.capabilities import Capability
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -57,6 +58,7 @@ class GuidelineMatchingContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
+    capabilities: Sequence[Capability]
     staged_events: Sequence[EmittedEvent]
 
 
@@ -181,6 +183,7 @@ class GuidelineMatcher:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         staged_events: Sequence[EmittedEvent],
         guidelines: Sequence[Guideline],
     ) -> GuidelineMatchingResult:
@@ -216,6 +219,7 @@ class GuidelineMatcher:
                                 context_variables,
                                 interaction_history,
                                 terms,
+                                capabilities,
                                 staged_events,
                             ),
                         )

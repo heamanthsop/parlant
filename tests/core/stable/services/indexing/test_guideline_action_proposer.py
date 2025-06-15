@@ -326,6 +326,7 @@ async def base_test_that_guideline_with_proposed_action_matched(
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
+        capabilities=[],
         staged_events=[],
         guidelines=context.guidelines,
     )

@@ -19,6 +19,7 @@ import traceback
 from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
+from parlant.core.capabilities import Capability
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -142,6 +143,7 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -159,6 +161,7 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
