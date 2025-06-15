@@ -2575,7 +2575,7 @@ async def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
     )
 
 
-def test_that_guideline_with_agent_intention_is_matched(
+async def test_that_guideline_with_agent_intention_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2589,7 +2589,7 @@ def test_that_guideline_with_agent_intention_is_matched(
     ]
     conversation_guideline_names: list[str] = ["medical_record"]
     relevant_guideline_names = conversation_guideline_names
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2600,7 +2600,7 @@ def test_that_guideline_with_agent_intention_is_matched(
     )
 
 
-def test_that_guideline_with_agent_intention_is_matched_2(
+async def test_that_guideline_with_agent_intention_is_matched_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2619,7 +2619,7 @@ def test_that_guideline_with_agent_intention_is_matched_2(
     ]
     relevant_guideline_names = ["provide_diagnosis"]
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2630,7 +2630,7 @@ def test_that_guideline_with_agent_intention_is_matched_2(
     )
 
 
-def test_that_guideline_with_agent_intention_is_matched_3(
+async def test_that_guideline_with_agent_intention_is_matched_3(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2653,7 +2653,7 @@ def test_that_guideline_with_agent_intention_is_matched_3(
     conversation_guideline_names: list[str] = ["confirm_order"]
     relevant_guideline_names = conversation_guideline_names
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2664,7 +2664,7 @@ def test_that_guideline_with_agent_intention_is_matched_3(
     )
 
 
-def test_that_guideline_with_agent_intention_is_matched_4(
+async def test_that_guideline_with_agent_intention_is_matched_4(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2679,7 +2679,7 @@ def test_that_guideline_with_agent_intention_is_matched_4(
     conversation_guideline_names: list[str] = ["discuss_money"]
     relevant_guideline_names = conversation_guideline_names
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2690,7 +2690,7 @@ def test_that_guideline_with_agent_intention_is_matched_4(
     )
 
 
-def test_that_guideline_with_agent_intention_is_matched_5(
+async def test_that_guideline_with_agent_intention_is_matched_5(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2705,7 +2705,7 @@ def test_that_guideline_with_agent_intention_is_matched_5(
     conversation_guideline_names: list[str] = ["human_resources"]
     relevant_guideline_names = conversation_guideline_names
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2716,7 +2716,7 @@ def test_that_guideline_with_agent_intention_is_matched_5(
     )
 
 
-def test_that_guideline_with_agent_intention_is_not_matched(
+async def test_that_guideline_with_agent_intention_is_not_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2739,7 +2739,7 @@ def test_that_guideline_with_agent_intention_is_not_matched(
     conversation_guideline_names: list[str] = ["confirm_order"]
     relevant_guideline_names: list[str] = []
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2750,7 +2750,7 @@ def test_that_guideline_with_agent_intention_is_not_matched(
     )
 
 
-def test_that_guideline_with_agent_intention_is_not_matched_2(
+async def test_that_guideline_with_agent_intention_is_not_matched_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2765,7 +2765,7 @@ def test_that_guideline_with_agent_intention_is_not_matched_2(
     conversation_guideline_names: list[str] = ["confirm_order"]
     relevant_guideline_names: list[str] = []
 
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2776,7 +2776,7 @@ def test_that_guideline_with_agent_intention_is_not_matched_2(
     )
 
 
-def test_that_guideline_with_agent_intention_and_customer_dependent_action_that_was_previously_applied_is_matched(
+async def test_that_guideline_with_agent_intention_and_customer_dependent_action_that_was_previously_applied_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2815,7 +2815,7 @@ def test_that_guideline_with_agent_intention_and_customer_dependent_action_that_
     conversation_guideline_names: list[str] = ["confirm_order"]
     relevant_guideline_names: list[str] = ["confirm_order"]
     previously_matched_guidelines_names: list[str] = ["confirm_order"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2828,7 +2828,7 @@ def test_that_guideline_with_agent_intention_and_customer_dependent_action_that_
     )
 
 
-def test_that_guideline_with_agent_intention_that_was_previously_applied_is_matched(
+async def test_that_guideline_with_agent_intention_that_was_previously_applied_is_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2852,7 +2852,7 @@ def test_that_guideline_with_agent_intention_that_was_previously_applied_is_matc
     conversation_guideline_names: list[str] = ["provide_diagnosis"]
     relevant_guideline_names: list[str] = ["provide_diagnosis"]
     previously_matched_guidelines_names: list[str] = ["provide_diagnosis"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2865,7 +2865,7 @@ def test_that_guideline_with_agent_intention_that_was_previously_applied_is_matc
     )
 
 
-def test_that_guideline_with_agent_intention_that_was_previously_applied_but_should_not_reapply_is_not_matched(
+async def test_that_guideline_with_agent_intention_that_was_previously_applied_but_should_not_reapply_is_not_matched(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2889,7 +2889,7 @@ def test_that_guideline_with_agent_intention_that_was_previously_applied_but_sho
     conversation_guideline_names: list[str] = ["provide_diagnosis"]
     relevant_guideline_names: list[str] = []
     previously_matched_guidelines_names: list[str] = ["provide_diagnosis"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
@@ -2902,7 +2902,7 @@ def test_that_guideline_with_agent_intention_that_was_previously_applied_but_sho
     )
 
 
-def test_that_guideline_with_agent_intention_that_was_matched_but_action_wasnt_taken_is_not_matched_again(
+async def test_that_guideline_with_agent_intention_that_was_matched_but_action_wasnt_taken_is_not_matched_again(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -2933,7 +2933,7 @@ def test_that_guideline_with_agent_intention_that_was_matched_but_action_wasnt_t
     conversation_guideline_names: list[str] = ["confirm_order"]
     relevant_guideline_names: list[str] = []
     previously_matched_guidelines_names: list[str] = ["confirm_order"]
-    base_test_that_correct_guidelines_are_matched(
+    await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
         customer,
