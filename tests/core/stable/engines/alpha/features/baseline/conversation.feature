@@ -147,9 +147,9 @@ Feature: Conversation
     Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2
         Given an agent
         And an empty session
-        Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the recommended vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
-        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
+        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend on our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
         When processing is triggered
         Then a single message event is emitted
         And the message contains a recommendation only on pineapple as topping  
@@ -168,8 +168,8 @@ Feature: Conversation
     Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2
         Given an agent
         And an empty session
-        Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the recommended vegetarian toppings options when the agent recommends on pizza topping and the customer is vegetarian
+        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend on our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
         When processing is triggered
         Then a single message event is emitted
