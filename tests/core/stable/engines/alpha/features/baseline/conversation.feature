@@ -148,7 +148,7 @@ Feature: Conversation
         Given an agent
         And an empty session
         Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend on our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
+        Given a guideline to recommend from our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
         When processing is triggered
         Then a single message event is emitted
@@ -169,7 +169,7 @@ Feature: Conversation
         Given an agent
         And an empty session
         Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend on our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
+        Given a guideline to recommend from our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
         When processing is triggered
         Then a single message event is emitted

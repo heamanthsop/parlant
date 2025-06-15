@@ -224,7 +224,7 @@ Feature: Fluid Utterance
 
     Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2 (fluid utterance)
         Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the recommended vegetarian toppings options when the customer asks about topping recommendation and the customer is from India
+        Given a guideline to recommend only from the recommended vegetarian toppings options when the customer asks about topping recommendation and the customer is from India
         And that the agent uses the fluid_utterance message composition mode
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
         And an utterance, "I recommend on {{generative.answer}}."
@@ -246,7 +246,7 @@ Feature: Fluid Utterance
 
     Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2 (fluid utterance)
         Given a guideline to recommend on either pineapple or pepperoni when the agent recommends on pizza toppings
-        Given a guideline to recommend only on the vegetarian toppings options when the agent recommends on pizza topping and the customer is from India
+        Given a guideline to recommend only from the vegetarian toppings options when the agent recommends on pizza topping and the customer is from India
         And that the agent uses the fluid_utterance message composition mode
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
         And an utterance, "I recommend on {{generative.answer}}."
