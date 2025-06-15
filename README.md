@@ -1,6 +1,6 @@
 
 <div align="center">
-
+  
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://github.com/emcie-co/parlant/blob/develop/LogoTransparentLight.png?raw=true">
   <img alt="Parlant Banner" src="https://github.com/emcie-co/parlant/blob/develop/LogoTransparentDark.png?raw=true" width=400 />
@@ -56,6 +56,11 @@ Traditional LLMs often struggle with **attention drift** and **inconsistency in 
   * **Compliance & Reliability:** Critical for regulated industries, Parlant helps you ensure conversations meet strict business and legal requirements by controlling and **sanitizing LLM outputs**.
   * **Purposeful Interactions:** Guide agents to achieve specific objectives, making every conversation efficient and impactful.
   * **Rapid & Iterative Development:** Quickly tailor and iteratively shape conversational agents through continuous conversation and response refinement, leveraging either a code-driven or CLI-based configuration approach.
+
+## ⭐ Star Parlant to Support Control Over Generative AI Agents!
+Creating Parlant is a significant effort, as conversational semantics are extremely complex to get under control. Your star goes a long way to support our team's effort in creating a reality where generative AI agents consistently do what we tell them to!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=emcie-co/parlant&type=Date)](https://www.star-history.com/#emcie-co/parlant&Date)
 
 ## 🚀 Getting Started
 
