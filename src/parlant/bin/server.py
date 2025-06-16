@@ -32,6 +32,7 @@ import sys
 import uvicorn
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
+from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.guideline_matching.generic import (
     guideline_actionable_batch,
@@ -576,6 +577,7 @@ async def initialize_container(
         for store_type, store_class, document_db_filename in [
             (GlossaryStore, GlossaryVectorStore, "glossary_tags.json"),
             (UtteranceStore, UtteranceVectorStore, "utterance_tags.json"),
+            (CapabilityStore, CapabilityVectorStore, "capability_tags.json"),
         ]:
             await try_define_vector_store(
                 store_type,
