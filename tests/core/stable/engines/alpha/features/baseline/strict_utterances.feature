@@ -325,3 +325,45 @@ Feature: Strict Utterance
         When processing is triggered
         Then a single message event is emitted
         And the message contains the text "Your current balance is $1244 as of today."
+
+    
+    Scenario: Journey returns to earlier step when the conversation justifies doing so (1) (strict utterance) 
+        Given an agent whose job is to book taxi rides
+        And that the agent uses the strict_utterance message composition mode
+        And a journey titled Book Taxi Ride to follow these steps to book a customer a taxi ride: 1. Ask for the pickup location. 2. Ask for the drop-off location. 3. Ask for the desired pickup time. 4. Confirm all details with the customer before booking. Each step should be handled in a separate message. when the customer wants to book a taxi
+        And a customer message, "Hi, I'd like to book a taxi for myself"
+        And an agent message, "Great! What's the pickup location?"
+        And a customer message, "Main street 1234"
+        And an agent message, "Got it. What's the drop-off location?"
+        And a customer message, "3rd Avenue by the river"
+        And an agent message, "Got it. What time would you like to pick up?"
+        And a customer message, "Oh hold up, my plans have changed. I'm actually going to need a cab for my son, he'll be waiting at JFK airport, at the taxi stand."
+        And an utterance, "What's the pickup location?"
+        And an utterance, "Got it. What's the drop-off location?"
+        And an utterance, "What time would you like to pick up?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains asking the customer for the drop-off location
+
+    Scenario: Journey returns to earlier step when the conversation justifies doing so (2) (strict utterance)
+        Given an agent whose job is to handle food orders
+        And that the agent uses the strict_utterance message composition mode
+        And a journey titled Place Food Order to follow these steps to place a customer’s order: 1. Ask if they’d like a salad or a sandwich. 2. If they choose a sandwich, ask what kind of bread they’d like. 3. If they choose a sandwich, ask what main filling they’d like from: Peanut butter, jam or pesto. 4. If they choose a sandwich, ask if they want any extras. 5. If they choose a salad, ask what base greens they want. 6. If they choose a salad, ask what toppings they’d like. 7. If they choose a salad, ask what kind of dressing they prefer. 8. Confirm the full order before placing it. Each step should be handled in a separate message, when the customer wants to order food 
+        And a customer message, "Hey, I'd like to make an order"
+        And an agent message, "Great! What would you like to order? We have either a salad or a sandwich."
+        And a customer message, "I'd like a sandwich"
+        And an agent message, "Got it. What kind of bread would you like?"
+        And a customer message, "I'd like a baguette"
+        And an agent message, "Got it. What main filling would you like? We have either peanut butter, jam or pesto."
+        And a customer message, "If that's your only options, can I get a salad instead?"
+        And an utterance, "What would you like to order? We have either a salad or a sandwich."
+        And an utterance, "Got it. What kind of bread would you like?"
+        And an utterance, "Got it. What main filling would you like? We have either peanut butter, jam or pesto."
+        And an utterance, "Got it. Would you want anything extra in your sandwich?"
+        And an utterance, "Got it. What toppings would you like?"
+        And an utterance, "Got it. What kind of dressing would you like?"
+        And an utterance, "Got it. Since you want a salad - what base greens would you like"
+        And an utterance, "Got it. What base greens would you like for your salad?"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains asking asking what green base the customer wants for their salad 
