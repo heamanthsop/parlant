@@ -223,7 +223,7 @@ class GuidelineMatcher:
                     ]
                 )
 
-            with self._logger.operation("Processing batches"):
+            with self._logger.operation("Processing guideline matching batches"):
                 batch_tasks = [
                     self._process_batch_with_retry(batch)
                     for strategy_batches in batches
@@ -291,7 +291,7 @@ class GuidelineMatcher:
                     ]
                 )
 
-            with self._logger.operation("Analyze response batches"):
+            with self._logger.operation("Processing response analysis batches"):
                 batch_tasks = [
                     self._process_report_analysis_batch_with_retry(batch)
                     for strategy_batches in batches
