@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from itertools import chain
 import json
+import time
 from typing import Awaitable, Callable, NewType, Optional, Sequence, TypedDict, cast
 from typing_extensions import override, Self, Required
 
@@ -27,6 +28,7 @@ from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.nlp.embedding import Embedder, EmbedderFactory
 from parlant.core.persistence.vector_database import (
     BaseDocument as VectorBaseDocument,
+    SimilarDocumentResult,
     VectorCollection,
     VectorDatabase,
 )
@@ -262,9 +264,13 @@ class CapabilityVectorStore(CapabilityStore):
         return [f"{capability.title}: {capability.description}"] + list(capability.queries)
 
     async def _insert_capability(self, capability: Capability) -> _CapabilityDocument:
+        insertion_tasks = []
+
         for content in self._list_capability_contents(capability):
             doc = self._serialize(capability, content)
-            await self._collection.insert_one(document=doc)
+            insertion_tasks.append(self._collection.insert_one(document=doc))
+
+        await async_utils.safe_gather(*insertion_tasks)
 
         return doc
 
@@ -277,6 +283,8 @@ class CapabilityVectorStore(CapabilityStore):
         queries: Optional[Sequence[str]] = None,
         tags: Optional[Sequence[TagId]] = None,
     ) -> Capability:
+        t_start = time.time()
+
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -305,6 +313,10 @@ class CapabilityVectorStore(CapabilityStore):
                         "tag_id": tag,
                     }
                 )
+
+        t_end = time.time()
+
+        print(f"Insert time: {t_end - t_start}")
 
         return capability
 
@@ -438,7 +450,11 @@ class CapabilityVectorStore(CapabilityStore):
             return []
 
         n_result = len(
-            list(chain(self._list_capability_contents(c) for c in available_capabilities))
+            list(
+                chain.from_iterable(
+                    self._list_capability_contents(c) for c in available_capabilities
+                )
+            )
         )
 
         async with self._lock.reader_lock:
@@ -456,10 +472,13 @@ class CapabilityVectorStore(CapabilityStore):
 
         all_results = chain.from_iterable(await async_utils.safe_gather(*tasks))
 
-        s_docs = {}
+        s_docs: dict[str, SimilarDocumentResult[_CapabilityDocument]] = {}
         for s_doc in all_results:
-            if s_doc.document["capability_id"] not in s_docs:
-                s_docs["capability_id"] = s_doc
+            if (
+                s_doc.document["capability_id"] not in s_docs
+                or s_docs[s_doc.document["capability_id"]].distance > s_doc.distance
+            ):
+                s_docs[s_doc.document["capability_id"]] = s_doc
 
         top_results = sorted(s_docs.values(), key=lambda r: r.distance)[:max_capabilities]
 

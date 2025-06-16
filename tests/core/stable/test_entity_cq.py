@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 from lagom import Container
 
 from parlant.core.agents import Agent, AgentStore
+from parlant.core.capabilities import CapabilityStore
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.glossary import GlossaryStore
+from parlant.core.loggers import Logger
 from parlant.core.utterances import UtteranceStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
@@ -310,3 +313,36 @@ async def test_that_find_glossary_terms_for_agent_returns_none_for_non_matching_
 
     results = await entity_queries.find_glossary_terms_for_agent(agent_id=agent.id, query="Tagged")
     assert len(results) == 0
+
+
+async def test_that_find_capabilities_for_agent_returns_unique_capabilities(
+    container: Container,
+    agent: Agent,
+) -> None:
+    def random_unicode_string() -> str:
+        return "".join(chr(random.randint(0, 255)) for _ in range(10))
+
+    capability_store = container[CapabilityStore]
+    entity_queries = container[EntityQueries]
+
+    for i in range(10):
+        capability = {
+            "title": random_unicode_string(),
+            "description": random_unicode_string(),
+            "queries": [random_unicode_string() for _ in range(5)],
+        }
+
+        await capability_store.create_capability(
+            title=str(capability["title"]),
+            description=str(capability["description"]),
+            queries=capability["queries"],
+        )
+
+    relevant_capabilities = await entity_queries.find_capabilities_for_agent(
+        logger=container[Logger],
+        agent_id=agent.id,
+        query=random_unicode_string(),
+    )
+
+    assert len(relevant_capabilities) == 10
+    assert len({c.id for c in relevant_capabilities}) == 10
