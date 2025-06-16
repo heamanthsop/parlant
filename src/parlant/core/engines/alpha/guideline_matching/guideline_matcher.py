@@ -195,7 +195,7 @@ class GuidelineMatcher:
         t_start = time.time()
 
         with self._logger.scope("GuidelineMatcher"):
-            with self._logger.operation("Creating batches"):
+            with self._logger.operation("Creating guideline matching batches"):
                 guideline_strategies: dict[
                     str, tuple[GuidelineMatchingStrategy, list[Guideline]]
                 ] = {}
@@ -261,7 +261,7 @@ class GuidelineMatcher:
 
         t_start = time.time()
 
-        with self._logger.scope("ResponseAnalysis"):
+        with self._logger.scope("GuidelineMatcher"):
             with self._logger.operation("Creating report analysis batches"):
                 guideline_strategies: dict[
                     str, tuple[GuidelineMatchingStrategy, list[GuidelineMatch]]
