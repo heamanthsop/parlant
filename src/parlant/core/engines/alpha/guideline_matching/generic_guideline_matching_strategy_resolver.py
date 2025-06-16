@@ -1,4 +1,6 @@
 from datetime import datetime
+from collections import defaultdict
+from itertools import chain
 import math
 from typing import Mapping, Optional, Sequence, cast
 from typing_extensions import override
@@ -38,6 +40,9 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategyResolver,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
+from parlant.core.entity_cq import EntityQueries
+from parlant.core.guidelines import Guideline, GuidelineId
+from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.relationships import (
@@ -52,6 +57,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         logger: Logger,
         relationship_store: RelationshipStore,
+        entity_queries: EntityQueries,
         observational_guideline_schematic_generator: SchematicGenerator[
             GenericObservationalGuidelineMatchesSchema
         ],
@@ -71,6 +77,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     ) -> None:
         self._logger = logger
         self._relationship_store = relationship_store
+        self._entity_queries = entity_queries
 
         self._observational_guideline_schematic_generator = (
             observational_guideline_schematic_generator
@@ -93,58 +100,83 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
-        observational_guidelines: list[Guideline] = []
-        previously_applied_actionable_guidelines: list[Guideline] = []
-        previously_applied_actionable_customer_dependent_guidelines: list[Guideline] = []
-        actionable_guidelines: list[Guideline] = []
-        disambiguation_groups: list[tuple[Guideline, list[Guideline]]] = []
+        observational_guidelines_by_context: dict[str, list[Guideline]] = defaultdict(list)
+        previously_applied_actionable_guidelines_by_context: dict[str, list[Guideline]] = (
+            defaultdict(list)
+        )
+        previously_applied_actionable_customer_dependent_guidelines_by_context: dict[
+            str, list[Guideline]
+        ] = defaultdict(list)
+        actionable_guidelines_by_context: dict[str, list[Guideline]] = defaultdict(list)
+        disambiguation_groups_by_context: dict[str, list[tuple[Guideline, list[Guideline]]]] = (
+            defaultdict(list)
+        )
 
         for g in guidelines:
+            key = "".join(
+                j.id for j in self._entity_queries.guideline_journey_dependents.get(g.id, [])
+            )
+
             if not g.content.action:
                 if targets := await self._try_get_disambiguation_group_targets(g, guidelines):
-                    disambiguation_groups.append((g, targets))
+                    disambiguation_groups_by_context[key].append((g, targets))
                 else:
-                    observational_guidelines.append(g)
+                    observational_guidelines_by_context[key].append(g)
             else:
                 if g.metadata.get("continuous", False):
-                    actionable_guidelines.append(g)
+                    actionable_guidelines_by_context[key].append(g)
                 else:
                     if g.id in context.session.agent_state["applied_guideline_ids"]:
                         data = g.metadata.get("customer_dependent_action_data", False)
                         if isinstance(data, Mapping) and data.get("is_customer_dependent", False):
-                            previously_applied_actionable_customer_dependent_guidelines.append(g)
+                            previously_applied_actionable_customer_dependent_guidelines_by_context[
+                                key
+                            ].append(g)
                         else:
-                            previously_applied_actionable_guidelines.append(g)
+                            previously_applied_actionable_guidelines_by_context[key].append(g)
                     else:
-                        actionable_guidelines.append(g)
+                        actionable_guidelines_by_context[key].append(g)
 
         guideline_batches: list[GuidelineMatchingBatch] = []
-        if observational_guidelines:
+        if observational_guidelines_by_context:
             guideline_batches.extend(
-                self._create_batches_observational_guideline(observational_guidelines, context)
-            )
-        if previously_applied_actionable_guidelines:
-            guideline_batches.extend(
-                self._create_batches_previously_applied_actionable_guideline(
-                    previously_applied_actionable_guidelines, context
+                chain.from_iterable(
+                    self._create_batches_observational_guideline(b, context)
+                    for b in observational_guidelines_by_context.values()
                 )
             )
-        if previously_applied_actionable_customer_dependent_guidelines:
+        if previously_applied_actionable_guidelines_by_context:
             guideline_batches.extend(
-                self._create_batches_previously_applied_actionable_customer_dependent_guideline(
-                    previously_applied_actionable_customer_dependent_guidelines, context
+                chain.from_iterable(
+                    self._create_batches_previously_applied_actionable_guideline(b, context)
+                    for b in previously_applied_actionable_guidelines_by_context.values()
                 )
             )
-        if actionable_guidelines:
+        if previously_applied_actionable_customer_dependent_guidelines_by_context:
             guideline_batches.extend(
-                self._create_batches_actionable_guideline(actionable_guidelines, context)
+                chain.from_iterable(
+                    self._create_batches_previously_applied_actionable_customer_dependent_guideline(
+                        b, context
+                    )
+                    for b in previously_applied_actionable_customer_dependent_guidelines_by_context.values()
+                )
             )
-        if disambiguation_groups:
+        if actionable_guidelines_by_context:
             guideline_batches.extend(
-                [
-                    self._create_batch_disambiguation_guideline(source, targets, context)
-                    for source, targets in disambiguation_groups
-                ]
+                chain.from_iterable(
+                    self._create_batches_actionable_guideline(b, context)
+                    for b in actionable_guidelines_by_context.values()
+                )
+            )
+        if disambiguation_groups_by_context:
+            guideline_batches.extend(
+                chain.from_iterable(
+                    [
+                        self._create_batch_disambiguation_guideline(source, targets, context)
+                        for source, targets in groups
+                    ]
+                    for groups in disambiguation_groups_by_context.values()
+                )
             )
 
         return guideline_batches
@@ -221,6 +253,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
+        journeys = self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+
         batches = []
 
         guidelines_dict = {g.id: g for g in guidelines}
@@ -235,6 +269,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             batches.append(
                 self._create_batch_observational_guideline(
                     guidelines=list(batch.values()),
+                    journeys=journeys,
                     context=context,
                 )
             )
@@ -244,12 +279,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     def _create_batch_observational_guideline(
         self,
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> GenericObservationalGuidelineMatchingBatch:
         return GenericObservationalGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._observational_guideline_schematic_generator,
             guidelines=guidelines,
+            journeys=journeys,
             context=context,
         )
 
@@ -258,6 +295,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
+        journeys = self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+
         batches = []
 
         guidelines_dict = {g.id: g for g in guidelines}
@@ -272,6 +311,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             batches.append(
                 self._create_batch_previously_applied_actionable_guideline(
                     guidelines=list(batch.values()),
+                    journeys=journeys,
                     context=context,
                 )
             )
@@ -281,12 +321,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     def _create_batch_previously_applied_actionable_guideline(
         self,
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> GenericPreviouslyAppliedActionableGuidelineMatchingBatch:
         return GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._previously_applied_actionable_guideline_schematic_generator,
             guidelines=guidelines,
+            journeys=journeys,
             context=context,
         )
 
@@ -295,6 +337,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
+        journeys = self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+
         batches = []
 
         guidelines_dict = {g.id: g for g in guidelines}
@@ -309,6 +353,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             batches.append(
                 self._create_batch_previously_applied_actionable_customer_dependent_guideline(
                     guidelines=list(batch.values()),
+                    journeys=journeys,
                     context=context,
                 )
             )
@@ -318,12 +363,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     def _create_batch_previously_applied_actionable_customer_dependent_guideline(
         self,
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
         return GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._previously_applied_actionable_customer_dependent_guideline_schematic_generator,
             guidelines=guidelines,
+            journeys=journeys,
             context=context,
         )
 
@@ -332,6 +379,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
+        journeys = self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+
         batches = []
 
         guidelines_dict = {g.id: g for g in guidelines}
@@ -346,6 +395,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             batches.append(
                 self._create_batch_actionable_guideline(
                     guidelines=list(batch.values()),
+                    journeys=journeys,
                     context=context,
                 )
             )
@@ -355,12 +405,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     def _create_batch_actionable_guideline(
         self,
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> GenericActionableGuidelineMatchingBatch:
         return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._actionable_guideline_schematic_generator,
             guidelines=guidelines,
+            journeys=journeys,
             context=context,
         )
 

@@ -20,7 +20,9 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategy,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
+from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
+from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import Event, EventId, EventKind, EventSource
@@ -51,11 +53,13 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
         logger: Logger,
         schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
         self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
+        self._journeys = journeys
         self._context = context
 
     @override
@@ -221,6 +225,7 @@ Examples of Guideline Match Evaluations:
         builder.add_glossary(self._context.terms)
         builder.add_capabilities_for_guideline_matching(self._context.capabilities)
         builder.add_interaction_history(self._context.interaction_history)
+        builder.add_journeys(self._journeys)
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
@@ -278,9 +283,11 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
+        entity_queries: EntityQueries,
         schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
     ) -> None:
         self._logger = logger
+        self._entity_queries = entity_queries
         self._schematic_generator = schematic_generator
 
     @override
@@ -289,6 +296,12 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
         guidelines: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
+        journeys = (
+            self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+            if guidelines
+            else []
+        )
+
         batches = []
 
         guidelines_dict = {g.id: g for g in guidelines}
@@ -303,6 +316,7 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
             batches.append(
                 self._create_batch(
                     guidelines=list(batch.values()),
+                    journeys=journeys,
                     context=context,
                 )
             )
@@ -324,12 +338,14 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
     def _create_batch(
         self,
         guidelines: Sequence[Guideline],
+        journeys: Sequence[Journey],
         context: GuidelineMatchingContext,
     ) -> GenericActionableGuidelineMatchingBatch:
         return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
+            journeys=journeys,
             context=context,
         )
 

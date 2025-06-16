@@ -66,6 +66,8 @@ pymongo = { version = "^4.11.1", optional = true }
 jinja2 = "^3.1.6"
 mcp = {extras = ["cli"], version = "^1.7.1"}
 fastmcp = "2.6.1"
+cachetools = "5.5.2"
+types-cachetools = "^6.0.0.20250525"
 
 
 [tool.poetry.group.dev.dependencies]

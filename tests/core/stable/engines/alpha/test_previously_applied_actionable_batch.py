@@ -165,6 +165,7 @@ async def base_test_that_correct_guidelines_are_matched(
         logger=context.container[Logger],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
+        journeys=[],
         context=guideline_matching_context,
     )
 

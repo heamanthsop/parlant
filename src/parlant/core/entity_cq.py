@@ -15,6 +15,8 @@
 from itertools import chain
 from typing import Optional, Sequence, cast
 
+from cachetools import TTLCache
+
 from parlant.core.agents import Agent, AgentId, AgentStore
 from parlant.core.capabilities import Capability, CapabilityStore
 from parlant.core.common import JSONSerializable
@@ -84,6 +86,10 @@ class EntityQueries:
         self._capability_store = capability_store
         self._service_registry = service_registry
         self._utterance_store = utterance_store
+
+        self.guideline_journey_dependents = TTLCache[GuidelineId, list[Journey]](
+            maxsize=1024, ttl=120
+        )
 
     async def read_agent(
         self,
@@ -170,6 +176,12 @@ class EntityQueries:
                 )
 
             iterated_relationships.add(r)
+
+        for id in guideline_ids:
+            journeys = self.guideline_journey_dependents.get(id, [])
+            journeys.append(journey)
+
+            self.guideline_journey_dependents[id] = journeys
 
         return list(guideline_ids)
 
