@@ -236,6 +236,7 @@ Examples of Guideline Match Evaluations:
         builder.add_agent_identity(self._context.agent)
         builder.add_context_variables(self._context.context_variables)
         builder.add_glossary(self._context.terms)
+        builder.add_capabilities(self._context.capabilities)
         builder.add_interaction_history(self._context.interaction_history)
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(

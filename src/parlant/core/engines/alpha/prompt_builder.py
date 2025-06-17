@@ -19,6 +19,7 @@ import json
 from typing import Any, Callable, Optional, Sequence, cast
 
 from parlant.core.agents import Agent
+from parlant.core.capabilities import Capability
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
 from parlant.core.journeys import Journey
@@ -42,6 +43,7 @@ class BuiltInSection(Enum):
     STAGED_EVENTS = auto()
     JOURNEYS = auto()
     OBSERVATIONS = auto()
+    CAPABILITIES = auto()
 
 
 class SectionStatus(Enum):
@@ -319,6 +321,34 @@ Prioritize their data over any other sources and use their details to complete y
                 status=SectionStatus.ACTIVE,
             )
 
+        return self
+
+    def add_capabilities(
+        self,
+        capabilities: Sequence[Capability],
+    ) -> PromptBuilder:
+        if capabilities:
+            capabilities_string = "\n\n".join(
+                [
+                    f"""
+Supported Capability {i}: {capability.title}
+{capability.description}
+"""
+                    for i, capability in enumerate(capabilities, start=1)
+                ]
+            )
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+The following are the capabilities that you may discuss with the customer.
+Be proactive and utilize them in your response. Only use capabilities that are relevant to the conversation and do not bring them up unnecessarily.
+###
+{capabilities_string}
+###
+""",
+                props={"capabilities_string": capabilities_string},
+                status=SectionStatus.ACTIVE,
+            )
         return self
 
     def add_observations(  # Here for future reference, not currently in use

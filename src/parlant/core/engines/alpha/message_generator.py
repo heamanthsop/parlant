@@ -181,6 +181,7 @@ class MessageGenerator(MessageEventComposer):
                         terms,
                         ordinary_guideline_matches,
                         journeys,
+                        capabilities,
                         tool_enabled_guideline_matches,
                         tool_insights,
                         staged_events,
@@ -211,6 +212,7 @@ class MessageGenerator(MessageEventComposer):
         terms: Sequence[Term],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
+        capabilities: Sequence[Capability],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
@@ -235,6 +237,7 @@ class MessageGenerator(MessageEventComposer):
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             journeys=journeys,
+            capabilities=capabilities,
             staged_events=staged_events,
             tool_insights=tool_insights,
             shots=await self.shots(),
@@ -395,6 +398,7 @@ These guidelines have already been pre-filtered based on the interaction's conte
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
+        capabilities: Sequence[Capability],
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
@@ -575,6 +579,7 @@ INTERACTION CONTEXT
         )
         builder.add_context_variables(context_variables)
         builder.add_glossary(terms)
+        builder.add_capabilities(capabilities)
         builder.add_journeys(journeys)
         builder.add_section(
             name="message-generator-guideline-descriptions",

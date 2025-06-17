@@ -198,7 +198,7 @@ class EntityQueries:
         result = await self._capability_store.find_relevant_capabilities(
             query,
             list(all_capabilities),
-            max_capabilities=20,
+            max_capabilities=3,
         )
 
         t_end = time.time()
