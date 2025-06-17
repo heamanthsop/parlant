@@ -7,7 +7,12 @@ from pytest import fixture
 
 from parlant.core.agents import Agent
 from parlant.core.common import JSONSerializable, generate_id
-from parlant.core.context_variables import ContextVariable, ContextVariableValue
+from parlant.core.context_variables import (
+    ContextVariable,
+    ContextVariableId,
+    ContextVariableValue,
+    ContextVariableValueId,
+)
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
@@ -16,13 +21,13 @@ from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch 
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
 from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
-from parlant.core.glossary import Term
+from parlant.core.glossary import Term, TermId
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.indexing.behavioral_change_evaluation import GuidelineEvaluator
 from parlant.core.sessions import EventSource, Session
-from parlant.core.tags import TagId
+from parlant.core.tags import Tag, TagId
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import SyncAwaiter, nlp_test
 
@@ -63,6 +68,14 @@ GUIDELINES_DICT = {
         "condition": "the customer asks for the tiger Ferris wheel",
         "action": "book it",
     },
+    "adult_colliding_cars": {
+        "condition": "the customer asks for adult colliding cars",
+        "action": "book it",
+    },
+    "children_colliding_cars": {
+        "condition": "the customer asks for children colliding cars",
+        "action": "book it",
+    },
     "report_lost": {
         "condition": "the customer wants to report a card lost",
         "action": "report card lost",
@@ -91,13 +104,68 @@ GUIDELINES_DICT = {
         "condition": "the customer wants to dispute an unknown charge",
         "action": "dispute the unknown charge",
     },
+    "vip_refund": {
+        "condition": "the customer is VIP and they ask for a refund on a flight to original payment method",
+        "action": "Do a full refund to original payment method",
+    },
+    "vip_reschedule": {
+        "condition": "the customer is VIP and they ask for rescheduling the flight",
+        "action": "Do free rescheduling",
+    },
+    "vip_cancel": {
+        "condition": "the customer is VIP and they ask to fully cancel the flight",
+        "action": "Do free cancelling",
+    },
+    "refund_travel_credit": {
+        "condition": "the customer is regular and ask for a refund on a flight to travel credit",
+        "action": "Refund as travel credit with a fee",
+    },
+    "regular_reschedule": {
+        "condition": "the customer is regular and they ask for rescheduling the flight",
+        "action": "do rescheduling with a fee",
+    },
+    "regular_cancel": {
+        "condition": "the customer is regular and they ask to cancel the flight",
+        "action": "do cancelling with a fee",
+    },
 }
 
 CONDITION_HEAD_DICT = {
-    "amusement_park": "The customer asks to book a ticket to an amusement ride, and its not clear which one",
+    "amusement_park": "The customer asks to book a ticket to an amusement ride or attraction, and its not clear which one",
     "lost_card": "The customer lost their card and didn't specify what they want to do",
     "stolen_card": "The customer indicates that their card was stolen and didn't specify what they want to do",
+    "cancel_flight": "The customer if asks to make a change in booked flight but doesn’t specify whether they want to reschedule, request a refund, or fully cancel the booking",
 }
+
+
+def create_term(
+    name: str, description: str, synonyms: list[str] = [], tags: list[TagId] = []
+) -> Term:
+    return Term(
+        id=TermId("-"),
+        creation_utc=datetime.now(timezone.utc),
+        name=name,
+        description=description,
+        synonyms=synonyms,
+        tags=tags,
+    )
+
+
+def create_context_variable(
+    name: str,
+    data: JSONSerializable,
+    tags: list[TagId],
+) -> tuple[ContextVariable, ContextVariableValue]:
+    return ContextVariable(
+        id=ContextVariableId("-"),
+        name=name,
+        description="",
+        tool_id=None,
+        freshness_rules=None,
+        tags=tags,
+    ), ContextVariableValue(
+        ContextVariableValueId("-"), last_modified=datetime.now(timezone.utc), data=data
+    )
 
 
 async def create_guideline(
@@ -372,6 +440,106 @@ async def test_that_disambiguation_detected_with_relevant_guidelines_3(
     )
 
 
+async def test_that_disambiguation_detected_based_on_context_variable(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I see I can't make it to the flight. Can you help me?",
+        ),
+    ]
+    context_variables = [
+        create_context_variable(
+            name="Customer tier",
+            data={"tier": "VIP"},
+            tags=[Tag.for_agent_id(agent.id)],
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "vip_refund",
+        "vip_reschedule",
+        "vip_cancel",
+        "refund_travel_credit",
+        "regular_reschedule",
+        "regular_cancel",
+    ]
+
+    disambiguating_guidelines = [
+        "vip_refund",
+        "vip_reschedule",
+        "vip_cancel",
+    ]
+    head_condition = CONDITION_HEAD_DICT["cancel_flight"]
+    clarification_must_contain = "options to cancel the flight, totally cancel or get a refund to payment method or to travel credit"
+    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_disambiguate=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+        context_variables=context_variables,
+    )
+
+
+async def test_that_disambiguation_detected_based_on_context_variable_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I see I can't make it to the flight. Can you help me?",
+        ),
+    ]
+    context_variables = [
+        create_context_variable(
+            name="Customer tier",
+            data={"tier": "Basic"},
+            tags=[Tag.for_agent_id(agent.id)],
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "vip_refund",
+        "vip_reschedule",
+        "vip_cancel",
+        "refund_travel_credit",
+        "regular_reschedule",
+        "regular_cancel",
+    ]
+
+    disambiguating_guidelines = [
+        "refund_travel_credit",
+        "regular_reschedule",
+        "regular_cancel",
+    ]
+    head_condition = CONDITION_HEAD_DICT["cancel_flight"]
+    clarification_must_contain = "options to cancel the flight, totally cancel or get a refund to payment method or to travel credit"
+    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_disambiguate=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+        context_variables=context_variables,
+    )
+
+
 async def test_that_disambiguation_is_not_detected_when_there_is_no_disambiguation(
     context: ContextOfTest,
     agent: Agent,
@@ -453,7 +621,7 @@ async def test_that_disambiguation_is_not_detected_when_not_needed_based_on_earl
     )
 
 
-async def test_that_disambiguation_is_detected_when_previously_applied_and_should_reapply(
+async def test_that_disambiguation_is_detected_when_previously_applied_and_should_not_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -462,10 +630,53 @@ async def test_that_disambiguation_is_detected_when_previously_applied_and_shoul
     return
 
 
-async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_not_reapply(
+async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
     customer: Customer,
 ) -> None:
-    return
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Please book me for the roller coaster",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "We have a snake roller coaster and turtle roller coaster. Which one would you like?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Turtle roller coaster sound boring. Book me to the snake one",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure! anything else?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes do you have colliding cars right? so that one too",
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "snake_roller_coaster",
+        "turtle_roller_coaster",
+        "tiger_Ferris_wheel",
+        "adult_colliding_cars",
+        "children_colliding_cars",
+    ]
+    disambiguating_guidelines: list[str] = ["children_colliding_cars", "adult_colliding_cars"]
+    head_condition = CONDITION_HEAD_DICT["amusement_park"]
+    clarification_must_contain = "options to adult colliding cars or children colliding cars"
+    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_disambiguate=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+    )
