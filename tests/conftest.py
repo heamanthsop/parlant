@@ -48,6 +48,9 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
 from parlant.core.engines.alpha.guideline_matching.generic import (
     response_analysis_batch,
 )
+from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
+    DisambiguationGuidelineMatchesSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
 )
@@ -385,6 +388,7 @@ async def container(
             CustomerDependentActionSchema,
             GenericResponseAnalysisSchema,
             AgentIntentionProposerSchema,
+            DisambiguationGuidelineMatchesSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
@@ -621,4 +625,12 @@ def no_cache(container: Container) -> None:
         cast(
             CachedSchematicGenerator[GuidelineConnectionPropositionsSchema],
             container[SchematicGenerator[GuidelineConnectionPropositionsSchema]],
+        ).use_cache = False
+    if isinstance(
+        container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[DisambiguationGuidelineMatchesSchema],
+            container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
         ).use_cache = False
