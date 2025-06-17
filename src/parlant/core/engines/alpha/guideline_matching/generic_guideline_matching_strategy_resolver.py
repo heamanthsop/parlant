@@ -1,5 +1,4 @@
 from datetime import datetime
-from collections import defaultdict
 from itertools import chain
 import math
 from typing import Mapping, Optional, Sequence, cast
@@ -41,7 +40,6 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.entity_cq import EntityQueries
-from parlant.core.guidelines import Guideline, GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator

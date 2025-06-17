@@ -9,6 +9,7 @@ from tests.test_utilities import nlp_test
 
 from parlant import sdk as p
 
+
 class Test_that_journey_can_be_created_without_conditions(SDKTest):
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(

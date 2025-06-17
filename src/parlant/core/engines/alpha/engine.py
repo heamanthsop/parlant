@@ -874,6 +874,7 @@ class AlphaEngine(Engine):
                 context_variables=context.state.context_variables,
                 interaction_history=context.interaction.history,
                 terms=list(context.state.glossary_terms),
+                capabilities=context.state.capabilities,
                 staged_events=context.state.tool_events,
                 guidelines=additional_matching_guidelines,
             )
@@ -888,6 +889,9 @@ class AlphaEngine(Engine):
                 additional_matching_result.total_duration,
             )
 
+            batches = list(chain(matching_result.batches, additional_matching_result.batches))
+            matches = list(chain.from_iterable(batches))
+
             matching_result = GuidelineMatchingResult(
                 total_duration=matching_result.total_duration
                 + additional_matching_result.total_duration,
@@ -898,7 +902,8 @@ class AlphaEngine(Engine):
                         additional_matching_result.batch_generations,
                     )
                 ),
-                batches=list(chain(matching_result.batches, additional_matching_result.batches)),
+                batches=batches,
+                matches=matches,
             )
 
         # Step 7: Resolve guideline matches by loading related guidelines that may not have
