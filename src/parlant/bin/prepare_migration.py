@@ -619,6 +619,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
         None,
     ) or db.chroma_client.create_collection(name="glossary_unembedded")
 
+    migrated_count = 0
     if metadatas := chroma_unembedded_collection.get()["metadatas"]:
         for doc in metadatas:
             new_doc = {
@@ -644,6 +645,8 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 embeddings=[0],
             )
 
+            migrated_count += 1
+
             await glossary_tags_collection.insert_one(
                 {
                     "id": ObjectId(generate_id()),
@@ -654,7 +657,10 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 }
             )
 
+    chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
+
     await db.upsert_metadata("version", Version.String("0.2.0"))
+    await upgrade_document_database_metadata(glossary_tags_db, Version.String("0.2.0"))
 
     rich.print("[green]Successfully migrated glossary from 0.1.0 to 0.2.0")
 
