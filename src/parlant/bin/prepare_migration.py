@@ -191,13 +191,21 @@ async def get_component_versions() -> list[tuple[str, str]]:
         versions.append(("guideline_relationships", guideline_relationships_version))
 
     embedder_factory = EmbedderFactory(Container())
-    glossary_db = await EXIT_STACK.enter_async_context(
+    chroma_db = await EXIT_STACK.enter_async_context(
         ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory)
     )
     with suppress(chromadb.errors.InvalidCollectionException):
-        if glossary_db.chroma_client.get_collection("glossary_unembedded"):
+        if chroma_db.chroma_client.get_collection("glossary_unembedded"):
             versions.append(
-                ("glossary", cast(dict[str, Any], await glossary_db.read_metadata())["version"])
+                (
+                    "glossary",
+                    cast(dict[str, Any], await chroma_db.read_metadata()).get(
+                        VectorDocumentStoreMigrationHelper.get_store_version_key(
+                            GlossaryVectorStore.__name__
+                        ),
+                        "version",
+                    ),
+                )
             )
 
     utterances_version = _get_version_from_json_file(
@@ -352,7 +360,7 @@ async def migrate_glossary_with_metadata() -> None:
 
             await db.upsert_metadata(
                 VectorDocumentStoreMigrationHelper.get_store_version_key(
-                    GlossaryVectorStore.__class__.__name__
+                    GlossaryVectorStore.__name__
                 ),
                 version,
             )
@@ -665,9 +673,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
     chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
 
     await db.upsert_metadata(
-        VectorDocumentStoreMigrationHelper.get_store_version_key(
-            GlossaryVectorStore.__class__.__name__
-        ),
+        VectorDocumentStoreMigrationHelper.get_store_version_key(GlossaryVectorStore.__name__),
         Version.String("0.2.0"),
     )
     await upgrade_document_database_metadata(glossary_tags_db, Version.String("0.2.0"))
@@ -773,9 +779,7 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
     chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
 
     await db.upsert_metadata(
-        VectorDocumentStoreMigrationHelper.get_store_version_key(
-            UtteranceVectorStore.__class__.__name__
-        ),
+        VectorDocumentStoreMigrationHelper.get_store_version_key(UtteranceVectorStore.__name__),
         Version.String("0.2.0"),
     )
     await upgrade_document_database_metadata(utterance_tags_db, Version.String("0.2.0"))
