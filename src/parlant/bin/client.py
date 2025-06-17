@@ -62,6 +62,7 @@ from parlant.client.types import (
     OpenApiServiceParams,
     Payload,
     SdkServiceParams,
+    McpServiceParams,
     Service,
     Session,
     Term,
@@ -958,6 +959,13 @@ class Actions:
                 name=name,
                 kind="openapi",
                 openapi=OpenApiServiceParams(url=url, source=source),
+            )
+
+        elif kind == "mcp":
+            result = client.services.create_or_update(
+                name=name,
+                kind="mcp",
+                mcp=McpServiceParams(url=url),
             )
 
         else:
@@ -4050,7 +4058,7 @@ async def async_main() -> None:
     @service.command("create", help="Create a service")
     @click.option(
         "--kind",
-        type=click.Choice(["sdk", "openapi"]),
+        type=click.Choice(["sdk", "openapi", "mcp"]),
         required=True,
         help="Service kind",
     )
@@ -4080,7 +4088,7 @@ async def async_main() -> None:
     @service.command("update", help="Update a service")
     @click.option(
         "--kind",
-        type=click.Choice(["sdk", "openapi"]),
+        type=click.Choice(["sdk", "openapi", "mcp"]),
         required=True,
         help="Service kind",
     )

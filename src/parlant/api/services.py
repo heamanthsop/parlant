@@ -43,6 +43,8 @@ class ToolServiceKindDTO(Enum):
             like bidirectional communication and streaming results.
         "openapi": Integration via OpenAPI specification. Simpler to set up but limited
             to basic request/response patterns.
+        "mcp": Integration with tool servers using the popular MCP (Model Context Protocol)
+            implemented by wide variety of 3rd parties.
     """
 
     SDK = "sdk"
