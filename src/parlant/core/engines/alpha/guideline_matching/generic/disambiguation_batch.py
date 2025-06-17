@@ -187,7 +187,11 @@ In such cases, we need to identify the potential options and ask the customer wh
 Your task is to determine whether the customer’s request is ambiguous and, if so, what the possible interpretations or directions are. 
 You’ll be given a guideline head — a condition that, if true, signals a potential ambiguity — and a list of related guidelines, each representing a possible path the customer might want to follow.
 If a guideline may be relevant - include it. We prefer to let the customer choose of all possibilities.
-Note that your evaluation should base on user's most recent request.
+
+Notes:
+- Evaluation should base on user's most recent request.
+- Some guidelines may turn out to be irrelevant based on the interaction—for example, due to earlier parts of the conversation or because the user's status (provided in the interaction history or 
+as a context variable) rules them out. In such cases, the ambiguity may already be resolved and no clarification is needed.
 
 If you identify an ambiguity, return the relevant guidelines that represent the available options. 
 Then, formulate a response in the format:
