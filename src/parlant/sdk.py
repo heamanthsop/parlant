@@ -245,7 +245,7 @@ class Guideline:
 class Journey:
     id: JourneyId
     description: str
-    conditions: list[str]
+    conditions: list[Guideline]
 
     _parlant: Server
     _container: Container
@@ -300,7 +300,19 @@ class Journey:
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
             action=f"Consider using the tool {tool.tool.name}",
-            tags=[Tag.for_journey_id(self.id)],
+            tags=[],
+        )
+
+        await self._container[RelationshipStore].create_relationship(
+            source=RelationshipEntity(
+                id=guideline.id,
+                kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            target=RelationshipEntity(
+                id=Tag.for_journey_id(self.id),
+                kind=RelationshipEntityKind.TAG,
+            ),
+            kind=GuidelineRelationshipKind.DEPENDENCY,
         )
 
         await self._container[GuidelineToolAssociationStore].create_association(
@@ -335,14 +347,16 @@ class Agent:
         self,
         title: str,
         description: str,
-        conditions: list[str],
+        conditions: list[str | Guideline],
     ) -> Journey:
         journey = await self._parlant.create_journey(title, description, conditions)
+
         await self.attach_journey(journey)
+
         return Journey(
             id=journey.id,
             description=description,
-            conditions=conditions,
+            conditions=journey.conditions,
             _parlant=self._parlant,
             _container=self._container,
         )
@@ -516,11 +530,12 @@ class Server:
         self,
         title: str,
         description: str,
-        conditions: list[str],
+        conditions: list[str | Guideline],
     ) -> Journey:
-        condition_ids = []
+        condition_guidelines = [c for c in conditions if isinstance(c, Guideline)]
 
-        if conditions:
+        str_conditions = [c for c in conditions if isinstance(c, str)]
+        if str_conditions:
             evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
                 payload_descriptors=[
                     PayloadDescriptor(
@@ -538,7 +553,7 @@ class Server:
                             properties_proposition=True,
                         ),
                     )
-                    for c in conditions
+                    for c in str_conditions
                 ]
             )
 
@@ -565,31 +580,38 @@ class Server:
                         "Invoice is missing properties_proposition during journey creation."
                     )
 
-                condition_ids.append(
-                    (
-                        await self._container[GuidelineStore].create_guideline(
-                            condition=invoice.payload.content.condition,
-                            metadata=invoice.data.properties_proposition,
-                        )
-                    ).id
+                guideline = await self._container[GuidelineStore].create_guideline(
+                    condition=invoice.payload.content.condition,
+                    metadata=invoice.data.properties_proposition,
+                )
+
+                condition_guidelines.append(
+                    Guideline(
+                        id=guideline.id,
+                        condition=guideline.content.condition,
+                        action=guideline.content.action,
+                        tags=guideline.tags,
+                        _parlant=self,
+                        _container=self._container,
+                    )
                 )
 
         journey = await self._container[JourneyStore].create_journey(
             title,
             description,
-            condition_ids if conditions else [],
+            [c.id for c in condition_guidelines],
         )
 
-        for c_id in condition_ids:
+        for c in condition_guidelines:
             await self._container[GuidelineStore].upsert_tag(
-                guideline_id=c_id,
+                guideline_id=c.id,
                 tag_id=Tag.for_journey_id(journey_id=journey.id),
             )
 
         return Journey(
             id=journey.id,
             description=description,
-            conditions=conditions,
+            conditions=condition_guidelines,
             _container=self._container,
             _parlant=self,
         )
