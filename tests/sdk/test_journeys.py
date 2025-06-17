@@ -1,54 +1,13 @@
 from textwrap import dedent
 
-from parlant.core.capabilities import CapabilityStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import GuidelineRelationshipKind, RelationshipStore
 from parlant.core.tags import Tag
-import parlant.sdk as p
-
 from tests.sdk.utils import Context, SDKTest, get_message
 from tests.test_utilities import nlp_test
 
-
-class Test_that_an_agent_can_be_created(SDKTest):
-    async def setup(self, server: p.Server) -> None:
-        await server.create_agent(
-            name="Test Agent",
-            description="This is a test agent",
-            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
-        )
-
-    async def run(self, ctx: Context) -> None:
-        agents = await ctx.client.agents.list()
-        assert agents[0].name == "Test Agent"
-
-
-class Test_that_a_capability_can_be_created(SDKTest):
-    async def setup(self, server: p.Server) -> None:
-        self.agent = await server.create_agent(
-            name="Test Agent",
-            description="This is a test agent",
-            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
-        )
-
-        self.capability = await self.agent.create_capability(
-            title="Test Capability",
-            description="Some Description",
-            queries=["First Query", "Second Query"],
-        )
-
-    async def run(self, ctx: Context) -> None:
-        capabilities = await ctx.container[CapabilityStore].list_capabilities()
-
-        assert len(capabilities) == 1
-        capability = capabilities[0]
-
-        assert capability.id == self.capability.id
-        assert capability.title == self.capability.title
-        assert capability.description == self.capability.description
-        assert capability.queries == self.capability.queries
-
+from parlant import sdk as p
 
 class Test_that_journey_can_be_created_without_conditions(SDKTest):
     async def setup(self, server: p.Server) -> None:
@@ -169,6 +128,38 @@ class Test_that_guideline_creation_from_journey_creates_dependency_relationship(
         assert relationships
         assert len(relationships) == 1
         assert relationships[0].target.id == Tag.for_journey_id(self.journey.id)
+
+
+class Test_that_journey_can_be_created_with_guideline_object_as_condition(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Store agent",
+            description="You work at a store and help customers",
+            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+        )
+
+        self.guideline = await self.agent.create_guideline(condition="the customer greets you")
+
+        self.journey = await self.agent.create_journey(
+            title="Greeting the customer",
+            conditions=[self.guideline],
+            description=dedent("""\
+                1. Offer the customer a Pepsi
+            """),
+        )
+
+    async def run(self, ctx: Context) -> None:
+        journey_store = ctx.container[JourneyStore]
+        guideline_store = ctx.container[GuidelineStore]
+
+        journey = await journey_store.read_journey(journey_id=self.journey.id)
+        guideline = await guideline_store.read_guideline(guideline_id=self.guideline.id)
+
+        assert journey
+        assert journey.conditions == [guideline.id]
+
+        assert guideline
+        assert guideline.id == self.guideline.id
 
 
 class Test_that_a_created_journey_is_followed(SDKTest):
