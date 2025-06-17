@@ -31,6 +31,10 @@ class VectorDocumentStoreMigrationHelper:
         self._database = database
         self._allow_migration = allow_migration
 
+    @staticmethod
+    def get_store_version_key(store_name: str) -> str:
+        return f"{store_name}_version"
+
     async def __aenter__(self) -> Self:
         migration_required = await self._is_migration_required(
             self._database,
@@ -62,15 +66,16 @@ class VectorDocumentStoreMigrationHelper:
         runtime_store_version: Version.String,
     ) -> bool:
         metadata = await database.read_metadata()
-        if "version" in metadata:
-            if Version.from_string(cast(str, metadata["version"])) > Version.from_string(
+        key = self.get_store_version_key(self._store_name)
+        if key in metadata:
+            if Version.from_string(cast(str, metadata[key])) > Version.from_string(
                 runtime_store_version
             ):
                 raise ServerOutdated
 
-            return metadata["version"] != runtime_store_version
+            return metadata[key] != runtime_store_version
         else:
-            await database.upsert_metadata("version", runtime_store_version)
+            await database.upsert_metadata(key, runtime_store_version)
             return False  # No migration is required for a new store
 
     async def _update_metadata_version(

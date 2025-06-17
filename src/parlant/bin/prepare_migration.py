@@ -49,10 +49,12 @@ from parlant.core.evaluations import (
     InvoiceGuidelineDataDocument,
 )
 from parlant.core.glossary import (
+    GlossaryVectorStore,
     TermDocument_v0_1_0,
     TermTagAssociationDocument,
     TermId,
 )
+from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
 from parlant.core.relationships import (
     GuidelineRelationshipDocument_v0_1_0,
     GuidelineRelationshipDocument_v0_2_0,
@@ -349,7 +351,9 @@ async def migrate_glossary_with_metadata() -> None:
             chroma_new_collection.modify(metadata={"version": 1 + len(all_items["metadatas"])})
 
             await db.upsert_metadata(
-                "version",
+                VectorDocumentStoreMigrationHelper.get_store_version_key(
+                    GlossaryVectorStore.__class__.__name__
+                ),
                 version,
             )
             rich.print("[green]Successfully migrated glossary data")
@@ -644,6 +648,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 metadatas=[cast(chromadb.Metadata, new_doc)],
                 embeddings=[0],
             )
+            migrated_count += 1
 
             migrated_count += 1
 
@@ -659,7 +664,12 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
     chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
 
-    await db.upsert_metadata("version", Version.String("0.2.0"))
+    await db.upsert_metadata(
+        VectorDocumentStoreMigrationHelper.get_store_version_key(
+            GlossaryVectorStore.__class__.__name__
+        ),
+        Version.String("0.2.0"),
+    )
     await upgrade_document_database_metadata(glossary_tags_db, Version.String("0.2.0"))
 
     rich.print("[green]Successfully migrated glossary from 0.1.0 to 0.2.0")
@@ -762,7 +772,12 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
 
     chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
 
-    await db.upsert_metadata("version", Version.String("0.2.0"))
+    await db.upsert_metadata(
+        VectorDocumentStoreMigrationHelper.get_store_version_key(
+            UtteranceVectorStore.__class__.__name__
+        ),
+        Version.String("0.2.0"),
+    )
     await upgrade_document_database_metadata(utterance_tags_db, Version.String("0.2.0"))
 
     utterances_json_file.unlink()
