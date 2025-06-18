@@ -4,7 +4,13 @@ from datetime import datetime, timezone
 import json
 from typing import Optional
 from parlant.core.common import DefaultBaseModel, JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.guideline_match import (
+    GuidelineMatch,
+    PreviouslyAppliedType,
+)
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
+    GuidelineMatchingBatch,
+    GuidelineMatchingBatchResult,
     GuidelineMatchingContext,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
@@ -22,7 +28,7 @@ class GuidelineCheck(DefaultBaseModel):
 
 
 class DisambiguationGuidelineMatchesSchema(DefaultBaseModel):
-    rational: str
+    rationale: str
     is_disambiguate: bool
     guidelines: Optional[list[GuidelineCheck]] = []
     clarification_action: Optional[str] = ""
@@ -46,22 +52,39 @@ class DisambiguationBatchResult:
 # TODO - when adding the new clarification guideline, add it with customer dependent flag
 
 
-class DisambiguationGuidelineMatchingBatch(DefaultBaseModel):
+class DisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
         schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
-        guideline_head: Guideline,
         context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
-        self._guideline_head = guideline_head.content
+        self._guideline_head = guidelines[0]  # Assume batch of size 1
+        self._guidelines = {}
+
+        members = self._guideline_head.metadata.get("members", [])
+        if isinstance(members, list):
+            for m in members:
+                if isinstance(m, dict):
+                    guideline_id = m.get("id", "")
+                    condition = m.get("condition", "")
+                    action = m.get("action", "")
+                    if (
+                        isinstance(guideline_id, str)
+                        and isinstance(condition, str)
+                        and isinstance(action, str)
+                    ):
+                        self._guidelines[guideline_id] = GuidelineContent(
+                            condition=condition, action=action
+                        )
+
+        self._guideline_ids = {str(i): id for i, id in enumerate(self._guidelines.keys(), start=1)}
         self._context = context
 
-    async def process(self) -> DisambiguationBatchResult:
+    async def process(self) -> GuidelineMatchingBatchResult:
         prompt = self._build_prompt(shots=await self.shots())
 
         with self._logger.operation("DisambiguationGuidelineMatchingBatch:"):
@@ -74,22 +97,31 @@ class DisambiguationGuidelineMatchingBatch(DefaultBaseModel):
             with open("output_disambiguation.txt", "a") as f:
                 f.write(inference.content.model_dump_json(indent=2))
 
-        guidelines = []
+        matches = [
+            GuidelineMatch(
+                guideline=self._guideline_head,
+                score=10 if inference.content.is_disambiguate else 1,
+                rationale=f'''Not previously applied matcher rationale: "{inference.content.rationale}"''',
+                guideline_previously_applied=PreviouslyAppliedType.NO,
+            )
+        ]
+        metadata: dict[str, JSONSerializable] = {}
         if inference.content.is_disambiguate:
-            guidelines = [
-                self._guidelines[g.guideline_id]
+            guidelines: list[str] = [
+                self._guideline_ids[g.guideline_id]
                 for g in inference.content.guidelines or []
                 if g.is_relevant
             ]
-        clarification_guideline = (
-            GuidelineContent(condition="Always", action=inference.content.clarification_action)
-            if inference.content.clarification_action
-            else None
-        )
-        return DisambiguationBatchResult(
-            is_disambiguate=inference.content.is_disambiguate,
-            guidelines=guidelines,
-            clarification_guideline=clarification_guideline,
+            disambiguation_data: JSONSerializable = {
+                "disambiguated_members": guidelines,
+                "enriched_guideline": inference.content.clarification_action or "",
+            }
+            metadata["disambiguation"] = disambiguation_data
+
+        return GuidelineMatchingBatchResult(
+            matches=matches,
+            generation_info=inference.info,
+            metadata=metadata,
         )
 
     async def shots(self) -> Sequence[DisambiguationGuidelineMatchingShot]:
@@ -158,12 +190,10 @@ class DisambiguationGuidelineMatchingBatch(DefaultBaseModel):
         shots: Sequence[DisambiguationGuidelineMatchingShot],
     ) -> PromptBuilder:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {g.content.condition}. Action: {g.content.action}"
-            for i, g in self._guidelines.items()
+            f"{i}) Condition: {self._guidelines[id].condition}. Action: {self._guidelines[id].action}"
+            for i, id in self._guideline_ids.items()
         )
-        guideline_head_text = (
-            f"Condition {self._guideline_head.condition}. Action: {self._guideline_head.action}"
-        )
+        guideline_head_text = f"Condition {self._guideline_head.content.condition}. Action: {self._guideline_head.content.action}"
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
         builder.add_section(
@@ -262,7 +292,7 @@ OUTPUT FORMAT
 
     def _format_of_guideline_check_json_description(self) -> str:
         result = {
-            "rational": "<str, Explanation for why there is or isn't a disambiguation>",
+            "rationale": "<str, Explanation for why there is or isn't a disambiguation>",
             "is_disambiguate": "<BOOL>",
             "guidelines (include only if is_disambiguate is true)": [
                 {
@@ -270,7 +300,7 @@ OUTPUT FORMAT
                     "short_evaluation": "<str. Brief explanation of is this guideline is relevant>",
                     "is_relevant": "<BOOL>",
                 }
-                for i, g in self._guidelines.items()
+                for i in self._guideline_ids.keys()
             ],
             "clarification_action": "<include only if is_disambiguate is true. An action of the form ask the user whether they want to...>",
         }
@@ -315,7 +345,7 @@ example_1_guideline_head = GuidelineContent(
 )
 
 example_1_expected = DisambiguationGuidelineMatchesSchema(
-    rational="The customer got the wrong item and need to decide whether to replace it or get a refund",
+    rationale="The customer got the wrong item and need to decide whether to replace it or get a refund",
     is_disambiguate=True,
     guidelines=[
         GuidelineCheck(
@@ -362,7 +392,7 @@ example_2_guideline_head = GuidelineContent(
 )
 
 example_2_expected = DisambiguationGuidelineMatchesSchema(
-    rational="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
+    rationale="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
     is_disambiguate=True,
     guidelines=[
         GuidelineCheck(
@@ -414,7 +444,7 @@ example_3_guideline_head = GuidelineContent(
 )
 
 example_3_expected = DisambiguationGuidelineMatchesSchema(
-    rational="The customer asks to book an online appointment. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
+    rationale="The customer asks to book an online appointment. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
     is_disambiguate=False,
 )
 
@@ -458,7 +488,7 @@ example_4_guideline_head = GuidelineContent(
 )
 
 example_4_expected = DisambiguationGuidelineMatchesSchema(
-    rational="The customer asks to book an appointment. Online sessions are not available. Since they mention hurting throat, it likely relates to a medical consultation, not a psychologist.",
+    rationale="The customer asks to book an appointment. Online sessions are not available. Since they mention hurting throat, it likely relates to a medical consultation, not a psychologist.",
     is_disambiguate=False,
 )
 
@@ -497,7 +527,7 @@ example_5_guideline_head = GuidelineContent(
 )
 
 example_5_expected = DisambiguationGuidelineMatchesSchema(
-    rational="The agent just asked what return option the customer prefer, and the customer should answer. The is no new ambiguity to clarify",
+    rationale="The agent just asked what return option the customer prefer, and the customer should answer. The is no new ambiguity to clarify",
     is_disambiguate=False,
 )
 

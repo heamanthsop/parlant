@@ -36,7 +36,6 @@ from tests.test_utilities import SyncAwaiter, nlp_test
 class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
-    guidelines: list[Guideline]
     schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema]
     logger: Logger
 
@@ -49,7 +48,6 @@ def context(
     return ContextOfTest(
         container,
         sync_await,
-        guidelines=list(),
         logger=container[Logger],
         schematic_generator=container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
     )
@@ -212,9 +210,30 @@ async def create_guideline(
         metadata=metadata,
     )
 
-    context.guidelines.append(guideline)
-
     return guideline
+
+
+def create_guideline_head(guidelines: list[Guideline], head_condition: str) -> Guideline:
+    members = []
+    for g in guidelines:
+        if g is not None:
+            members.append(
+                {"condition": g.content.condition, "action": g.content.action, "id": g.id}
+            )
+
+    metadata: dict[str, JSONSerializable] = {"members": members}
+
+    return Guideline(
+        id=GuidelineId(generate_id()),
+        creation_utc=datetime.now(timezone.utc),
+        content=GuidelineContent(
+            condition=head_condition,
+            action=None,
+        ),
+        enabled=True,
+        tags=[],
+        metadata=metadata,
+    )
 
 
 async def create_guideline_by_name(
@@ -260,23 +279,18 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
         name: await create_guideline_by_name(context, name)
         for name in to_disambiguate_guidelines_names
     }
+    to_ids = {g.id: g for g in to_disambiguate_guidelines.values() if g is not None}
+
+    guideline_head = create_guideline_head(
+        guidelines=[g for g in to_disambiguate_guidelines.values() if g is not None],
+        head_condition=head_condition,
+    )
+
     disambiguating_guideline = [
         guideline
         for name in disambiguating_guideline_names
         if (guideline := to_disambiguate_guidelines.get(name)) is not None
     ]
-
-    guideline_head = Guideline(
-        id=GuidelineId(generate_id()),
-        creation_utc=datetime.now(timezone.utc),
-        content=GuidelineContent(
-            condition=head_condition,
-            action=None,
-        ),
-        enabled=True,
-        tags=[],
-        metadata={},
-    )
 
     guideline_matching_context = GuidelineMatchingContext(
         agent,
@@ -291,26 +305,31 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
     disambiguation_resolver = DisambiguationGuidelineMatchingBatch(
         logger=context.logger,
         schematic_generator=context.schematic_generator,
-        guidelines=context.guidelines,
-        guideline_head=guideline_head,
+        guidelines=[guideline_head],
         context=guideline_matching_context,
     )
     result = await disambiguation_resolver.process()
 
-    assert result.is_disambiguate == is_disambiguate
+    assert (result.matches[0].score == 10) == is_disambiguate
 
-    if is_disambiguate:
-        assert result.guidelines
-        assert result.clarification_guideline is not None
+    data = result.metadata
+    if data and isinstance(data, dict):
+        if is_disambiguate:
+            disambiguation = data.get("disambiguation")
+            assert disambiguation, "Disambiguation key missing or falsy"
 
-    if result.guidelines:
-        assert set(disambiguating_guideline) == set(result.guidelines)
+            if isinstance(disambiguation, dict):
+                disambiguated_members = disambiguation.get("disambiguated_members")
+                if disambiguated_members:
+                    guidelines = [to_ids[id] for id in disambiguated_members]
+                    assert set(disambiguating_guideline) == set(guidelines)
 
-    if result.clarification_guideline:
-        assert await nlp_test(
-            context=f"Here's a clarification message in the form of ask the customer something: {result.clarification_guideline.action}",
-            condition=f"The message contains {clarification_must_contain}",
-        ), f"clarification message: '{result.clarification_guideline.action}', expected to contain: '{clarification_must_contain}'"
+                clarification = disambiguation.get("enriched_guideline")
+                if clarification:
+                    assert await nlp_test(
+                        context=f"Here's a clarification message in the form of ask the customer something: {clarification}",
+                        condition=f"The message contains {clarification_must_contain}",
+                    ), f"clarification message: '{clarification}', expected to contain: '{clarification_must_contain}'"
 
 
 async def test_that_disambiguation_detected_with_relevant_guidelines(
