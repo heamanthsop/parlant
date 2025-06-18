@@ -178,42 +178,47 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines_to_skip: list[GuidelineId] = []
 
         for m in matches:
-            if disambiguation := m.metadata.get("disambiguation"):
-                guidelines_to_skip.extend(
-                    cast(
-                        list[GuidelineId],
-                        cast(dict[str, JSONSerializable], disambiguation).get(
-                            "disambiguated_members"
-                        ),
-                    )
-                )
-
-                result.append(
-                    GuidelineMatch(
-                        guideline=Guideline(
-                            id=cast(GuidelineId, "<transient>"),
-                            creation_utc=datetime.now(),
-                            content=GuidelineContent(
-                                condition=m.guideline.content.condition,
-                                action=cast(
-                                    str,
-                                    cast(dict[str, JSONSerializable], disambiguation)[
-                                        "enriched_action"
-                                    ],
-                                ),
+            if m.metadata:
+                if disambiguation := m.metadata.get("disambiguation"):
+                    guidelines_to_skip.extend(
+                        cast(
+                            list[GuidelineId],
+                            cast(dict[str, JSONSerializable], disambiguation).get(
+                                "disambiguated_members"
                             ),
-                            enabled=True,
-                            tags=[],
-                            metadata={},
-                        ),
-                        score=10,
-                        rationale=m.rationale,
-                        metadata=m.metadata,
+                        )
                     )
-                )
+
+                    result.append(
+                        GuidelineMatch(
+                            guideline=Guideline(
+                                id=cast(GuidelineId, "<transient>"),
+                                creation_utc=datetime.now(),
+                                content=GuidelineContent(
+                                    condition=m.guideline.content.condition,
+                                    action=cast(
+                                        str,
+                                        cast(dict[str, JSONSerializable], disambiguation)[
+                                            "enriched_action"
+                                        ],
+                                    ),
+                                ),
+                                enabled=True,
+                                tags=[],
+                                metadata={},
+                            ),
+                            score=10,
+                            rationale=m.rationale,
+                            metadata=m.metadata,
+                        )
+                    )
 
         for m in matches:
-            if m.metadata.get("disambiguation") or m.guideline.id in guidelines_to_skip:
+            if (
+                m.metadata
+                and m.metadata.get("disambiguation")
+                or m.guideline.id in guidelines_to_skip
+            ):
                 result.append(m)
 
         return result
