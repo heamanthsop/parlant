@@ -71,7 +71,7 @@ CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     "cancel_subscription": {
         "title": "cancel_subscription",
-        "description": "Assist the customer in identifying and canceling recurring subscriptions to online services that are charged to their account.",
+        "description": "Assist the customer in identifying and canceling recurring subscriptions to online services that are charged to their account. Can help reduce the customer's spending.",
         "queries": [
             "stop a recurring payment",
             "reduce spending",

@@ -348,6 +348,7 @@ You may inform the customer that you can assist them using these capabilities.
 If you choose to use any of them, additional details will be provided in your next response.
 Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
 If multiple capabilities are appropriate, aim to present them all to the customer.
+If none of the capabilities address the current request of the customer - DO NOT MENTION THEM.
 ###
 {capabilities_string}
 ###

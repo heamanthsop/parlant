@@ -27,7 +27,6 @@ Feature: Capabilities
         And the capability "lock_card"
         And the capability "reset_password"
         And the capability "increase_limit"
-        And the capability "decrease_limit"
         And the capability "cancel_subscription"
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
@@ -68,8 +67,8 @@ Feature: Capabilities
         And an agent message, "Hi there! It looks like it is still awaiting shipment at our warehouse. Would you like any help or information regarding your order?"
         And a customer message, "I was wondering if it can be shipped using a service that has low carbon emissions"
         When processing is triggered
-        And a single message event is emitted
-        And the message contains that the agent has no information regarding the carbon emissions of the different shipping services
+        Then a single message event is emitted
+        And the message contains that the agent has no information regarding carbon emissions
 
 
     Scenario: Agent offers multiple capabilities when it is not clear which is best

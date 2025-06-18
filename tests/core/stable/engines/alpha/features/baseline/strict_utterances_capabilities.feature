@@ -16,11 +16,11 @@ Feature: Strict Utterance Capabilities
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
         And the capability "check_balance"
-        And the utterance "I see you're interested in your limits. I can offer you a loan or help you check your balance."
-        And the utterance "I can help with your card. Would you like to lock it, replace it, or check your balance?"
-        And the utterance "I apologize, I have no information about that"
-        And the utterance "What do you mean by that?"
-        And the utterance "I can help you either increase or decrease your credit limit. What would you like to do?"
+        And an utterance, "I see you're interested in your limits. I can offer you a loan or help you check your balance."
+        And an utterance, "I can help with your card. Would you like to lock it, replace it, or check your balance?"
+        And an utterance, "I apologize, I have no information about that"
+        And an utterance, "What do you mean by that?"
+        And an utterance, "I can help you either increase or decrease your credit limit. What would you like to do?"
         And a customer message, "Hey there. I want to change my limits"
         When processing is triggered
         Then a single message event is emitted
@@ -38,9 +38,9 @@ Feature: Strict Utterance Capabilities
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
         And the capability "check_balance"
-        And the utterance "To help you reduce your spending, I can assist with canceling your subscriptions to online services."
-        And the utterance "I can offer you a loan to help with your financial situation."
-        And the utterance "I recommend tracking your expenses and trying to reduce unnecessary spending."
+        And an utterance, "To help you reduce your spending, I can assist with canceling your subscriptions to online services."
+        And an utterance, "I can offer you a loan to help with your financial situation."
+        And an utterance, "I recommend tracking your expenses and trying to reduce unnecessary spending."
         And a customer message, "Hey, I need to check my balance"
         And an agent message,"I'd be happy to help, what is your account number?"
         And a customer message, "It's 123456789"
@@ -62,9 +62,9 @@ Feature: Strict Utterance Capabilities
         And the capability "check_order_status"
         And the capability "check_order_location"
         And the capability "check_balance"
-        And the utterance "I can't help with API request limits, but I can help you with your order status or balance."
-        And the utterance "I'm sorry, but I have no information about changing the number of API requests your server can handle." 
-        And the utterance "Sure! Let me get to that right away."
+        And an utterance, "I can't help with API request limits, but I can help you with your order status or balance."
+        And an utterance, "I'm sorry, but I have no information about changing the number of API requests your server can handle." 
+        And an utterance, "Sure! Let me get to that right away."
         And a customer message, "Hey, I just set up a server on my machine through your service. Can you change the limit for the number api requests it can serve per hour?"
         When processing is triggered
         Then a single message event is emitted
@@ -76,15 +76,15 @@ Feature: Strict Utterance Capabilities
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
         And the capability "check_balance"
-        And the utterance "I understand that you wish to reduce carbon emissions. I recommend using {{generative.low_emission_shipping}} to achieve that." 
-        And the utterance "I apologize, but I have no information about that."
-        And the utterance "I can check the status of your order for you."
-        And the utterance "Our company is committed to eco-friendly practices, and all our shipping options are low-emission."
+        And an utterance, "I understand that you wish to reduce carbon emissions. I recommend using {{generative.low_emission_shipping}} to achieve that." 
+        And an utterance, "I apologize, but I have no information about that."
+        And an utterance, "I can check the status of your order for you."
+        And an utterance, "Our company is committed to eco-friendly practices, and all our shipping options are low-emission."
         And a customer message, "Hey, I want help checking if my order has been shipped"
         And an agent message, "Hi there! It looks like it is still awaiting shipment at our warehouse. Would you like any help or information regarding your order?"
         And a customer message, "I was wondering if it can be shipped using a service that has low carbon emissions"
         When processing is triggered
-        And a single message event is emitted
+        Then a single message event is emitted
         And the message contains that the agent has no information regarding the carbon emissions of the different shipping services
 
     Scenario: Agent offers multiple capabilities when it is not clear which is best (strict utterance)
@@ -99,10 +99,10 @@ Feature: Strict Utterance Capabilities
         And the capability "check_order_status"
         And the capability "check_order_location"
         And the capability "check_balance"
-        And the utterance "Hi there! I can offer the following services regarding your order: {{generative.services_for_order}}"
-        And the utterance "I can help by checking the status of your order."
-        And the utterance "I can assist you with your account, such as checking your balance or resetting your password."
-        And the utterance "Can you please provide the order number?"
+        And an utterance, "Hi there! I can offer the following services regarding your order: {{generative.services_for_order}}"
+        And an utterance, "I can help by checking the status of your order."
+        And an utterance, "I can assist you with your account, such as checking your balance or resetting your password."
+        And an utterance, "Can you please provide the order number?"
         And a customer message, "Hi, I'm looking for help regarding an existing order"
         When processing is triggered
         Then a single message event is emitted
@@ -115,9 +115,9 @@ Feature: Strict Utterance Capabilities
         And the capability "offer_loan"
         And the capability "cancel_subscription"
         And a guideline to do not offer loans when the age of the customer is under 21
-        And the utterance "To help you increase your balance and reduce spending, I can offer you a loan."
-        And the utterance "To increase your balance and reduce spending, I can help you cancel subscriptions or offer you a loan."
-        And the utterance "To help you manage your finances, I can assist you with canceling your subscriptions."
+        And an utterance, "To help you increase your balance and reduce spending, I can offer you a loan."
+        And an utterance, "To increase your balance and reduce spending, I can help you cancel subscriptions or offer you a loan."
+        And an utterance, "To help you manage your finances, I can assist you with canceling your subscriptions."
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         When processing is triggered
         Then a single message event is emitted
@@ -131,10 +131,10 @@ Feature: Strict Utterance Capabilities
         And the capability "offer_loan"
         And the capability "cancel_subscription"
         And a guideline to do not offer loans when the age of the customer is under 21
-        And the utterance "I can help you reduce spending by canceling subscriptions. For increasing your balance, I can offer you a loan. What would you like to do?"
-        And the utterance "I can help you by canceling your subscriptions."
-        And the utterance "I see you are 23. Would you like a loan?"
-        And the utterance "I am not able to help with that request."
+        And an utterance, "I can help you reduce spending by canceling subscriptions. For increasing your balance, I can offer you a loan. What would you like to do?"
+        And an utterance, "I can help you by canceling your subscriptions."
+        And an utterance, "I see you are 23. Would you like a loan?"
+        And an utterance, "I am not able to help with that request."
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         When processing is triggered
         Then a single message event is emitted
@@ -148,9 +148,9 @@ Feature: Strict Utterance Capabilities
         And the capability "offer_loan_no_minors_in_description"
         And the capability "cancel_subscription"
         And a guideline to do not offer loans when the age of the customer is under 21
-        And the utterance "To increase your balance, I can offer you a loan. To reduce spending, you can cancel subscriptions."
-        And the utterance "I can help you reduce your spending by canceling any active subscriptions."
-        And the utterance "I can offer you a loan."
+        And an utterance, "To increase your balance, I can offer you a loan. To reduce spending, you can cancel subscriptions."
+        And an utterance, "I can help you reduce your spending by canceling any active subscriptions."
+        And an utterance, "I can offer you a loan."
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         When processing is triggered
         Then a single message event is emitted
@@ -164,11 +164,11 @@ Feature: Strict Utterance Capabilities
         And the capability "check_order_status"
         And the capability "check_order_location"
         And the capability "check_balance"
-        And the utterance "Thank you, {{generative.name}}. To help, I can offer you a loan or we can decrease your credit limit. Which would you prefer?"
-        And the utterance "Thank you, {{generative.name}}. Can you please provide me with your account number?"
-        And the utterance "Thank you, {{generative.name}}. To help, I can offer you a loan."
-        And the utterance "Thank you, {{generative.name}}. we can decrease your credit limit"
-        And the utterance "Is there anything else I can help you with today?"
+        And an utterance, "Thank you, {{generative.name}}. To help, I can offer you a loan or we can decrease your credit limit. Which would you prefer?"
+        And an utterance, "Thank you, {{generative.name}}. Can you please provide me with your account number?"
+        And an utterance, "Thank you, {{generative.name}}. To help, I can offer you a loan."
+        And an utterance, "Thank you, {{generative.name}}. we can decrease your credit limit"
+        And an utterance, "Is there anything else I can help you with today?"
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         And an agent message, "Great! I can help you with that. What's your account number?"
         And a customer message, "It's 123456789"
@@ -186,9 +186,9 @@ Feature: Strict Utterance Capabilities
         And the capability "check_order_status"
         And the capability "check_order_location"
         And the capability "check_balance"
-        And the utterance "Thank you, . To help, I can offer you {{generative.suggestion}}"
-        And the utterance "Understood. Can you please provide your full name?"
-        And the utterance "Understood. Can you please provide your account number?"
+        And an utterance, "Thank you, . To help, I can offer you {{generative.suggestion}}"
+        And an utterance, "Understood. Can you please provide your full name?"
+        And an utterance, "Understood. Can you please provide your account number?"
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         When processing is triggered
         Then a single message event is emitted
@@ -198,10 +198,10 @@ Feature: Strict Utterance Capabilities
     Scenario: Agent uses glossary term to understand capabilities (strict utterance)
         Given the capability "reset_router"
         And the term "PDMM" defined as a highly technical term for performing actions on a router without having physical access to it. Known only by specialists with technical knowledge regarding internet protocols.
-        And the utterance "I see your router is not working. I can perform a PDMM to fix it."
-        And the utterance "I understand you're having trouble with your router. I can try to reset it from our end, so you won't have to do anything. Would that be okay?"
-        And the utterance "To fix your router, please unplug it from the power source for 60 seconds."
-        And the utterance "I'm sorry, I am not equipped to handle issues with routers."
+        And an utterance, "I see your router is not working. I can perform a PDMM to fix it."
+        And an utterance, "I understand you're having trouble with your router. I can try to reset it from our end, so you won't have to do anything. Would that be okay?"
+        And an utterance, "To fix your router, please unplug it from the power source for 60 seconds."
+        And an utterance, "I'm sorry, I am not equipped to handle issues with routers."
         And a customer message "My router is not working... Help me.... I barely know how to use a computer. Use simple language please."
         When processing is triggered
         Then a single message event is emitted

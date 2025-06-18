@@ -172,19 +172,19 @@ class MessageGenerator(MessageEventComposer):
             with self._logger.scope("MessageGenerator"):
                 with self._logger.operation("Message generation"):
                     return await self._do_generate_events(
-                        event_emitter,
-                        agent,
-                        customer,
-                        context_variables,
-                        interaction_history,
-                        terms,
-                        ordinary_guideline_matches,
-                        journeys,
-                        capabilities,
-                        tool_enabled_guideline_matches,
-                        tool_insights,
-                        staged_events,
-                        latch,
+                        event_emitter=event_emitter,
+                        agent=agent,
+                        customer=customer,
+                        context_variables=context_variables,
+                        interaction_history=interaction_history,
+                        terms=terms,
+                        capabilities=capabilities,
+                        ordinary_guideline_matches=ordinary_guideline_matches,
+                        journeys=journeys,
+                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+                        tool_insights=tool_insights,
+                        staged_events=staged_events,
+                        latch=latch,
                     )
 
     def _format_staged_events(
@@ -209,9 +209,9 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
-        capabilities: Sequence[Capability],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
         staged_events: Sequence[EmittedEvent],
@@ -394,10 +394,10 @@ These guidelines have already been pre-filtered based on the interaction's conte
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
-        capabilities: Sequence[Capability],
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
@@ -815,6 +815,9 @@ Produce a valid JSON object in the following format: ###
         self._logger.debug(
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
+
+        with open("Message generator prompt.txt", "a") as f:
+            f.write("\n\n RESPONSE: \n" + message_event_response.content.model_dump_json(indent=2))
 
         if (
             message_event_response.content.produced_reply is False
