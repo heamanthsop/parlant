@@ -43,6 +43,9 @@ class DisambiguationBatchResult:
     clarification_guideline: Optional[GuidelineContent]
 
 
+# TODO - when adding the new clarification guideline, add it with customer dependent flag
+
+
 class DisambiguationGuidelineMatchingBatch(DefaultBaseModel):
     def __init__(
         self,
@@ -193,10 +196,12 @@ Then, formulate a response in the format:
 This response should clearly present the options to help resolve the ambiguity in the customer's request.
 
 Notes:
-- If a guideline may be relevant - include it. We prefer to let the customer choose of all possibilities.
-- Evaluation should base on user's most recent request.
+- If a guideline might be relevant - include it. We prefer to let the customer choose of all plausible options.
+- Base your evaluation on the customer's most recent request.
 - Some guidelines may turn out to be irrelevant based on the interaction—for example, due to earlier parts of the conversation or because the user's status (provided in the interaction history or 
 as a context variable) rules them out. In such cases, the ambiguity may already be resolved (only one or none option is relevant) and no clarification is needed.
+- If during the interaction, the agent asked for clarification but the customer hasn't asked yet, do not consider it as there is a disambiguation, unless a new disambiguation arises.
+
 
 
 
@@ -421,12 +426,12 @@ example_4_events = [
         "Hey, are you offering in-person sessions these days, or is everything online?",
     ),
     _make_event(
-        "11",
+        "15",
         EventSource.AI_AGENT,
         "I'm sorry, but due to the current situation, we aren't holding in-person meetings. However, we do offer online sessions if needed",
     ),
     _make_event(
-        "11",
+        "20",
         EventSource.CUSTOMER,
         "Got it. I’ll need an appointment — my throat is hurting.",
     ),
@@ -457,6 +462,46 @@ example_4_expected = DisambiguationGuidelineMatchesSchema(
     is_disambiguate=False,
 )
 
+example_5_events = [
+    _make_event(
+        "11",
+        EventSource.CUSTOMER,
+        "I received the wrong item in my order",
+    ),
+    _make_event(
+        "14",
+        EventSource.AI_AGENT,
+        "I'm sorry to hear that. We can either offer you a return with a refund or send you the correct item instead. What would you prefer?",
+    ),
+    _make_event(
+        "22",
+        EventSource.CUSTOMER,
+        "I'm not sure yet. Let me think for a moment",
+    ),
+]
+
+example_5_guidelines = [
+    GuidelineContent(
+        condition="The customer asks to return an item for a refund",
+        action="refund the order",
+    ),
+    GuidelineContent(
+        condition="The customer asks to replace an item",
+        action="Send the correct item and ask the customer to return the one they received",
+    ),
+]
+
+example_5_guideline_head = GuidelineContent(
+    condition="The customer received a wrong or damaged item",
+    action="-",
+)
+
+example_5_expected = DisambiguationGuidelineMatchesSchema(
+    rational="The agent just asked what return option the customer prefer, and the customer should answer. The is no new ambiguity to clarify",
+    is_disambiguate=False,
+)
+
+
 _baseline_shots: Sequence[DisambiguationGuidelineMatchingShot] = [
     DisambiguationGuidelineMatchingShot(
         description="Disambiguation example",
@@ -485,6 +530,13 @@ _baseline_shots: Sequence[DisambiguationGuidelineMatchingShot] = [
         guidelines=example_4_guidelines,
         guideline_head=example_4_guideline_head,
         expected_result=example_4_expected,
+    ),
+    DisambiguationGuidelineMatchingShot(
+        description="Disambiguation resolves based on the interaction",
+        interaction_events=example_5_events,
+        guidelines=example_5_guidelines,
+        guideline_head=example_5_guideline_head,
+        expected_result=example_5_expected,
     ),
 ]
 

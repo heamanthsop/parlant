@@ -621,7 +621,7 @@ async def test_that_disambiguation_is_not_detected_when_not_needed_based_on_earl
     )
 
 
-async def test_that_disambiguation_is_detected_when_previously_applied_and_should_not_reapply(
+async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_not_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -630,7 +630,56 @@ async def test_that_disambiguation_is_detected_when_previously_applied_and_shoul
     return
 
 
-async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_reapply(
+async def test_that_agent_re_ask_when_customer_didnt_answer_which_option(  # TODO BDD
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    return
+
+
+async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_doesnot_created(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi book me to the roller coaster please",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure, We have snake roller coaster and turtle roller coaster. Which one would you like?.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Hmm Let me see",
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "snake_roller_coaster",
+        "turtle_roller_coaster",
+        "tiger_Ferris_wheel",
+    ]
+    disambiguating_guidelines: list[str] = []
+    head_condition = CONDITION_HEAD_DICT["amusement_park"]
+    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_disambiguate=False,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+    )
+
+
+async def test_that_disambiguation_is_detected_when_previously_applied_and_should_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
