@@ -41,9 +41,9 @@ Feature: Strict Utterance Capabilities
         And the utterance "To help you reduce your spending, I can assist with canceling your subscriptions to online services."
         And the utterance "I can offer you a loan to help with your financial situation."
         And the utterance "I recommend tracking your expenses and trying to reduce unnecessary spending."
-        And a customer message,"Hey, I need to check my balance"
+        And a customer message, "Hey, I need to check my balance"
         And an agent message,"I'd be happy to help, what is your account number?"
-        And a customer message,"It's 123456789"
+        And a customer message, "It's 123456789"
         And an agent message, "Got it! Your balance is 1,234$"
         And a customer message, "Oh, I see. can I do anything to reduce my spending for the next month?"
         When processing is triggered
@@ -65,7 +65,7 @@ Feature: Strict Utterance Capabilities
         And the utterance "I can't help with API request limits, but I can help you with your order status or balance."
         And the utterance "I'm sorry, but I have no information about changing the number of API requests your server can handle." 
         And the utterance "Sure! Let me get to that right away."
-        And a customer message,"Hey, I just set up a server on my machine through your service. Can you change the limit for the number api requests it can serve per hour?"
+        And a customer message, "Hey, I just set up a server on my machine through your service. Can you change the limit for the number api requests it can serve per hour?"
         When processing is triggered
         Then a single message event is emitted
         And the message contains that the agent cannot help with the request or does not understand it.

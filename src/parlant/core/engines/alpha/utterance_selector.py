@@ -1140,6 +1140,8 @@ Produce a valid JSON object according to the following spec. Use the values prov
                 "guideline_representations": guideline_representations,
             },
         )
+        with open("draft prompt.txt", "w") as f:
+            f.write(builder.build())  # TODO delete
 
         return builder
 
@@ -1275,6 +1277,8 @@ Output a JSON object with three properties:
                 "guideline_representations": guideline_representations,
             },
         )
+        with open("utterance selection prompt.txt", "w") as f:
+            f.write(builder.build())  # TODO delete
         return builder
 
     async def _generate_utterance(

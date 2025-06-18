@@ -32,9 +32,9 @@ Feature: Capabilities
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
         And the capability "check_balance"
-        And a customer message,"Hey, I need to check my balance"
-        And an agent message,"I'd be happy to help, what is your account number?"
-        And a customer message,"It's 123456789"
+        And a customer message, "Hey, I need to check my balance"
+        And an agent message, "I'd be happy to help, what is your account number?"
+        And a customer message, "It's 123456789"
         And an agent message, "Got it! Your balance is 1,234$"
         And a customer message, "Oh, I see. can I do anything to reduce my spending for the next month?"
         When processing is triggered
@@ -53,7 +53,7 @@ Feature: Capabilities
         And the capability "check_order_status"
         And the capability "check_order_location"
         And the capability "check_balance"
-        And a customer message,"Hey, I just set up a server on my machine through your service. Can you change the limit for the number api requests it can serve per hour?"
+        And a customer message, "Hey, I just set up a server on my machine through your service. Can you change the limit for the number api requests it can serve per hour?"
         When processing is triggered
         Then a single message event is emitted
         And the message contains that the agent cannot help with the request to change the number of API requests.

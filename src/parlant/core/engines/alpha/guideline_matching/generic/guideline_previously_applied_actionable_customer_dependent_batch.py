@@ -274,6 +274,9 @@ OUTPUT FORMAT
                 "guidelines_len": len(self._guidelines),
             },
         )
+        with open("previously applied actionable prompt.txt", "w") as f:
+            f.write(builder.build())  # TODO delete
+
         return builder
 
     def _format_of_guideline_check_json_description(
