@@ -33,7 +33,6 @@ Feature: Strict Utterance Capabilities
         And the capability "lock_card"
         And the capability "reset_password"
         And the capability "increase_limit"
-        And the capability "decrease_limit"
         And the capability "cancel_subscription"
         And the capability "switch_delivery_method"
         And the capability "check_order_status"
@@ -42,7 +41,7 @@ Feature: Strict Utterance Capabilities
         And an utterance, "I can offer you a loan to help with your financial situation."
         And an utterance, "I recommend tracking your expenses and trying to reduce unnecessary spending."
         And a customer message, "Hey, I need to check my balance"
-        And an agent message,"I'd be happy to help, what is your account number?"
+        And an agent message, "I'd be happy to help, what is your account number?"
         And a customer message, "It's 123456789"
         And an agent message, "Got it! Your balance is 1,234$"
         And a customer message, "Oh, I see. can I do anything to reduce my spending for the next month?"
@@ -71,6 +70,7 @@ Feature: Strict Utterance Capabilities
         And the message contains that the agent cannot help with the request or does not understand it.
         And the message contains no mention of credit card or account Limits
 
+    # TODO change next test for better scenario
     Scenario: Agent doesn't hallucinate field details regarding an available capability (strict utterance)
         Given the capability "cancel_subscription"
         And the capability "switch_delivery_method"
