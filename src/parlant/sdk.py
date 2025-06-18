@@ -163,32 +163,26 @@ class Guideline:
     _parlant: Server
     _container: Container
 
-    async def prioritize_over(self, guideline: Guideline) -> RelationshipId:
-        return (
-            await self._create_relationship(
-                guideline=guideline,
-                kind=GuidelineRelationshipKind.PRIORITY,
-                direction="source",
-            )
-        ).id
+    async def prioritize_over(self, guideline: Guideline) -> Relationship:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.PRIORITY,
+            direction="source",
+        )
 
-    async def entail(self, guideline: Guideline) -> RelationshipId:
-        return (
-            await self._create_relationship(
-                guideline=guideline,
-                kind=GuidelineRelationshipKind.ENTAILMENT,
-                direction="source",
-            )
-        ).id
+    async def entail(self, guideline: Guideline) -> Relationship:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.ENTAILMENT,
+            direction="source",
+        )
 
-    async def depend_on(self, guideline: Guideline) -> RelationshipId:
-        return (
-            await self._create_relationship(
-                guideline=guideline,
-                kind=GuidelineRelationshipKind.DEPENDENCY,
-                direction="source",
-            )
-        ).id
+    async def depend_on(self, guideline: Guideline) -> Relationship:
+        return await self._create_relationship(
+            guideline=guideline,
+            kind=GuidelineRelationshipKind.DEPENDENCY,
+            direction="source",
+        )
 
     async def disambiguate(self, targets: Sequence[Guideline]) -> Sequence[Relationship]:
         if len(targets) < 2:
@@ -680,6 +674,7 @@ __all__ = [
     "EventKind",
     "EventSource",
     "FallbackSchematicGenerator",
+    "Guideline",
     "GuidelineId",
     "Journey",
     "JourneyId",
@@ -689,6 +684,9 @@ __all__ = [
     "MessageEventData",
     "NLPService",
     "PluginServer",
+    "RelationshipEntity",
+    "RelationshipEntityId",
+    "RelationshipEntityKind",
     "RelationshipId",
     "RelationshipKind",
     "SchematicGenerationResult",
