@@ -42,13 +42,6 @@ class DisambiguationGuidelineMatchingShot(Shot):
     expected_result: DisambiguationGuidelineMatchesSchema
 
 
-@dataclass()
-class DisambiguationBatchResult:
-    is_disambiguate: bool
-    guidelines: Sequence[Guideline]
-    clarification_guideline: Optional[GuidelineContent]
-
-
 # TODO - when adding the new clarification guideline, add it with customer dependent flag
 
 
