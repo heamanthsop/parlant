@@ -803,7 +803,7 @@ class AlphaEngine(Engine):
         # Step 3: Exclude guidelines whose prerequisite journeys are less likely to be activated
         # (everything beyond the first journey). Removing these low-probability
         # dependencies up-front keeps the first matching pass fast and focused.
-        top_k = 1
+        top_k = 3
         all_journey_dependent_ids = set(
             chain.from_iterable(
                 [await self._entity_queries.find_journey_scoped_guidelines(j) for j in all_journeys]
