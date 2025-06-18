@@ -323,30 +323,79 @@ Prioritize their data over any other sources and use their details to complete y
 
         return self
 
-    def add_capabilities(
+    def _create_capabilities_string(self, capabilities: Sequence[Capability]) -> str:
+        return "\n\n".join(
+            [
+                f"""
+Supported Capability {i}: {capability.title}
+{capability.description}
+"""
+                for i, capability in enumerate(capabilities, start=1)
+            ]
+        )
+
+    def add_capabilities_for_message_generation(
         self,
         capabilities: Sequence[Capability],
     ) -> PromptBuilder:
         if capabilities:
-            capabilities_string = "\n\n".join(
-                [
-                    f"""
-Supported Capability {i}: {capability.title}
-{capability.description}
-"""
-                    for i, capability in enumerate(capabilities, start=1)
-                ]
-            )
+            capabilities_string = self._create_capabilities_string(capabilities)
             self.add_section(
                 name=BuiltInSection.CAPABILITIES,
                 template="""
-The following are the capabilities that you may discuss with the customer.
-Be proactive and utilize them in your response. Only use capabilities that are relevant to the conversation and do not bring them up unnecessarily.
+Below are the capabilities available to you as an agent.
+You may inform the customer that you can assist them using these capabilities.
+If you choose to use any of them, additional details will be provided in your next response.
+Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
+If multiple capabilities are appropriate, aim to present them all to the customer.
 ###
 {capabilities_string}
 ###
 """,
                 props={"capabilities_string": capabilities_string},
+                status=SectionStatus.ACTIVE,
+            )
+        else:
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+When evaluating guidelines, you may sometimes be given capabilities to assist the customer. 
+However, in this case, no capabilities relevant to the current state of the conversation were found.
+
+""",
+                props={},
+                status=SectionStatus.ACTIVE,
+            )
+        return self
+
+    def add_capabilities_for_guideline_matching(
+        self,
+        capabilities: Sequence[Capability],
+    ) -> PromptBuilder:
+        if capabilities:
+            capabilities_string = self._create_capabilities_string(capabilities)
+
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+The following are the capabilities that you hold as an agent. 
+They may or may not effect your decision regarding the specified guidelines.
+###
+{capabilities_string}
+###
+""",
+                props={"capabilities_string": capabilities_string},
+                status=SectionStatus.ACTIVE,
+            )
+        else:
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+When evaluating guidelines, you may sometimes be given capabilities to assist the customer. 
+However, in this case, no capabilities relevant to the current state of the conversation were found.
+
+""",
+                props={},
                 status=SectionStatus.ACTIVE,
             )
         return self
