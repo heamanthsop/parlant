@@ -80,10 +80,7 @@ class GuidelineMatchingResult:
     batch_count: int
     batch_generations: Sequence[GenerationInfo]
     batches: Sequence[Sequence[GuidelineMatch]]
-
-    @cached_property
-    def matches(self) -> Sequence[GuidelineMatch]:
-        return list(chain.from_iterable(self.batches))
+    matches: Sequence[GuidelineMatch]
 
 
 @dataclass(frozen=True)
@@ -195,6 +192,7 @@ class GuidelineMatcher:
                 batch_count=0,
                 batch_generations=[],
                 batches=[],
+                matches=[],
             )
 
         t_start = time.time()
@@ -239,11 +237,14 @@ class GuidelineMatcher:
 
         t_end = time.time()
 
+        result_batches = [result.matches for result in batch_results]
+
         return GuidelineMatchingResult(
             total_duration=t_end - t_start,
             batch_count=len(batches[0]),
             batch_generations=[result.generation_info for result in batch_results],
-            batches=[result.matches for result in batch_results],
+            batches=result_batches,
+            matches=list(chain.from_iterable(result_batches)),
         )
 
     async def analyze_response(
