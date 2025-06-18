@@ -85,6 +85,11 @@ from parlant.core.tools import (
 _INTEGRATED_TOOL_SERVICE_NAME = "built-in"
 
 
+class SDKError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 def _load_openai(container: Container) -> NLPService:
     return OpenAIService(container[Logger])
 
@@ -142,6 +147,7 @@ class _PicoAgentStore(AgentStore):
 
 @dataclass(frozen=True)
 class Relationship:
+    id: RelationshipId
     kind: RelationshipKind
     source: RelationshipEntityId
     target: RelationshipEntityId
@@ -158,32 +164,53 @@ class Guideline:
     _container: Container
 
     async def prioritize_over(self, guideline: Guideline) -> RelationshipId:
-        return await self._create_relationship(
-            guideline=guideline,
-            kind=GuidelineRelationshipKind.PRIORITY,
-            direction="source",
-        )
+        return (
+            await self._create_relationship(
+                guideline=guideline,
+                kind=GuidelineRelationshipKind.PRIORITY,
+                direction="source",
+            )
+        ).id
 
     async def entail(self, guideline: Guideline) -> RelationshipId:
-        return await self._create_relationship(
-            guideline=guideline,
-            kind=GuidelineRelationshipKind.ENTAILMENT,
-            direction="source",
-        )
+        return (
+            await self._create_relationship(
+                guideline=guideline,
+                kind=GuidelineRelationshipKind.ENTAILMENT,
+                direction="source",
+            )
+        ).id
 
     async def depend_on(self, guideline: Guideline) -> RelationshipId:
-        return await self._create_relationship(
-            guideline=guideline,
-            kind=GuidelineRelationshipKind.DEPENDENCY,
-            direction="source",
-        )
+        return (
+            await self._create_relationship(
+                guideline=guideline,
+                kind=GuidelineRelationshipKind.DEPENDENCY,
+                direction="source",
+            )
+        ).id
+
+    async def disambiguate(self, targets: Sequence[Guideline]) -> Sequence[Relationship]:
+        if len(targets) < 2:
+            raise SDKError(
+                f"At least two targets are required for disambiguation (got {len(targets)})."
+            )
+
+        return [
+            await self._create_relationship(
+                guideline=t,
+                kind=GuidelineRelationshipKind.DISAMBIGUATION,
+                direction="source",
+            )
+            for t in targets
+        ]
 
     async def _create_relationship(
         self,
         guideline: Guideline,
         kind: GuidelineRelationshipKind,
         direction: Literal["source", "target"],
-    ) -> RelationshipId:
+    ) -> Relationship:
         if direction == "source":
             source = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
             target = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
@@ -197,7 +224,12 @@ class Guideline:
             kind=kind,
         )
 
-        return relationship.id
+        return Relationship(
+            id=relationship.id,
+            kind=relationship.kind,
+            source=relationship.source.id,
+            target=relationship.target.id,
+        )
 
 
 @dataclass
