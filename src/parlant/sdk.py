@@ -43,8 +43,10 @@ from parlant.core.relationships import (
     GuidelineRelationshipKind,
     RelationshipDocumentStore,
     RelationshipEntity,
+    RelationshipEntityId,
     RelationshipEntityKind,
     RelationshipId,
+    RelationshipKind,
     RelationshipStore,
 )
 from parlant.core.services.tools.service_registry import ServiceDocumentRegistry, ServiceRegistry
@@ -136,6 +138,13 @@ class _PicoAgentStore(AgentStore):
 
     async def remove_tag(self, agent_id: AgentId, tag_id: TagId) -> None:
         raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class Relationship:
+    kind: RelationshipKind
+    source: RelationshipEntityId
+    target: RelationshipEntityId
 
 
 @dataclass
@@ -325,19 +334,7 @@ class Agent:
         self,
         condition: str,
     ) -> Guideline:
-        guideline = await self._container[GuidelineStore].create_guideline(
-            condition=condition,
-            tags=[Tag.for_agent_id(self.id)],
-        )
-
-        return Guideline(
-            id=guideline.id,
-            condition=condition,
-            action=None,
-            tags=guideline.tags,
-            _parlant=self._parlant,
-            _container=self._container,
-        )
+        return await self.create_guideline(condition=condition)
 
     async def attach_tool(
         self,
@@ -661,6 +658,7 @@ __all__ = [
     "NLPService",
     "PluginServer",
     "RelationshipId",
+    "RelationshipKind",
     "SchematicGenerationResult",
     "SchematicGenerator",
     "Server",
