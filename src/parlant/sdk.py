@@ -321,6 +321,24 @@ class Agent:
             _container=self._container,
         )
 
+    async def create_observation(
+        self,
+        condition: str,
+    ) -> Guideline:
+        guideline = await self._container[GuidelineStore].create_guideline(
+            condition=condition,
+            tags=[Tag.for_agent_id(self.id)],
+        )
+
+        return Guideline(
+            id=guideline.id,
+            condition=condition,
+            action=None,
+            tags=guideline.tags,
+            _parlant=self._parlant,
+            _container=self._container,
+        )
+
     async def attach_tool(
         self,
         tool: ToolEntry,
