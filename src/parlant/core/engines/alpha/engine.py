@@ -1020,9 +1020,6 @@ class AlphaEngine(Engine):
         if context.state.context_variables:
             query += f"\n{context_variables_to_json(context.state.context_variables)}"
 
-        if context.interaction.history:
-            query += str([e.data for e in context.interaction.history])
-
         if context.state.guidelines:
             query += str(
                 [
@@ -1038,6 +1035,9 @@ class AlphaEngine(Engine):
 
         if context.state.glossary_terms:
             query += str([t.name for t in context.state.glossary_terms])
+
+        if context.interaction.history:
+            query += str([e.data for e in context.interaction.history])
 
         if query:
             return await self._entity_queries.find_relevant_journeys_for_context(
