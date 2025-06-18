@@ -262,7 +262,7 @@ def mcp_parameter_to_parlant_parameter(
             description=mcp_param.get("title", ""),
         )
 
-    raise FormatError(f"Unsupported parameter type: {param_type}")
+    raise FormatError(f"Unsupported parameter type: {param_type} (parameter is {parameter_name})")
 
 
 def resolve_ref(ref: str, schema: dict[str, Any]) -> dict[str, Any]:
