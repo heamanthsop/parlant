@@ -90,31 +90,35 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
             with open("output_disambiguation.txt", "a") as f:
                 f.write(inference.content.model_dump_json(indent=2))
 
-        matches = [
-            GuidelineMatch(
-                guideline=self._guideline_head,
-                score=10 if inference.content.is_disambiguate else 1,
-                rationale=f'''Not previously applied matcher rationale: "{inference.content.rationale}"''',
-                guideline_previously_applied=PreviouslyAppliedType.NO,
-            )
-        ]
         metadata: dict[str, JSONSerializable] = {}
+
         if inference.content.is_disambiguate:
             guidelines: list[str] = [
                 self._guideline_ids[g.guideline_id]
                 for g in inference.content.guidelines or []
                 if g.is_relevant
             ]
+
             disambiguation_data: JSONSerializable = {
                 "disambiguated_members": guidelines,
                 "enriched_guideline": inference.content.clarification_action or "",
             }
+
             metadata["disambiguation"] = disambiguation_data
+
+        matches = [
+            GuidelineMatch(
+                guideline=self._guideline_head,
+                score=10 if inference.content.is_disambiguate else 1,
+                rationale=f'''Not previously applied matcher rationale: "{inference.content.rationale}"''',
+                guideline_previously_applied=PreviouslyAppliedType.NO,
+                metadata=metadata,
+            )
+        ]
 
         return GuidelineMatchingBatchResult(
             matches=matches,
             generation_info=inference.info,
-            metadata=metadata,
         )
 
     async def shots(self) -> Sequence[DisambiguationGuidelineMatchingShot]:

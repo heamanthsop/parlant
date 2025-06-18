@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import chain
 import time
-from typing import Mapping, Optional, Sequence
+from typing import Sequence
 
 from parlant.core import async_utils
 from parlant.core.capabilities import Capability
@@ -99,7 +99,6 @@ class ResponseAnalysisResult:
 class GuidelineMatchingBatchResult:
     matches: Sequence[GuidelineMatch]
     generation_info: GenerationInfo
-    metadata: Optional[Mapping[str, JSONSerializable]] = None
 
 
 @dataclass(frozen=True)

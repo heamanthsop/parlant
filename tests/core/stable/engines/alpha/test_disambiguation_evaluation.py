@@ -312,7 +312,7 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
 
     assert (result.matches[0].score == 10) == is_disambiguate
 
-    data = result.metadata
+    data = result.matches[0].metadata
     if data and isinstance(data, dict):
         if is_disambiguate:
             disambiguation = data.get("disambiguation")

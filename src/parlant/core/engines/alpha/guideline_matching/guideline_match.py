@@ -16,7 +16,9 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Mapping
 
+from parlant.core.common import JSONSerializable
 from parlant.core.guidelines import Guideline
 
 
@@ -33,6 +35,7 @@ class GuidelineMatch:
     score: int
     rationale: str
     guideline_previously_applied: PreviouslyAppliedType = PreviouslyAppliedType.NO
+    metadata: Mapping[str, JSONSerializable] = {}
 
 
 @dataclass(frozen=True)
