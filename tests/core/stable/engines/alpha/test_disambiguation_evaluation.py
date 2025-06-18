@@ -324,7 +324,7 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
                     guidelines = [to_ids[id] for id in disambiguated_members]
                     assert set(disambiguating_guideline) == set(guidelines)
 
-                clarification = disambiguation.get("enriched_guideline")
+                clarification = disambiguation.get("enriched_action")
                 if clarification:
                     assert await nlp_test(
                         context=f"Here's a clarification message in the form of ask the customer something: {clarification}",

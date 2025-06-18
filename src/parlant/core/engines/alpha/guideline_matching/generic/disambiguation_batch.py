@@ -101,7 +101,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
 
             disambiguation_data: JSONSerializable = {
                 "disambiguated_members": guidelines,
-                "enriched_guideline": inference.content.clarification_action or "",
+                "enriched_action": inference.content.clarification_action or "",
             }
 
             metadata["disambiguation"] = disambiguation_data

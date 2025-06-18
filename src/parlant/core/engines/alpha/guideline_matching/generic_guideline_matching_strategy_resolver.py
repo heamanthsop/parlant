@@ -1,8 +1,10 @@
+from datetime import datetime
 import math
 from typing import Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 
+from parlant.core.common import JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
     DisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
@@ -172,7 +174,49 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         matches: Sequence[GuidelineMatch],
     ) -> Sequence[GuidelineMatch]:
-        return matches
+        result: list[GuidelineMatch] = []
+        guidelines_to_skip: list[GuidelineId] = []
+
+        for m in matches:
+            if disambiguation := m.metadata.get("disambiguation"):
+                guidelines_to_skip.extend(
+                    cast(
+                        list[GuidelineId],
+                        cast(dict[str, JSONSerializable], disambiguation).get(
+                            "disambiguated_members"
+                        ),
+                    )
+                )
+
+                result.append(
+                    GuidelineMatch(
+                        guideline=Guideline(
+                            id=cast(GuidelineId, "<transient>"),
+                            creation_utc=datetime.now(),
+                            content=GuidelineContent(
+                                condition=m.guideline.content.condition,
+                                action=cast(
+                                    str,
+                                    cast(dict[str, JSONSerializable], disambiguation)[
+                                        "enriched_action"
+                                    ],
+                                ),
+                            ),
+                            enabled=True,
+                            tags=[],
+                            metadata={},
+                        ),
+                        score=10,
+                        rationale=m.rationale,
+                        metadata=m.metadata,
+                    )
+                )
+
+        for m in matches:
+            if m.metadata.get("disambiguation") or m.guideline.id in guidelines_to_skip:
+                result.append(m)
+
+        return result
 
     def _create_sub_batches_observational_guideline(
         self,
