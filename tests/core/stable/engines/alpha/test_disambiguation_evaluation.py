@@ -105,8 +105,8 @@ GUIDELINES_DICT = {
         "action": "dispute the unknown charge",
     },
     "vip_refund": {
-        "condition": "the customer is VIP and they ask for a refund on a flight to original payment method",
-        "action": "Do a full refund to original payment method",
+        "condition": "the customer is VIP and they ask for a refund on a flight to original payment method or to travel credit",
+        "action": "Do a full refund to original payment method or travel credit",
     },
     "vip_reschedule": {
         "condition": "the customer is VIP and they ask for rescheduling the flight",
@@ -116,9 +116,13 @@ GUIDELINES_DICT = {
         "condition": "the customer is VIP and they ask to fully cancel the flight",
         "action": "Do free cancelling",
     },
-    "refund_travel_credit": {
+    "regular_refund_travel_credit": {
         "condition": "the customer is regular and ask for a refund on a flight to travel credit",
         "action": "Refund as travel credit with a fee",
+    },
+    "regular_refund": {  # TODO - should not add to group a non optional guideline, right?
+        "condition": "the customer is regular and ask for a refund on a flight to original payment method",
+        "action": "explain that we don't do full refund",
     },
     "regular_reschedule": {
         "condition": "the customer is regular and they ask for rescheduling the flight",
@@ -463,7 +467,7 @@ async def test_that_disambiguation_detected_based_on_context_variable(
         "vip_refund",
         "vip_reschedule",
         "vip_cancel",
-        "refund_travel_credit",
+        "regular_refund_travel_credit",
         "regular_reschedule",
         "regular_cancel",
     ]
@@ -513,18 +517,20 @@ async def test_that_disambiguation_detected_based_on_context_variable_2(
         "vip_refund",
         "vip_reschedule",
         "vip_cancel",
-        "refund_travel_credit",
+        "regular_refund_travel_credit",
         "regular_reschedule",
         "regular_cancel",
     ]
 
     disambiguating_guidelines = [
-        "refund_travel_credit",
+        "regular_refund_travel_credit",
         "regular_reschedule",
         "regular_cancel",
     ]
     head_condition = CONDITION_HEAD_DICT["cancel_flight"]
-    clarification_must_contain = "options to cancel the flight, totally cancel or get a refund to payment method or to travel credit"
+    clarification_must_contain = (
+        "options to reschedule the flight, totally cancel or get a refund to travel credit"
+    )
     await base_test_that_disambiguation_detected_with_relevant_guidelines(
         context,
         agent,
