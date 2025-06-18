@@ -17,7 +17,7 @@ from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
     DisambiguationGuidelineMatchesSchema,
-    DisambiguationGuidelineMatchingBatch,
+    GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
 from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
@@ -302,7 +302,7 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
         staged_events,
     )
 
-    disambiguation_resolver = DisambiguationGuidelineMatchingBatch(
+    disambiguation_resolver = GenericDisambiguationGuidelineMatchingBatch(
         logger=context.logger,
         schematic_generator=context.schematic_generator,
         guidelines=[guideline_head],

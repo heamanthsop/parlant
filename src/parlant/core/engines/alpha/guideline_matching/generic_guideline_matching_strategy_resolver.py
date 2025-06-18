@@ -1,8 +1,12 @@
 import math
-from typing import Mapping, Sequence
+from typing import Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 
+from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
+    DisambiguationGuidelineMatchesSchema,
+    GenericDisambiguationGuidelineMatchingBatch,
+)
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
     GenericActionableGuidelineMatchesSchema,
     GenericActionableGuidelineMatchingBatch,
@@ -31,9 +35,13 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategy,
     GuidelineMatchingStrategyResolver,
 )
-from parlant.core.guidelines import Guideline, GuidelineId
+from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId, GuidelineStore
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
+from parlant.core.relationships import (
+    GuidelineRelationshipKind,
+    RelationshipStore,
+)
 from parlant.core.tags import TagId
 
 
@@ -41,6 +49,8 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
+        relationship_store: RelationshipStore,
+        guideline_store: GuidelineStore,
         observational_guideline_schematic_generator: SchematicGenerator[
             GenericObservationalGuidelineMatchesSchema
         ],
@@ -53,9 +63,15 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         actionable_guideline_schematic_generator: SchematicGenerator[
             GenericActionableGuidelineMatchesSchema
         ],
+        disambiguation_guidelines_schematic_generator: SchematicGenerator[
+            DisambiguationGuidelineMatchesSchema
+        ],
         report_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
     ) -> None:
         self._logger = logger
+        self._relationship_store = relationship_store
+        self._guideline_store = guideline_store
+
         self._observational_guideline_schematic_generator = (
             observational_guideline_schematic_generator
         )
@@ -65,6 +81,9 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         )
         self._previously_applied_actionable_customer_dependent_guideline_schematic_generator = (
             previously_applied_actionable_customer_dependent_guideline_schematic_generator
+        )
+        self._disambiguation_guidelines_schematic_generator = (
+            disambiguation_guidelines_schematic_generator
         )
         self._report_analysis_schematic_generator = report_analysis_schematic_generator
 
@@ -78,9 +97,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         previously_applied_actionable_batch: list[Guideline] = []
         previously_applied_actionable_customer_dependent_batch: list[Guideline] = []
         actionable: list[Guideline] = []
+        disambiguation_batches: list[Guideline] = []
+
         for g in guidelines:
             if not g.content.action:
-                observational_batch.append(g)
+                if disambiguation_guideline := await self._get_disambiguation_guideline(g):
+                    disambiguation_batches.append(disambiguation_guideline)
+                else:
+                    observational_batch.append(g)
             else:
                 if g.metadata.get("continuous", False):
                     actionable.append(g)
@@ -115,6 +139,14 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             guideline_batches.extend(
                 self._create_sub_batches_actionable_guideline(actionable, context)
             )
+        if disambiguation_batches:
+            guideline_batches.extend(
+                [
+                    self._create_sub_batch_disambiguation_guideline(g, context)
+                    for g in disambiguation_batches
+                ]
+            )
+
         return guideline_batches
 
     @override
@@ -287,6 +319,60 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             logger=self._logger,
             schematic_generator=self._actionable_guideline_schematic_generator,
             guidelines=guidelines,
+            context=context,
+        )
+
+    async def _get_disambiguation_guideline(
+        self,
+        guideline: Guideline,
+    ) -> Optional[Guideline]:
+        if relationships := await self._relationship_store.list_relationships(
+            kind=GuidelineRelationshipKind.DISAMBIGUATION,
+            source_id=guideline.id,
+        ):
+            members = [
+                await self._guideline_store.read_guideline(
+                    guideline_id=cast(GuidelineId, r.target.id)
+                )
+                for r in relationships
+            ]
+
+            return Guideline(
+                id=guideline.id,
+                creation_utc=guideline.creation_utc,
+                content=GuidelineContent(
+                    condition=guideline.content.condition,
+                    action=guideline.content.action,
+                ),
+                enabled=True,
+                tags=[],
+                metadata={
+                    **guideline.metadata,
+                    **{
+                        "members": [
+                            {
+                                "id": m.id,
+                                "condition": m.content.condition,
+                                "action": m.content.action,
+                                "metadata": m.metadata,
+                            }
+                            for m in members
+                        ]
+                    },
+                },
+            )
+
+        return None
+
+    def _create_sub_batch_disambiguation_guideline(
+        self,
+        guideline: Guideline,
+        context: GuidelineMatchingContext,
+    ) -> GenericDisambiguationGuidelineMatchingBatch:
+        return GenericDisambiguationGuidelineMatchingBatch(
+            logger=self._logger,
+            schematic_generator=self._disambiguation_guidelines_schematic_generator,
+            guidelines=[guideline],
             context=context,
         )
 

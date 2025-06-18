@@ -45,7 +45,7 @@ class DisambiguationGuidelineMatchingShot(Shot):
 # TODO - when adding the new clarification guideline, add it with customer dependent flag
 
 
-class DisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
+class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
