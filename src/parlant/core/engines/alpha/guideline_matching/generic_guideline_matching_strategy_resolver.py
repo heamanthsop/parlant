@@ -135,6 +135,13 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             )
         ]
 
+    @override
+    async def transform_matches(
+        self,
+        matches: Sequence[GuidelineMatch],
+    ) -> Sequence[GuidelineMatch]:
+        return matches
+
     def _create_sub_batches_observational_guideline(
         self,
         guidelines: Sequence[Guideline],

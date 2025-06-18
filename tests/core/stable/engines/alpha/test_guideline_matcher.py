@@ -1408,6 +1408,13 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class ShortConditionStrategy(GuidelineMatchingStrategy):
         @override
         async def create_matching_batches(
@@ -1424,6 +1431,13 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     class LenGuidelineMatchingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
@@ -1486,6 +1500,13 @@ async def test_that_strategy_for_specific_guideline_can_be_overridden_in_default
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     guideline = await create_guideline(context, "a customer asks for a drink", "check stock")
 
@@ -2322,6 +2343,13 @@ async def test_that_response_analysis_strategy_can_be_overridden(
         ) -> Sequence[ResponseAnalysisBatch]:
             return [ActivateResponseAnalysisBatch(guideline_matches)]
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class ActivateStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
@@ -2457,6 +2485,13 @@ async def test_that_batch_processing_retries_on_key_error(
                 )
             ]
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class FailingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
@@ -2530,6 +2565,13 @@ async def test_that_batch_processing_fails_after_max_retries(
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return [AlwaysFailingResponseAnalysisBatch(guideline_matches=guideline_matches)]
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     class AlwaysFailingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override

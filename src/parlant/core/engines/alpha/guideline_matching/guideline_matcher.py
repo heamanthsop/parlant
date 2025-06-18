@@ -133,6 +133,12 @@ class GuidelineMatchingStrategy(ABC):
         context: ReportAnalysisContext,
     ) -> Sequence[ResponseAnalysisBatch]: ...
 
+    @abstractmethod
+    async def transform_matches(
+        self,
+        matches: Sequence[GuidelineMatch],
+    ) -> Sequence[GuidelineMatch]: ...
+
 
 class GuidelineMatchingStrategyResolver(ABC):
     @abstractmethod
@@ -202,6 +208,7 @@ class GuidelineMatcher:
                 guideline_strategies: dict[
                     str, tuple[GuidelineMatchingStrategy, list[Guideline]]
                 ] = {}
+
                 for guideline in guidelines:
                     strategy = await self.strategy_resolver.resolve(guideline)
                     if strategy.__class__.__name__ not in guideline_strategies:
@@ -238,13 +245,18 @@ class GuidelineMatcher:
         t_end = time.time()
 
         result_batches = [result.matches for result in batch_results]
+        matches: Sequence[GuidelineMatch] = list(chain.from_iterable(result_batches))
+
+        with self._logger.operation("Transforming guideline matches"):
+            for strategy, _ in guideline_strategies.values():
+                matches = await strategy.transform_matches(matches)
 
         return GuidelineMatchingResult(
             total_duration=t_end - t_start,
             batch_count=len(batches[0]),
             batch_generations=[result.generation_info for result in batch_results],
             batches=result_batches,
-            matches=list(chain.from_iterable(result_batches)),
+            matches=matches,
         )
 
     async def analyze_response(
