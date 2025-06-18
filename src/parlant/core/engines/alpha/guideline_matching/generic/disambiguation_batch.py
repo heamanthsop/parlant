@@ -181,22 +181,22 @@ Each guideline is composed of two parts:
 
 Task Description
 ----------------
-Sometimes, a customer expresses that they’ve experienced something or want to proceed with something, but there are multiple possible ways to go, and it’s unclear what exactly they intend. 
+Sometimes a customer expresses that they’ve experienced something or want to proceed with something, but there are multiple possible ways to go, and it’s unclear what exactly they intend. 
 In such cases, we need to identify the potential options and ask the customer which one they mean.
 
 Your task is to determine whether the customer’s request is ambiguous and, if so, what the possible interpretations or directions are. 
 You’ll be given a guideline head — a condition that, if true, signals a potential ambiguity — and a list of related guidelines, each representing a possible path the customer might want to follow.
-If a guideline may be relevant - include it. We prefer to let the customer choose of all possibilities.
-
-Notes:
-- Evaluation should base on user's most recent request.
-- Some guidelines may turn out to be irrelevant based on the interaction—for example, due to earlier parts of the conversation or because the user's status (provided in the interaction history or 
-as a context variable) rules them out. In such cases, the ambiguity may already be resolved and no clarification is needed.
 
 If you identify an ambiguity, return the relevant guidelines that represent the available options. 
 Then, formulate a response in the format:
 "Ask the customer whether they want to do X, Y, or Z..."
 This response should clearly present the options to help resolve the ambiguity in the customer's request.
+
+Notes:
+- If a guideline may be relevant - include it. We prefer to let the customer choose of all possibilities.
+- Evaluation should base on user's most recent request.
+- Some guidelines may turn out to be irrelevant based on the interaction—for example, due to earlier parts of the conversation or because the user's status (provided in the interaction history or 
+as a context variable) rules them out. In such cases, the ambiguity may already be resolved (only one or none option is relevant) and no clarification is needed.
 
 
 
@@ -324,7 +324,7 @@ example_1_expected = DisambiguationGuidelineMatchesSchema(
             is_relevant=True,
         ),
     ],
-    clarification_action="sk the customer whether they’d prefer a replacement or a refund.",
+    clarification_action="ask the customer whether they’d prefer a replacement or a refund.",
 )
 
 
