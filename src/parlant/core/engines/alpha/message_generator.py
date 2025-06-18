@@ -18,7 +18,6 @@ import json
 import traceback
 from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
-
 from parlant.core.capabilities import Capability
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent
@@ -666,7 +665,7 @@ Produce a valid JSON object in the following format: ###
             },
         )
         with open("Message generator prompt.txt", "w") as f:
-            f.write(builder.build())
+            f.write(builder.build())  # TODO delete
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:
