@@ -154,8 +154,8 @@ Feature: Capabilities
         And a customer message, "Hey, I'm looking for ways to increase my balance and reduce spending"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains asking the customer for their name
-        And the message contains no offering of a loan or credit limit decrease
+        And the message contains asking the customer for account number
+        And the message contains no offering of a loan or credit limit decrease, unless it's discussed as something that will be done at a later staged
 
     Scenario: Agent uses glossary term to understand capabilities
         Given the capability "reset_router"

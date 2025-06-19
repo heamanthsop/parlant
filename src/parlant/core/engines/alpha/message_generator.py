@@ -108,6 +108,7 @@ class MessageSchema(DefaultBaseModel):
     produced_reply: Optional[bool] = None
     produced_reply_rationale: Optional[str] = None
     guidelines: Optional[list[str]] = None
+    current_journey_step: Optional[str] = None
     context_evaluation: Optional[ContextEvaluation] = None
     insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
@@ -499,7 +500,8 @@ To generate an optimal response that aligns with all guidelines and the current 
 2. INITIAL RESPONSE
    - Draft an initial response based on:
      * Primary customer needs
-     * Applicable guidelines, journeys and observations
+     * Applicable guidelines
+     * The relevant journey step, if there is one
      * Gathered insights
    - Focus on addressing the core request first
 
@@ -751,6 +753,7 @@ Produce a valid JSON object in the following format: ###
     "produced_reply": "<BOOL, should be true unless the customer explicitly asked you not to respond>",
     "produced_reply_rationale": "<str, optional. required only if produced_reply is false>",
     "guidelines": [{guidelines_list_text}],
+    "current_journey_step": <STR, the next step to take according to the active journey/s, if there are ones. Otherwise, this field can be omitted>
     "context_evaluation": {{
         "most_recent_customer_inquiries_or_needs": "<fill out accordingly>",
         "parts_of_the_context_i_have_here_if_any_with_specific_information_on_how_to_address_these_needs": "<fill out accordingly>",
