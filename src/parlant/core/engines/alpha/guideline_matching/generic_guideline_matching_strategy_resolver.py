@@ -103,7 +103,9 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
 
         for g in guidelines:
             if not g.content.action:
-                if disambiguation_guideline := await self._get_disambiguation_guideline(g):
+                if disambiguation_guideline := await self._get_disambiguation_guideline(
+                    g, guidelines
+                ):
                     disambiguation_batches.append(disambiguation_guideline)
                 else:
                     observational_batch.append(g)
@@ -375,17 +377,15 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     async def _get_disambiguation_guideline(
         self,
         guideline: Guideline,
+        guidelines: Sequence[Guideline],
     ) -> Optional[Guideline]:
+        guidelines_dict = {g.id: g for g in guidelines}
+
         if relationships := await self._relationship_store.list_relationships(
             kind=GuidelineRelationshipKind.DISAMBIGUATION,
             source_id=guideline.id,
         ):
-            members = [
-                await self._guideline_store.read_guideline(
-                    guideline_id=cast(GuidelineId, r.target.id)
-                )
-                for r in relationships
-            ]
+            members = [guidelines_dict[cast(GuidelineId, r.target.id)] for r in relationships]
 
             return Guideline(
                 id=guideline.id,
