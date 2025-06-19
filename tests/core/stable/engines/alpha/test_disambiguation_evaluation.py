@@ -127,6 +127,18 @@ GUIDELINES_DICT = {
         "condition": "the customer is regular and they ask to cancel the flight",
         "action": "do cancelling with a fee",
     },
+    "CoreTrace": {
+        "condition": "The customer asks to submit a CoreTrace",
+        "action": "submit a CoreTrace",
+    },
+    "QuickPatch": {
+        "condition": "The customer asks to activate QuickPatch",
+        "action": "activate QuickPatch",
+    },
+    "FixFlow": {
+        "condition": "The customer asks to start a FixFlow session",
+        "action": "start a FixFlow session",
+    },
 }
 
 CONDITION_HEAD_DICT = {
@@ -134,6 +146,7 @@ CONDITION_HEAD_DICT = {
     "lost_card": "The customer lost their card and didn't specify what they want to do",
     "stolen_card": "The customer indicates that their card was stolen and didn't specify what they want to do",
     "cancel_flight": "The customer if asks to make a change in booked flight but doesn’t specify whether they want to reschedule, request a refund, or fully cancel the booking",
+    "fix_bug": "The customer has a technical problem, and they didn't specify what kind of help they want to have",
 }
 
 
@@ -895,4 +908,54 @@ async def test_that_ambiguity_is_detected_when_previously_applied_and_should_rea
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
+    )
+
+
+async def test_that_ambiguity_detects_with_relevant_guidelines_based_on_glossary(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, my screen just goes black after I open the app. I don’t really know what happened — I didn’t touch anything in the settings. It worked yesterday."
+            "I have no technical knowledge",
+        ),
+    ]
+    terms = [
+        create_term(
+            name="FixFlow",
+            description="A live, guided troubleshooting session with a technical agent.",
+        ),
+        create_term(
+            name="CoreTrace",
+            description="Relevant when the customer is an engineering- A deeper diagnostic log meant for engineering-level review.",
+        ),
+        create_term(
+            name="QuickPatch",
+            description="A remote patching tool that attempts to fix common bugs or corrupted settings.",
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "FixFlow",
+        "CoreTrace",
+        "QuickPatch",
+    ]
+    disambiguating_guidelines: list[str] = ["FixFlow", "QuickPatch"]
+    head_condition = CONDITION_HEAD_DICT["fix_bug"]
+    clarification_must_contain = "FixFlow or QuickPatch as ways to help to solve the problem"
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+        terms=terms,
     )
