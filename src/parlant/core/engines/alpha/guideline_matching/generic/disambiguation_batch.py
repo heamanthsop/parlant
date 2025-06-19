@@ -374,11 +374,11 @@ example_2_guidelines = [
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book a therapy session",
+        condition="The customer asks to book a session with a psychologist",
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book an online appointment to a medical consultation or therapy session",
+        condition="The customer asks to book an online appointment to a medical consultation or a session with a psychologist",
         action="book the appointment online",
     ),
 ]
@@ -389,7 +389,7 @@ example_2_guideline_head = GuidelineContent(
 )
 
 example_2_expected = DisambiguationGuidelineMatchesSchema(
-    rationale="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
+    rationale="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not psychological.",
     is_ambiguous=True,
     guidelines=[
         GuidelineCheck(
@@ -399,7 +399,7 @@ example_2_expected = DisambiguationGuidelineMatchesSchema(
         ),
         GuidelineCheck(
             guideline_id="2",
-            short_evaluation="therapy is not relevant",
+            short_evaluation="psychologist is not relevant",
             requires_disambiguation=False,
         ),
         GuidelineCheck(
@@ -426,11 +426,11 @@ example_3_guidelines = [
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book a therapy session",
+        condition="The customer asks to book a session with a psychologist",
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book an online appointment to a medical consultation or therapy session (psychologist)",
+        condition="The customer asks to book an online appointment to a medical consultation or a session with a psychologist",
         action="book the appointment online",
     ),
 ]
@@ -470,11 +470,11 @@ example_4_guidelines = [
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book a therapy session",
+        condition="The customer asks to book a session with a psychologist",
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book an online appointment to a medical consultation or therapy session (psychologist)",
+        condition="The customer asks to book an online appointment to a medical consultation or a session with a psychologist",
         action="book the appointment online",
     ),
 ]
@@ -513,8 +513,12 @@ example_5_guidelines = [
         action="refund the order",
     ),
     GuidelineContent(
-        condition="The customer asks to replace an item",
-        action="Send the correct item and ask the customer to return the one they received",
+        condition="The customer asks to book a session with a psychologist",
+        action="book the appointment",
+    ),
+    GuidelineContent(
+        condition="The customer asks to book an online appointment to a medical consultation or a session with a psychologist",
+        action="book the appointment online",
     ),
 ]
 
@@ -534,7 +538,7 @@ example_5_expected = DisambiguationGuidelineMatchesSchema(
         ),
         GuidelineCheck(
             guideline_id="2",
-            short_evaluation="therapy may be relevant",
+            short_evaluation="psychologist may be relevant",
             requires_disambiguation=True,
         ),
         GuidelineCheck(
@@ -551,7 +555,7 @@ example_6_events = [
     _make_event(
         "11",
         EventSource.CUSTOMER,
-        "Hey, can you book me an appointment? I need a prescription. And also I need to a therapy session with my wife in your office.",
+        "Hey, can you book me an appointment? I need a prescription. And also I need to a session with a psychologist with my wife in your office.",
     ),
 ]
 
@@ -561,15 +565,15 @@ example_6_guidelines = [
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book a therapy session",
+        condition="The customer asks to book a session with a psychologist",
         action="book the appointment",
     ),
     GuidelineContent(
-        condition="The customer asks to book an online appointment to a medical consultation or therapy session (psychologist)",
+        condition="The customer asks to book an online appointment to a medical consultation or a session with a psychologist",
         action="book the appointment online",
     ),
     GuidelineContent(
-        condition="The customer asks to book an in person appointment to a medical consultation or therapy session (psychologist)",
+        condition="The customer asks to book an in person appointment to a medical consultation or a session with a psychologist",
         action="book the in person appointment",
     ),
 ]
@@ -590,7 +594,7 @@ example_6_expected = DisambiguationGuidelineMatchesSchema(
         ),
         GuidelineCheck(
             guideline_id="2",
-            short_evaluation="therapy can't be relevant",
+            short_evaluation="psychologist can't be relevant",
             requires_disambiguation=False,
         ),
         GuidelineCheck(
