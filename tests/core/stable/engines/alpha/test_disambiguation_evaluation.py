@@ -119,10 +119,6 @@ GUIDELINES_DICT = {
         "condition": "the customer is regular and ask for a refund on a flight to travel credit",
         "action": "Refund as travel credit with a fee",
     },
-    "regular_refund": {  # TODO - should not add to group a non optional guideline, right?
-        "condition": "the customer is regular and ask for a refund on a flight to original payment method",
-        "action": "explain that we don't do full refund",
-    },
     "regular_reschedule": {
         "condition": "the customer is regular and they ask for rescheduling the flight",
         "action": "do rescheduling with a fee",
@@ -300,8 +296,8 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
         customer,
         context_variables,
         interaction_history,
-        capabilities,
         terms,
+        capabilities,
         staged_events,
     )
 
@@ -439,7 +435,7 @@ async def test_that_ambiguity_detected_with_relevant_guidelines_3(
         "freeze_card",
         "dispute_charge",
     ]
-    # TODO report lost card is not really likely, but better offer not very relevant options then omit ones.
+    # report lost card is not really likely, but better offer not very relevant options then omit ones.
     #  It sometimes add it and sometimes not so for now i dont include it in the test
     disambiguating_guidelines = [
         "lock_card",
