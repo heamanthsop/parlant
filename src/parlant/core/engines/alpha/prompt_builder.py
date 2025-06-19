@@ -362,8 +362,9 @@ When providing your full response, list offered capabilities under the "offered_
             self.add_section(
                 name=BuiltInSection.CAPABILITIES,
                 template="""
-When evaluating guidelines, you may sometimes be given capabilities to assist the customer. 
-However, in this case, no capabilities relevant to the current state of the conversation were found.
+When evaluating guidelines, you may sometimes be given capabilities to assist the customer beyond those dictated through guidelines and journeys. 
+However, in this case, no capabilities relevant to the current state of the conversation were found, besides the ones potentially listed in other sections of this prompt.
+
 
 """,
                 props={},
