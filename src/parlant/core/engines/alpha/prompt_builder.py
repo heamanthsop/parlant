@@ -449,6 +449,7 @@ If a conversation is already in progress along a journey path, continue with the
 1. Identify which steps have already been completed
 2. Perform only the next logical step (either by the journey's steps or by your deduction) in the sequence
 3. Reserve subsequent steps for later in the conversation
+4. If the customer changes their decision regarding earlier journey steps, return to the step where the change occurred, and continue from there.
 
 Follow each journey exactly as specified. If a journey indicates multiple actions should be taken in a single step, follow those instructions. Otherwise, take only one step at a time to avoid overwhelming the user.
 
