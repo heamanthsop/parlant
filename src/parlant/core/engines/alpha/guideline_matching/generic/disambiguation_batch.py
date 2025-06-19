@@ -87,9 +87,6 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
             )
             self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
 
-            with open("output_disambiguation.txt", "a") as f:
-                f.write(inference.content.model_dump_json(indent=2))
-
         metadata: dict[str, JSONSerializable] = {}
 
         if inference.content.is_ambiguous:
@@ -283,8 +280,7 @@ OUTPUT FORMAT
                 "result_structure_text": self._format_of_guideline_check_json_description(),
             },
         )
-        with open("prompt_disambiguation.txt", "w") as f:
-            f.write(builder.build())
+
         return builder
 
     def _format_of_guideline_check_json_description(self) -> str:
