@@ -24,12 +24,12 @@ from parlant.core.shots import Shot, ShotCollection
 class GuidelineCheck(DefaultBaseModel):
     guideline_id: str
     short_evaluation: str
-    is_relevant: bool
+    requires_disambiguation: bool
 
 
 class DisambiguationGuidelineMatchesSchema(DefaultBaseModel):
     rationale: str
-    is_disambiguate: bool
+    is_ambiguous: bool
     guidelines: Optional[list[GuidelineCheck]] = []
     clarification_action: Optional[str] = ""
 
@@ -92,11 +92,11 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
 
         metadata: dict[str, JSONSerializable] = {}
 
-        if inference.content.is_disambiguate:
+        if inference.content.is_ambiguous:
             guidelines: list[str] = [
                 self._guideline_ids[g.guideline_id]
                 for g in inference.content.guidelines or []
-                if g.is_relevant
+                if g.requires_disambiguation
             ]
 
             disambiguation_data: JSONSerializable = {
@@ -109,7 +109,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         matches = [
             GuidelineMatch(
                 guideline=self._guideline_head,
-                score=10 if inference.content.is_disambiguate else 1,
+                score=10 if inference.content.is_ambiguous else 1,
                 rationale=f'''Not previously applied matcher rationale: "{inference.content.rationale}"''',
                 guideline_previously_applied=PreviouslyAppliedType.NO,
                 metadata=metadata,
@@ -289,17 +289,17 @@ OUTPUT FORMAT
 
     def _format_of_guideline_check_json_description(self) -> str:
         result = {
-            "rationale": "<str, Explanation for why there is or isn't a disambiguation>",
-            "is_disambiguate": "<BOOL>",
-            "guidelines (include only if is_disambiguate is true)": [
+            "rationale": "<str, Explanation for why there is or isn't an ambiguity>",
+            "is_ambiguous": "<BOOL>",
+            "guidelines (include only if is_ambiguous is true)": [
                 {
                     "guideline_id": i,
-                    "short_evaluation": "<str. Brief explanation of is this guideline is relevant>",
-                    "is_relevant": "<BOOL>",
+                    "short_evaluation": "<str. Brief explanation of is this guideline needs disambiguation>",
+                    "requires_disambiguation": "<BOOL>",
                 }
                 for i in self._guideline_ids.keys()
             ],
-            "clarification_action": "<include only if is_disambiguate is true. An action of the form ask the user whether they want to...>",
+            "clarification_action": "<include only if is_ambiguous is true. An action of the form ask the user whether they want to...>",
         }
         return json.dumps(result, indent=4)
 
@@ -342,18 +342,18 @@ example_1_guideline_head = GuidelineContent(
 )
 
 example_1_expected = DisambiguationGuidelineMatchesSchema(
-    rationale="The customer got the wrong item and need to decide whether to replace it or get a refund",
-    is_disambiguate=True,
+    rationale="The customer received the wrong item and may want to either replace it or get a refund.",
+    is_ambiguous=True,
     guidelines=[
         GuidelineCheck(
             guideline_id="1",
             short_evaluation="may want to refund the wrong item",
-            is_relevant=True,
+            requires_disambiguation=True,
         ),
         GuidelineCheck(
             guideline_id="2",
             short_evaluation="may want to replace the wrong item",
-            is_relevant=True,
+            requires_disambiguation=True,
         ),
     ],
     clarification_action="ask the customer whether they’d prefer a replacement or a refund.",
@@ -390,25 +390,25 @@ example_2_guideline_head = GuidelineContent(
 
 example_2_expected = DisambiguationGuidelineMatchesSchema(
     rationale="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
-    is_disambiguate=True,
+    is_ambiguous=True,
     guidelines=[
         GuidelineCheck(
             guideline_id="1",
             short_evaluation="the appointment is with a doctor",
-            is_relevant=True,
+            requires_disambiguation=True,
         ),
         GuidelineCheck(
             guideline_id="2",
             short_evaluation="therapy is not relevant",
-            is_relevant=False,
+            requires_disambiguation=False,
         ),
         GuidelineCheck(
             guideline_id="3",
             short_evaluation="online appointment can be relevant",
-            is_relevant=True,
+            requires_disambiguation=True,
         ),
     ],
-    clarification_action="Ask the customer if they prefer an online or in person appointment to the doctor",
+    clarification_action="Ask the customer if they prefer an online or in person doctor’s appointment",
 )
 
 
@@ -441,8 +441,8 @@ example_3_guideline_head = GuidelineContent(
 )
 
 example_3_expected = DisambiguationGuidelineMatchesSchema(
-    rationale="The customer asks to book an online appointment. Since they mention needing a prescription, it likely relates to a medical consultation, not therapy.",
-    is_disambiguate=False,
+    rationale="The customer requests an online appointment and mentions needing a prescription, which suggests a medical consultation",
+    is_ambiguous=False,
 )
 
 
@@ -486,7 +486,7 @@ example_4_guideline_head = GuidelineContent(
 
 example_4_expected = DisambiguationGuidelineMatchesSchema(
     rationale="The customer asks to book an appointment. Online sessions are not available. Since they mention hurting throat, it likely relates to a medical consultation, not a psychologist.",
-    is_disambiguate=False,
+    is_ambiguous=False,
 )
 
 example_5_events = [
@@ -524,10 +524,88 @@ example_5_guideline_head = GuidelineContent(
 )
 
 example_5_expected = DisambiguationGuidelineMatchesSchema(
-    rationale="The agent just asked what return option the customer prefer, and the customer should answer. The is no new ambiguity to clarify",
-    is_disambiguate=False,
+    rationale="There is a new disambiguated request. Need to clarify whether it's with a doctor or a psychologist, and whether it should be online or in person",
+    is_ambiguous=True,
+    guidelines=[
+        GuidelineCheck(
+            guideline_id="1",
+            short_evaluation="the appointment may be with a doctor",
+            requires_disambiguation=True,
+        ),
+        GuidelineCheck(
+            guideline_id="2",
+            short_evaluation="therapy may be relevant",
+            requires_disambiguation=True,
+        ),
+        GuidelineCheck(
+            guideline_id="3",
+            short_evaluation="online appointment can be relevant",
+            requires_disambiguation=True,
+        ),
+    ],
+    clarification_action="Ask the customer if they need a doctor or psychologist appointment and if they prefer an online or in person session",
 )
 
+
+example_6_events = [
+    _make_event(
+        "11",
+        EventSource.CUSTOMER,
+        "Hey, can you book me an appointment? I need a prescription. And also I need to a therapy session with my wife in your office.",
+    ),
+]
+
+example_6_guidelines = [
+    GuidelineContent(
+        condition="The customer asks to book an appointment with a doctor",
+        action="book the appointment",
+    ),
+    GuidelineContent(
+        condition="The customer asks to book a therapy session",
+        action="book the appointment",
+    ),
+    GuidelineContent(
+        condition="The customer asks to book an online appointment to a medical consultation or therapy session (psychologist)",
+        action="book the appointment online",
+    ),
+    GuidelineContent(
+        condition="The customer asks to book an in person appointment to a medical consultation or therapy session (psychologist)",
+        action="book the in person appointment",
+    ),
+]
+
+example_6_guideline_head = GuidelineContent(
+    condition="The customer wants to book an appointment, but it’s unclear whether it should be online or in-person. They say prescription so they need a doctor.",
+    action="-",
+)
+
+example_6_expected = DisambiguationGuidelineMatchesSchema(
+    rationale="For the first appointment there is an ambiguity. Need to clarify a doctor or a psychologist, and should it be online or in person",
+    is_ambiguous=True,
+    guidelines=[
+        GuidelineCheck(
+            guideline_id="1",
+            short_evaluation="need a doctor",
+            requires_disambiguation=False,
+        ),
+        GuidelineCheck(
+            guideline_id="2",
+            short_evaluation="therapy can't be relevant",
+            requires_disambiguation=False,
+        ),
+        GuidelineCheck(
+            guideline_id="3",
+            short_evaluation="online appointment can be relevant",
+            requires_disambiguation=True,
+        ),
+        GuidelineCheck(
+            guideline_id="4",
+            short_evaluation="in person appointment can be relevant",
+            requires_disambiguation=True,
+        ),
+    ],
+    clarification_action="Ask the customer if they prefer an online or in person session",
+)
 
 _baseline_shots: Sequence[DisambiguationGuidelineMatchingShot] = [
     DisambiguationGuidelineMatchingShot(
@@ -559,11 +637,18 @@ _baseline_shots: Sequence[DisambiguationGuidelineMatchingShot] = [
         expected_result=example_4_expected,
     ),
     DisambiguationGuidelineMatchingShot(
-        description="Disambiguation resolves based on the interaction",
+        description="New ambiguous request",
         interaction_events=example_5_events,
         guidelines=example_5_guidelines,
         guideline_head=example_5_guideline_head,
         expected_result=example_5_expected,
+    ),
+    DisambiguationGuidelineMatchingShot(
+        description="Several requests, one needs disambiguation",
+        interaction_events=example_6_events,
+        guidelines=example_6_guidelines,
+        guideline_head=example_6_guideline_head,
+        expected_result=example_6_expected,
     ),
 ]
 
