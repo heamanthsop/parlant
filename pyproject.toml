@@ -18,7 +18,7 @@ aiopenapi3 = "0.8.1"
 aiorwlock = "^1.5.0"
 boto3 = "^1.35.70"
 chromadb = "0.5.17"
-click = "^8.2.1"
+click = "^8.1.7"
 click-completion = "^0.5.2"
 colorama = "^0.4.6"
 coloredlogs = "^15.0.1"
@@ -36,7 +36,7 @@ networkx = { extras = ["default"], version = "^3.3" }
 openai = "^1.45.0"
 openapi3-parser = "1.1.21"
 opentelemetry-exporter-otlp-proto-grpc = "1.27.0"
-parlant-client = { git = "https://github.com/emcie-co/parlant-client-python.git", tag = "develop.1749993461" }
+parlant-client = { git = "https://github.com/emcie-co/parlant-client-python.git", tag = "develop.1748503807" }
 python = "^3.10"
 python-dateutil = "^2.8.2"
 python-dotenv = "^1.0.1"

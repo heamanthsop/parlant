@@ -817,9 +817,6 @@ Produce a valid JSON object in the following format: ###
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
-        with open("Message generator prompt.txt", "a") as f:
-            f.write("\n\n RESPONSE: \n" + message_event_response.content.model_dump_json(indent=2))
-
         if (
             message_event_response.content.produced_reply is False
             or not message_event_response.content.revisions
