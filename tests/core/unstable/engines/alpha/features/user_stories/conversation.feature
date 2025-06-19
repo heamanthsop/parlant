@@ -112,3 +112,21 @@ Scenario: The agent adhering the clarification guideline when disambiguation nee
         Then a single message event is emitted
         And the message contains a suggestion to book snake roller coaster or turtle roller coaster
 
+Scenario: The agent reask for clarification when disambiguation needed and customer hasn't responded
+        Given an agent
+        And an empty session
+        And a guideline "snake_roller_coaster" to book it when the customer asks for the snake roller coaster
+        And a guideline "turtle_roller_coaster" to book it when the customer asks for the turtle roller coaster
+        And a guideline "tiger_Ferris_wheel" to book it when the customer asks for the tiger Ferris wheel
+        And a disambiguation head "amusement_park" when the customer asks to book a ticket to an amusement ride or attraction, and its not clear which one
+        And a guideline "snake_roller_coaster" is grouped under "amusement_park"
+        And a guideline "turtle_roller_coaster" is grouped under "amusement_park"
+        And a guideline "tiger_Ferris_wheel" is grouped under "amusement_park"
+        And a customer message, "Can I order one ticket to the roller coaster?"
+        And an agent message, "Sure, which roller coaster did you mean, snake roller coaster or turtle roller coaster?"
+        And a customer message, "Roller coaster"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to book snake roller coaster or turtle roller coaster
+
+
