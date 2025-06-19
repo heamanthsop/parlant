@@ -827,9 +827,12 @@ class AlphaEngine(Engine):
         tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
             guideline_matches=all_relevant_guidelines,
         )
-        ordinary_guidelines = list(
-            set(all_relevant_guidelines).difference(tool_enabled_guidelines),
-        )
+
+        tool_enabled_ids = {g.guideline.id for g in tool_enabled_guidelines.keys()}
+
+        ordinary_guidelines = [
+            g for g in all_relevant_guidelines if g.guideline.id not in tool_enabled_ids
+        ]
 
         return matching_result, ordinary_guidelines, tool_enabled_guidelines, journeys
 
