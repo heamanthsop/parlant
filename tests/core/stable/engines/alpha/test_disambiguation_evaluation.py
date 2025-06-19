@@ -6,6 +6,7 @@ from lagom import Container
 from pytest import fixture
 
 from parlant.core.agents import Agent
+from parlant.core.capabilities import Capability
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.context_variables import (
     ContextVariable,
@@ -251,19 +252,20 @@ async def create_guideline_by_name(
     return guideline
 
 
-async def base_test_that_disambiguation_detected_with_relevant_guidelines(
+async def base_test_that_ambiguity_detected_with_relevant_guidelines(
     context: ContextOfTest,
     agent: Agent,
     session: Session,
     customer: Customer,
     conversation_context: list[tuple[EventSource, str]],
     head_condition: str,
-    is_disambiguate: bool,
+    is_ambiguous: bool,
     to_disambiguate_guidelines_names: list[str],
     disambiguating_guideline_names: list[str],
     clarification_must_contain: str = "",
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
+    capabilities: Sequence[Capability] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     interaction_history = [
@@ -298,6 +300,7 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
         customer,
         context_variables,
         interaction_history,
+        capabilities,
         terms,
         staged_events,
     )
@@ -310,11 +313,11 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
     )
     result = await disambiguation_resolver.process()
 
-    assert (result.matches[0].score == 10) == is_disambiguate
+    assert (result.matches[0].score == 10) == is_ambiguous
 
     data = result.matches[0].metadata
     if data and isinstance(data, dict):
-        if is_disambiguate:
+        if is_ambiguous:
             disambiguation = data.get("disambiguation")
             assert disambiguation, "Disambiguation key missing or falsy"
 
@@ -332,7 +335,7 @@ async def base_test_that_disambiguation_detected_with_relevant_guidelines(
                     ), f"clarification message: '{clarification}', expected to contain: '{clarification_must_contain}'"
 
 
-async def test_that_disambiguation_detected_with_relevant_guidelines(
+async def test_that_ambiguity_detected_with_relevant_guidelines(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -356,21 +359,21 @@ async def test_that_disambiguation_detected_with_relevant_guidelines(
     ]
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
     clarification_must_contain = "snake roller coaster and turtle roller coaster as options"
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
     )
 
 
-async def test_that_disambiguation_detected_with_relevant_guidelines_2(
+async def test_that_ambiguity_detected_with_relevant_guidelines_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -402,21 +405,21 @@ async def test_that_disambiguation_detected_with_relevant_guidelines_2(
     clarification_must_contain = (
         "option to report lost card, to lock or freeze it or replace it with a new one"
     )
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
     )
 
 
-async def test_that_disambiguation_detected_with_relevant_guidelines_3(
+async def test_that_ambiguity_detected_with_relevant_guidelines_3(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -449,21 +452,21 @@ async def test_that_disambiguation_detected_with_relevant_guidelines_3(
     clarification_must_contain = (
         "option to report to lock or freeze the card, report stealing, or dispute a charge"
     )
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
     )
 
 
-async def test_that_disambiguation_detected_based_on_context_variable(
+async def test_that_ambiguity_detected_based_on_context_variable(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -498,14 +501,14 @@ async def test_that_disambiguation_detected_based_on_context_variable(
     ]
     head_condition = CONDITION_HEAD_DICT["cancel_flight"]
     clarification_must_contain = "options to cancel the flight, totally cancel or get a refund to payment method or to travel credit"
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
@@ -513,7 +516,7 @@ async def test_that_disambiguation_detected_based_on_context_variable(
     )
 
 
-async def test_that_disambiguation_detected_based_on_context_variable_2(
+async def test_that_ambiguity_detected_based_on_context_variable_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -550,14 +553,14 @@ async def test_that_disambiguation_detected_based_on_context_variable_2(
     clarification_must_contain = (
         "options to reschedule the flight, totally cancel or get a refund to travel credit"
     )
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
@@ -565,7 +568,7 @@ async def test_that_disambiguation_detected_based_on_context_variable_2(
     )
 
 
-async def test_that_disambiguation_is_not_detected_when_there_is_no_disambiguation(
+async def test_that_ambiguity_is_not_detected_when_there_is_no_ambiguity(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -584,29 +587,20 @@ async def test_that_disambiguation_is_not_detected_when_there_is_no_disambiguati
     ]
     disambiguating_guidelines: list[str] = []
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=False,
+        is_ambiguous=False,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
     )
 
 
-async def test_that_disambiguation_detected_with_relevant_guidelines_and_other_non_ambiguous_guidelines_are_matched(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    return
-
-
-async def test_that_disambiguation_is_not_detected_when_not_needed_based_on_earlier_part_of_the_conversation(
+async def test_that_ambiguity_is_not_detected_when_not_needed_based_on_earlier_part_of_the_conversation(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -633,14 +627,14 @@ async def test_that_disambiguation_is_not_detected_when_not_needed_based_on_earl
     ]
     disambiguating_guidelines: list[str] = []
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=False,
+        is_ambiguous=False,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
     )
@@ -691,20 +685,172 @@ async def test_that_when_agent_already_asked_for_clarification_new_clarification
     ]
     disambiguating_guidelines: list[str] = []
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=False,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
     )
 
 
-async def test_that_disambiguation_is_detected_when_previously_applied_and_should_reapply(
+async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_doesnot_created_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I can’t find my card. I think I lost it in my house",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I know that it's lost",
+        ),
+    ]
+
+    to_disambiguate_guidelines = [
+        "report_lost",
+        "lock_card",
+        "report_stealing",
+        "replacement_card",
+        "freeze_card",
+        "report_to_police",
+        "dispute_charge",
+    ]
+    disambiguating_guidelines = [
+        "report_lost",
+        "lock_card",
+        "replacement_card",
+        "freeze_card",
+    ]
+    head_condition = CONDITION_HEAD_DICT["lost_card"]
+    clarification_must_contain = (
+        "option to report lost card, to lock or freeze it or replace it with a new one"
+    )
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+    )
+
+
+async def test_that_ambiguity_is_not_detected_when_agent_asked_for_clarification_but_customer_changed_its_mind(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I can’t find my card. I think I lost it in my house",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Actually I found it. All good",
+        ),
+    ]
+
+    to_disambiguate_guidelines = [
+        "report_lost",
+        "lock_card",
+        "report_stealing",
+        "replacement_card",
+        "freeze_card",
+        "report_to_police",
+        "dispute_charge",
+    ]
+    disambiguating_guidelines: list[str] = []
+    head_condition = CONDITION_HEAD_DICT["lost_card"]
+    clarification_must_contain = (
+        "option to report lost card, to lock or freeze it or replace it with a new one"
+    )
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=False,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+    )
+
+
+async def test_that_ambiguity_is_not_detected_when_agent_asked_for_clarification_but_customer_changed_subject(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I can’t find my card. I think I lost it in my house",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Actually I will handle this later. Can you check my balance?",
+        ),
+    ]
+
+    to_disambiguate_guidelines = [
+        "report_lost",
+        "lock_card",
+        "report_stealing",
+        "replacement_card",
+        "freeze_card",
+        "report_to_police",
+        "dispute_charge",
+    ]
+    disambiguating_guidelines: list[str] = []
+    head_condition = CONDITION_HEAD_DICT["lost_card"]
+    clarification_must_contain = (
+        "option to report lost card, to lock or freeze it or replace it with a new one"
+    )
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=False,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+    )
+
+
+async def test_that_ambiguity_is_detected_when_previously_applied_and_should_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -742,14 +888,14 @@ async def test_that_disambiguation_is_detected_when_previously_applied_and_shoul
     disambiguating_guidelines: list[str] = ["children_colliding_cars", "adult_colliding_cars"]
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
     clarification_must_contain = "options to adult colliding cars or children colliding cars"
-    await base_test_that_disambiguation_detected_with_relevant_guidelines(
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
         new_session,
         customer,
         conversation_context,
         head_condition,
-        is_disambiguate=True,
+        is_ambiguous=True,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
