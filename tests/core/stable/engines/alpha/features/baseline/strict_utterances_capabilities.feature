@@ -70,7 +70,6 @@ Feature: Strict Utterance Capabilities
         And the message contains that the agent cannot help with the request or does not understand it.
         And the message contains no mention of credit card or account Limits
 
-    # TODO change next test
     Scenario: Agent doesn't hallucinate field details regarding an available capability (strict utterance)
         Given the capability "cancel_subscription"
         And the capability "switch_delivery_method"
@@ -78,6 +77,7 @@ Feature: Strict Utterance Capabilities
         And the capability "check_balance"
         And an utterance, "I understand that you wish to reduce carbon emissions. I recommend using {{generative.low_emission_shipping}} to achieve that." 
         And an utterance, "I apologize, but I have no information about {{generative.unanswerable_request}}."
+        And an utterance, "I can help you switch the delivery method for your order. We offer we offer UPS, FEDEX, or private courier. Unfortunately though, I have no information regarding {{generative.unsupported_question}}?"
         And an utterance, "I can check the status of your order for you."
         And an utterance, "Our company is committed to eco-friendly practices, and all our shipping options are low-emission."
         And a customer message, "Hey, I want help checking if my order has been shipped"
