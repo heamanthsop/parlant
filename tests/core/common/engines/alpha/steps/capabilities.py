@@ -22,7 +22,7 @@ from tests.core.common.utils import ContextOfTest
 CAPABILITIES: dict[str, dict[str, Any]] = {
     "offer_loan": {
         "title": "offer_loan",
-        "description": "You can offer a loan of up to 10,000$ to the customer.",
+        "description": "You can offer a loan of up to 10,000$ to the customer. The lone is immediately added to the customer's balance.",
         "queries": ["offering loan", "low balance", "increase balance", "need more money"],
     },
     "replace_card": {
@@ -80,7 +80,7 @@ CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     "switch_delivery_method": {
         "title": "switch_delivery_method",
-        "description": "Allow the customer to change the shipping or delivery method for an existing order that has not yet been shipped.",
+        "description": "Allow the customer to change the shipping or delivery method for an existing order that has not yet been shipped. Possible options are UPS, FEDEX, or private courier.",
         "queries": [
             "change my shipping method",
             "switch delivery service",

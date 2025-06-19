@@ -346,9 +346,11 @@ Supported Capability {i}: {capability.title}
 Below are the capabilities available to you as an agent.
 You may inform the customer that you can assist them using these capabilities.
 If you choose to use any of them, additional details will be provided in your next response.
+Always prefer adhering to guidelines and relevant journey steps, before offering capabilities - only offer capabilities if you have no other instruction that's relevant for the current stage of the interaction.
 Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
 If multiple capabilities are appropriate, aim to present them all to the customer.
 If none of the capabilities address the current request of the customer - DO NOT MENTION THEM.
+When providing your full response, list offered capabilities under the "offered_services" key, and not under "factual_information_provided". 
 ###
 {capabilities_string}
 ###

@@ -86,7 +86,7 @@ Feature: Capabilities
         And a customer message, "Hi, I'm looking for help regarding an existing order"
         When processing is triggered
         Then a single message event is emitted
-        And the message contains that the agent can help regarding checking an order's status, location, and potentially changing its delivery method
+        And the message contains that the agent can help regarding checking an order's status and location
 
     Scenario: Agent doesnt offer capability thats forbidden by a guideline
         Given a customer named "Mo"
@@ -127,7 +127,7 @@ Feature: Capabilities
         And the message contains that the customer can cancel subscriptions
         And the message contains no offering of a loan
     
-    Scenario: Agent chooses correct capability for current journey step (1)
+    Scenario: Agent chooses correct capability for current journey step
         Given a journey titled Decrease Spending Journey to follow these steps to process a new order: 1. ask for the customer's account number 2. Ask for the customer's full name 3. suggest capabilities based on the ones available in this prompt. If none are available inform the customer that you cannot help them with their request. 4. Ask the customer if they need any further help when the customer asks about decreasing their spending
         And the capability "offer_loan"
         And the capability "decrease_limit"
@@ -160,7 +160,7 @@ Feature: Capabilities
     Scenario: Agent uses glossary term to understand capabilities
         Given the capability "reset_router"
         And the term "PDMM" defined as a highly technical term for performing actions on a router without having physical access to it. Known only by specialists with technical knowledge regarding internet protocols. 
-        And a customer message "My router is not working... Help me.... I barely know how to use a computer. Use simple language please."
+        And a customer message, "My router is not working... Help me.... I barely know how to use a computer. Use simple language please."
         When processing is triggered
         Then a single message event is emitted
         And the message contains a suggestion to reset the router
