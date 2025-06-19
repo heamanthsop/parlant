@@ -65,7 +65,7 @@ class MCPToolServer:
     async def __aenter__(self) -> MCPToolServer:
         self._task = asyncio.create_task(self._server.run_async(transport=self.transport))
 
-        start_timeout = 5
+        start_timeout = 10
         sample_frequency = 0.1
 
         for _ in range(int(start_timeout / sample_frequency)):

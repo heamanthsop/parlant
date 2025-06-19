@@ -965,7 +965,8 @@ async def test_that_mcp_tool_with_optional_list_of_enums_can_run(
         results = await tool_caller.execute_tool_calls(context, tool_calls)
 
     assert len(results) == 1
-    assert "Delivering birds: " in results[0].result["data"]
+    result_data = results[0].result["data"]
+    assert isinstance(result_data, str) and "Delivering birds: " in result_data
 
 
 async def test_that_tool_calling_batchers_can_be_overridden(
