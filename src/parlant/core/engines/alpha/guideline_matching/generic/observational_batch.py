@@ -255,8 +255,6 @@ Expected Output
                 "guidelines_len": len(self._guidelines),
             },
         )
-        with open("Observational prompt.txt", "w") as f:
-            f.write(builder.build())  # TODO delete
 
         return builder
 

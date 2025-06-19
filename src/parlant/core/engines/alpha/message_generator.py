@@ -666,8 +666,6 @@ Produce a valid JSON object in the following format: ###
                 "guidelines": actionable_guidelines,
             },
         )
-        with open("Message generator prompt.txt", "w") as f:
-            f.write(builder.build())  # TODO delete
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:

@@ -440,11 +440,11 @@ class CapabilityVectorStore(CapabilityStore):
                 )
 
     @override
-    async def find_relevant_capabilities(  # TODO ask Dor about this
+    async def find_relevant_capabilities(
         self,
         query: str,
         available_capabilities: Sequence[Capability],
-        max_capabilities: int = 20,
+        max_capabilities: int = 3,
     ) -> Sequence[Capability]:
         if not available_capabilities:
             return []
@@ -459,9 +459,7 @@ class CapabilityVectorStore(CapabilityStore):
 
         async with self._lock.reader_lock:
             queries = [query]
-            filters: Where = {
-                "capability_id": {"$in": [str(c.id) for c in available_capabilities]}
-            }  # TODO ask Dor why are we having IDs here?
+            filters: Where = {"capability_id": {"$in": [str(c.id) for c in available_capabilities]}}
 
             tasks = [
                 self._collection.find_similar_documents(
