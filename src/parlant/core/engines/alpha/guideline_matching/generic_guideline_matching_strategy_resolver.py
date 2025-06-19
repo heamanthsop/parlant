@@ -220,8 +220,9 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
 
         for m in matches:
             if (
-                m.metadata and m.metadata.get("disambiguation")
-            ) or m.guideline.id in guidelines_to_skip:
+                not (m.metadata and m.metadata.get("disambiguation"))
+                and m.guideline.id not in guidelines_to_skip
+            ):
                 result.append(m)
 
         return result
