@@ -891,7 +891,7 @@ async def test_that_mcp_tool_with_uuid_path_timedelta_and_datetime_parameters_in
     )
 
 
-async def test_that_mcp_tool_with_optional_list_of_enums_can_run(
+async def test_that_mcp_tool_with_optional_lists_of_enum_date_and_bool_can_run(
     container: Container,
     agent: Agent,
 ) -> None:
@@ -908,15 +908,20 @@ async def test_that_mcp_tool_with_optional_list_of_enums_can_run(
     async def prepare_bird_delivery(
         date: Optional[date],
         birds: Optional[list[BirdType]],
+        alive: list[bool],
     ) -> str:
         if birds is None:
             return "No birds to deliver"
-        return "Delivering birds: " + ", ".join(str(bird) for bird in birds)
+        return (
+            "Delivering birds: "
+            + ", ".join(str(bird) for bird in birds)
+            + f" on {date}, alive: {alive}"
+        )
 
     conversation_context = [
         (
             EventSource.CUSTOMER,
-            "Hi, please prepare the following list of birds for delivery for 1/1/25: AngryBird, Parrot, Kakadu and Schnitzel",
+            "Hi, please prepare the following list of birds for delivery for 1/1/25: AngryBird, Parrot, Kakadu and Schnitzel. first 3 are alive, but the schnitzel is not alive",
         ),
     ]
 
@@ -954,13 +959,12 @@ async def test_that_mcp_tool_with_optional_list_of_enums_can_run(
 
         tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
         assert len(tool_calls) == 1
-        assert len(tool_calls[0].arguments) == 2
+        assert len(tool_calls[0].arguments) == 3
 
         tc = tool_calls[0]
         assert tc.arguments["date"] == str(date(2025, 1, 1))
-        # assert tc.arguments["birds"] == str(
-        #     [BirdType.Angry, BirdType.Chatty, BirdType.Funny, BirdType.Fried]
-        # )
+        assert "birds" in tc.arguments
+        assert str(tc.arguments["alive"]).lower() == str([True, True, True, False]).lower()
 
         results = await tool_caller.execute_tool_calls(context, tool_calls)
 

@@ -325,7 +325,7 @@ def split_arg_list(argument: str | list[Any], item_type: str) -> list[str]:
         # Split list is used for most types so we won't have to rely on the LLM to provide pythonic syntax
         list_str = argument.strip()
         if list_str.startswith("[") and list_str.endswith("]"):
-            return list_str[1:-1].split(",")
+            return list_str[1:-1].split(", ")
         raise ValueError(f"Invalid list format for argument '{argument}'")
 
 
