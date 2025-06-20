@@ -15,6 +15,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import heapq
 from itertools import chain
 import json
 import time
@@ -449,11 +450,10 @@ class CapabilityVectorStore(CapabilityStore):
         if not available_capabilities:
             return []
 
-        n_result = len(
-            list(
-                chain.from_iterable(
-                    self._list_capability_contents(c) for c in available_capabilities
-                )
+        n_result = sum(
+            heapq.nlargest(
+                max_capabilities,
+                [len(self._list_capability_contents(c)) for c in available_capabilities],
             )
         )
 
