@@ -824,44 +824,40 @@ class AlphaEngine(Engine):
 
         # Step 6: Distinguish between ordinary and tool-enabled guidelines.
         # We do this here as it creates a better subsequent control flow in the engine.
-        (
-            ordinary_guidelines,
-            tool_enabled_guidelines,
-        ) = await self._group_guidelines_by_tool_enablement(
+        tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
             guideline_matches=all_relevant_guidelines,
+        )
+
+        ordinary_guidelines = list(
+            set(all_relevant_guidelines).difference(tool_enabled_guidelines),
         )
 
         return matching_result, ordinary_guidelines, tool_enabled_guidelines, journeys
 
-    async def _group_guidelines_by_tool_enablement(
+    async def _find_tool_enabled_guideline_matches(
         self,
         guideline_matches: Sequence[GuidelineMatch],
-    ) -> tuple[list[GuidelineMatch], dict[GuidelineMatch, list[ToolId]]]:
-        """Splits the provided guideline matches into ordinary and tool-enabled guidelines.
+    ) -> dict[GuidelineMatch, list[ToolId]]:
+        # Create a convenient accessor dict for tool-enabled guidelines (and their tools).
+        # This allows for optimized control and data flow in the engine.
 
-        Returns a tuple containing:
-          - A sequence of ordinary guidelines (those without tool associations).
-          - A dictionary mapping each tool-enabled guideline to its associated list of ToolIds.
-        """
-        ordinary_guidelines: list[GuidelineMatch] = []
-        tools_for_guidelines: dict[GuidelineMatch, list[ToolId]] = defaultdict(list)
-
-        tool_enablement_guidelines: set[GuidelineId] = set([])
-
+        guideline_tool_associations = list(
+            await self._entity_queries.find_guideline_tool_associations()
+        )
         guideline_matches_by_id = {p.guideline.id: p for p in guideline_matches}
 
-        for association in await self._entity_queries.find_guideline_tool_associations():
-            if association.guideline_id in guideline_matches_by_id:
-                tools_for_guidelines[guideline_matches_by_id[association.guideline_id]].append(
-                    association.tool_id
-                )
-                tool_enablement_guidelines.add(association.guideline_id)
+        relevant_associations = [
+            a for a in guideline_tool_associations if a.guideline_id in guideline_matches_by_id
+        ]
 
-        for m in guideline_matches:
-            if m.guideline.id not in tool_enablement_guidelines:
-                ordinary_guidelines.append(m)
+        tools_for_guidelines: dict[GuidelineMatch, list[ToolId]] = defaultdict(list)
 
-        return ordinary_guidelines, tools_for_guidelines
+        for association in relevant_associations:
+            tools_for_guidelines[guideline_matches_by_id[association.guideline_id]].append(
+                association.tool_id
+            )
+
+        return dict(tools_for_guidelines)
 
     async def _load_capabilities(self, context: LoadedContext) -> Sequence[Capability]:
         # Capabilities are retrieved using semantic similarity.
