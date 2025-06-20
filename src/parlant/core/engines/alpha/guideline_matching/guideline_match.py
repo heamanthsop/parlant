@@ -38,7 +38,7 @@ class GuidelineMatch:
     metadata: Optional[Mapping[str, JSONSerializable]] = None
 
     def __hash__(self) -> int:
-        return hash(self.guideline.id)
+        return hash(f"{self.guideline.id}_{self.score}_{self.rationale}")
 
 
 @dataclass(frozen=True)

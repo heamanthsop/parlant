@@ -4,7 +4,7 @@ from typing import Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 
-from parlant.core.common import JSONSerializable
+from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
     DisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
@@ -37,7 +37,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategy,
     GuidelineMatchingStrategyResolver,
 )
-from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId, GuidelineStore
+from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.relationships import (
@@ -52,7 +52,6 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         logger: Logger,
         relationship_store: RelationshipStore,
-        guideline_store: GuidelineStore,
         observational_guideline_schematic_generator: SchematicGenerator[
             GenericObservationalGuidelineMatchesSchema
         ],
@@ -72,7 +71,6 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
     ) -> None:
         self._logger = logger
         self._relationship_store = relationship_store
-        self._guideline_store = guideline_store
 
         self._observational_guideline_schematic_generator = (
             observational_guideline_schematic_generator
@@ -197,7 +195,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 result.append(
                     GuidelineMatch(
                         guideline=Guideline(
-                            id=cast(GuidelineId, "<transient>"),
+                            id=cast(GuidelineId, f"<transient_{generate_id()}>"),
                             creation_utc=datetime.now(),
                             content=GuidelineContent(
                                 condition=m.guideline.content.condition,
