@@ -37,6 +37,9 @@ class GuidelineMatch:
     guideline_previously_applied: PreviouslyAppliedType = PreviouslyAppliedType.NO
     metadata: Optional[Mapping[str, JSONSerializable]] = None
 
+    def __hash__(self) -> int:
+        return hash(self.guideline.id)
+
 
 @dataclass(frozen=True)
 class AnalyzedGuideline:
