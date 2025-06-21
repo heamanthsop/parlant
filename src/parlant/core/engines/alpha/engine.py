@@ -25,6 +25,7 @@ from typing import Optional, Sequence, cast
 from croniter import croniter
 from typing_extensions import override
 
+from parlant.core import async_utils
 from parlant.core.agents import Agent, AgentId, CompositionMode
 from parlant.core.capabilities import Capability
 from parlant.core.common import CancellationSuppressionLatch
@@ -404,12 +405,15 @@ class AlphaEngine(Engine):
         # Load the relevant context variable values.
         context.state.context_variables = await self._load_context_variables(context)
 
-        # Load relevant glossary terms, initially based
+        # Load relevant glossary terms and capabilities, initially based
         # mostly on the current interaction history.
-        context.state.glossary_terms.update(await self._load_glossary_terms(context))
+        glossary, capabilities = await async_utils.safe_gather(
+            self._load_glossary_terms(context),
+            self._load_capabilities(context),
+        )
 
-        # Load the relevant capabilities.
-        context.state.capabilities = list(await self._load_capabilities(context))
+        context.state.glossary_terms.update(glossary)
+        context.state.capabilities = list(capabilities)
 
     async def _run_preparation_iteration(
         self,
