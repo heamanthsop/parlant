@@ -103,6 +103,10 @@ from parlant.core.services.indexing.guideline_action_proposer import (
     GuidelineActionProposer,
     GuidelineActionPropositionSchema,
 )
+from parlant.core.services.indexing.guideline_agent_intention_proposer import (
+    AgentIntentionProposer,
+    AgentIntentionProposerSchema,
+)
 from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
@@ -370,6 +374,7 @@ async def container(
             GuidelineContinuousPropositionSchema,
             CustomerDependentActionSchema,
             GenericResponseAnalysisSchema,
+            AgentIntentionProposerSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
@@ -405,7 +410,7 @@ async def container(
         container[GuidelineActionProposer] = Singleton(GuidelineActionProposer)
         container[GuidelineContinuousProposer] = Singleton(GuidelineContinuousProposer)
         container[CustomerDependentActionDetector] = Singleton(CustomerDependentActionDetector)
-
+        container[AgentIntentionProposer] = Singleton(AgentIntentionProposer)
         container[LocalToolService] = cast(
             LocalToolService,
             await container[ServiceRegistry].update_tool_service(

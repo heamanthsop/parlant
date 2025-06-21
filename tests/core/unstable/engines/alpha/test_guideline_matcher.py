@@ -213,7 +213,7 @@ ACTIONABLE_GUIDELINES_DICT = {
         "action": "refuse payment as we only perform in-store purchases",
     },
     "cant_perform_request": {
-        "condition": "the customer wants to agent to perform an action that the agent is not designed for",
+        "condition": "the customer wants to agent to perform an action that you are not designed for",
         "action": "forward the request to a supervisor",
     },
     "announce_deals": {

@@ -230,7 +230,7 @@ ACTIONABLE_GUIDELINES_DICT = {
         "action": "refuse payment as we only perform in-store purchases",
     },
     "cant_perform_request": {
-        "condition": "the customer wants to agent to perform an action that the agent is not designed for",
+        "condition": "the customer wants to agent to perform an action that you are not designed for",
         "action": "forward the request to a supervisor",
     },
     "announce_deals": {
@@ -261,6 +261,26 @@ ACTIONABLE_GUIDELINES_DICT = {
     "many_actions": {
         "condition": "the customer asked a question about birds",
         "action": "answer their question enthusiastically, while not using punctuation. Also say that the kingfisher is your favorite bird",
+    },
+    "medical_record": {
+        "condition": "you are likely to discuss a patient's medical record",
+        "action": "Do not send any personal information",
+    },
+    "provide_diagnosis": {
+        "condition": "you are likely to provide a diagnosis or medical advice.",
+        "action": "Ensure the message includes a disclaimer that it is not a substitute for professional medical advice.",
+    },
+    "confirm_order": {
+        "condition": "you are likely to confirm a new order or a payment",
+        "action": "Re-verify item, price, and customer consent before proceeding",
+    },
+    "discuss_money": {
+        "condition": "you are likely to discuss account balances or transactions.",
+        "action": "Require customer authentication confirmation before responding.",
+    },
+    "human_resources": {
+        "condition": "you are likely going to share a candidate’s application status",
+        "action": "Avoid disclosing internal evaluation notes or third-party feedback",
     },
 }
 
@@ -2552,4 +2572,375 @@ async def test_that_irrelevant_guidelines_are_not_matched_parametrized_2(
         conversation_context,
         conversation_guideline_names,
         [],
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, can you let me know what my recent lab results say?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["medical_record"]
+    relevant_guideline_names = conversation_guideline_names
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_matched_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I've had a sore throat and a fever for three days. Do you think it’s strep?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = [
+        "provide_diagnosis",
+        "confirm_order",
+        "discuss_money",
+    ]
+    relevant_guideline_names = ["provide_diagnosis"]
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_matched_3(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey do you sell iPhone 15?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Absolutely! would you like to buy one?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes, go ahead and place the order for the iPhone 15.",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["confirm_order"]
+    relevant_guideline_names = conversation_guideline_names
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_matched_4(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Can you tell me my last 5 transactions?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["discuss_money"]
+    relevant_guideline_names = conversation_guideline_names
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_matched_5(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Just checking in - any update on my interview from last week?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["human_resources"]
+    relevant_guideline_names = conversation_guideline_names
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_not_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey do you sell iPhone 15?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Absolutely! would you like to buy one?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "How much does it cost?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["confirm_order"]
+    relevant_guideline_names: list[str] = []
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_is_not_matched_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey, do you sell iPhone 15? I want to buy one",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["confirm_order"]
+    relevant_guideline_names: list[str] = []
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_and_customer_dependent_action_that_was_previously_applied_is_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey do you sell iPhone 15?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Yes, we do! Would you like to place an order?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "How much does it cost?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "It’s currently on sale for $5,000",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Sounds good so I want to order one",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Great, so before proceeding I want to confirm - you like to order one iPhone 15 for 5000$",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Hmm let me check",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["confirm_order"]
+    relevant_guideline_names: list[str] = ["confirm_order"]
+    previously_matched_guidelines_names: list[str] = ["confirm_order"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+        previously_applied_guidelines_names=[],
+        previously_matched_guidelines_names=previously_matched_guidelines_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_that_was_previously_applied_is_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I've had a sore throat and a fever for three days. Do you think it’s strep?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I'm not a medical professional, so I can't provide a diagnosis. However, a sore "
+            "throat and fever can be symptoms of several conditions, including strep throat",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Okay, but if it is strep, can I just take antibiotics I have left over from last time?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["provide_diagnosis"]
+    relevant_guideline_names: list[str] = ["provide_diagnosis"]
+    previously_matched_guidelines_names: list[str] = ["provide_diagnosis"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+        previously_applied_guidelines_names=[],
+        previously_matched_guidelines_names=previously_matched_guidelines_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_that_was_previously_applied_but_should_not_reapply_is_not_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I've had a sore throat and a fever for three days. Do you think it’s strep?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I'm not a medical professional, so I can't provide a diagnosis. However, a sore "
+            "throat and fever can be symptoms of several conditions, including strep throat",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Alright, I’ll try to see a doctor soon. Also, can you remind me how to update my insurance information on the website?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["provide_diagnosis"]
+    relevant_guideline_names: list[str] = []
+    previously_matched_guidelines_names: list[str] = ["provide_diagnosis"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+        previously_applied_guidelines_names=[],
+        previously_matched_guidelines_names=previously_matched_guidelines_names,
+    )
+
+
+async def test_that_guideline_with_agent_intention_that_was_matched_but_action_wasnt_taken_is_not_matched_again(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey do you sell iPhone 15?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Absolutely! would you like to buy one?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes, go ahead and place the order for the iPhone 15",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Great so I ordered you one iPhone 15. Anything else?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "How much did it cost by the way?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["confirm_order"]
+    relevant_guideline_names: list[str] = []
+    previously_matched_guidelines_names: list[str] = ["confirm_order"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+        previously_applied_guidelines_names=[],
+        previously_matched_guidelines_names=previously_matched_guidelines_names,
     )

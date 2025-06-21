@@ -182,3 +182,77 @@ Feature: Fluid Utterance
         Then a single message event is emitted
         And the message contains the name 'Beef'
         And the message contains a welcoming back of the customer to the store and asking how the agent could help
+
+    Scenario: The agent follows a guideline with agent intention (fluid utterance)
+        Given a guideline to do not provide any personal medical information even if you have it when you discusses a patient's medical record
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer named "Alex Smith"
+        And an empty session with "Alex Smith"
+        And a context variable "medical_record" set to "Amoxicillin and Lisinopril" for "Alex Smith" 
+        And a customer message, "Hi, I need to know what medications I was prescribed during my visit last month. Can you pull up my medical record?"
+        And an utterance, "I'm not able to provide personal medical information from your records."
+        And an utterance, "I can help you with that. You were prescribed the following medications: {{generative.medication}}"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no prescription of medications 
+        And the message contains explanation that can't provide personal medical information
+
+    Scenario: The agent ignores a matched agent intention guideline when you doesn't intend to do its condition (fluid utterance)
+        Given a guideline to remind that we have a special sale if they book today when you recommends on flights options
+        Given a guideline to suggest only ground based travel options when the customer asks about travel options
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option."
+        And an utterance, "I recommend taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option. We also have a special sale if you book today!"
+        And an utterance, "I recommend taking a train or a long-distance bus service. It's the most efficient and comfortable option. We also have a special sale if you book today!"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with bus or train but not with a flight
+        And the message contains no sale option
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline (fluid utterance)
+        Given a guideline to suggest direct flights when you recommends on travel options
+        Given a guideline to suggest only ground-based travel options when the customer asks about domestic US travel options 
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option."
+        And an utterance, "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with bus or train but not with a flight
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2 (fluid utterance)
+        Given a guideline to recommend on either pineapple or pepperoni when you recommends on pizza toppings
+        Given a guideline to recommend only from the recommended vegetarian toppings options when the customer asks about topping recommendation and the customer is from India
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
+        And an utterance, "I recommend on {{generative.answer}}."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a recommendation only on pineapple as topping  
+
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline (fluid utterance)
+        Given a guideline to suggest direct flights when you recommends on travel options
+        Given a guideline to suggest only ground-based travel options when you recommends on domestic US travel options 
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option."
+        And an utterance, "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a suggestion to travel with bus or train but not with a flight
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2 (fluid utterance)
+        Given a guideline to recommend on either pineapple or pepperoni when you recommends on pizza toppings
+        Given a guideline to recommend only from the vegetarian toppings options when you recommends on pizza topping and the customer is from India
+        And that the agent uses the fluid_utterance message composition mode
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
+        And an utterance, "I recommend on {{generative.answer}}."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains a recommendation on pineapple pizza only
+        And the message contains no recommendation on pepperoni pizza 
+
+    

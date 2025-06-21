@@ -6,6 +6,7 @@ import math
 from typing_extensions import override
 
 from parlant.core.common import DefaultBaseModel, JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     PreviouslyAppliedType,
@@ -152,17 +153,22 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
         self,
         shots: Sequence[GenericObservationalGuidelineMatchingShot],
     ) -> PromptBuilder:
+        guideline_representations = {
+            g.id: internal_representation(g) for g in self._guidelines.values()
+        }
+
         result_structure = [
             {
                 "guideline_id": i,
-                "condition": g.content.condition,
+                "condition": guideline_representations[g.id].condition,
                 "rationale": "<Explanation for why the condition is or isn't met>",
                 "applies": "<BOOL>",
             }
             for i, g in self._guidelines.items()
         ]
         conditions_text = "\n".join(
-            f"{i}) {g.content.condition}." for i, g in self._guidelines.items()
+            f"{i}) {guideline_representations[g.id].condition}."
+            for i, g in self._guidelines.items()
         )
 
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
