@@ -480,6 +480,9 @@ class CapabilityVectorStore(CapabilityStore):
             ):
                 s_docs[s_doc.document["capability_id"]] = s_doc
 
+            if len(s_docs) >= max_capabilities:
+                break
+
         top_results = sorted(s_docs.values(), key=lambda r: r.distance)[:max_capabilities]
 
         return [await self._deserialize(r.document) for r in top_results]
