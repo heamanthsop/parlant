@@ -596,10 +596,10 @@ Guidelines:
 
     def _get_staged_calls(
         self,
-        mixed_events: Sequence[EmittedEvent],
+        emitted_events: Sequence[EmittedEvent],
     ) -> Optional[str]:
         staged_calls = [
-            PromptBuilder.adapt_event(e) for e in mixed_events if e.kind == EventKind.TOOL
+            PromptBuilder.adapt_event(e) for e in emitted_events if e.kind == EventKind.TOOL
         ]
 
         if not staged_calls:
