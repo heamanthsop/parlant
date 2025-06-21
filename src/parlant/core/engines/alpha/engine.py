@@ -377,7 +377,7 @@ class AlphaEngine(Engine):
             agent=agent,
             customer=customer,
             session=session,
-            event_emitter=event_emitter,
+            session_event_emitter=event_emitter,
             interaction=interaction,
             state=ResponseState(
                 context_variables=[],
@@ -595,7 +595,7 @@ class AlphaEngine(Engine):
         for event_generation_result in await self._get_message_composer(
             context.agent
         ).generate_preamble(
-            event_emitter=context.event_emitter,
+            event_emitter=context.session_event_emitter,
             agent=context.agent,
             customer=context.customer,
             context_variables=context.state.context_variables,
@@ -622,7 +622,7 @@ class AlphaEngine(Engine):
         for event_generation_result in await self._get_message_composer(
             context.agent
         ).generate_response(
-            event_emitter=context.event_emitter,
+            event_emitter=context.session_event_emitter,
             agent=context.agent,
             customer=context.customer,
             context_variables=context.state.context_variables,
@@ -652,7 +652,7 @@ class AlphaEngine(Engine):
         return message_generation_inspections
 
     async def _emit_error_event(self, context: LoadedContext, exception_details: str) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "status": "error",
@@ -662,7 +662,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_acknowledgement_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -672,7 +672,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_processing_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -682,7 +682,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_cancellation_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -692,7 +692,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_ready_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -748,7 +748,7 @@ class AlphaEngine(Engine):
         self, context: LoadedContext
     ) -> ToolPreexecutionState:
         return await self._tool_event_generator.create_preexecution_state(
-            context.event_emitter,
+            context.session_event_emitter,
             context.session.id,
             context.agent,
             context.customer,
@@ -886,7 +886,7 @@ class AlphaEngine(Engine):
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
-            event_emitter=context.event_emitter,
+            event_emitter=context.session_event_emitter,
             session_id=context.session.id,
             agent=context.agent,
             customer=context.customer,

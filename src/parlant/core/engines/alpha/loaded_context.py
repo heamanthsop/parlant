@@ -102,8 +102,11 @@ class LoadedContext:
     session: Session
     """The session being processed"""
 
-    event_emitter: EventEmitter
+    session_event_emitter: EventEmitter
     """Emits new events into the loaded session"""
+
+    response_event_emitter: EventEmitter
+    """Emits new events that are scoped to the current response"""
 
     interaction: Interaction
     """A snapshot of the interaction history in the loaded session"""
