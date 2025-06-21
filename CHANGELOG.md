@@ -10,6 +10,7 @@ All notable changes to Parlant will be documented here.
 - Add an improved support for tool parameter types: date, datetime, optional (bug fix) and lists of other allowed types
 - Add integration with MCP servers for tools (currently only tools, limited MCP types support)
 - Refactor UtteranceStore to be implemented as a VectorStore rather than a DocumentStore
+- Add lifespan field to tool result to indicate if a tool event should be emitted
 
 ## [2.2.0] - 2025-05-20
 

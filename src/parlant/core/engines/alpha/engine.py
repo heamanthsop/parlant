@@ -32,6 +32,7 @@ from parlant.core.context_variables import (
     ContextVariableValue,
     ContextVariableStore,
 )
+from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
@@ -145,7 +146,7 @@ class AlphaEngine(Engine):
 
         try:
             with self._logger.operation(f"Processing context for session {context.session_id}"):
-                await self._do_process(loaded_context, event_emitter)
+                await self._do_process(loaded_context)
             return True
         except asyncio.CancelledError:
             return False
@@ -217,7 +218,6 @@ class AlphaEngine(Engine):
     async def _do_process(
         self,
         context: LoadedContext,
-        event_emitter: EventEmitter,
     ) -> None:
         if not await self._hooks.call_on_acknowledging(context):
             return  # Hook requested to bail out
@@ -378,7 +378,8 @@ class AlphaEngine(Engine):
             agent=agent,
             customer=customer,
             session=session,
-            event_emitter=event_emitter,
+            session_event_emitter=event_emitter,
+            response_event_emitter=EventBuffer(agent),
             interaction=interaction,
             state=ResponseState(
                 context_variables=[],
@@ -596,7 +597,7 @@ class AlphaEngine(Engine):
         for event_generation_result in await self._get_message_composer(
             context.agent
         ).generate_preamble(
-            event_emitter=context.event_emitter,
+            event_emitter=context.session_event_emitter,
             agent=context.agent,
             customer=context.customer,
             context_variables=context.state.context_variables,
@@ -623,7 +624,7 @@ class AlphaEngine(Engine):
         for event_generation_result in await self._get_message_composer(
             context.agent
         ).generate_response(
-            event_emitter=context.event_emitter,
+            event_emitter=context.session_event_emitter,
             agent=context.agent,
             customer=context.customer,
             context_variables=context.state.context_variables,
@@ -653,7 +654,7 @@ class AlphaEngine(Engine):
         return message_generation_inspections
 
     async def _emit_error_event(self, context: LoadedContext, exception_details: str) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "status": "error",
@@ -663,7 +664,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_acknowledgement_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -673,7 +674,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_processing_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -683,7 +684,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_cancellation_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -693,7 +694,7 @@ class AlphaEngine(Engine):
         )
 
     async def _emit_ready_event(self, context: LoadedContext) -> None:
-        await context.event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
@@ -749,7 +750,7 @@ class AlphaEngine(Engine):
         self, context: LoadedContext
     ) -> ToolPreexecutionState:
         return await self._tool_event_generator.create_preexecution_state(
-            context.event_emitter,
+            context.session_event_emitter,
             context.session.id,
             context.agent,
             context.customer,
@@ -887,7 +888,8 @@ class AlphaEngine(Engine):
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
-            event_emitter=context.event_emitter,
+            session_event_emitter=context.session_event_emitter,
+            response_event_emitter=context.response_event_emitter,
             session_id=context.session.id,
             agent=context.agent,
             customer=context.customer,
