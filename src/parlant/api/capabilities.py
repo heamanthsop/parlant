@@ -85,7 +85,7 @@ class CapabilityDTO(
     json_schema_extra={"example": capability_example},
 ):
     """
-    A capability represents a functional feature or skill of the system.
+    A capability represents a functional feature or skill of the agent.
     """
 
     id: CapabilityIdPath
