@@ -302,6 +302,7 @@ you don't need to specifically double-check if you followed or broke any guideli
             )
         guidelines = []
         agent_intention_guidelines = []
+
         for i, p in enumerate(all_matches, start=1):
             if p.guideline.content.action:
                 guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
@@ -319,8 +320,8 @@ When crafting your reply, you must follow the behavioral guidelines provided bel
 """
         if agent_intention_guidelines_list:
             guideline_instruction += f"""
-Some guidelines are tied to condition that related to you, the agent. These guidelines are considered relevant because it is likely that you intends to output
-a message that will trigger the associated condition. You should only follow these guidelines if you are actually going to output a message that activates the condition.
+Some guidelines are tied to conditions related to you, the agent. These guidelines are considered relevant because it is likely that you intend to produce a message that will trigger the associated condition.
+You should only follow these guidelines if you are actually going to produce a message that activates the condition.
 - **Guidelines with agent intention condition**:
 {agent_intention_guidelines_list}
 
