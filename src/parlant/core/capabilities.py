@@ -449,6 +449,29 @@ class CapabilityVectorStore(CapabilityStore):
         if not available_capabilities:
             return []
 
+        # Vector databases return the top `n_result` documents globally — not grouped by capability.
+        # So if we set `n_result = max_capabilities`, it's likely that the results will include
+        # fewer than `max_capabilities` unique capabilities, since a single capability may have multiple documents.
+        #
+        # To guarantee that we retrieve `max_capabilities` unique capabilities, we could:
+        # 1. Count how many documents each capability has (from the available_capabilities).
+        # 2. Sum the document counts.
+        # 3. Filter duplicates by capability.
+        # 4. Sort by distance.
+        # 5. Select the top `max_capabilities` distinct capabilities.
+        #
+        # To optimize this process, we would like to estimate the minimum number of documents (`n_result`)
+        # needed to ensure that at least `max_capabilities` unique capabilities are likely to be represented.
+        #
+        # We do this by:
+        # 1. Counting how many documents (e.g., content entries) each capability has.
+        # 2. Selecting the top `max_capabilities` capabilities with the most documents (`heapq.nlargest`).
+        # 3. Summing their document counts to compute `n_result`.
+        #
+        # Example:
+        # - 3 capabilities with 10, 15, and 20 documents → max_capabilities = 2
+        # - Top two capabilities have 20 and 15 → n_result = 35
+        # - Instead of fetching all 45, we fetch just 35 — enough to likely include the most relevant capabilities.
         n_result = sum(
             heapq.nlargest(
                 max_capabilities,
