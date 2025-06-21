@@ -396,7 +396,6 @@ Feature: Strict Utterance
         Then a single message event is emitted
         And the message contains the text "I recommend on pineapple."
 
-
  Scenario: Journey returns to earlier step when the conversation justifies doing so (1) (strict utterance) 
         Given an agent whose job is to book taxi rides
         And that the agent uses the strict_utterance message composition mode

@@ -954,7 +954,7 @@ example_2_expected = MessageSchema(
     guidelines=[
         "When the customer chooses and orders a burger, then provide it",
         "When the customer chooses specific ingredients on the burger, only provide those ingredients if we have them fresh in stock; otherwise, reject the order",
-        "Agent intention guideline: When the agent processes a new order, confirm with the customer the order details and the price",
+        "Agent intention guideline: When processing a new order, confirm the order details and price with the customer",
     ],
     context_evaluation=ContextEvaluation(
         most_recent_customer_inquiries_or_needs="The customer ordered an American burger with cheese",
@@ -980,7 +980,7 @@ example_2_expected = MessageSchema(
         ),
         InstructionEvaluation(
             number=3,
-            instruction="When the agent processes a new order, confirm with the customer the order details and the price",
+            instruction="When you processes a new order, confirm with the customer the order details and the price",
             evaluation="The agent is not going to process the order, so no need to make a confirmation",
             data_available="No relevant data",
         ),
@@ -1558,7 +1558,7 @@ example_9_shot = MessageGeneratorShot(
 example_10_expected = MessageSchema(
     last_message_of_customer=("I want to return my shoes, I purchased them a month ago"),
     guidelines=[
-        "When the agent suggests refund options, suggest a refund either as website credit or to their credit card.",
+        "When you suggests refund options, suggest a refund either as website credit or to their credit card.",
         "When the customer wants to return an item they purchased more than a week ago, do not suggest a refund to the credit card",
     ],
     context_evaluation=ContextEvaluation(
