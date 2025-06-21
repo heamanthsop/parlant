@@ -396,17 +396,6 @@ They may or may not effect your decision regarding the specified guidelines.
                 props={"capabilities_string": capabilities_string},
                 status=SectionStatus.ACTIVE,
             )
-        else:
-            self.add_section(
-                name=BuiltInSection.CAPABILITIES,
-                template="""
-When evaluating guidelines, you may sometimes be given capabilities to assist the customer. 
-However, in this case, no capabilities relevant to the current state of the conversation were found.
-
-""",
-                props={},
-                status=SectionStatus.ACTIVE,
-            )
         return self
 
     def add_observations(  # Here for future reference, not currently in use
