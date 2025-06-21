@@ -32,7 +32,6 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolInsights,
 )
 from parlant.core.emissions import EmittedEvent, EventEmitter
-from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.tools import ToolId
 
 
@@ -99,7 +98,8 @@ class ToolEventGenerator:
     async def generate_events(
         self,
         preexecution_state: ToolPreexecutionState,
-        event_emitter: EventEmitter,
+        session_event_emitter: EventEmitter,
+        response_event_emitter: EventEmitter,
         session_id: SessionId,
         agent: Agent,
         customer: Customer,
@@ -156,7 +156,6 @@ class ToolEventGenerator:
                 insights=inference_result.insights,
             )
 
-        transient_emitter = EventBuffer(agent)
         events = []
         for r in tool_results:
             event_data: ToolEventData = {
@@ -170,14 +169,14 @@ class ToolEventGenerator:
             }
             if r.result["control"].get("lifespan", "session") == "session":
                 events.append(
-                    await event_emitter.emit_tool_event(
+                    await session_event_emitter.emit_tool_event(
                         correlation_id=self._correlator.correlation_id,
                         data=event_data,
                     )
                 )
             else:
                 events.append(
-                    await transient_emitter.emit_tool_event(
+                    await response_event_emitter.emit_tool_event(
                         correlation_id=self._correlator.correlation_id,
                         data=event_data,
                     )

@@ -32,6 +32,7 @@ from parlant.core.context_variables import (
     ContextVariableValue,
     ContextVariableStore,
 )
+from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.hooks import EngineHooks
@@ -378,6 +379,7 @@ class AlphaEngine(Engine):
             customer=customer,
             session=session,
             session_event_emitter=event_emitter,
+            response_event_emitter=EventBuffer(agent),
             interaction=interaction,
             state=ResponseState(
                 context_variables=[],
@@ -886,7 +888,8 @@ class AlphaEngine(Engine):
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
         result = await self._tool_event_generator.generate_events(
             preexecution_state,
-            event_emitter=context.session_event_emitter,
+            session_event_emitter=context.session_event_emitter,
+            response_event_emitter=context.response_event_emitter,
             session_id=context.session.id,
             agent=context.agent,
             customer=context.customer,
