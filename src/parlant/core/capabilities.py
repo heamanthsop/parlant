@@ -108,7 +108,7 @@ class CapabilityStore:
         self,
         query: str,
         available_capabilities: Sequence[Capability],
-        max_capabilities: int = 3,
+        max_capabilities: int,
     ) -> Sequence[Capability]: ...
 
     @abstractmethod
@@ -444,7 +444,7 @@ class CapabilityVectorStore(CapabilityStore):
         self,
         query: str,
         available_capabilities: Sequence[Capability],
-        max_capabilities: int = 3,
+        max_capabilities: int,
     ) -> Sequence[Capability]:
         if not available_capabilities:
             return []
