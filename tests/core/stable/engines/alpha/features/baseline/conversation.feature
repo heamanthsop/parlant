@@ -113,7 +113,7 @@ Feature: Conversation
     Scenario: The agent follows a guideline with agent intention 
         Given an agent
         And an empty session
-        Given a guideline to do not provide any personal medical information even if you have it when the agent discusses a patient's medical record
+        Given a guideline to do not provide any personal medical information even if you have it when you discusses a patient's medical record
         And a customer named "Alex Smith"
         And an empty session with "Alex Smith"
         And a context variable "medical_record" set to "Amoxicillin and Lisinopril" for "Alex Smith" 
@@ -123,10 +123,10 @@ Feature: Conversation
         And the message contains no prescription of medications 
         And the message contains explanation that can't provide personal medical information
 
-    Scenario: The agent ignores a matched agent intention guideline when the agent doesn't intend to do its condition
+    Scenario: The agent ignores a matched agent intention guideline when you doesn't intend to do its condition
         Given an agent
         And an empty session
-        Given a guideline to remind that we have a special sale if they book today when the agent recommends on flights options
+        Given a guideline to remind that we have a special sale if they book today when you recommends on flights options
         Given a guideline to suggest only ground based travel options when the customer asks about travel options
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         When processing is triggered
@@ -137,7 +137,7 @@ Feature: Conversation
     Scenario: The agent follows a regular guideline when it overrides an agent intention guideline
         Given an agent
         And an empty session
-        Given a guideline to suggest direct flights or ground-based transportation when the agent recommends on travel options
+        Given a guideline to suggest direct flights or ground-based transportation when you recommends on travel options
         Given a guideline to suggest only ground-based travel options when the customer asks about domestic US travel options 
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         When processing is triggered
@@ -147,7 +147,7 @@ Feature: Conversation
     Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2
         Given an agent
         And an empty session
-        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when you recommends on pizza toppings
         Given a guideline to recommend from our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
         When processing is triggered
@@ -158,8 +158,8 @@ Feature: Conversation
     Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline
         Given an agent
         And an empty session
-        Given a guideline to suggest direct flights or ground-based transportation when the agent recommends on travel options
-        Given a guideline to suggest only ground-based travel options when the agent recommends on domestic US travel options 
+        Given a guideline to suggest direct flights or ground-based transportation when you recommends on travel options
+        Given a guideline to suggest only ground-based travel options when you recommends on domestic US travel options 
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         When processing is triggered
         Then a single message event is emitted
@@ -168,7 +168,7 @@ Feature: Conversation
     Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2
         Given an agent
         And an empty session
-        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when the agent recommends on pizza toppings
+        Given a guideline to recommend on our recommended toppings - either pineapple or pepperoni when you recommends on pizza toppings
         Given a guideline to recommend from our vegetarian recommended toppings when the customer asks about topping recommendation and the customer is from India
         And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm vegetarian."
         When processing is triggered
