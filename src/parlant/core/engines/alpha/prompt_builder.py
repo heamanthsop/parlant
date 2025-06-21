@@ -337,20 +337,24 @@ Supported Capability {i}: {capability.title}
     def add_capabilities_for_message_generation(
         self,
         capabilities: Sequence[Capability],
+        extra_instructions: list[str] = [],
     ) -> PromptBuilder:
         if capabilities:
             capabilities_string = self._create_capabilities_string(capabilities)
-            self.add_section(
-                name=BuiltInSection.CAPABILITIES,
-                template="""
+            capabilities_instructions = """
 Below are the capabilities available to you as an agent.
 You may inform the customer that you can assist them using these capabilities.
 If you choose to use any of them, additional details will be provided in your next response.
 Always prefer adhering to guidelines and relevant journey steps, before offering capabilities - only offer capabilities if you have no other instruction that's relevant for the current stage of the interaction.
 Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
 If multiple capabilities are appropriate, aim to present them all to the customer.
-If none of the capabilities address the current request of the customer - DO NOT MENTION THEM.
-When providing your full response, list offered capabilities under the "offered_services" key, and not under "factual_information_provided". 
+If none of the capabilities address the current request of the customer - DO NOT MENTION THEM."""
+            if extra_instructions:
+                capabilities_instructions += "\n".join(extra_instructions)
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template=capabilities_instructions
+                + """
 ###
 {capabilities_string}
 ###
@@ -370,6 +374,7 @@ However, in this case, no capabilities relevant to the current state of the conv
                 props={},
                 status=SectionStatus.ACTIVE,
             )
+
         return self
 
     def add_capabilities_for_guideline_matching(

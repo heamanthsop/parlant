@@ -580,7 +580,12 @@ INTERACTION CONTEXT
         )
         builder.add_context_variables(context_variables)
         builder.add_glossary(terms)
-        builder.add_capabilities_for_message_generation(capabilities)
+        builder.add_capabilities_for_message_generation(
+            capabilities,
+            extra_instructions=[
+                'When providing your full response, list offered capabilities under the "offered_services" key, and not under "factual_information_provided".'
+            ],
+        )
         builder.add_journeys(journeys)
         builder.add_section(
             name="message-generator-guideline-descriptions",
