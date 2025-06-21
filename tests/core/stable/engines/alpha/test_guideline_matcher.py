@@ -23,6 +23,7 @@ from more_itertools import unique
 from pytest import fixture, raises
 
 from parlant.core.agents import Agent, AgentId
+from parlant.core.capabilities import Capability, CapabilityId
 from parlant.core.common import generate_id, JSONSerializable
 from parlant.core.context_variables import (
     ContextVariable,
@@ -119,6 +120,10 @@ OBSERVATIONAL_GUIDELINES_DICT = {
     },
     "unanswered_questions": {
         "condition": "the customer repeatedly ignores the agent's question, and they remain unanswered",
+        "observation": "-",
+    },
+    "unsupported_capability": {
+        "condition": "When a customer asks about a capability that is not supported",
         "observation": "-",
     },
 }
@@ -314,6 +319,7 @@ async def match_guidelines(
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
+    capabilities: Sequence[Capability] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
     session = await context.container[SessionStore].read_session(session_id)
@@ -325,6 +331,7 @@ async def match_guidelines(
         context_variables=context_variables,
         interaction_history=interaction_history,
         terms=terms,
+        capabilities=capabilities,
         staged_events=staged_events,
         guidelines=context.guidelines,
     )
@@ -507,6 +514,7 @@ async def base_test_that_correct_guidelines_are_matched(
     previously_matched_guidelines_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
+    capabilities: Sequence[Capability] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> None:
     interaction_history = [
@@ -562,6 +570,7 @@ async def base_test_that_correct_guidelines_are_matched(
         context_variables=context_variables,
         terms=terms,
         staged_events=staged_events,
+        capabilities=capabilities,
     )
 
     matched_guidelines = [p.guideline for p in guideline_matches]
@@ -2943,4 +2952,68 @@ async def test_that_guideline_with_agent_intention_that_was_matched_but_action_w
         relevant_guideline_names,
         previously_applied_guidelines_names=[],
         previously_matched_guidelines_names=previously_matched_guidelines_names,
+    )
+
+
+async def test_that_observational_guidelines_are_matched_based_on_capabilities_1(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    capabilities = [
+        Capability(
+            id=CapabilityId("cap_123"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Reset Password",
+            description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
+            queries=["reset password", "password"],
+            tags=[],
+        )
+    ]
+    conversation_context: list[tuple[EventSource, str]] = [
+        (EventSource.CUSTOMER, "can you set my password to 4321?"),
+    ]
+    conversation_guideline_names: list[str] = ["unsupported_capability"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names=conversation_guideline_names,
+        relevant_guideline_names=conversation_guideline_names,
+        capabilities=capabilities,
+    )
+
+
+async def test_that_observational_guidelines_are_not_falsely_matched_based_on_capabilities(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    capabilities = [
+        Capability(
+            id=CapabilityId("cap_123"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Reset Password",
+            description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
+            queries=["reset password", "password"],
+            tags=[],
+        )
+    ]
+    conversation_context: list[tuple[EventSource, str]] = [
+        (EventSource.CUSTOMER, "can you reset my password?"),
+    ]
+    conversation_guideline_names: list[str] = ["unsupported_capability"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names=conversation_guideline_names,
+        relevant_guideline_names=[],
+        capabilities=capabilities,
     )

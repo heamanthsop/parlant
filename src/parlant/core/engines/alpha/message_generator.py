@@ -18,7 +18,7 @@ import json
 import traceback
 from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
-
+from parlant.core.capabilities import Capability
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -108,6 +108,7 @@ class MessageSchema(DefaultBaseModel):
     produced_reply: Optional[bool] = None
     produced_reply_rationale: Optional[str] = None
     guidelines: Optional[list[str]] = None
+    current_journey_step: Optional[str] = None
     context_evaluation: Optional[ContextEvaluation] = None
     insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
@@ -142,6 +143,7 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -159,6 +161,7 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -170,18 +173,19 @@ class MessageGenerator(MessageEventComposer):
             with self._logger.scope("MessageGenerator"):
                 with self._logger.operation("Message generation"):
                     return await self._do_generate_events(
-                        event_emitter,
-                        agent,
-                        customer,
-                        context_variables,
-                        interaction_history,
-                        terms,
-                        ordinary_guideline_matches,
-                        journeys,
-                        tool_enabled_guideline_matches,
-                        tool_insights,
-                        staged_events,
-                        latch,
+                        event_emitter=event_emitter,
+                        agent=agent,
+                        customer=customer,
+                        context_variables=context_variables,
+                        interaction_history=interaction_history,
+                        terms=terms,
+                        capabilities=capabilities,
+                        ordinary_guideline_matches=ordinary_guideline_matches,
+                        journeys=journeys,
+                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+                        tool_insights=tool_insights,
+                        staged_events=staged_events,
+                        latch=latch,
                     )
 
     def _format_staged_events(
@@ -206,6 +210,7 @@ class MessageGenerator(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
@@ -232,6 +237,7 @@ class MessageGenerator(MessageEventComposer):
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             journeys=journeys,
+            capabilities=capabilities,
             staged_events=staged_events,
             tool_insights=tool_insights,
             shots=await self.shots(),
@@ -389,6 +395,7 @@ These guidelines have already been pre-filtered based on the interaction's conte
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -493,7 +500,8 @@ To generate an optimal response that aligns with all guidelines and the current 
 2. INITIAL RESPONSE
    - Draft an initial response based on:
      * Primary customer needs
-     * Applicable guidelines, journeys and observations
+     * Applicable guidelines
+     * The relevant journey step, if there is one
      * Gathered insights
    - Focus on addressing the core request first
 
@@ -572,6 +580,12 @@ INTERACTION CONTEXT
         )
         builder.add_context_variables(context_variables)
         builder.add_glossary(terms)
+        builder.add_capabilities_for_message_generation(
+            capabilities,
+            extra_instructions=[
+                'When providing your full response, list offered capabilities under the "offered_services" key, and not under "factual_information_provided".'
+            ],
+        )
         builder.add_journeys(journeys)
         builder.add_section(
             name="message-generator-guideline-descriptions",
@@ -657,7 +671,6 @@ Produce a valid JSON object in the following format: ###
                 "guidelines": actionable_guidelines,
             },
         )
-
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:
@@ -743,6 +756,7 @@ Produce a valid JSON object in the following format: ###
     "produced_reply": "<BOOL, should be true unless the customer explicitly asked you not to respond>",
     "produced_reply_rationale": "<str, optional. required only if produced_reply is false>",
     "guidelines": [{guidelines_list_text}],
+    "current_journey_step": <STR, the next step to take according to the active journey/s, if there are ones. Otherwise, this field can be omitted>
     "context_evaluation": {{
         "most_recent_customer_inquiries_or_needs": "<fill out accordingly>",
         "parts_of_the_context_i_have_here_if_any_with_specific_information_on_how_to_address_these_needs": "<fill out accordingly>",

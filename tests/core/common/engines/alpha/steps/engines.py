@@ -344,6 +344,7 @@ def when_messages_are_emitted(
             context_variables=[],
             interaction_history=context.events,
             terms=[],
+            capabilities=[],
             ordinary_guideline_matches=list(context.guideline_matches.values()),
             tool_enabled_guideline_matches={},
             journeys=[],

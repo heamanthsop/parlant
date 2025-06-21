@@ -19,6 +19,7 @@ from parlant.core.agents import (
     AgentUpdateParams,
     CompositionMode,
 )
+from parlant.core.capabilities import CapabilityId, CapabilityStore, CapabilityVectorStore
 from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
@@ -250,6 +251,15 @@ class Journey:
 
 
 @dataclass
+class Capability:
+    id: CapabilityId
+    title: str
+    description: str
+    queries: Sequence[str]
+    tags: Sequence[TagId]
+
+
+@dataclass
 class Agent:
     id: AgentId
     name: str
@@ -343,6 +353,27 @@ class Agent:
         )
 
         return utterance.id
+
+    async def create_capability(
+        self,
+        title: str,
+        description: str,
+        queries: Sequence[str] | None = None,
+    ) -> Capability:
+        capability = await self._container[CapabilityStore].create_capability(
+            title=title,
+            description=description,
+            queries=queries,
+            tags=[Tag.for_agent_id(self.id)],
+        )
+
+        return Capability(
+            id=capability.id,
+            title=capability.title,
+            description=capability.description,
+            queries=capability.queries,
+            tags=capability.tags,
+        )
 
 
 class Server:
@@ -524,6 +555,15 @@ class Server:
                 )
             )
 
+            c[CapabilityStore] = await self._exit_stack.enter_async_context(
+                CapabilityVectorStore(
+                    vector_db=TransientVectorDatabase(c[Logger], embedder_factory),
+                    document_db=TransientDocumentDatabase(),
+                    embedder_factory=embedder_factory,
+                    embedder_type_provider=get_embedder_type,
+                )
+            )
+
         async def configure(c: Container) -> Container:
             await override_stores_with_transient_versions(c)
 
@@ -577,6 +617,8 @@ class Server:
 __all__ = [
     "Agent",
     "AgentId",
+    "Capability",
+    "CapabilityId",
     "CompositionMode",
     "Container",
     "ControlOptions",

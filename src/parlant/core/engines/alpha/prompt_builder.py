@@ -19,6 +19,7 @@ import json
 from typing import Any, Callable, Optional, Sequence, cast
 
 from parlant.core.agents import Agent
+from parlant.core.capabilities import Capability
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
 from parlant.core.journeys import Journey
@@ -42,6 +43,7 @@ class BuiltInSection(Enum):
     STAGED_EVENTS = auto()
     JOURNEYS = auto()
     OBSERVATIONS = auto()
+    CAPABILITIES = auto()
 
 
 class SectionStatus(Enum):
@@ -321,6 +323,81 @@ Prioritize their data over any other sources and use their details to complete y
 
         return self
 
+    def _create_capabilities_string(self, capabilities: Sequence[Capability]) -> str:
+        return "\n\n".join(
+            [
+                f"""
+Supported Capability {i}: {capability.title}
+{capability.description}
+"""
+                for i, capability in enumerate(capabilities, start=1)
+            ]
+        )
+
+    def add_capabilities_for_message_generation(
+        self,
+        capabilities: Sequence[Capability],
+        extra_instructions: list[str] = [],
+    ) -> PromptBuilder:
+        if capabilities:
+            capabilities_string = self._create_capabilities_string(capabilities)
+            capabilities_instructions = """
+Below are the capabilities available to you as an agent.
+You may inform the customer that you can assist them using these capabilities.
+If you choose to use any of them, additional details will be provided in your next response.
+Always prefer adhering to guidelines and relevant journey steps, before offering capabilities - only offer capabilities if you have no other instruction that's relevant for the current stage of the interaction.
+Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
+If multiple capabilities are appropriate, aim to present them all to the customer.
+If none of the capabilities address the current request of the customer - DO NOT MENTION THEM."""
+            if extra_instructions:
+                capabilities_instructions += "\n".join(extra_instructions)
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template=capabilities_instructions
+                + """
+###
+{capabilities_string}
+###
+""",
+                props={"capabilities_string": capabilities_string},
+                status=SectionStatus.ACTIVE,
+            )
+        else:
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+When evaluating guidelines, you may sometimes be given capabilities to assist the customer beyond those dictated through guidelines and journeys. 
+However, in this case, no capabilities relevant to the current state of the conversation were found, besides the ones potentially listed in other sections of this prompt.
+
+
+""",
+                props={},
+                status=SectionStatus.ACTIVE,
+            )
+
+        return self
+
+    def add_capabilities_for_guideline_matching(
+        self,
+        capabilities: Sequence[Capability],
+    ) -> PromptBuilder:
+        if capabilities:
+            capabilities_string = self._create_capabilities_string(capabilities)
+
+            self.add_section(
+                name=BuiltInSection.CAPABILITIES,
+                template="""
+The following are the capabilities that you hold as an agent. 
+They may or may not effect your decision regarding the specified guidelines.
+###
+{capabilities_string}
+###
+""",
+                props={"capabilities_string": capabilities_string},
+                status=SectionStatus.ACTIVE,
+            )
+        return self
+
     def add_observations(  # Here for future reference, not currently in use
         self,
         observations: Sequence[Guideline],
@@ -366,6 +443,7 @@ If a conversation is already in progress along a journey path, continue with the
 1. Identify which steps have already been completed
 2. Perform only the next logical step (either by the journey's steps or by your deduction) in the sequence
 3. Reserve subsequent steps for later in the conversation
+4. If the customer changes their decision regarding earlier journey steps, return to the step where the change occurred, and continue from there.
 
 Follow each journey exactly as specified. If a journey indicates multiple actions should be taken in a single step, follow those instructions. Otherwise, take only one step at a time to avoid overwhelming the user.
 

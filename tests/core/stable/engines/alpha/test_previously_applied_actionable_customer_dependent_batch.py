@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from lagom import Container
 from pytest import fixture
 from parlant.core.agents import Agent
+from parlant.core.capabilities import Capability, CapabilityId
 from parlant.core.common import generate_id
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
@@ -37,6 +38,14 @@ GUIDELINES_DICT = {
     "order_alcohol": {
         "condition": "The customer wants to order alcohol",
         "action": "Check their age",
+    },
+    "unsupported_capability": {
+        "condition": "When a customer asks about a capability that is not supported",
+        "action": "ask the customer for their age before proceeding",
+    },
+    "multiple_capabilities": {
+        "condition": "When there are multiple capabilities that are relevant for the customer's request",
+        "action": "ask the customer which of the capabilities they want to use",
     },
 }
 
@@ -114,6 +123,7 @@ async def base_test_that_correct_guidelines_are_matched(
     guidelines_target_names: list[str],
     guidelines_names: list[str],
     staged_events: Sequence[EmittedEvent] = [],
+    capabilities: Sequence[Capability] = [],
 ) -> None:
     conversation_guidelines = {
         name: create_guideline_by_name(context, name) for name in guidelines_names
@@ -141,6 +151,7 @@ async def base_test_that_correct_guidelines_are_matched(
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
+        capabilities=capabilities,
         staged_events=staged_events,
     )
 
@@ -484,4 +495,98 @@ async def test_that_customer_dependent_guideline_is_not_matched_when_condition_a
         conversation_context,
         guidelines_target_names=[],
         guidelines_names=guidelines,
+    )
+
+
+async def test_that_customer_dependent_guideline_is_matched_based_on_capabilities_1(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    capabilities = [
+        Capability(
+            id=CapabilityId("cap_123"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Reset Password",
+            description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
+            queries=["reset password", "password"],
+            tags=[],
+        )
+    ]
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Teach me how to tame dinosaurs",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Before proceeding, may I ask for your age?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Sure! But can you help me get ice cream first?",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["unsupported_capability", "multiple_capabilities"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=["unsupported_capability"],
+        guidelines_names=conversation_guideline_names,
+        capabilities=capabilities,
+    )
+
+
+async def test_that_customer_dependent_guideline_is_matched_based_on_capabilities_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    capabilities = [
+        Capability(
+            id=CapabilityId("cap_123"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Increase Credit Limit",
+            description="The ability to increase the customer's credit limit",
+            queries=["increase credit limit", "credit limit"],
+            tags=[],
+        ),
+        Capability(
+            id=CapabilityId("cap_123"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Decrease Credit Limit",
+            description="The ability to decrease the customer's credit limit",
+            queries=["decrease credit limit", "credit limit"],
+            tags=[],
+        ),
+    ]
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Can you help me change my credit limits",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I can help you either increase or decrease your credit limit. Which option are you interested in?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I just want to change them...",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["unsupported_capability", "multiple_capabilities"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        new_session.id,
+        customer,
+        conversation_context,
+        guidelines_target_names=["multiple_capabilities"],
+        guidelines_names=conversation_guideline_names,
+        capabilities=capabilities,
     )

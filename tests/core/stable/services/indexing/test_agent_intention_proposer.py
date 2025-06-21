@@ -90,6 +90,7 @@ def match_guidelines(
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
+            capabilities=[],
             staged_events=[],
             guidelines=context.guidelines,
         )

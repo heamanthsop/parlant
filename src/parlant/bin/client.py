@@ -40,6 +40,8 @@ from parlant.client.core import ApiError
 from parlant.client.types import (
     Agent,
     AgentTagUpdateParams,
+    Capability,
+    CapabilityTagUpdateParams,
     ContextVariable,
     ContextVariableReadResult,
     ContextVariableValue,
@@ -1326,6 +1328,100 @@ class Actions:
         client = cast(ParlantClient, ctx.obj.client)
         tag_id = Actions._fetch_tag_id(ctx, tag)
         client.journeys.update(journey_id=journey_id, tags=JourneyTagUpdateParams(remove=[tag_id]))
+
+        return tag_id
+
+    @staticmethod
+    def create_capability(
+        ctx: click.Context,
+        title: str,
+        description: str,
+        queries: list[str],
+        tags: list[str],
+    ) -> Capability:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        return client.capabilities.create(
+            title=title,
+            description=description,
+            queries=queries,
+        )
+
+    @staticmethod
+    def update_capability(
+        ctx: click.Context,
+        capability_id: str,
+        title: Optional[str],
+        description: Optional[str],
+        queries: Optional[list[str]],
+    ) -> Capability:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        return client.capabilities.update(
+            capability_id=capability_id,
+            title=title,
+            description=description,
+            queries=queries,
+        )
+
+    @staticmethod
+    def view_capability(
+        ctx: click.Context,
+        capability_id: str,
+    ) -> Capability:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        return client.capabilities.retrieve(
+            capability_id=capability_id,
+        )
+
+    @staticmethod
+    def list_capabilities(
+        ctx: click.Context,
+        tag: Optional[str],
+    ) -> list[Capability]:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        if tag:
+            return client.capabilities.list(tag_id=Actions._fetch_tag_id(ctx, tag))
+        else:
+            return client.capabilities.list()
+
+    @staticmethod
+    def delete_capability(
+        ctx: click.Context,
+        capability_id: str,
+    ) -> None:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        client.capabilities.delete(capability_id=capability_id)
+
+    @staticmethod
+    def add_capability_tag(
+        ctx: click.Context,
+        capability_id: str,
+        tag: str,
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tag_id = Actions._fetch_tag_id(ctx, tag)
+        client.capabilities.update(capability_id, tags=CapabilityTagUpdateParams(add=[tag_id]))
+
+        return tag_id
+
+    @staticmethod
+    def remove_capability_tag(
+        ctx: click.Context,
+        capability_id: str,
+        tag: str,
+    ) -> str:
+        client = cast(ParlantClient, ctx.obj.client)
+
+        tag_id = Actions._fetch_tag_id(ctx, tag)
+        client.capabilities.update(
+            capability_id,
+            tags=CapabilityTagUpdateParams(remove=[tag_id]),
+        )
 
         return tag_id
 
@@ -3051,6 +3147,124 @@ class Interface:
             set_exit_status(1)
 
     @staticmethod
+    def _render_capabilities(capabilities: list[Capability]) -> None:
+        items = [
+            {
+                "ID": c.id,
+                "Description": c.description,
+                "Queries": ", ".join(c.queries),
+                "Tags": ", ".join(c.tags or []),
+            }
+            for c in capabilities
+        ]
+        Interface._print_table(items)
+
+    @staticmethod
+    def create_capability(
+        ctx: click.Context,
+        title: str,
+        description: str,
+        queries: list[str],
+        tags: list[str],
+    ) -> None:
+        try:
+            capability = Actions.create_capability(ctx, title, description, queries, tags)
+
+            Interface._write_success(f"Added capability (id: {getattr(capability, 'id', '')})")
+
+            Interface._render_capabilities([capability])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def update_capability(
+        ctx: click.Context,
+        capability_id: str,
+        title: Optional[str],
+        description: Optional[str],
+        queries: Optional[list[str]],
+    ) -> None:
+        try:
+            capability = Actions.update_capability(ctx, capability_id, title, description, queries)
+
+            Interface._write_success(f"Updated capability (id: {getattr(capability, 'id', '')})")
+
+            Interface._render_capabilities([capability])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def view_capability(
+        ctx: click.Context,
+        capability_id: str,
+    ) -> None:
+        try:
+            capability = Actions.view_capability(ctx, capability_id)
+
+            Interface._render_capabilities([capability])
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def list_capabilities(ctx: click.Context, tag: Optional[str]) -> None:
+        try:
+            capabilities = Actions.list_capabilities(ctx, tag)
+
+            if not capabilities:
+                rich.print(Text("No data available", style="bold yellow"))
+                return
+
+            Interface._render_capabilities(capabilities)
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def delete_capability(ctx: click.Context, capability_id: str) -> None:
+        try:
+            Actions.delete_capability(ctx, capability_id)
+
+            Interface._write_success(f"Removed capability (id: {capability_id})")
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def add_capability_tag(
+        ctx: click.Context,
+        capability_id: str,
+        tag: str,
+    ) -> None:
+        try:
+            tag_id = Actions.add_capability_tag(ctx, capability_id, tag)
+
+            Interface._write_success(
+                f"Added tag (id: {tag_id}) to capability (id: {capability_id})"
+            )
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
+    def remove_capability_tag(
+        ctx: click.Context,
+        capability_id: str,
+        tag: str,
+    ) -> None:
+        try:
+            tag_id = Actions.remove_capability_tag(ctx, capability_id, tag)
+
+            Interface._write_success(
+                f"Removed tag (id: {tag_id}) from capability (id: {capability_id})"
+            )
+        except Exception as e:
+            Interface.write_error(f"Error: {type(e).__name__}: {e}")
+            set_exit_status(1)
+
+    @staticmethod
     def stream_logs(
         ctx: click.Context,
         union_patterns: list[str],
@@ -4417,6 +4631,95 @@ async def async_main() -> None:
     @click.pass_context
     def journey_delete(ctx: click.Context, id: str) -> None:
         Interface.delete_journey(ctx, id)
+
+    @cli.group(help="Manage capabilities")
+    def capability() -> None:
+        pass
+
+    @capability.command("create", help="Create a capability")
+    @click.option("--title", type=str, help="Capability title", required=True)
+    @click.option("--description", type=str, help="Capability description", required=True)
+    @click.option(
+        "--query",
+        type=str,
+        help="Query for the capability. May be specified multiple times.",
+        multiple=True,
+        required=True,
+    )
+    @tag_option(multiple=True)
+    @click.pass_context
+    def capability_create(
+        ctx: click.Context, title: str, description: str, query: tuple[str], tag: tuple[str]
+    ) -> None:
+        Interface.create_capability(ctx, title, description, list(query), list(tag))
+
+    @capability.command(
+        "update",
+        help="Update a capability. If --query is provided, it will override all existing queries for this capability.",
+    )
+    @click.option("--id", type=str, metavar="ID", help="Capability ID", required=True)
+    @click.option("--title", type=str, help="Capability title", required=False)
+    @click.option("--description", type=str, help="Capability description", required=False)
+    @click.option(
+        "--query",
+        type=str,
+        help="Query for the capability. May be specified multiple times. If provided, overrides all existing queries.",
+        multiple=True,
+        required=False,
+    )
+    @click.pass_context
+    def capability_update(
+        ctx: click.Context,
+        id: str,
+        title: Optional[str],
+        description: Optional[str],
+        query: tuple[str],
+    ) -> None:
+        Interface.update_capability(ctx, id, title, description, list(query) if query else None)
+
+    @capability.command("view", help="View a capability")
+    @click.option("--id", type=str, metavar="ID", help="Capability ID", required=True)
+    @click.pass_context
+    def capability_view(ctx: click.Context, id: str) -> None:
+        Interface.view_capability(ctx, id)
+
+    @capability.command("list", help="List capabilities")
+    @tag_option()
+    @click.pass_context
+    def capability_list(ctx: click.Context, tag: Optional[str]) -> None:
+        Interface.list_capabilities(ctx, tag)
+
+    @capability.command("tag", help="Tag a capability")
+    @click.option("--id", type=str, metavar="ID", help="Capability ID", required=True)
+    @tag_option(required=True)
+    @click.pass_context
+    def capability_add_tag(
+        ctx: click.Context,
+        id: str,
+        tag: str,
+    ) -> None:
+        Interface.add_capability_tag(
+            ctx=ctx,
+            capability_id=id,
+            tag=tag,
+        )
+
+    @capability.command("untag", help="Untag from a capability")
+    @click.option("--id", type=str, metavar="ID", help="Capability ID", required=True)
+    @tag_option(required=True)
+    @click.pass_context
+    def capability_untag(ctx: click.Context, id: str, tag: str) -> None:
+        Interface.remove_capability_tag(
+            ctx=ctx,
+            capability_id=id,
+            tag=tag,
+        )
+
+    @capability.command("delete", help="Delete a capability")
+    @click.option("--id", type=str, metavar="ID", help="Capability ID", required=True)
+    @click.pass_context
+    def capability_delete(ctx: click.Context, id: str) -> None:
+        Interface.delete_capability(ctx, id)
 
     @cli.command(
         "log",

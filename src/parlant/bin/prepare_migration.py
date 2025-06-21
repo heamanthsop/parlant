@@ -49,10 +49,12 @@ from parlant.core.evaluations import (
     InvoiceGuidelineDataDocument,
 )
 from parlant.core.glossary import (
+    GlossaryVectorStore,
     TermDocument_v0_1_0,
     TermTagAssociationDocument,
     TermId,
 )
+from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
 from parlant.core.relationships import (
     GuidelineRelationshipDocument_v0_1_0,
     GuidelineRelationshipDocument_v0_2_0,
@@ -189,13 +191,25 @@ async def get_component_versions() -> list[tuple[str, str]]:
         versions.append(("guideline_relationships", guideline_relationships_version))
 
     embedder_factory = EmbedderFactory(Container())
-    glossary_db = await EXIT_STACK.enter_async_context(
+    chroma_db = await EXIT_STACK.enter_async_context(
         ChromaDatabase(LOGGER, PARLANT_HOME_DIR, embedder_factory)
     )
     with suppress(chromadb.errors.InvalidCollectionException):
-        if glossary_db.chroma_client.get_collection("glossary_unembedded"):
+        if chroma_db.chroma_client.get_collection("glossary_unembedded"):
+            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
             versions.append(
-                ("glossary", cast(dict[str, Any], await glossary_db.read_metadata())["version"])
+                (
+                    "glossary",
+                    chroma_db_metadata.get(
+                        VectorDocumentStoreMigrationHelper.get_store_version_key(
+                            GlossaryVectorStore.__name__
+                        ),
+                        chroma_db_metadata[
+                            "version"
+                        ],  # Back off to the old version key method if not found
+                    ),
+                )
             )
 
     utterances_version = _get_version_from_json_file(
@@ -349,7 +363,9 @@ async def migrate_glossary_with_metadata() -> None:
             chroma_new_collection.modify(metadata={"version": 1 + len(all_items["metadatas"])})
 
             await db.upsert_metadata(
-                "version",
+                VectorDocumentStoreMigrationHelper.get_store_version_key(
+                    GlossaryVectorStore.__name__
+                ),
                 version,
             )
             rich.print("[green]Successfully migrated glossary data")
@@ -619,6 +635,7 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
         None,
     ) or db.chroma_client.create_collection(name="glossary_unembedded")
 
+    migrated_count = 0
     if metadatas := chroma_unembedded_collection.get()["metadatas"]:
         for doc in metadatas:
             new_doc = {
@@ -643,6 +660,9 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 metadatas=[cast(chromadb.Metadata, new_doc)],
                 embeddings=[0],
             )
+            migrated_count += 1
+
+            migrated_count += 1
 
             await glossary_tags_collection.insert_one(
                 {
@@ -654,7 +674,13 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
                 }
             )
 
-    await db.upsert_metadata("version", Version.String("0.2.0"))
+    chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
+
+    await db.upsert_metadata(
+        VectorDocumentStoreMigrationHelper.get_store_version_key(GlossaryVectorStore.__name__),
+        Version.String("0.2.0"),
+    )
+    await upgrade_document_database_metadata(glossary_tags_db, Version.String("0.2.0"))
 
     rich.print("[green]Successfully migrated glossary from 0.1.0 to 0.2.0")
 
@@ -756,7 +782,10 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
 
     chroma_unembedded_collection.modify(metadata={"version": 1 + migrated_count})
 
-    await db.upsert_metadata("version", Version.String("0.2.0"))
+    await db.upsert_metadata(
+        VectorDocumentStoreMigrationHelper.get_store_version_key(UtteranceVectorStore.__name__),
+        Version.String("0.2.0"),
+    )
     await upgrade_document_database_metadata(utterance_tags_db, Version.String("0.2.0"))
 
     utterances_json_file.unlink()

@@ -21,6 +21,7 @@ from lagom import Container
 from pytest import fixture
 
 from parlant.core.agents import Agent
+from parlant.core.capabilities import Capability
 from parlant.core.common import generate_id, JSONSerializable
 from parlant.core.context_variables import (
     ContextVariable,
@@ -277,6 +278,7 @@ async def match_guidelines(
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
+    capabilities: Sequence[Capability] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
     session = await context.container[SessionStore].read_session(session_id)
@@ -288,6 +290,7 @@ async def match_guidelines(
         context_variables=context_variables,
         interaction_history=interaction_history,
         terms=terms,
+        capabilities=capabilities,
         staged_events=staged_events,
         guidelines=context.guidelines,
     )

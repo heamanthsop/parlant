@@ -14,7 +14,7 @@ async def check_guideline(
     )
     assert (
         is_customer_dependent == result.is_customer_dependent
-    ), f"""Guideline incorrectly marked as {'not ' if is_customer_dependent else ''}customer dependent:
+    ), f"""Guideline incorrectly marked as {"not " if is_customer_dependent else ""}customer dependent:
 Condition: {guideline.condition}
 Action: {guideline.action}"""
 

@@ -28,6 +28,7 @@ from typing import Any, Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 from parlant.core.async_utils import safe_gather
+from parlant.core.capabilities import Capability
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent, CompositionMode
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -124,6 +125,7 @@ class UtteranceContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
+    capabilities: Sequence[Capability]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     journeys: Sequence[Journey]
@@ -450,6 +452,7 @@ class UtteranceSelector(MessageEventComposer):
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -537,6 +540,7 @@ You will now be given the current state of the interaction to which you must gen
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -557,6 +561,7 @@ You will now be given the current state of the interaction to which you must gen
                             terms=terms,
                             ordinary_guideline_matches=ordinary_guideline_matches,
                             journeys=journeys,
+                            capabilities=capabilities,
                             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
                             tool_insights=tool_insights,
                             staged_events=staged_events,
@@ -570,6 +575,7 @@ You will now be given the current state of the interaction to which you must gen
                     context_variables,
                     interaction_history,
                     terms,
+                    capabilities,
                     ordinary_guideline_matches,
                     tool_enabled_guideline_matches,
                     journeys,
@@ -674,6 +680,7 @@ You will now be given the current state of the interaction to which you must gen
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         journeys: Sequence[Journey],
@@ -701,6 +708,7 @@ You will now be given the current state of the interaction to which you must gen
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             journeys=journeys,
+            capabilities=capabilities,
             tool_insights=tool_insights,
             staged_events=staged_events,
         )
@@ -905,6 +913,7 @@ Example {i} - {shot.description}: ###
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
+        capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
@@ -1040,6 +1049,7 @@ EXAMPLES
         )
         builder.add_glossary(terms)
         builder.add_context_variables(context_variables)
+        builder.add_capabilities_for_message_generation(capabilities)
         builder.add_journeys(journeys)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
@@ -1292,6 +1302,7 @@ Output a JSON object with three properties:
             terms=context.terms,
             ordinary_guideline_matches=context.ordinary_guideline_matches,
             journeys=context.journeys,
+            capabilities=context.capabilities,
             tool_enabled_guideline_matches=context.tool_enabled_guideline_matches,
             staged_events=context.staged_events,
             tool_insights=context.tool_insights,

@@ -25,7 +25,9 @@ from typing import Optional, Sequence, cast
 from croniter import croniter
 from typing_extensions import override
 
+from parlant.core import async_utils
 from parlant.core.agents import Agent, AgentId, CompositionMode
+from parlant.core.capabilities import Capability
 from parlant.core.common import CancellationSuppressionLatch
 from parlant.core.context_variables import (
     ContextVariable,
@@ -384,6 +386,7 @@ class AlphaEngine(Engine):
             state=ResponseState(
                 context_variables=[],
                 glossary_terms=set(),
+                capabilities=[],
                 ordinary_guideline_matches=[],
                 journeys=[],
                 tool_enabled_guideline_matches={},
@@ -402,9 +405,15 @@ class AlphaEngine(Engine):
         # Load the relevant context variable values.
         context.state.context_variables = await self._load_context_variables(context)
 
-        # Load relevant glossary terms, initially based
+        # Load relevant glossary terms and capabilities, initially based
         # mostly on the current interaction history.
-        context.state.glossary_terms.update(await self._load_glossary_terms(context))
+        glossary, capabilities = await async_utils.safe_gather(
+            self._load_glossary_terms(context),
+            self._load_capabilities(context),
+        )
+
+        context.state.glossary_terms.update(glossary)
+        context.state.capabilities = list(capabilities)
 
     async def _run_preparation_iteration(
         self,
@@ -603,6 +612,7 @@ class AlphaEngine(Engine):
             context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(context.state.glossary_terms),
+            capabilities=context.state.capabilities,
             ordinary_guideline_matches=context.state.ordinary_guideline_matches,
             tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
             journeys=context.state.journeys,
@@ -630,6 +640,7 @@ class AlphaEngine(Engine):
             context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(context.state.glossary_terms),
+            capabilities=context.state.capabilities,
             ordinary_guideline_matches=context.state.ordinary_guideline_matches,
             tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
             journeys=context.state.journeys,
@@ -794,6 +805,7 @@ class AlphaEngine(Engine):
             context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(context.state.glossary_terms),
+            capabilities=context.state.capabilities,
             staged_events=context.state.tool_events,
             guidelines=all_stored_guidelines,
         )
@@ -845,6 +857,25 @@ class AlphaEngine(Engine):
             )
 
         return dict(tools_for_guidelines)
+
+    async def _load_capabilities(self, context: LoadedContext) -> Sequence[Capability]:
+        # Capabilities are retrieved using semantic similarity.
+        # The querying process is done with a text query, for which
+        # the K most relevant terms are retrieved.
+        #
+        # We thus build an optimized query here based on our context.
+        query = ""
+
+        if context.interaction.history:
+            query += str([e.data for e in context.interaction.history])
+
+        if query:
+            return await self._entity_queries.find_capabilities_for_agent(
+                agent_id=context.agent.id,
+                query=query,
+            )
+
+        return []
 
     async def _load_glossary_terms(self, context: LoadedContext) -> Sequence[Term]:
         # Glossary terms are retrieved using semantic similarity.
