@@ -65,7 +65,6 @@ class CapabilityUpdateParams(TypedDict, total=False):
     title: str
     description: str
     queries: Sequence[str]
-    tags: Sequence[TagId]
 
 
 class CapabilityStore:
