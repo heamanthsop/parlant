@@ -7,7 +7,10 @@ from more_itertools import chunked
 
 from parlant.core import async_utils
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
+from parlant.core.engines.alpha.guideline_matching.generic.common import (
+    GuidelineInternalRepresentation,
+    internal_representation,
+)
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
     _make_event,
 )
@@ -172,7 +175,10 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
             f"Example #{i}: ###\n{self._format_shot(shot)}" for i, shot in enumerate(shots, start=1)
         )
 
-    def _format_shot(self, shot: GenericResponseAnalysisShot) -> str:
+    def _format_shot(
+        self,
+        shot: GenericResponseAnalysisShot,
+    ) -> str:
         def adapt_event(e: Event) -> JSONSerializable:
             source_map: dict[EventSource, str] = {
                 EventSource.CUSTOMER: "user",
@@ -219,9 +225,10 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
     def _add_guideline_matches_section(
         self,
         guidelines: dict[str, Guideline],
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
     ) -> str:
         guidelines_text = "\n".join(
-            f"{i}) Condition: {internal_representation(g).condition}. Action: {g.content.action}"
+            f"{i}) Condition: {guideline_representations[g.id].condition}. Action: {guideline_representations[g.id].action}"
             for i, g in guidelines.items()
         )
 
@@ -241,6 +248,8 @@ Guidelines:
         shots: Sequence[GenericResponseAnalysisShot],
         guidelines: dict[str, Guideline],
     ) -> PromptBuilder:
+        guideline_representations = {g.id: internal_representation(g) for g in guidelines.values()}
+
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
         builder.add_section(
@@ -320,7 +329,7 @@ Examples of ...:
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
-            template=self._add_guideline_matches_section(guidelines),
+            template=self._add_guideline_matches_section(guidelines, guideline_representations),
             props={},
         )
 
@@ -340,7 +349,8 @@ OUTPUT FORMAT
 """,
             props={
                 "result_structure_text": self._format_of_guideline_check_json_description(
-                    guidelines=guidelines
+                    guidelines=guidelines,
+                    guideline_representations=guideline_representations,
                 ),
                 "guidelines_len": len(guidelines),
             },
@@ -350,12 +360,13 @@ OUTPUT FORMAT
     def _format_of_guideline_check_json_description(
         self,
         guidelines: dict[str, Guideline],
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
     ) -> str:
         result_structure = [
             {
                 "guideline_id": i,
                 # "condition": g.content.condition,
-                "action": g.content.action,
+                "action": guideline_representations[g.id].action,
                 "guideline_applied_rationale": [
                     {
                         "action_segment": "<action_segment_description>",

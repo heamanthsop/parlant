@@ -5,7 +5,10 @@ import json
 import math
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
-from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
+from parlant.core.engines.alpha.guideline_matching.generic.common import (
+    GuidelineInternalRepresentation,
+    internal_representation,
+)
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     PreviouslyAppliedType,
@@ -152,8 +155,12 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
         self,
         shots: Sequence[GenericActionableGuidelineGuidelineMatchingShot],
     ) -> PromptBuilder:
+        guideline_representations = {
+            g.id: internal_representation(g) for g in self._guidelines.values()
+        }
+
         guidelines_text = "\n".join(
-            f"{i}) Condition: {internal_representation(g).condition}. Action: {g.content.action}"
+            f"{i}) Condition: {guideline_representations[g.id].condition}. Action: {guideline_representations[g.id].action}"
             for i, g in self._guidelines.items()
         )
 
@@ -240,18 +247,23 @@ OUTPUT FORMAT
 ```
 """,
             props={
-                "result_structure_text": self._format_of_guideline_check_json_description(),
+                "result_structure_text": self._format_of_guideline_check_json_description(
+                    guideline_representations=guideline_representations
+                ),
                 "guidelines_len": len(self._guidelines),
             },
         )
 
         return builder
 
-    def _format_of_guideline_check_json_description(self) -> str:
+    def _format_of_guideline_check_json_description(
+        self,
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
+    ) -> str:
         result_structure = [
             {
                 "guideline_id": i,
-                "condition": g.content.condition,
+                "condition": guideline_representations[g.id].condition,
                 "rationale": "<Explanation for why the condition is or isn't met when focusing on the most recent interaction>",
                 "applies": "<BOOL>",
             }

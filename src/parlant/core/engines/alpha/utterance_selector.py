@@ -32,6 +32,10 @@ from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent, CompositionMode
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
+from parlant.core.engines.alpha.guideline_matching.generic.common import (
+    GuidelineInternalRepresentation,
+    internal_representation,
+)
 from parlant.core.engines.alpha.message_event_composer import (
     MessageCompositionError,
     MessageEventComposer,
@@ -42,6 +46,7 @@ from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPer
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.entity_cq import EntityQueries
+from parlant.core.guidelines import GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
@@ -263,11 +268,14 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         field_name: str,
         context: UtteranceContext,
     ) -> Optional[str]:
-        def _get_field_extraction_guidelines_text(all_matches: Sequence[GuidelineMatch]) -> str:
+        def _get_field_extraction_guidelines_text(
+            all_matches: Sequence[GuidelineMatch],
+            guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
+        ) -> str:
             guidelines_texts = []
             for i, p in enumerate(all_matches, start=1):
                 if p.guideline.content.action:
-                    guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                    guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
                     guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
                     guidelines_texts.append(guideline)
             return "\n".join(guidelines_texts)
@@ -283,9 +291,15 @@ class GenerativeFieldExtraction(UtteranceFieldExtractionMethod):
         builder.add_customer_identity(context.customer)
         builder.add_context_variables(context.context_variables)
         builder.add_journeys(context.journeys)
+
         all_guideline_matches = list(
             chain(context.ordinary_guideline_matches, context.tool_enabled_guideline_matches)
         )
+
+        guideline_representations = {
+            m.guideline.id: internal_representation(m.guideline) for m in all_guideline_matches
+        }
+
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
             template="""
@@ -296,7 +310,7 @@ The guidelines are not necessarily intended to aid your current task of field ge
 """,
             props={
                 "all_guideline_matches_text": _get_field_extraction_guidelines_text(
-                    all_guideline_matches
+                    all_guideline_matches, guideline_representations
                 )
             },
         )
@@ -801,6 +815,7 @@ You will now be given the current state of the interaction to which you must gen
         self,
         ordinary: Sequence[GuidelineMatch],
         tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
     ) -> str:
         all_matches = [
             match for match in chain(ordinary, tool_enabled) if match.guideline.content.action
@@ -813,9 +828,10 @@ However, in this case, no special behavioral guidelines were provided.
 """
         guidelines = []
         agent_intention_guidelines = []
+
         for i, p in enumerate(all_matches, start=1):
             if p.guideline.content.action:
-                guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
                 guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
                 if p.guideline.metadata.get("agent_intention_condition"):
                     agent_intention_guidelines.append(guideline)
@@ -897,6 +913,11 @@ Example {i} - {shot.description}: ###
         utterances: Sequence[Utterance],
         shots: Sequence[UtteranceSelectorDraftShot],
     ) -> PromptBuilder:
+        guideline_representations = {
+            m.guideline.id: internal_representation(m.guideline)
+            for m in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
+        }
+
         builder = PromptBuilder(
             on_build=lambda prompt: self._logger.debug(f"Utterance Draft Prompt:\n{prompt}")
         )
@@ -1111,6 +1132,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
                     for g in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
                     if g.guideline.content.action
                 ],
+                "guideline_representations": guideline_representations,
             },
         )
 
@@ -1177,6 +1199,13 @@ Produce a valid JSON object according to the following spec. Use the values prov
         draft_message: str,
         utterances: Sequence[Utterance],
     ) -> PromptBuilder:
+        guideline_representations = {
+            m.guideline.id: internal_representation(m.guideline)
+            for m in chain(
+                context.ordinary_guideline_matches, context.tool_enabled_guideline_matches
+            )
+        }
+
         builder = PromptBuilder(
             on_build=lambda prompt: self._logger.debug(f"Utterance Selection Prompt:\n{prompt}")
         )
@@ -1184,8 +1213,8 @@ Produce a valid JSON object according to the following spec. Use the values prov
         if context.guidelines:
             formatted_guidelines = "In choosing the template, there are 2 cases. 1) There is a single, clear match. 2) There are multiple candidates for a match. In the second care, you may also find that there are multiple templates that overlap with the draft message in different ways. In those cases, you will have to decide which part (which overlap) you prioritize. When doing so, your prioritization for choosing between different overlapping templates should try to maximize adherence to the following behavioral guidelines: ###\n"
 
-            for guideline in [g for g in context.guidelines if g.guideline.content.action]:
-                formatted_guidelines += f"\n- When {guideline.guideline.content.condition}, then {guideline.guideline.content.action}."
+            for match in [g for g in context.guidelines if g.guideline.content.action]:
+                formatted_guidelines += f"\n- When {guideline_representations[match.guideline.id].condition}, then {guideline_representations[match.guideline.id].action}."
 
             formatted_guidelines += "\n###"
         else:
@@ -1238,6 +1267,7 @@ Output a JSON object with three properties:
                 "guidelines": [g for g in context.guidelines if g.guideline.content.action],
                 "formatted_guidelines": formatted_guidelines,
                 "composition_mode": context.agent.composition_mode,
+                "guideline_representations": guideline_representations,
             },
         )
         return builder

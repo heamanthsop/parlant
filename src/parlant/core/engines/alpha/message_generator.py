@@ -23,6 +23,10 @@ from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
+from parlant.core.engines.alpha.guideline_matching.generic.common import (
+    GuidelineInternalRepresentation,
+    internal_representation,
+)
 from parlant.core.engines.alpha.message_event_composer import (
     MessageCompositionError,
     MessageEventComposer,
@@ -33,6 +37,7 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolInsights,
     InvalidToolData,
 )
+from parlant.core.guidelines import GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
@@ -282,13 +287,16 @@ class MessageGenerator(MessageEventComposer):
 
         raise MessageCompositionError() from last_generation_exception
 
-    def get_guideline_matches_text(
+    def _get_guideline_matches_text(
         self,
         ordinary: Sequence[GuidelineMatch],
         tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
     ) -> tuple[str, dict[str, Any]]:
         all_matches = [
-            match for match in chain(ordinary, tool_enabled) if match.guideline.content.action
+            match
+            for match in chain(ordinary, tool_enabled)
+            if guideline_representations[match.guideline.id].action
         ]
 
         if not all_matches:
@@ -304,8 +312,8 @@ you don't need to specifically double-check if you followed or broke any guideli
         agent_intention_guidelines = []
 
         for i, p in enumerate(all_matches, start=1):
-            if p.guideline.content.action:
-                guideline = f"Guideline #{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+            if guideline_representations[p.guideline.id].action:
+                guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
                 guideline += f"\n   Rationale: {p.rationale}]"
                 if p.guideline.metadata.get("agent_intention_condition"):
                     agent_intention_guidelines.append(guideline)
@@ -388,6 +396,11 @@ These guidelines have already been pre-filtered based on the interaction's conte
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
     ) -> PromptBuilder:
+        guideline_representations = {
+            m.guideline.id: internal_representation(m.guideline)
+            for m in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
+        }
+
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
         builder.add_section(
@@ -562,13 +575,15 @@ INTERACTION CONTEXT
         builder.add_journeys(journeys)
         builder.add_section(
             name="message-generator-guideline-descriptions",
-            template=self.get_guideline_matches_text(
+            template=self._get_guideline_matches_text(
                 ordinary_guideline_matches,
                 tool_enabled_guideline_matches,
+                guideline_representations,
             )[0],
-            props=self.get_guideline_matches_text(
+            props=self._get_guideline_matches_text(
                 ordinary_guideline_matches,
                 tool_enabled_guideline_matches,
+                guideline_representations,
             )[1],
             status=SectionStatus.ACTIVE
             if ordinary_guideline_matches or tool_enabled_guideline_matches
@@ -619,7 +634,7 @@ You should inform the user about this invalid data and if it includes choices th
         actionable_guidelines = [
             g
             for g in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
-            if g.guideline.content.action
+            if guideline_representations[g.guideline.id].action
         ]
         builder.add_section(
             name="message-generator-output-format",
@@ -636,6 +651,7 @@ Produce a valid JSON object in the following format: ###
                 "default_output_format": self._get_output_format(
                     interaction_history,
                     actionable_guidelines,
+                    guideline_representations,
                 ),
                 "interaction_history": interaction_history,
                 "guidelines": actionable_guidelines,
@@ -674,7 +690,10 @@ Produce a valid JSON object in the following format: ###
         )
 
     def _get_output_format(
-        self, interaction_history: Sequence[Event], guidelines: Sequence[GuidelineMatch]
+        self,
+        interaction_history: Sequence[Event],
+        guidelines: Sequence[GuidelineMatch],
+        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
     ) -> str:
         last_customer_message = next(
             (
@@ -694,7 +713,7 @@ Produce a valid JSON object in the following format: ###
                 f"""
         {{
             "number": {i},
-            "instruction": "{g.guideline.content.action}",
+            "instruction": "{guideline_representations[g.guideline.id].action}",
             "evaluation": "<your evaluation of how the guideline should be followed>",
             "data_available": "<explanation whether you are provided with the required data to follow this guideline now>"
         }},"""
