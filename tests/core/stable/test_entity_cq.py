@@ -19,7 +19,6 @@ from parlant.core.agents import Agent, AgentStore
 from parlant.core.capabilities import CapabilityStore
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.glossary import GlossaryStore
-from parlant.core.loggers import Logger
 from parlant.core.utterances import UtteranceStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
@@ -339,7 +338,6 @@ async def test_that_find_capabilities_for_agent_returns_unique_capabilities(
         )
 
     relevant_capabilities = await entity_queries.find_capabilities_for_agent(
-        logger=container[Logger],
         agent_id=agent.id,
         query=random_unicode_string(),
     )

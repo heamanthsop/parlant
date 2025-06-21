@@ -871,7 +871,6 @@ class AlphaEngine(Engine):
 
         if query:
             return await self._entity_queries.find_capabilities_for_agent(
-                logger=self._logger,
                 agent_id=context.agent.id,
                 query=query,
             )

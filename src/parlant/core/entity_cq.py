@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from itertools import chain
-import time
 from typing import Optional, Sequence
 
 from parlant.core.agents import Agent, AgentId, AgentStore
@@ -31,7 +30,6 @@ from parlant.core.guidelines import (
     GuidelineStore,
 )
 from parlant.core.journeys import Journey, JourneyStore
-from parlant.core.loggers import Logger
 from parlant.core.relationships import (
     RelationshipStore,
 )
@@ -174,10 +172,7 @@ class EntityQueries:
         self,
         agent_id: AgentId,
         query: str,
-        logger: Logger,
     ) -> Sequence[Capability]:
-        t_start = time.time()
-
         agent_capabilities = await self._capability_store.list_capabilities(
             tags=[Tag.for_agent_id(agent_id)],
         )
@@ -200,10 +195,6 @@ class EntityQueries:
             list(all_capabilities),
             max_capabilities=3,
         )
-
-        t_end = time.time()
-
-        logger.info(f"Find time {t_end - t_start}")
 
         return result
 
