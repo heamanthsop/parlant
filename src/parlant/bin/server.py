@@ -74,7 +74,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
 )
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.perceived_performance_policy import (
-    DefaultPerceivedPerformancePolicy,
+    BasicPerceivedPerformancePolicy,
     PerceivedPerformancePolicy,
 )
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
@@ -399,7 +399,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
     c[UtteranceSelector] = Singleton(UtteranceSelector)
     c[MessageGenerator] = Singleton(MessageGenerator)
-    c[PerceivedPerformancePolicy] = Singleton(DefaultPerceivedPerformancePolicy)
+    c[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
 
     c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
     c[CoherenceChecker] = Singleton(CoherenceChecker)

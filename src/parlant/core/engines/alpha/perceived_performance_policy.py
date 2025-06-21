@@ -60,7 +60,7 @@ class PerceivedPerformancePolicy(ABC):
         ...
 
 
-class DefaultPerceivedPerformancePolicy(PerceivedPerformancePolicy):
+class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
     @override
     async def get_processing_indicator_delay(
         self,
