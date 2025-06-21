@@ -11,7 +11,7 @@ All notable changes to Parlant will be documented here.
 - Add integration with MCP servers for tools (currently only tools, limited MCP types support)
 - Refactor UtteranceStore to be implemented as a VectorStore rather than a DocumentStore
 - Add lifespan field to tool result to indicate if a tool event should be emitted
-- Introduce Capability
+- Introduce agent capabilities feature
 
 ## [2.2.0] - 2025-05-20
 
