@@ -1046,6 +1046,7 @@ EXAMPLES
             template=self._get_guideline_matches_text(
                 ordinary_guideline_matches,
                 tool_enabled_guideline_matches,
+                guideline_representations,
             ),
             props={
                 "ordinary_guideline_matches": ordinary_guideline_matches,
