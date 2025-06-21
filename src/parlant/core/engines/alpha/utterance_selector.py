@@ -745,18 +745,18 @@ You will now be given the current state of the interaction to which you must gen
                             },
                         )
 
-                        await self._perceived_performance_policy.get_follow_up_delay()
-
-                        await context.event_emitter.emit_status_event(
-                            correlation_id=self._correlator.correlation_id,
-                            data={
-                                "acknowledged_offset": 0,
-                                "status": "typing",
-                                "data": {},
-                            },
-                        )
-
                         if next_message := sub_messages[0] if sub_messages else None:
+                            await self._perceived_performance_policy.get_follow_up_delay()
+
+                            await context.event_emitter.emit_status_event(
+                                correlation_id=self._correlator.correlation_id,
+                                data={
+                                    "acknowledged_offset": 0,
+                                    "status": "typing",
+                                    "data": {},
+                                },
+                            )
+
                             typing_speed_in_words_per_minute = 50
 
                             initial_delay = 0.0
