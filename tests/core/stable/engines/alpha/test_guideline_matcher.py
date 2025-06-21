@@ -230,7 +230,7 @@ ACTIONABLE_GUIDELINES_DICT = {
         "action": "refuse payment as we only perform in-store purchases",
     },
     "cant_perform_request": {
-        "condition": "the customer wants to agent to perform an action that the agent is not designed for",
+        "condition": "the customer wants to agent to perform an action that you are not designed for",
         "action": "forward the request to a supervisor",
     },
     "announce_deals": {
@@ -263,23 +263,23 @@ ACTIONABLE_GUIDELINES_DICT = {
         "action": "answer their question enthusiastically, while not using punctuation. Also say that the kingfisher is your favorite bird",
     },
     "medical_record": {
-        "condition": "The agent is likely to discuss a patient's medical record",
+        "condition": "you are likely to discuss a patient's medical record",
         "action": "Do not send any personal information",
     },
     "provide_diagnosis": {
-        "condition": "The agent is likely to provide a diagnosis or medical advice.",
+        "condition": "you are likely to provide a diagnosis or medical advice.",
         "action": "Ensure the message includes a disclaimer that it is not a substitute for professional medical advice.",
     },
     "confirm_order": {
-        "condition": "The agent is likely to confirm a new order or a payment",
+        "condition": "you are likely to confirm a new order or a payment",
         "action": "Re-verify item, price, and customer consent before proceeding",
     },
     "discuss_money": {
-        "condition": "The agent is likely to discuss account balances or transactions.",
+        "condition": "you are likely to discuss account balances or transactions.",
         "action": "Require customer authentication confirmation before responding.",
     },
     "human_resources": {
-        "condition": "The agent is likely going to share a candidate’s application status",
+        "condition": "you are likely going to share a candidate’s application status",
         "action": "Avoid disclosing internal evaluation notes or third-party feedback",
     },
 }

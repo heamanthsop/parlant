@@ -38,15 +38,15 @@ from tests.test_utilities import SyncAwaiter
 
 GUIDELINES_DICT = {
     "medical_advice": {
-        "condition": "The agent provides health-related information or advice",
+        "condition": "You provide health-related information or advice",
         "action": "Include a disclaimer that this is not medical advice",
     },
     "recommend_product": {
-        "condition": "The agent recommends on a product or a service",
+        "condition": "You recommend on a product or a service",
         "action": "Ensure that the recommendation is unbiased and based on reliable information",
     },
     "international_transaction": {
-        "condition": "The agent explains international transaction fees or card usage policies",
+        "condition": "You explain international transaction fees or card usage policies",
         "action": "Be clear about potential fees and offer tips to avoid them",
     },
 }
@@ -310,19 +310,19 @@ async def test_that_actions_which_are_agent_intention_are_classified_correctly(
 ) -> None:
     guidelines = [
         GuidelineContent(
-            condition="The agent answers a question about pricing options",
+            condition="You answer a question about pricing options",
             action="Include the most up-to-date pricing from the official source",
         ),
         GuidelineContent(
-            condition="The agent is going to provide medical advice",
+            condition="You are going to provide medical advice",
             action="Add a disclaimer that the information is not a substitute for professional medical care",
         ),
         GuidelineContent(
-            condition="The agent makes a recommendation about a product",
+            condition="You make a recommendation about a product",
             action="Ensure the recommendation is based on factual information",
         ),
         GuidelineContent(
-            condition="The agent is likely to make a recommendation about a product",
+            condition="You likely to make a recommendation about a product",
             action="Ensure the recommendation is based on factual information",
         ),
     ]
@@ -340,7 +340,7 @@ async def test_that_actions_which_are_not_agent_intention_are_classified_correct
             action="Acknowledge and proceed with order processing",
         ),
         GuidelineContent(
-            condition="The agent has already apologized for the inconvenience",
+            condition="You have already apologized for the inconvenience",
             action="Do not repeat the apology",
         ),
         GuidelineContent(
@@ -348,7 +348,7 @@ async def test_that_actions_which_are_not_agent_intention_are_classified_correct
             action="Provide a link to the official return policy page",
         ),
         GuidelineContent(
-            condition="Customer indicated the agent's behavior is likely to cause them harm",
+            condition="Customer indicated your behavior is likely to cause them harm",
             action="Apologize and ask about what worries the customer",
         ),
     ]

@@ -68,11 +68,11 @@ class AgentIntentionProposer:
             template="""
 GENERAL INSTRUCTIONS
 -----------------
-In our system, the behavior of a conversational AI agent is guided by "guidelines". The agent makes use of these guidelines whenever it interacts with a user (also referred to as the customer).
+In our system, the behavior of a conversational AI agent is guided by "guidelines". You make use of these guidelines whenever it interacts with a user (also referred to as the customer).
 Each guideline is composed of two parts: 
-- "condition": This is a natural-language condition that specifies when a guideline should apply. We test against this condition to determine whether this guideline should be applied when generating the agent's next reply.
-- "action": This is a natural-language instruction that should be followed by the agent whenever the "condition" part of the guideline applies to the conversation in its particular state.
-Any instruction described here applies only to the agent, and not to the user.
+- "condition": This is a natural-language condition that specifies when a guideline should apply. We test against this condition to determine whether this guideline should be applied when generating your next reply.
+- "action": This is a natural-language instruction that should be followed by you whenever the "condition" part of the guideline applies to the conversation in its particular state.
+Any instruction described here applies only to you, and not to the user.
 
 """,
         )
@@ -82,18 +82,18 @@ Any instruction described here applies only to the agent, and not to the user.
             template="""
 TASK DESCRIPTION
 -----------------
-Your task is to determine whether a guideline condition reflects the agent’s intention. That is, whether it describes something the agent is doing or is about to do (e.g., "The agent discusses a patient's 
-medical record" or "The agent explains the conditions and terms"). Note: If the condition refers to something the agent has already done, it should not be considered an agent intention.
+Your task is to determine whether a guideline condition reflects your intention. That is, whether it describes something you are doing or is about to do (e.g., "You discusses a patient's 
+medical record" or "You explain the conditions and terms"). Note: If the condition refers to something you have already done, it should not be considered an agent intention.
 
-If the condition reflects agent intention, rephrase it to describe what the agent is likely to do next, using the following format:
-"The agent is likely to (do something)."
+If the condition reflects agent intention, rephrase it to describe what you are likely to do next, using the following format:
+"You are likely to (do something)."
 
 For example:
-Original: "The agent discusses a patient's medical record"
-Rewritten: "The agent is likely to discuss a patient's medical record"
+Original: "You discusses a patient's medical record"
+Rewritten: "You are likely to discuss a patient's medical record"
 
 Why this matters:
-Although the original condition can be written in present tense, guideline matching happens before the agent replies. So we need the condition to reflect the agent’s probable upcoming behavior, based on the customer's latest message.
+Although the original condition can be written in present tense, guideline matching happens before you reply. So we need the condition to reflect your probable upcoming behavior, based on the customer's latest message.
 
 
 
@@ -129,7 +129,7 @@ Expected output (JSON):
 {{
   "condition": "{condition}",
   "is_agent_intention": "<BOOL>",
-  "rewritten_condition": "<STR, include it is_agent_intention is True. Rewrite the condition in the format of "The agent is likely to (do something)" >",
+  "rewritten_condition": "<STR, include it is_agent_intention is True. Rewrite the condition in the format of "You are likely to (do something)" >",
 }}
 ```
 """,
@@ -173,7 +173,7 @@ Expected Response:
 
 
 example_1_guideline = GuidelineContent(
-    condition="The agent discusses a patient's medical record",
+    condition="You discuss a patient's medical record",
     action="Do not send any personal information",
 )
 example_1_shot = AgentIntentionProposerShot(
@@ -182,12 +182,12 @@ example_1_shot = AgentIntentionProposerShot(
     expected_result=AgentIntentionProposerSchema(
         condition=example_1_guideline.condition,
         is_agent_intention=True,
-        rewritten_condition="The agent is likely to discuss a patient's medical record",
+        rewritten_condition="You are likely to discuss a patient's medical record",
     ),
 )
 
 example_2_guideline = GuidelineContent(
-    condition="The agent intends to interpret a contract or legal term",
+    condition="You intend to interpret a contract or legal term",
     action="Add a disclaimer clarifying that the response is not legal advice",
 )
 example_2_shot = AgentIntentionProposerShot(
@@ -196,12 +196,12 @@ example_2_shot = AgentIntentionProposerShot(
     expected_result=AgentIntentionProposerSchema(
         condition=example_2_guideline.condition,
         is_agent_intention=True,
-        rewritten_condition="The agent is likely to interpret a contract or legal term",
+        rewritten_condition="You are likely to interpret a contract or legal term",
     ),
 )
 
 example_3_guideline = GuidelineContent(
-    condition="the agent just confirmed that the order will be shipped to the customer",
+    condition="You just confirmed that the order will be shipped to the customer",
     action="provide the package's tracking information",
 )
 example_3_shot = AgentIntentionProposerShot(
@@ -214,7 +214,7 @@ example_3_shot = AgentIntentionProposerShot(
 )
 
 example_4_guideline = GuidelineContent(
-    condition="The agent is likely to interpret a contract or legal term",
+    condition="You are likely to interpret a contract or legal term",
     action="Add a disclaimer clarifying that the response is not legal advice",
 )
 example_4_shot = AgentIntentionProposerShot(
@@ -223,7 +223,7 @@ example_4_shot = AgentIntentionProposerShot(
     expected_result=AgentIntentionProposerSchema(
         condition=example_4_guideline.condition,
         is_agent_intention=True,
-        rewritten_condition="The agent is likely to interpret a contract or legal term",
+        rewritten_condition="You are likely to interpret a contract or legal term",
     ),
 )
 
