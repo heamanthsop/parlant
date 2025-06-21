@@ -196,14 +196,18 @@ async def get_component_versions() -> list[tuple[str, str]]:
     )
     with suppress(chromadb.errors.InvalidCollectionException):
         if chroma_db.chroma_client.get_collection("glossary_unembedded"):
+            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
             versions.append(
                 (
                     "glossary",
-                    cast(dict[str, Any], await chroma_db.read_metadata()).get(
+                    chroma_db_metadata.get(
                         VectorDocumentStoreMigrationHelper.get_store_version_key(
                             GlossaryVectorStore.__name__
                         ),
-                        "version",
+                        chroma_db_metadata[
+                            "version"
+                        ],  # Back off to the old version key method if not found
                     ),
                 )
             )
