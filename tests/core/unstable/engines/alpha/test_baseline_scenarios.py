@@ -42,6 +42,7 @@ scenarios(
             "tools",
             "fluid_utterances",
             "strict_utterances",
+            "conversation",
         )
     )
 )
