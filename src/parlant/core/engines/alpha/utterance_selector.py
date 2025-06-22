@@ -1051,20 +1051,10 @@ EXAMPLES
         builder.add_context_variables(context_variables)
         builder.add_capabilities_for_message_generation(capabilities)
         builder.add_journeys(journeys)
-        builder.add_section(
-            name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
-            template=self._get_guideline_matches_text(
-                ordinary_guideline_matches,
-                tool_enabled_guideline_matches,
-                guideline_representations,
-            ),
-            props={
-                "ordinary_guideline_matches": ordinary_guideline_matches,
-                "tool_enabled_guideline_matches": tool_enabled_guideline_matches,
-            },
-            status=SectionStatus.ACTIVE
-            if ordinary_guideline_matches or tool_enabled_guideline_matches
-            else SectionStatus.PASSIVE,
+        builder.add_guidelines_for_message_generation(
+            ordinary_guideline_matches,
+            tool_enabled_guideline_matches,
+            guideline_representations,
         )
         builder.add_interaction_history(interaction_history)
         builder.add_staged_events(staged_events)
