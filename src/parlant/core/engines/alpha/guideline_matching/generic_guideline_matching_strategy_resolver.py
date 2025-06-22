@@ -97,14 +97,12 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         previously_applied_actionable_guidelines: list[Guideline] = []
         previously_applied_actionable_customer_dependent_guidelines: list[Guideline] = []
         actionable_guidelines: list[Guideline] = []
-        disambiguation_guidelines: list[Guideline] = []
+        disambiguation_groups: list[tuple[Guideline, list[Guideline]]] = []
 
         for g in guidelines:
             if not g.content.action:
-                if disambiguation_guideline := await self._get_disambiguation_guideline(
-                    g, guidelines
-                ):
-                    disambiguation_guidelines.append(disambiguation_guideline)
+                if targets := await self._try_get_disambiguation_group_targets(g, guidelines):
+                    disambiguation_groups.append((g, targets))
                 else:
                     observational_guidelines.append(g)
             else:
@@ -141,11 +139,11 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             guideline_batches.extend(
                 self._create_batches_actionable_guideline(actionable_guidelines, context)
             )
-        if disambiguation_guidelines:
+        if disambiguation_groups:
             guideline_batches.extend(
                 [
-                    self._create_batch_disambiguation_guideline(g, context)
-                    for g in disambiguation_guidelines
+                    self._create_batch_disambiguation_guideline(source, targets, context)
+                    for source, targets in disambiguation_groups
                 ]
             )
 
@@ -366,55 +364,35 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             context=context,
         )
 
-    async def _get_disambiguation_guideline(
+    async def _try_get_disambiguation_group_targets(
         self,
-        guideline: Guideline,
+        candidate: Guideline,
         guidelines: Sequence[Guideline],
-    ) -> Optional[Guideline]:
+    ) -> Optional[list[Guideline]]:
         guidelines_dict = {g.id: g for g in guidelines}
 
         if relationships := await self._relationship_store.list_relationships(
             kind=GuidelineRelationshipKind.DISAMBIGUATION,
-            source_id=guideline.id,
+            source_id=candidate.id,
         ):
-            members = [guidelines_dict[cast(GuidelineId, r.target.id)] for r in relationships]
+            targets = [guidelines_dict[cast(GuidelineId, r.target.id)] for r in relationships]
 
-            return Guideline(
-                id=guideline.id,
-                creation_utc=guideline.creation_utc,
-                content=GuidelineContent(
-                    condition=guideline.content.condition,
-                    action=guideline.content.action,
-                ),
-                enabled=True,
-                tags=[],
-                metadata={
-                    **guideline.metadata,
-                    **{
-                        "members": [
-                            {
-                                "id": m.id,
-                                "condition": m.content.condition,
-                                "action": m.content.action,
-                                "metadata": m.metadata,
-                            }
-                            for m in members
-                        ]
-                    },
-                },
-            )
+            if len(targets) > 1:
+                return targets
 
         return None
 
     def _create_batch_disambiguation_guideline(
         self,
-        guideline: Guideline,
+        disambiguation_guideline: Guideline,
+        disambiguation_targets: list[Guideline],
         context: GuidelineMatchingContext,
     ) -> GenericDisambiguationGuidelineMatchingBatch:
         return GenericDisambiguationGuidelineMatchingBatch(
             logger=self._logger,
             schematic_generator=self._disambiguation_guidelines_schematic_generator,
-            guidelines=[guideline],
+            disambiguation_guideline=disambiguation_guideline,
+            disambiguation_targets=disambiguation_targets,
             context=context,
         )
 

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 from typing import Optional
 from parlant.core.common import DefaultBaseModel, JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     PreviouslyAppliedType,
@@ -50,31 +51,18 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         self,
         logger: Logger,
         schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema],
-        guidelines: Sequence[Guideline],
+        disambiguation_guideline: Guideline,
+        disambiguation_targets: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
-        self._guideline_head = guidelines[0]  # Assume batch of size 1
-        self._guidelines = {}
+        self._guideline_head = disambiguation_guideline
+        self._disambiguation_targets = {g.id: g for g in disambiguation_targets}
 
-        members = self._guideline_head.metadata.get("members", [])
-        if isinstance(members, list):
-            for m in members:
-                if isinstance(m, dict):
-                    guideline_id = m.get("id", "")
-                    condition = m.get("condition", "")
-                    action = m.get("action", "")
-                    if (
-                        isinstance(guideline_id, str)
-                        and isinstance(condition, str)
-                        and isinstance(action, str)
-                    ):
-                        self._guidelines[guideline_id] = GuidelineContent(
-                            condition=condition, action=action
-                        )
-
-        self._guideline_ids = {str(i): id for i, id in enumerate(self._guidelines.keys(), start=1)}
+        self._guideline_ids = {
+            str(i): id for i, id in enumerate(self._disambiguation_targets.keys(), start=1)
+        }
         self._context = context
 
     async def process(self) -> GuidelineMatchingBatchResult:
@@ -183,11 +171,17 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         self,
         shots: Sequence[DisambiguationGuidelineMatchingShot],
     ) -> PromptBuilder:
+        guideline_head_representation = internal_representation(self._guideline_head)
+        guideline_targets_representations = {
+            g.id: internal_representation(g) for g in self._disambiguation_targets.values()
+        }
+
         guidelines_text = "\n".join(
-            f"{i}) Condition: {self._guidelines[id].condition}. Action: {self._guidelines[id].action}"
+            f"{i}) Condition: {guideline_targets_representations[id].condition}. Action: {guideline_targets_representations[id].action}"
             for i, id in self._guideline_ids.items()
         )
-        guideline_head_text = f"Condition {self._guideline_head.content.condition}. Action: {self._guideline_head.content.action}"
+
+        guideline_head_text = f"Condition {guideline_head_representation.condition}. Action: {guideline_head_representation.action}"
         builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
 
         builder.add_section(

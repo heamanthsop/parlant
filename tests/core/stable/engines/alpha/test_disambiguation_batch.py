@@ -223,29 +223,6 @@ async def create_guideline(
     return guideline
 
 
-def create_guideline_head(guidelines: list[Guideline], head_condition: str) -> Guideline:
-    members = []
-    for g in guidelines:
-        if g is not None:
-            members.append(
-                {"condition": g.content.condition, "action": g.content.action, "id": g.id}
-            )
-
-    metadata: dict[str, JSONSerializable] = {"members": members}
-
-    return Guideline(
-        id=GuidelineId(generate_id()),
-        creation_utc=datetime.now(timezone.utc),
-        content=GuidelineContent(
-            condition=head_condition,
-            action=None,
-        ),
-        enabled=True,
-        tags=[],
-        metadata=metadata,
-    )
-
-
 async def create_guideline_by_name(
     context: ContextOfTest,
     guideline_name: str,
@@ -292,10 +269,12 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
     }
     to_ids = {g.id: g for g in to_disambiguate_guidelines.values() if g is not None}
 
-    guideline_head = create_guideline_head(
-        guidelines=[g for g in to_disambiguate_guidelines.values() if g is not None],
-        head_condition=head_condition,
+    guideline_head = await create_guideline(
+        context=context,
+        condition=head_condition,
     )
+
+    guideline_targets = [g for g in to_disambiguate_guidelines.values() if g is not None]
 
     disambiguating_guideline = [
         guideline
@@ -317,7 +296,8 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
     disambiguation_resolver = GenericDisambiguationGuidelineMatchingBatch(
         logger=context.logger,
         schematic_generator=context.schematic_generator,
-        guidelines=[guideline_head],
+        disambiguation_guideline=guideline_head,
+        disambiguation_targets=guideline_targets,
         context=guideline_matching_context,
     )
     result = await disambiguation_resolver.process()
@@ -333,8 +313,8 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
             if isinstance(disambiguation, dict):
                 targets = disambiguation.get("targets")
                 if targets:
-                    guidelines = [to_ids[id] for id in targets]
-                    assert set(disambiguating_guideline) == set(guidelines)
+                    guideline_targets = [to_ids[id] for id in targets]
+                    assert set(disambiguating_guideline) == set(guideline_targets)
 
                 clarification = disambiguation.get("enriched_action")
                 if clarification:
@@ -667,7 +647,7 @@ async def test_that_agent_re_ask_when_customer_didnt_answer_which_option(  # TOD
     return
 
 
-async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_doesnot_created(
+async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_not_created(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,

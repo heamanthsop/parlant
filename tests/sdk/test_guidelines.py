@@ -52,7 +52,7 @@ class Test_that_guideline_dependency_relationship_can_be_created(SDKTest):
         self.g1 = await self.agent.create_guideline(condition="Condition 1", action="Action 1")
         self.g2 = await self.agent.create_guideline(condition="Condition 2", action="Action 2")
 
-        self.relationship = await self.g2.depend_on(self.g3)
+        self.relationship = await self.g2.depend_on(self.g2)
 
     async def run(self, ctx: Context) -> None:
         relationship_store = ctx.container[RelationshipStore]
