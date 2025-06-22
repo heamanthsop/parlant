@@ -479,10 +479,10 @@ Example: In a product return journey with steps to 1) verify purchase details, 2
             self.add_section(
                 name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
                 template="""
-    In formulating your reply, you are normally required to follow a number of behavioral guidelines.
-    However, in this case, no special behavioral guidelines were provided. Therefore, when generating revisions,
-    you don't need to specifically double-check if you followed or broke any guidelines.
-    """,
+In formulating your reply, you are normally required to follow a number of behavioral guidelines.
+However, in this case, no special behavioral guidelines were provided. Therefore, when generating revisions,
+you don't need to specifically double-check if you followed or broke any guidelines.
+""",
                 status=SectionStatus.PASSIVE,
             )
             return self
@@ -503,36 +503,36 @@ Example: In a product return journey with steps to 1) verify purchase details, 2
         agent_intention_guidelines_list = "\n".join(agent_intention_guidelines)
 
         guideline_instruction = """
-    When crafting your reply, you must follow the behavioral guidelines provided below, which have been identified as relevant to the current state of the interaction.
+When crafting your reply, you must follow the behavioral guidelines provided below, which have been identified as relevant to the current state of the interaction.
     """
         if agent_intention_guidelines_list:
             guideline_instruction += f"""
-    Some guidelines are tied to conditions related to you, the agent. These guidelines are considered relevant because it is likely that you intend to produce a message that will trigger the associated condition.
-    You should only follow these guidelines if you are actually going to produce a message that activates the condition.
-    - **Guidelines with agent intention condition**:
+Some guidelines are tied to conditions related to you, the agent. These guidelines are considered relevant because it is likely that you intend to produce a message that will trigger the associated condition.
+You should only follow these guidelines if you are actually going to produce a message that activates the condition.
+- **Guidelines with agent intention condition**:
     {agent_intention_guidelines_list}
 
     """
         if guideline_list:
             guideline_instruction += f"""
 
-    For any other guidelines, do not disregard a guideline because you believe its 'when' condition or rationale does not apply—this filtering has already been handled.
-    - **Guidelines**:
+For any other guidelines, do not disregard a guideline because you believe its 'when' condition or rationale does not apply—this filtering has already been handled.
+- **Guidelines**:
     {guideline_list}
 
     """
         guideline_instruction += """
 
-    You may choose not to follow a guideline only in the following cases:
-        - It conflicts with a previous customer request.
-        - It is clearly inappropriate given the current context of the conversation.
-        - It lacks sufficient context or data to apply reliably.
-        - It conflicts with an insight.
-        - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
-        - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
-            choosing the permitted alternative (i.e., do Y).
-    In all other situations, you are expected to adhere to the guidelines.
-    These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
+You may choose not to follow a guideline only in the following cases:
+    - It conflicts with a previous customer request.
+    - It is clearly inappropriate given the current context of the conversation.
+    - It lacks sufficient context or data to apply reliably.
+    - It conflicts with an insight.
+    - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
+    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
+        choosing the permitted alternative (i.e., do Y).
+In all other situations, you are expected to adhere to the guidelines.
+These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
     """
         self.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
