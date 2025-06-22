@@ -178,17 +178,11 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         guidelines_to_skip: list[GuidelineId] = []
 
         for m in matches:
-            disambiguation = m.metadata.get("disambiguation") if m.metadata else None
-
-            if disambiguation and "disambiguated_members" in cast(
-                dict[str, JSONSerializable], disambiguation
-            ):
+            if disambiguation := m.metadata.get("disambiguation"):
                 guidelines_to_skip.extend(
                     cast(
                         list[GuidelineId],
-                        cast(dict[str, JSONSerializable], disambiguation).get(
-                            "disambiguated_members"
-                        ),
+                        cast(dict[str, JSONSerializable], disambiguation).get("targets"),
                     )
                 )
 
@@ -217,9 +211,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 )
 
         for m in matches:
-            if (
-                m.metadata and m.metadata.get("disambiguation")
-            ) or m.guideline.id in guidelines_to_skip:
+            if m.metadata.get("disambiguation") or m.guideline.id in guidelines_to_skip:
                 continue
 
             result.append(m)

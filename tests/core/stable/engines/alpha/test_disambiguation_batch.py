@@ -331,9 +331,9 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
             assert disambiguation, "Disambiguation key missing or falsy"
 
             if isinstance(disambiguation, dict):
-                disambiguated_members = disambiguation.get("disambiguated_members")
-                if disambiguated_members:
-                    guidelines = [to_ids[id] for id in disambiguated_members]
+                targets = disambiguation.get("targets")
+                if targets:
+                    guidelines = [to_ids[id] for id in targets]
                     assert set(disambiguating_guideline) == set(guidelines)
 
                 clarification = disambiguation.get("enriched_action")
