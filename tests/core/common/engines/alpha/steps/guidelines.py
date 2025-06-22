@@ -137,7 +137,10 @@ def given_a_guideline_name_to_when(
 
 
 @step(
-    given, parsers.parse('a disambiguation head "{disambiguation_name}" when {a_condition_holds}')
+    given,
+    parsers.parse(
+        'a disambiguation group head "{disambiguation_name}" to activate when {a_condition_holds}'
+    ),
 )
 def given_an_observation_name_of(
     context: ContextOfTest,

@@ -32,7 +32,6 @@ from typing import Sequence
 
 from parlant.core import async_utils
 from parlant.core.capabilities import Capability
-from parlant.core.common import JSONSerializable
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
