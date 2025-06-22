@@ -560,6 +560,7 @@ async def run_service_server(
     plugin_data: Mapping[str, Any] = {},
 ) -> AsyncIterator[PluginServer]:
     port = get_random_port(50001, 65535)
+
     async with PluginServer(
         tools=tools,
         port=port,

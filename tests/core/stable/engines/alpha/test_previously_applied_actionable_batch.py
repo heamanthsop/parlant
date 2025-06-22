@@ -15,6 +15,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_
     GenericPreviouslyAppliedActionableGuidelineMatchingBatch,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
+from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import EventSource, Session, SessionId, SessionStore
@@ -132,6 +133,7 @@ async def base_test_that_correct_guidelines_are_matched(
     capabilities: list[Capability] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     staged_events: Sequence[EmittedEvent] = [],
+    relevant_journeys: Sequence[Journey] = [],
 ) -> None:
     conversation_guidelines = {
         name: create_guideline_by_name(context, name) for name in guidelines_names
@@ -159,12 +161,14 @@ async def base_test_that_correct_guidelines_are_matched(
         terms=[],
         capabilities=capabilities,
         staged_events=staged_events,
+        relevant_journeys=relevant_journeys,
     )
 
     guideline_previously_applied_matcher = GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
         logger=context.container[Logger],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
+        journeys=[],
         context=guideline_matching_context,
     )
 

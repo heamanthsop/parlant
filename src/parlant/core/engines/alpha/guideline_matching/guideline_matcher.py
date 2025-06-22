@@ -32,6 +32,7 @@ from typing import Sequence
 
 from parlant.core import async_utils
 from parlant.core.capabilities import Capability
+from parlant.core.journeys import Journey
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.agents import Agent
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
@@ -51,6 +52,18 @@ from parlant.core.loggers import Logger
 
 
 @dataclass(frozen=True)
+class GuidelineMatchingStrategyContext:
+    agent: Agent
+    session: Session
+    customer: Customer
+    context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
+    interaction_history: Sequence[Event]
+    terms: Sequence[Term]
+    capabilities: Sequence[Capability]
+    staged_events: Sequence[EmittedEvent]
+
+
+@dataclass(frozen=True)
 class GuidelineMatchingContext:
     agent: Agent
     session: Session
@@ -60,6 +73,7 @@ class GuidelineMatchingContext:
     terms: Sequence[Term]
     capabilities: Sequence[Capability]
     staged_events: Sequence[EmittedEvent]
+    relevant_journeys: Sequence[Journey]
 
 
 @dataclass(frozen=True)
@@ -121,7 +135,7 @@ class GuidelineMatchingStrategy(ABC):
     async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingStrategyContext,
     ) -> Sequence[GuidelineMatchingBatch]: ...
 
     @abstractmethod
@@ -217,7 +231,7 @@ class GuidelineMatcher:
                     *[
                         strategy.create_matching_batches(
                             guidelines,
-                            context=GuidelineMatchingContext(
+                            context=GuidelineMatchingStrategyContext(
                                 agent,
                                 session,
                                 customer,

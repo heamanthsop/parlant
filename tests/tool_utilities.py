@@ -377,14 +377,20 @@ async def search_products(
 def book_flight(
     departure_city: str,
     destination_city: str,
-    departure_date: str,
-    return_date: Optional[str] = None,
-    passenger_name: Optional[str] = None,
 ) -> ToolResult:
-    # Imagine this performs some flight booking logic
     return ToolResult(
-        data=f"Flight booked from {departure_city} to {destination_city} on {departure_date}."
+        data={
+            "departure_city": departure_city,
+            "destination_city": destination_city,
+        }
     )
+
+
+def class_access_validator(age: int) -> ToolResult:
+    if age >= 21:
+        return ToolResult(data={"class": "business class"})
+    else:
+        return ToolResult(data={"class": "economy class"})
 
 
 def send_email(to: str, subject: str, body: Optional[str] = None) -> ToolResult:

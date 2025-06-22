@@ -322,7 +322,7 @@ class LegacyInvoiceDataDTO(
     """
     Contains the relevant invoice data.
 
-    At this point only `guideline` is suppoerted.
+    At this point only `guideline` is supported.
     """
 
     guideline: Optional[LegacyGuidelineInvoiceDataDTO] = None
