@@ -16,7 +16,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import (
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingContext,
+    GuidelineMatchingBatchContext,
     GuidelineMatchingStrategy,
     GuidelineMatchingStrategyContext,
 )
@@ -55,7 +55,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
         schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
@@ -320,7 +320,7 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
                 self._create_batch(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingContext(
+                    context=GuidelineMatchingBatchContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -352,7 +352,7 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> GenericActionableGuidelineMatchingBatch:
         return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,

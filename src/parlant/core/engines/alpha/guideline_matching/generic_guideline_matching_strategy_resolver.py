@@ -33,7 +33,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_bat
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
-    GuidelineMatchingContext,
+    GuidelineMatchingBatchContext,
     GuidelineMatchingStrategyContext,
     ReportAnalysisContext,
     GuidelineMatchingStrategy,
@@ -249,7 +249,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 self._create_batch_observational_guideline(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingContext(
+                    context=GuidelineMatchingBatchContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -269,7 +269,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> GenericObservationalGuidelineMatchingBatch:
         return GenericObservationalGuidelineMatchingBatch(
             logger=self._logger,
@@ -306,7 +306,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 self._create_batch_previously_applied_actionable_guideline(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingContext(
+                    context=GuidelineMatchingBatchContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -326,7 +326,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> GenericPreviouslyAppliedActionableGuidelineMatchingBatch:
         return GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
             logger=self._logger,
@@ -363,7 +363,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 self._create_batch_previously_applied_actionable_customer_dependent_guideline(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingContext(
+                    context=GuidelineMatchingBatchContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -383,7 +383,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch:
         return GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=self._logger,
@@ -420,7 +420,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 self._create_batch_actionable_guideline(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingContext(
+                    context=GuidelineMatchingBatchContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -440,7 +440,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> GenericActionableGuidelineMatchingBatch:
         return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
@@ -486,7 +486,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             schematic_generator=self._disambiguation_guidelines_schematic_generator,
             disambiguation_guideline=disambiguation_guideline,
             disambiguation_targets=disambiguation_targets,
-            context=GuidelineMatchingContext(
+            context=GuidelineMatchingBatchContext(
                 agent=context.agent,
                 session=context.session,
                 customer=context.customer,

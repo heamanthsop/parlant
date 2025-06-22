@@ -12,7 +12,9 @@ from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_
     GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
     GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
 )
-from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatchingContext
+from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
+    GuidelineMatchingBatchContext,
+)
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
@@ -146,7 +148,7 @@ async def base_test_that_correct_guidelines_are_matched(
 
     session = await context.container[SessionStore].read_session(session_id)
 
-    guideline_matching_context = GuidelineMatchingContext(
+    guideline_matching_context = GuidelineMatchingBatchContext(
         agent=agent,
         session=session,
         customer=customer,

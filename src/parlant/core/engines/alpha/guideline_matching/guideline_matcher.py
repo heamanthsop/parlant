@@ -2,7 +2,7 @@ __all__ = [
     "GuidelineMatcher",
     "GuidelineMatchingBatch",
     "GuidelineMatchingBatchResult",
-    "GuidelineMatchingContext",
+    "GuidelineMatchingBatchContext",
     "ResponseAnalysisBatch",
     "ResponseAnalysisBatchResult",
     "ReportAnalysisContext",
@@ -64,7 +64,7 @@ class GuidelineMatchingStrategyContext:
 
 
 @dataclass(frozen=True)
-class GuidelineMatchingContext:
+class GuidelineMatchingBatchContext:
     agent: Agent
     session: Session
     customer: Customer

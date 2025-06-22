@@ -12,7 +12,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import (
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingContext,
+    GuidelineMatchingBatchContext,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.guidelines import Guideline, GuidelineContent
@@ -53,7 +53,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema],
         disambiguation_guideline: Guideline,
         disambiguation_targets: Sequence[Guideline],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingBatchContext,
     ) -> None:
         self._logger = logger
         self._schematic_generator = schematic_generator
