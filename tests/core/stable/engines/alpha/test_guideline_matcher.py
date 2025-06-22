@@ -44,7 +44,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingContext,
+    GuidelineMatchingStrategyContext,
     ResponseAnalysisBatch,
     ResponseAnalysisBatchResult,
     ReportAnalysisContext,
@@ -1473,7 +1473,7 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [
                 ActivateEveryGuidelineBatch(guidelines=guidelines),
@@ -1499,7 +1499,7 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [SkipAllGuidelineBatch(guidelines=guidelines)]
 
@@ -1568,7 +1568,7 @@ async def test_that_strategy_for_specific_guideline_can_be_overridden_in_default
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [ActivateEveryGuidelineBatch(guidelines=guidelines)]
 
@@ -2410,7 +2410,7 @@ async def test_that_response_analysis_strategy_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return []
 
@@ -2542,7 +2542,7 @@ async def test_that_batch_processing_retries_on_key_error(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [
                 FailingBatch(
@@ -2633,7 +2633,7 @@ async def test_that_batch_processing_fails_after_max_retries(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingContext,
+            context: GuidelineMatchingStrategyContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [AlwaysFailingBatch(guidelines=guidelines)]
 

@@ -178,6 +178,7 @@ async def base_test_that_correct_guidelines_are_matched(
         terms=[],
         capabilities=capabilities,
         staged_events=staged_events,
+        relevant_journeys=[],
     )
 
     guideline_actionable_matcher = GenericActionableGuidelineMatchingBatch(

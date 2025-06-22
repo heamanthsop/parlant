@@ -18,6 +18,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatchResult,
     GuidelineMatchingContext,
     GuidelineMatchingStrategy,
+    GuidelineMatchingStrategyContext,
 )
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.entity_cq import EntityQueries
@@ -324,10 +325,12 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching(
     async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
-        context: GuidelineMatchingContext,
+        context: GuidelineMatchingStrategyContext,
     ) -> Sequence[GuidelineMatchingBatch]:
         journeys = (
-            self._entity_queries.guideline_journey_dependents.get(guidelines[0].id, [])
+            self._entity_queries.find_journeys_on_which_this_guideline_depends.get(
+                guidelines[0].id, []
+            )
             if guidelines
             else []
         )
@@ -347,7 +350,17 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching(
                 self._create_batch(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=context,
+                    context=GuidelineMatchingContext(
+                        agent=context.agent,
+                        session=context.session,
+                        customer=context.customer,
+                        context_variables=context.context_variables,
+                        interaction_history=context.interaction_history,
+                        terms=context.terms,
+                        capabilities=context.capabilities,
+                        staged_events=context.staged_events,
+                        relevant_journeys=journeys,
+                    ),
                 )
             )
 
@@ -497,7 +510,7 @@ example_3_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelin
             condition_still_met=True,
             customer_should_reply=False,
             condition_met_again=True,
-            action_should_reappply=True,
+            action_should_reapply=True,
             action_wasnt_taken=True,
             tldr="The customer ask about a new trip plan.",
             should_apply=True,
@@ -628,7 +641,7 @@ example_6_expected = GenericPreviouslyAppliedActionableCustomerDependentGuidelin
             condition_still_met=True,
             customer_should_reply=False,
             condition_met_again=True,
-            action_should_reappply=False,
+            action_should_reapply=False,
             tldr="The customer already provided their account Id",
             should_apply=False,
         ),

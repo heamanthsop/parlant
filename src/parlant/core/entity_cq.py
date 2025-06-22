@@ -87,7 +87,7 @@ class EntityQueries:
         self._service_registry = service_registry
         self._utterance_store = utterance_store
 
-        self.guideline_journey_dependents = TTLCache[GuidelineId, list[Journey]](
+        self.find_journeys_on_which_this_guideline_depends = TTLCache[GuidelineId, list[Journey]](
             maxsize=1024, ttl=120
         )
 
@@ -178,10 +178,10 @@ class EntityQueries:
             iterated_relationships.add(r)
 
         for id in guideline_ids:
-            journeys = self.guideline_journey_dependents.get(id, [])
+            journeys = self.find_journeys_on_which_this_guideline_depends.get(id, [])
             journeys.append(journey)
 
-            self.guideline_journey_dependents[id] = journeys
+            self.find_journeys_on_which_this_guideline_depends[id] = journeys
 
         return list(guideline_ids)
 
