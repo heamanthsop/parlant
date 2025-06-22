@@ -305,6 +305,7 @@ class EntityQueries:
         return await self._journey_store.find_relevant_journeys(
             query=query,
             available_journeys=available_journeys,
+            max_journeys=len(available_journeys),
         )
 
     async def find_utterances_for_context(
