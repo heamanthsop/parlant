@@ -53,7 +53,7 @@ from parlant.core.utterances import Utterance, UtteranceId, UtteranceStore
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection, SectionStatus
+from parlant.core.engines.alpha.prompt_builder import PromptBuilder, BuiltInSection
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
 from parlant.core.sessions import (
