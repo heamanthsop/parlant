@@ -14,13 +14,13 @@ class Test_that_guideline_priority_relationship_can_be_created(SDKTest):
         self.g1 = await self.agent.create_guideline(condition="Condition 1", action="Action 1")
         self.g2 = await self.agent.create_guideline(condition="Condition 2", action="Action 2")
 
-        self.priority = await self.g1.prioritize_over(self.g2)
+        self.relationship = await self.g1.prioritize_over(self.g2)
 
     async def run(self, ctx: Context) -> None:
         relationship_store = ctx.container[RelationshipStore]
 
-        rel_priority = await relationship_store.read_relationship(id=self.priority.id)
-        assert rel_priority.kind == GuidelineRelationshipKind.PRIORITY
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+        assert relationship.kind == GuidelineRelationshipKind.PRIORITY
 
 
 class Test_that_guideline_entailment_relationship_can_be_created(SDKTest):
@@ -31,15 +31,15 @@ class Test_that_guideline_entailment_relationship_can_be_created(SDKTest):
         )
 
         self.g1 = await self.agent.create_guideline(condition="Condition 1", action="Action 1")
-        self.g3 = await self.agent.create_guideline(condition="Condition 3", action="Action 3")
+        self.g2 = await self.agent.create_guideline(condition="Condition 2", action="Action 3")
 
-        self.entailment = await self.g1.entail(self.g3)
+        self.relationship = await self.g1.entail(self.g2)
 
     async def run(self, ctx: Context) -> None:
         relationship_store = ctx.container[RelationshipStore]
 
-        rel_entail = await relationship_store.read_relationship(id=self.entailment.id)
-        assert rel_entail.kind == GuidelineRelationshipKind.ENTAILMENT
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+        assert relationship.kind == GuidelineRelationshipKind.ENTAILMENT
 
 
 class Test_that_guideline_dependency_relationship_can_be_created(SDKTest):
@@ -49,16 +49,16 @@ class Test_that_guideline_dependency_relationship_can_be_created(SDKTest):
             description="Agent for guideline relationships",
         )
 
+        self.g1 = await self.agent.create_guideline(condition="Condition 1", action="Action 1")
         self.g2 = await self.agent.create_guideline(condition="Condition 2", action="Action 2")
-        self.g3 = await self.agent.create_guideline(condition="Condition 3", action="Action 3")
 
-        self.dependency = await self.g2.depend_on(self.g3)
+        self.relationship = await self.g2.depend_on(self.g3)
 
     async def run(self, ctx: Context) -> None:
         relationship_store = ctx.container[RelationshipStore]
 
-        rel_depend = await relationship_store.read_relationship(id=self.dependency.id)
-        assert rel_depend.kind == GuidelineRelationshipKind.DEPENDENCY
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+        assert relationship.kind == GuidelineRelationshipKind.DEPENDENCY
 
 
 class Test_that_guideline_disambiguation_creates_relationships(SDKTest):
@@ -83,7 +83,7 @@ class Test_that_guideline_disambiguation_creates_relationships(SDKTest):
             assert rel.target in [self.g2.id, self.g3.id]
 
 
-class Test_that_guideline_disambiguate_raises_on_single_target(SDKTest):
+class Test_that_attempting_to_disambiguate_a_single_target_raises_an_error(SDKTest):
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(
             name="Error Agent",
