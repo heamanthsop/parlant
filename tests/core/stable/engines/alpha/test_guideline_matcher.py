@@ -307,7 +307,7 @@ ACTIONABLE_GUIDELINES_DICT = {
     },
 }
 
-DISAMBIGUATION_HEAD_GUIDELINES_DICT = {
+DISAMBIGUATION_GUIDELINES_DICT = {
     "amusement_park": "The customer asks to book a ticket to an amusement ride or attraction, and its not clear which one",
 }
 
@@ -406,10 +406,10 @@ async def create_guideline(
     return guideline
 
 
-async def create_disambiguation_guideline_head(
+async def create_disambiguation_guideline(
     context: ContextOfTest, condition: str, guidelines: list[Guideline]
 ) -> Guideline:
-    head = Guideline(
+    guideline = Guideline(
         id=GuidelineId(generate_id()),
         creation_utc=datetime.now(timezone.utc),
         content=GuidelineContent(
@@ -421,12 +421,12 @@ async def create_disambiguation_guideline_head(
         metadata={},
     )
 
-    context.guidelines.append(head)
+    context.guidelines.append(guideline)
 
     for g in guidelines:
         await context.container[RelationshipStore].create_relationship(
             source=RelationshipEntity(
-                id=head.id,
+                id=guideline.id,
                 kind=RelationshipEntityKind.GUIDELINE,
             ),
             target=RelationshipEntity(
@@ -436,7 +436,7 @@ async def create_disambiguation_guideline_head(
             kind=GuidelineRelationshipKind.DISAMBIGUATION,
         )
 
-    return head
+    return guideline
 
 
 def create_term(
@@ -472,7 +472,7 @@ def create_context_variable(
 async def create_guideline_by_name(
     context: ContextOfTest,
     guideline_name: str,
-    disambiguating_guidelines: list[Guideline] = [],
+    disambiguating_targets: list[Guideline] = [],
 ) -> Guideline | None:
     if guideline_name in ACTIONABLE_GUIDELINES_DICT:
         guideline = await create_guideline(
@@ -485,11 +485,11 @@ async def create_guideline_by_name(
             context=context,
             condition=OBSERVATIONAL_GUIDELINES_DICT[guideline_name]["condition"],
         )
-    elif guideline_name in DISAMBIGUATION_HEAD_GUIDELINES_DICT:
-        guideline = await create_disambiguation_guideline_head(
+    elif guideline_name in DISAMBIGUATION_GUIDELINES_DICT:
+        guideline = await create_disambiguation_guideline(
             context=context,
-            condition=DISAMBIGUATION_HEAD_GUIDELINES_DICT[guideline_name],
-            guidelines=disambiguating_guidelines,
+            condition=DISAMBIGUATION_GUIDELINES_DICT[guideline_name],
+            guidelines=disambiguating_targets,
         )
     else:
         guideline = None
@@ -574,8 +574,8 @@ async def base_test_that_correct_guidelines_are_matched(
     relevant_guideline_names: list[str],
     previously_applied_guidelines_names: list[str] = [],
     previously_matched_guidelines_names: list[str] = [],
-    disambiguation_head_name: str = "",
-    disambiguation_members_names: list[str] = [],
+    disambiguation_guideline_name: str = "",
+    disambiguation_targets_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     capabilities: Sequence[Capability] = [],
@@ -594,16 +594,16 @@ async def base_test_that_correct_guidelines_are_matched(
         name: await create_guideline_by_name(context, name) for name in conversation_guideline_names
     }
 
-    if disambiguation_head_name:
-        members = [
+    if disambiguation_guideline_name:
+        targets = [
             guideline
-            for name in disambiguation_members_names
+            for name in disambiguation_targets_names
             if (guideline := conversation_guidelines.get(name)) is not None
         ]
-        conversation_guidelines[disambiguation_head_name] = await create_guideline_by_name(
+        conversation_guidelines[disambiguation_guideline_name] = await create_guideline_by_name(
             context,
-            disambiguation_head_name,
-            disambiguating_guidelines=members,
+            disambiguation_guideline_name,
+            disambiguating_targets=targets,
         )
 
     relevant_guidelines = [conversation_guidelines[name] for name in relevant_guideline_names]
@@ -3157,8 +3157,8 @@ async def test_that_ambiguity_detected_with_relevant_guidelines_and_other_non_am
         "turtle_roller_coaster",
         "tiger_Ferris_wheel",
     ]
-    disambiguation_head_name = "amusement_park"
-    disambiguation_members_names = conversation_guideline_names
+    disambiguation_guideline_name = "amusement_park"
+    disambiguation_targets_names = conversation_guideline_names
     relevant_guideline_names = ["amusement_park", "tiger_Ferris_wheel"]
     await base_test_that_correct_guidelines_are_matched(
         context,
@@ -3168,6 +3168,6 @@ async def test_that_ambiguity_detected_with_relevant_guidelines_and_other_non_am
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names=relevant_guideline_names,
-        disambiguation_head_name=disambiguation_head_name,
-        disambiguation_members_names=disambiguation_members_names,
+        disambiguation_guideline_name=disambiguation_guideline_name,
+        disambiguation_targets_names=disambiguation_targets_names,
     )
