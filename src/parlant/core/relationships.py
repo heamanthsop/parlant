@@ -47,6 +47,7 @@ class GuidelineRelationshipKind(Enum):
     PRIORITY = "priority"
     PERSISTENCE = "persistence"
     DEPENDENCY = "dependency"
+    DISAMBIGUATION = "disambiguation"
 
 
 class ToolRelationshipKind(Enum):

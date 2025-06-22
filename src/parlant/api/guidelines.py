@@ -580,6 +580,8 @@ def _guideline_relationship_kind_dto_to_kind(
             return GuidelineRelationshipKind.PRIORITY
         case RelationshipKindDTO.DEPENDENCY:
             return GuidelineRelationshipKind.DEPENDENCY
+        case RelationshipKindDTO.DISAMBIGUATION:
+            return GuidelineRelationshipKind.DISAMBIGUATION
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {dto.value}")
 
@@ -594,6 +596,8 @@ def _guideline_relationship_kind_to_dto(
             return RelationshipKindDTO.PRIORITY
         case GuidelineRelationshipKind.DEPENDENCY:
             return RelationshipKindDTO.DEPENDENCY
+        case GuidelineRelationshipKind.DISAMBIGUATION:
+            return RelationshipKindDTO.DISAMBIGUATION
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {kind.value}")
 

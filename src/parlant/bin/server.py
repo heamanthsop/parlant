@@ -40,6 +40,9 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
     guideline_previously_applied_actionable_customer_dependent_batch,
     response_analysis_batch,
 )
+from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
+    DisambiguationGuidelineMatchesSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
 )
@@ -618,6 +621,7 @@ async def initialize_container(
         GuidelineContinuousPropositionSchema,
         CustomerDependentActionSchema,
         AgentIntentionProposerSchema,
+        DisambiguationGuidelineMatchesSchema,
     ):
         try_define(
             SchematicGenerator[schema],  # type: ignore

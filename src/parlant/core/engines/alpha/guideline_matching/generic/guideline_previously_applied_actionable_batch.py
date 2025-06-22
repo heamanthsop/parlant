@@ -353,6 +353,13 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
             context=context,
         )
 
+    @override
+    async def transform_matches(
+        self,
+        matches: Sequence[GuidelineMatch],
+    ) -> Sequence[GuidelineMatch]:
+        return matches
+
 
 def _make_event(e_id: str, source: EventSource, message: str) -> Event:
     return Event(

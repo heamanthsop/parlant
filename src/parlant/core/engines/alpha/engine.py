@@ -827,6 +827,7 @@ class AlphaEngine(Engine):
         tool_enabled_guidelines = await self._find_tool_enabled_guideline_matches(
             guideline_matches=all_relevant_guidelines,
         )
+
         ordinary_guidelines = list(
             set(all_relevant_guidelines).difference(tool_enabled_guidelines),
         )

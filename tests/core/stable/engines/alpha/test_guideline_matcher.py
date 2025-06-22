@@ -63,6 +63,12 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import (
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
+from parlant.core.relationships import (
+    GuidelineRelationshipKind,
+    RelationshipEntity,
+    RelationshipEntityKind,
+    RelationshipStore,
+)
 from parlant.core.services.indexing.behavioral_change_evaluation import GuidelineEvaluator
 from parlant.core.sessions import (
     AgentState,
@@ -287,6 +293,22 @@ ACTIONABLE_GUIDELINES_DICT = {
         "condition": "you are likely going to share a candidate’s application status",
         "action": "Avoid disclosing internal evaluation notes or third-party feedback",
     },
+    "snake_roller_coaster": {
+        "condition": "the customer asks for the snake roller coaster",
+        "action": "book it",
+    },
+    "turtle_roller_coaster": {
+        "condition": "the customer asks for the turtle roller coaster",
+        "action": "book it",
+    },
+    "tiger_Ferris_wheel": {
+        "condition": "the customer asks for the tiger Ferris wheel",
+        "action": "book it",
+    },
+}
+
+DISAMBIGUATION_GUIDELINES_DICT = {
+    "amusement_park": "The customer asks to book a ticket to an amusement ride or attraction, and its not clear which one",
 }
 
 
@@ -384,6 +406,39 @@ async def create_guideline(
     return guideline
 
 
+async def create_disambiguation_guideline(
+    context: ContextOfTest, condition: str, guidelines: list[Guideline]
+) -> Guideline:
+    guideline = Guideline(
+        id=GuidelineId(generate_id()),
+        creation_utc=datetime.now(timezone.utc),
+        content=GuidelineContent(
+            condition=condition,
+            action=None,
+        ),
+        enabled=True,
+        tags=[],
+        metadata={},
+    )
+
+    context.guidelines.append(guideline)
+
+    for g in guidelines:
+        await context.container[RelationshipStore].create_relationship(
+            source=RelationshipEntity(
+                id=guideline.id,
+                kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            target=RelationshipEntity(
+                id=g.id,
+                kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            kind=GuidelineRelationshipKind.DISAMBIGUATION,
+        )
+
+    return guideline
+
+
 def create_term(
     name: str, description: str, synonyms: list[str] = [], tags: list[TagId] = []
 ) -> Term:
@@ -417,6 +472,7 @@ def create_context_variable(
 async def create_guideline_by_name(
     context: ContextOfTest,
     guideline_name: str,
+    disambiguating_targets: list[Guideline] = [],
 ) -> Guideline | None:
     if guideline_name in ACTIONABLE_GUIDELINES_DICT:
         guideline = await create_guideline(
@@ -428,6 +484,12 @@ async def create_guideline_by_name(
         guideline = await create_guideline(
             context=context,
             condition=OBSERVATIONAL_GUIDELINES_DICT[guideline_name]["condition"],
+        )
+    elif guideline_name in DISAMBIGUATION_GUIDELINES_DICT:
+        guideline = await create_disambiguation_guideline(
+            context=context,
+            condition=DISAMBIGUATION_GUIDELINES_DICT[guideline_name],
+            guidelines=disambiguating_targets,
         )
     else:
         guideline = None
@@ -512,6 +574,8 @@ async def base_test_that_correct_guidelines_are_matched(
     relevant_guideline_names: list[str],
     previously_applied_guidelines_names: list[str] = [],
     previously_matched_guidelines_names: list[str] = [],
+    disambiguation_guideline_name: str = "",
+    disambiguation_targets_names: list[str] = [],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     capabilities: Sequence[Capability] = [],
@@ -530,6 +594,18 @@ async def base_test_that_correct_guidelines_are_matched(
         name: await create_guideline_by_name(context, name) for name in conversation_guideline_names
     }
 
+    if disambiguation_guideline_name:
+        targets = [
+            guideline
+            for name in disambiguation_targets_names
+            if (guideline := conversation_guidelines.get(name)) is not None
+        ]
+        conversation_guidelines[disambiguation_guideline_name] = await create_guideline_by_name(
+            context,
+            disambiguation_guideline_name,
+            disambiguating_targets=targets,
+        )
+
     relevant_guidelines = [conversation_guidelines[name] for name in relevant_guideline_names]
 
     previously_matched_guidelines = [
@@ -537,6 +613,7 @@ async def base_test_that_correct_guidelines_are_matched(
         for name in previously_matched_guidelines_names
         if (guideline := conversation_guidelines.get(name)) is not None
     ]
+
     previously_applied_guidelines = [
         guideline.id
         for name in previously_applied_guidelines_names
@@ -573,9 +650,10 @@ async def base_test_that_correct_guidelines_are_matched(
         capabilities=capabilities,
     )
 
-    matched_guidelines = [p.guideline for p in guideline_matches]
+    matched_guidelines_ids = [p.guideline.id for p in guideline_matches]
+    relevant_guidelines_ids = [g.id for g in relevant_guidelines if g is not None]
 
-    assert set(matched_guidelines) == set(relevant_guidelines)
+    assert set(matched_guidelines_ids) == set(relevant_guidelines_ids)
 
 
 async def test_that_relevant_guidelines_are_matched_parametrized_2(
@@ -1408,6 +1486,13 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class ShortConditionStrategy(GuidelineMatchingStrategy):
         @override
         async def create_matching_batches(
@@ -1424,6 +1509,13 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     class LenGuidelineMatchingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
@@ -1486,6 +1578,13 @@ async def test_that_strategy_for_specific_guideline_can_be_overridden_in_default
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     guideline = await create_guideline(context, "a customer asks for a drink", "check stock")
 
@@ -2322,6 +2421,13 @@ async def test_that_response_analysis_strategy_can_be_overridden(
         ) -> Sequence[ResponseAnalysisBatch]:
             return [ActivateResponseAnalysisBatch(guideline_matches)]
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class ActivateStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
@@ -2457,6 +2563,13 @@ async def test_that_batch_processing_retries_on_key_error(
                 )
             ]
 
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
+
     class FailingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
         async def resolve(self, guideline: Guideline) -> GuidelineMatchingStrategy:
@@ -2530,6 +2643,13 @@ async def test_that_batch_processing_fails_after_max_retries(
             context: ReportAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return [AlwaysFailingResponseAnalysisBatch(guideline_matches=guideline_matches)]
+
+        @override
+        async def transform_matches(
+            self,
+            matches: Sequence[GuidelineMatch],
+        ) -> Sequence[GuidelineMatch]:
+            return matches
 
     class AlwaysFailingStrategyResolver(GuidelineMatchingStrategyResolver):
         @override
@@ -3016,4 +3136,38 @@ async def test_that_observational_guidelines_are_not_falsely_matched_based_on_ca
         conversation_guideline_names=conversation_guideline_names,
         relevant_guideline_names=[],
         capabilities=capabilities,
+    )
+
+
+async def test_that_ambiguity_detected_with_relevant_guidelines_and_other_non_ambiguous_guidelines_are_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Can I order one ticket to the roller coaster and one ticket to your tiger ferris wheel?",
+        ),
+    ]
+
+    conversation_guideline_names: list[str] = [
+        "snake_roller_coaster",
+        "turtle_roller_coaster",
+        "tiger_Ferris_wheel",
+    ]
+    disambiguation_guideline_name = "amusement_park"
+    disambiguation_targets_names = conversation_guideline_names
+    relevant_guideline_names = ["amusement_park", "tiger_Ferris_wheel"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names=relevant_guideline_names,
+        disambiguation_guideline_name=disambiguation_guideline_name,
+        disambiguation_targets_names=disambiguation_targets_names,
     )

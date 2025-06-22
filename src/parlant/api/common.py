@@ -643,6 +643,7 @@ class RelationshipKindDTO(Enum):
     ENTAILMENT = "entailment"
     PRIORITY = "priority"
     DEPENDENCY = "dependency"
+    DISAMBIGUATION = "disambiguation"
     OVERLAP = "overlap"
 
 

@@ -43,8 +43,10 @@ from parlant.core.relationships import (
     GuidelineRelationshipKind,
     RelationshipDocumentStore,
     RelationshipEntity,
+    RelationshipEntityId,
     RelationshipEntityKind,
     RelationshipId,
+    RelationshipKind,
     RelationshipStore,
 )
 from parlant.core.services.tools.service_registry import ServiceDocumentRegistry, ServiceRegistry
@@ -81,6 +83,11 @@ from parlant.core.tools import (
 )
 
 _INTEGRATED_TOOL_SERVICE_NAME = "built-in"
+
+
+class SDKError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 def _load_openai(container: Container) -> NLPService:
@@ -138,6 +145,14 @@ class _PicoAgentStore(AgentStore):
         raise NotImplementedError
 
 
+@dataclass(frozen=True)
+class Relationship:
+    id: RelationshipId
+    kind: RelationshipKind
+    source: RelationshipEntityId
+    target: RelationshipEntityId
+
+
 @dataclass
 class Guideline:
     id: GuidelineId
@@ -148,33 +163,48 @@ class Guideline:
     _parlant: Server
     _container: Container
 
-    async def prioritize_over(self, guideline: Guideline) -> RelationshipId:
+    async def prioritize_over(self, guideline: Guideline) -> Relationship:
         return await self._create_relationship(
             guideline=guideline,
             kind=GuidelineRelationshipKind.PRIORITY,
             direction="source",
         )
 
-    async def entail(self, guideline: Guideline) -> RelationshipId:
+    async def entail(self, guideline: Guideline) -> Relationship:
         return await self._create_relationship(
             guideline=guideline,
             kind=GuidelineRelationshipKind.ENTAILMENT,
             direction="source",
         )
 
-    async def depend_on(self, guideline: Guideline) -> RelationshipId:
+    async def depend_on(self, guideline: Guideline) -> Relationship:
         return await self._create_relationship(
             guideline=guideline,
             kind=GuidelineRelationshipKind.DEPENDENCY,
             direction="source",
         )
 
+    async def disambiguate(self, targets: Sequence[Guideline]) -> Sequence[Relationship]:
+        if len(targets) < 2:
+            raise SDKError(
+                f"At least two targets are required for disambiguation (got {len(targets)})."
+            )
+
+        return [
+            await self._create_relationship(
+                guideline=t,
+                kind=GuidelineRelationshipKind.DISAMBIGUATION,
+                direction="source",
+            )
+            for t in targets
+        ]
+
     async def _create_relationship(
         self,
         guideline: Guideline,
         kind: GuidelineRelationshipKind,
         direction: Literal["source", "target"],
-    ) -> RelationshipId:
+    ) -> Relationship:
         if direction == "source":
             source = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
             target = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
@@ -188,7 +218,12 @@ class Guideline:
             kind=kind,
         )
 
-        return relationship.id
+        return Relationship(
+            id=relationship.id,
+            kind=relationship.kind,
+            source=relationship.source.id,
+            target=relationship.target.id,
+        )
 
 
 @dataclass
@@ -320,6 +355,12 @@ class Agent:
             _parlant=self._parlant,
             _container=self._container,
         )
+
+    async def create_observation(
+        self,
+        condition: str,
+    ) -> Guideline:
+        return await self.create_guideline(condition=condition)
 
     async def attach_tool(
         self,
@@ -633,6 +674,7 @@ __all__ = [
     "EventKind",
     "EventSource",
     "FallbackSchematicGenerator",
+    "Guideline",
     "GuidelineId",
     "Journey",
     "JourneyId",
@@ -642,7 +684,11 @@ __all__ = [
     "MessageEventData",
     "NLPService",
     "PluginServer",
+    "RelationshipEntity",
+    "RelationshipEntityId",
+    "RelationshipEntityKind",
     "RelationshipId",
+    "RelationshipKind",
     "SchematicGenerationResult",
     "SchematicGenerator",
     "Server",
