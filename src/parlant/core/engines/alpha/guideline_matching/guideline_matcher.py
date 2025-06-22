@@ -245,9 +245,8 @@ class GuidelineMatcher:
         result_batches = [result.matches for result in batch_results]
         matches: Sequence[GuidelineMatch] = list(chain.from_iterable(result_batches))
 
-        with self._logger.operation("Transforming guideline matches"):
-            for strategy, _ in guideline_strategies.values():
-                matches = await strategy.transform_matches(matches)
+        for strategy, _ in guideline_strategies.values():
+            matches = await strategy.transform_matches(matches)
 
         return GuidelineMatchingResult(
             total_duration=t_end - t_start,
