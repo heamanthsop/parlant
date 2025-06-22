@@ -123,3 +123,45 @@ Feature: Strict Utterance
         When detection and processing are triggered
         Then a single message event is emitted
         And the message contains no rudeness to tell the user to go away
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline (strict utterance)
+        Given a guideline to suggest direct flights when you recommends on travel options
+        Given a guideline to suggest only ground-based travel options when the customer asks about domestic US travel options 
+        And that the agent uses the strict_utterance message composition mode
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option."
+        And an utterance, "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+
+    Scenario: The agent follows a regular guideline when it overrides an agent intention guideline 2 (strict utterance)
+        Given a guideline to recommend on either pineapple or pepperoni when you recommends on pizza toppings
+        Given a guideline to recommend only from the vegetarian toppings options when the customer asks for pizza topping recommendation and they are from India
+        And that the agent uses the strict_utterance message composition mode
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
+        And an utterance, "I recommend on {{generative.answer}}."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "I recommend on pineapple."
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline (strict utterance) 
+        Given a guideline to suggest direct flights when you recommends on travel options
+        Given a guideline to suggest only ground-based travel options when you recommends on domestic US travel options 
+        And that the agent uses the strict_utterance message composition mode
+        And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
+        And an utterance, "I recommend taking a direct flight. It's the most efficient and comfortable option."
+        And an utterance, "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "I suggest taking a train or a long-distance bus service. It's the most efficient and comfortable option"
+
+    Scenario: The agent follows an agent intention guideline when it overrides an agent intention guideline 2 (strict utterance)
+        Given a guideline to recommend on either pineapple or pepperoni when you recommends on pizza toppings
+        Given a guideline to recommend only from the vegetarian toppings options when you recommends on pizza topping and the customer is from India
+        And that the agent uses the strict_utterance message composition mode
+        And a customer message, "Hi, I want to buy pizza. What do you recommend? I'm from India if it matters."
+        And an utterance, "I recommend on {{generative.answer}}."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains the text "I recommend on pineapple."

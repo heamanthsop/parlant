@@ -42,7 +42,7 @@ from parlant.core.journeys import Journey
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
-from parlant.core.engines.alpha.prompt_builder import PromptBuilder, SectionStatus
+from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.glossary import Term
 from parlant.core.emissions import EmittedEvent, EventEmitter
 from parlant.core.sessions import Event, EventKind, EventSource
@@ -293,82 +293,6 @@ class MessageGenerator(MessageEventComposer):
 
         raise MessageCompositionError() from last_generation_exception
 
-    def _get_guideline_matches_text(
-        self,
-        ordinary: Sequence[GuidelineMatch],
-        tool_enabled: Mapping[GuidelineMatch, Sequence[ToolId]],
-        guideline_representations: dict[GuidelineId, GuidelineInternalRepresentation],
-    ) -> tuple[str, dict[str, Any]]:
-        all_matches = [
-            match
-            for match in chain(ordinary, tool_enabled)
-            if guideline_representations[match.guideline.id].action
-        ]
-
-        if not all_matches:
-            return (
-                """
-In formulating your reply, you are normally required to follow a number of behavioral guidelines.
-However, in this case, no special behavioral guidelines were provided. Therefore, when generating revisions,
-you don't need to specifically double-check if you followed or broke any guidelines.
-""",
-                {},
-            )
-        guidelines = []
-        agent_intention_guidelines = []
-
-        for i, p in enumerate(all_matches, start=1):
-            if guideline_representations[p.guideline.id].action:
-                guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
-                guideline += f"\n   Rationale: {p.rationale}]"
-                if p.guideline.metadata.get("agent_intention_condition"):
-                    agent_intention_guidelines.append(guideline)
-                else:
-                    guidelines.append(guideline)
-
-        guideline_list = "\n".join(guidelines)
-        agent_intention_guidelines_list = "\n".join(agent_intention_guidelines)
-
-        guideline_instruction = """
-When crafting your reply, you must follow the behavioral guidelines provided below, which have been identified as relevant to the current state of the interaction.
-"""
-        if agent_intention_guidelines_list:
-            guideline_instruction += f"""
-Some guidelines are tied to conditions related to you, the agent. These guidelines are considered relevant because it is likely that you intend to produce a message that will trigger the associated condition.
-You should only follow these guidelines if you are actually going to produce a message that activates the condition.
-- **Guidelines with agent intention condition**:
-{agent_intention_guidelines_list}
-
-"""
-        if guideline_list:
-            guideline_instruction += f"""
-
-For any other guidelines, do not disregard a guideline because you believe its 'when' condition or rationale does not apply—this filtering has already been handled.
-- **Guidelines**:
-{guideline_list}
-
-"""
-        guideline_instruction += """
-
-You may choose not to follow a guideline only in the following cases:
-    - It conflicts with a previous customer request.
-    - It is clearly inappropriate given the current context of the conversation.
-    - It lacks sufficient context or data to apply reliably.
-    - It conflicts with an insight.
-    - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
-    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
-        choosing the permitted alternative (i.e., do Y).
-In all other situations, you are expected to adhere to the guidelines.
-These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
-"""
-        return (
-            guideline_instruction,
-            {
-                "guideline_list": guideline_list,
-                "agent_intention_guidelines_list": agent_intention_guidelines_list,
-            },
-        )
-
     def _format_shots(self, shots: Sequence[MessageGeneratorShot]) -> str:
         return "\n".join(
             f"""
@@ -587,21 +511,10 @@ INTERACTION CONTEXT
             ],
         )
         builder.add_journeys(journeys)
-        builder.add_section(
-            name="message-generator-guideline-descriptions",
-            template=self._get_guideline_matches_text(
-                ordinary_guideline_matches,
-                tool_enabled_guideline_matches,
-                guideline_representations,
-            )[0],
-            props=self._get_guideline_matches_text(
-                ordinary_guideline_matches,
-                tool_enabled_guideline_matches,
-                guideline_representations,
-            )[1],
-            status=SectionStatus.ACTIVE
-            if ordinary_guideline_matches or tool_enabled_guideline_matches
-            else SectionStatus.PASSIVE,
+        builder.add_guidelines_for_message_generation(
+            ordinary_guideline_matches,
+            tool_enabled_guideline_matches,
+            guideline_representations,
         )
         builder.add_interaction_history(interaction_history)
         builder.add_staged_events(staged_events)
@@ -671,6 +584,7 @@ Produce a valid JSON object in the following format: ###
                 "guidelines": actionable_guidelines,
             },
         )
+
         return builder
 
     def _format_missing_data(self, missing_data: Sequence[MissingToolData]) -> str:
