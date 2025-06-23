@@ -59,7 +59,7 @@ from parlant.core.evaluations import (
     InvoiceGuidelineData,
     PayloadKind,
 )
-from parlant.core.journeys import JourneyStore
+from parlant.core.journeys import JourneyId, JourneyStore
 from parlant.core.relationships import (
     RelationshipEntityKind,
     RelationshipEntity,
@@ -1436,6 +1436,8 @@ def create_router(
             for tag_id in params.tags:
                 if agent_id := Tag.extract_agent_id(tag_id):
                     _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                elif journey_id := Tag.extract_journey_id(tag_id):
+                    _ = await journey_store.read_journey(journey_id=JourneyId(journey_id))
                 else:
                     _ = await tag_store.read_tag(tag_id=tag_id)
 
@@ -1675,12 +1677,16 @@ def create_router(
                 for tag_id in params.tags.add:
                     if agent_id := Tag.extract_agent_id(tag_id):
                         _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                    elif journey_id := Tag.extract_journey_id(tag_id):
+                        _ = await journey_store.read_journey(journey_id=JourneyId(journey_id))
                     else:
                         _ = await tag_store.read_tag(tag_id=tag_id)
+
                     await guideline_store.upsert_tag(
                         guideline_id=guideline_id,
                         tag_id=tag_id,
                     )
+
             if params.tags.remove:
                 for tag_id in params.tags.remove:
                     await guideline_store.remove_tag(
