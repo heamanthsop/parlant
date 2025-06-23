@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 import heapq
 from itertools import chain
 import json
-import time
 from typing import Awaitable, Callable, NewType, Optional, Sequence, TypedDict, cast
 from typing_extensions import override, Self, Required
 
@@ -283,8 +282,6 @@ class CapabilityVectorStore(CapabilityStore):
         queries: Optional[Sequence[str]] = None,
         tags: Optional[Sequence[TagId]] = None,
     ) -> Capability:
-        t_start = time.time()
-
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -313,10 +310,6 @@ class CapabilityVectorStore(CapabilityStore):
                         "tag_id": tag,
                     }
                 )
-
-        t_end = time.time()
-
-        print(f"Insert time: {t_end - t_start}")
 
         return capability
 
