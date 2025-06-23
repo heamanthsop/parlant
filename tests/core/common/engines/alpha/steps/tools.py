@@ -791,13 +791,13 @@ TOOLS: dict[str, dict[str, Any]] = {
         "module_path": "tests.tool_utilities",
         "parameters": {},
         "required": [],
-        "class_eligibility_checker": {
-            "name": "class_eligibility_checker",
-            "description": "Checks if the traveler is eligible for business class (21+), else restricts to economy.",
-            "module_path": "tests.tool_utilities",
-            "parameters": {"age": {"type": "integer", "description": "The age of the traveler"}},
-            "required": ["age"],
-        },
+    },
+    "class_eligibility_checker": {
+        "name": "class_eligibility_checker",
+        "description": "Checks if the traveler is eligible for business class (21+), else restricts to economy.",
+        "module_path": "tests.tool_utilities",
+        "parameters": {"age": {"type": "integer", "description": "The age of the traveler"}},
+        "required": ["age"],
     },
 }
 
