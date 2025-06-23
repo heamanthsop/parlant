@@ -16,6 +16,7 @@ from fastapi import APIRouter, Path, Query, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
+from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.capabilities import (
@@ -23,7 +24,8 @@ from parlant.core.capabilities import (
     CapabilityStore,
     CapabilityUpdateParams,
 )
-from parlant.core.tags import TagId, TagStore
+from parlant.core.journeys import JourneyId, JourneyStore
+from parlant.core.tags import Tag, TagId, TagStore
 
 API_GROUP = "capabilities"
 
@@ -172,6 +174,8 @@ TagIdQuery: TypeAlias = Annotated[
 def create_router(
     capability_store: CapabilityStore,
     tag_store: TagStore,
+    agent_store: AgentStore,
+    journey_store: JourneyStore,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -205,7 +209,12 @@ def create_router(
         """
         if params.tags:
             for tag_id in params.tags:
-                _ = await tag_store.read_tag(tag_id=tag_id)
+                if agent_id := Tag.extract_agent_id(tag_id):
+                    _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                elif journey_id := Tag.extract_journey_id(tag_id):
+                    _ = await journey_store.read_journey(journey_id=JourneyId(journey_id))
+                else:
+                    _ = await tag_store.read_tag(tag_id=tag_id)
 
         capability = await capability_store.create_capability(
             title=params.title,
@@ -341,7 +350,13 @@ def create_router(
         if params.tags:
             if params.tags.add:
                 for tag_id in params.tags.add:
-                    _ = await tag_store.read_tag(tag_id=tag_id)
+                    if agent_id := Tag.extract_agent_id(tag_id):
+                        _ = await agent_store.read_agent(agent_id=AgentId(agent_id))
+                    elif journey_id := Tag.extract_journey_id(tag_id):
+                        _ = await journey_store.read_journey(journey_id=JourneyId(journey_id))
+                    else:
+                        _ = await tag_store.read_tag(tag_id=tag_id)
+
                     await capability_store.upsert_tag(capability_id=capability_id, tag_id=tag_id)
 
             if params.tags.remove:

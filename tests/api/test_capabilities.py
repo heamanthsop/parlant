@@ -3,8 +3,10 @@ from fastapi import status
 from lagom import Container
 from pytest import mark, raises
 
+from parlant.core.agents import AgentStore
 from parlant.core.capabilities import CapabilityStore
-from parlant.core.tags import TagStore
+from parlant.core.journeys import JourneyStore
+from parlant.core.tags import Tag, TagStore
 from parlant.core.common import ItemNotFoundError
 
 
@@ -32,15 +34,26 @@ async def test_that_a_capability_can_be_created_with_tags(
     container: Container,
 ) -> None:
     tag_store = container[TagStore]
+    agent_store = container[AgentStore]
+    journey_store = container[JourneyStore]
+
+    agent = await agent_store.create_agent("Test Agent")
+    journey = await journey_store.create_journey(
+        title="Customer Support Journey",
+        description="A journey for customer support interactions.",
+        conditions=[],
+    )
 
     tag1 = await tag_store.create_tag("tag1")
     tag2 = await tag_store.create_tag("tag2")
+    agent_tag = Tag.for_agent_id(agent.id)
+    journey_tag = Tag.for_journey_id(journey.id)
 
     payload = {
         "title": "Summarization",
         "description": "Summarizes long documents.",
         "queries": ["Summarize this article", "Give me a summary"],
-        "tags": [tag1.id, tag2.id],
+        "tags": [tag1.id, tag2.id, agent_tag, journey_tag],
     }
 
     response = await async_client.post("/capabilities", json=payload)
@@ -48,7 +61,7 @@ async def test_that_a_capability_can_be_created_with_tags(
 
     capability = response.json()
     assert capability["title"] == payload["title"]
-    assert set(capability["tags"]) == {tag1.id, tag2.id}
+    assert set(capability["tags"]) == {tag1.id, tag2.id, agent_tag, journey_tag}
 
 
 async def test_that_capabilities_can_be_listed(
@@ -223,6 +236,152 @@ async def test_that_tags_can_be_removed_from_a_capability(
 
     assert tag1.id not in capability_after_update["tags"]
     assert tag2.id in capability_after_update["tags"]
+
+
+async def test_that_agent_tag_can_be_added_to_a_capability(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    agent = await container[AgentStore].create_agent("Test Agent")
+
+    capability = (
+        (
+            await async_client.post(
+                "/capabilities",
+                json={
+                    "title": "Provide Replacement Phone",
+                    "description": "Provide a replacement phone when a customer needs repair for their phone.",
+                    "queries": [
+                        "My phone is broken",
+                        "I need a replacement while my phone is being repaired",
+                    ],
+                },
+            )
+        )
+        .raise_for_status()
+        .json()
+    )
+    agent_tag = Tag.for_agent_id(agent.id)
+
+    update_payload = {"tags": {"add": [agent_tag]}}
+    response = await async_client.patch(f"/capabilities/{capability['id']}", json=update_payload)
+    response.raise_for_status()
+    updated_capability = response.json()
+
+    assert updated_capability["tags"] == [agent_tag]
+
+
+async def test_that_agent_tag_can_be_removed_from_a_capability(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+    capability_store = container[CapabilityStore]
+
+    agent = await container[AgentStore].create_agent("Test Agent")
+
+    tag1 = await tag_store.create_tag("tag1")
+
+    agent_tag = Tag.for_agent_id(agent.id)
+
+    capability = await capability_store.create_capability(
+        title="Translation",
+        description="Translates text.",
+        queries=["Translate this sentence"],
+        tags=[agent_tag, tag1.id],
+    )
+
+    update_payload = {"tags": {"remove": [agent_tag]}}
+    _ = (
+        await async_client.patch(f"/capabilities/{capability.id}", json=update_payload)
+    ).raise_for_status()
+
+    capability_after_update = (
+        (await async_client.get(f"/capabilities/{capability.id}")).raise_for_status().json()
+    )
+
+    assert agent_tag not in capability_after_update["tags"]
+    assert tag1.id in capability_after_update["tags"]
+
+
+async def test_that_journey_tags_can_be_added_to_a_capability(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+    journey_store = container[JourneyStore]
+
+    journey = await journey_store.create_journey(
+        title="Customer Support Journey",
+        description="A journey for customer support interactions.",
+        conditions=[],
+    )
+    journey_tag = Tag.for_journey_id(journey.id)
+
+    tag1 = await tag_store.create_tag("tag1")
+
+    capability = (
+        (
+            await async_client.post(
+                "/capabilities",
+                json={
+                    "title": "Provide Replacement Phone",
+                    "description": "Provide a replacement phone when a customer needs repair for their phone.",
+                    "queries": [
+                        "My phone is broken",
+                        "I need a replacement while my phone is being repaired",
+                    ],
+                },
+            )
+        )
+        .raise_for_status()
+        .json()
+    )
+
+    update_payload = {"tags": {"add": [tag1.id, journey_tag]}}
+    response = await async_client.patch(f"/capabilities/{capability['id']}", json=update_payload)
+    response.raise_for_status()
+    updated_capability = response.json()
+
+    assert tag1.id in updated_capability["tags"]
+    assert journey_tag in updated_capability["tags"]
+
+
+async def test_that_journey_tags_can_be_removed_from_a_capability(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    tag_store = container[TagStore]
+    capability_store = container[CapabilityStore]
+    journey_store = container[JourneyStore]
+
+    journey = await journey_store.create_journey(
+        title="Customer Support Journey",
+        description="A journey for customer support interactions.",
+        conditions=[],
+    )
+    journey_tag = Tag.for_journey_id(journey.id)
+
+    tag1 = await tag_store.create_tag("tag1")
+
+    capability = await capability_store.create_capability(
+        title="Translation",
+        description="Translates text.",
+        queries=["Translate this sentence"],
+        tags=[tag1.id, journey_tag],
+    )
+
+    update_payload = {"tags": {"remove": [journey_tag]}}
+    _ = (
+        await async_client.patch(f"/capabilities/{capability.id}", json=update_payload)
+    ).raise_for_status()
+
+    capability_after_update = (
+        (await async_client.get(f"/capabilities/{capability.id}")).raise_for_status().json()
+    )
+
+    assert journey_tag not in capability_after_update["tags"]
+    assert tag1.id in capability_after_update["tags"]
 
 
 async def test_that_a_capability_can_be_deleted(

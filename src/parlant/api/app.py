@@ -323,6 +323,8 @@ async def create_api_app(container: Container) -> ASGIApplication:
         router=capabilities.create_router(
             capability_store=capability_store,
             tag_store=tag_store,
+            agent_store=agent_store,
+            journey_store=journey_store,
         ),
     )
 
