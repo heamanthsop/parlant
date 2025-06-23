@@ -357,7 +357,7 @@ Feature: Strict Utterance
  Scenario: Journey returns to earlier step when the conversation justifies doing so (1) (strict utterance) 
         Given an agent whose job is to book taxi rides
         And that the agent uses the strict_utterance message composition mode
-        And a journey titled Book Taxi Ride to follow these steps to book a customer a taxi ride: 1. Ask for the pickup location. 2. Ask for the drop-off location. 3. Ask for the desired pickup time. 4. Confirm all details with the customer before booking. Each step should be handled in a separate message. when the customer wants to book a taxi
+        And a journey titled "Book Taxi Ride" to follow these steps to book a customer a taxi ride: 1. Ask for the pickup location. 2. Ask for the drop-off location. 3. Ask for the desired pickup time. 4. Confirm all details with the customer before booking. Each step should be handled in a separate message. when the customer wants to book a taxi
         And a customer message, "Hi, I'd like to book a taxi for myself"
         And an agent message, "Great! What's the pickup location?"
         And a customer message, "Main street 1234"
@@ -375,7 +375,7 @@ Feature: Strict Utterance
     Scenario: Journey returns to earlier step when the conversation justifies doing so (2) (strict utterance)
         Given an agent whose job is to handle food orders
         And that the agent uses the strict_utterance message composition mode
-        And a journey titled Place Food Order to follow these steps to place a customer’s order: 1. Ask if they’d like a salad or a sandwich. 2. If they choose a sandwich, ask what kind of bread they’d like. 3. If they choose a sandwich, ask what main filling they’d like from: Peanut butter, jam or pesto. 4. If they choose a sandwich, ask if they want any extras. 5. If they choose a salad, ask what base greens they want. 6. If they choose a salad, ask what toppings they’d like. 7. If they choose a salad, ask what kind of dressing they prefer. 8. Confirm the full order before placing it. Each step should be handled in a separate message, when the customer wants to order food 
+        And a journey titled "Place Food Order" to follow these steps to place a customer’s order: 1. Ask if they’d like a salad or a sandwich. 2. If they choose a sandwich, ask what kind of bread they’d like. 3. If they choose a sandwich, ask what main filling they’d like from: Peanut butter, jam or pesto. 4. If they choose a sandwich, ask if they want any extras. 5. If they choose a salad, ask what base greens they want. 6. If they choose a salad, ask what toppings they’d like. 7. If they choose a salad, ask what kind of dressing they prefer. 8. Confirm the full order before placing it. Each step should be handled in a separate message, when the customer wants to order food 
         And a customer message, "Hey, I'd like to make an order"
         And an agent message, "Great! What would you like to order? We have either a salad or a sandwich."
         And a customer message, "I'd like a sandwich"
