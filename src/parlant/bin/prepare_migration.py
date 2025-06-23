@@ -57,7 +57,7 @@ from parlant.core.glossary import (
 from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
 from parlant.core.journeys import (
     JourneyConditionAssociationDocument,
-    JourneyDocument_v_0_1_0,
+    JourneyDocument_v0_1_0,
     JourneyTagAssociationDocument,
     JourneyVectorStore,
 )
@@ -881,7 +881,7 @@ async def migrate_journeys_0_1_0_to_0_2_0() -> None:
     migrated_count = 0
     for doc in await journeys_collection.find(filters={}):
         if doc["version"] == "0.1.0":
-            doc = cast(JourneyDocument_v_0_1_0, doc)
+            doc = cast(JourneyDocument_v0_1_0, doc)
 
             conditions = [
                 c["condition"]

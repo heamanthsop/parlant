@@ -139,7 +139,7 @@ class JourneyStore(ABC):
     ) -> Sequence[Journey]: ...
 
 
-class JourneyDocument_v_0_1_0(TypedDict, total=False):
+class JourneyDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
