@@ -1347,11 +1347,13 @@ class Actions:
         tags: list[str],
     ) -> Capability:
         client = cast(ParlantClient, ctx.obj.client)
+        tags = list(set([Actions._fetch_tag_id(ctx, t) for t in tags]))
 
         return client.capabilities.create(
             title=title,
             description=description,
             queries=queries,
+            tags=tags,
         )
 
     @staticmethod
