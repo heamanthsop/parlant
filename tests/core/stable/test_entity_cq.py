@@ -217,7 +217,6 @@ async def test_that_find_utterances_for_agent_returns_global_utterances(
     results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[],
-        query="Hello",
     )
     assert len(results) == 1
     assert results[0].id == untagged_utterance.id
@@ -241,7 +240,6 @@ async def test_that_find_utterances_for_agent_returns_none_for_non_matching_tag(
     results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[],
-        query="Tagged",
     )
     assert len(results) == 0
 
@@ -269,7 +267,6 @@ async def test_that_find_utterances_for_agent_and_journey_returns_journey_uttera
     results = await entity_queries.find_utterances_for_context(
         agent_id=agent.id,
         journeys=[journey],
-        query="Journey",
     )
     assert len(results) == 1
     assert results[0].id == journey_utterance.id

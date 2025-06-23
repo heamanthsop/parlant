@@ -45,7 +45,6 @@ from parlant.core.engines.alpha.message_event_composer import (
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.perceived_performance_policy import PerceivedPerformancePolicy
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
-from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import GuidelineId
 from parlant.core.journeys import Journey
@@ -588,34 +587,9 @@ You will now be given the current state of the interaction to which you must gen
         self,
         context: UtteranceContext,
     ) -> list[Utterance]:
-        query = ""
-
-        if context.context_variables:
-            query += f"\n{context_variables_to_json(context.context_variables)}"
-
-        if context.interaction_history:
-            query += str([e.data for e in context.interaction_history])
-
-        if context.guidelines:
-            query += str(
-                [
-                    f"When {g.guideline.content.condition}, then {g.guideline.content.action}"
-                    if g.guideline.content.action
-                    else f"When {g.guideline.content.condition}"
-                    for g in context.guidelines
-                ]
-            )
-
-        if context.staged_events:
-            query += str([e.data for e in context.staged_events])
-
-        if context.journeys:
-            query += str([f"{j.title}: {j.description}" for j in context.journeys])
-
         stored_utterances = await self._entity_queries.find_utterances_for_context(
             agent_id=context.agent.id,
             journeys=context.journeys,
-            query=query,
         )
 
         # Add utterances from staged tool events (transient)
@@ -876,7 +850,7 @@ You may choose not to follow a guideline only in the following cases:
     - It lacks sufficient context or data to apply reliably.
     - It conflicts with an insight.
     - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
-    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
+    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by
         choosing the permitted alternative (i.e., do Y).
 In all other situations, you are expected to adhere to the guidelines.
 These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.
@@ -1013,14 +987,14 @@ The final output must be a JSON document detailing the message development proce
 
 PRIORITIZING INSTRUCTIONS (GUIDELINES VS. INSIGHTS)
 ---------------------------------------------------
-Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization. 
+Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization.
 Consider the following valid reasons for such deviations:
     - The instruction contradicts a customer request.
     - The instruction lacks sufficient context or data to apply reliably.
     - The instruction conflicts with an insight (see below).
     - The instruction depends on an agent intention condition that does not apply in the current situation.
-    - When a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), 
-    follow both by choosing the permitted alternative (i.e., do Y). 
+    - When a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"),
+    follow both by choosing the permitted alternative (i.e., do Y).
 In all other cases, even if you believe that a guideline's condition does not apply, you must follow it.
 If fulfilling a guideline is not possible, explicitly justify why in your response.
 
@@ -1346,11 +1320,17 @@ Output a JSON object with three properties:
             },
         )
 
+        top_relevant_utterances = await self._utterance_store.find_relevant_utterances(
+            query=draft_response.content.response_body,
+            available_utterances=utterances,
+            max_utterances=10,
+        )
+
         selection_response = await self._utterance_selection_generator.generate(
             prompt=self._build_selection_prompt(
                 context=context,
                 draft_message=draft_response.content.response_body,
-                utterances=utterances,
+                utterances=top_relevant_utterances,
             ),
             hints={"temperature": 0.1},
         )

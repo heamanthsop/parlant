@@ -312,7 +312,6 @@ class EntityQueries:
         self,
         agent_id: AgentId,
         journeys: Sequence[Journey],
-        query: str,
     ) -> Sequence[Utterance]:
         agent_utterances = await self._utterance_store.list_utterances(
             tags=[Tag.for_agent_id(agent_id)],
@@ -337,7 +336,7 @@ class EntityQueries:
             )
         )
 
-        return await self._utterance_store.find_relevant_utterances(query, list(all_utterances))
+        return list(all_utterances)
 
 
 class EntityCommands:
