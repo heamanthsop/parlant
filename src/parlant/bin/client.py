@@ -3160,6 +3160,7 @@ class Interface:
         items = [
             {
                 "ID": c.id,
+                "Title": c.title,
                 "Description": c.description,
                 "Queries": ", ".join(c.queries),
                 "Tags": ", ".join(c.tags or []),
