@@ -12,6 +12,8 @@ All notable changes to Parlant will be documented here.
 - Refactor UtteranceStore to be implemented as a VectorStore rather than a DocumentStore
 - Add lifespan field to tool result to indicate if a tool event should be emitted
 - Introduce agent capabilities feature
+- Add utterance template queries
+- Improve utterance matching by pre-rendering top K templates
 
 ## [2.2.0] - 2025-05-20
 
