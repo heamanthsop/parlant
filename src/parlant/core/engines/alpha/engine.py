@@ -985,6 +985,7 @@ class AlphaEngine(Engine):
             return await self._entity_queries.find_capabilities_for_agent(
                 agent_id=context.agent.id,
                 query=query,
+                max_count=3,
             )
 
         return []

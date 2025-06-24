@@ -166,6 +166,32 @@ async def test_that_all_utterances_can_be_listed(
     assert any(f["value"] == second_value for f in utterances)
 
 
+async def test_that_relevant_utterances_can_be_retrieved_based_on_closest_queries(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    utterance_store = container[UtteranceStore]
+
+    utterances = [
+        await utterance_store.create_utterance(value="Red", queries=[]),
+        await utterance_store.create_utterance(value="Green", queries=[]),
+        await utterance_store.create_utterance(value="Blue", queries=[]),
+        await utterance_store.create_utterance(value="Paneer Cheese", queries=["Colors"]),
+    ]
+
+    closest_utterance = next(
+        iter(
+            await utterance_store.find_relevant_utterances(
+                query="Colors",
+                available_utterances=utterances,
+                max_count=1,
+            )
+        )
+    )
+
+    assert closest_utterance.value == "Paneer Cheese"
+
+
 async def test_that_an_utterance_can_be_updated(
     async_client: httpx.AsyncClient,
     container: Container,

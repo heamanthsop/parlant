@@ -345,10 +345,11 @@ async def test_that_find_capabilities_for_agent_returns_unique_capabilities(
     relevant_capabilities = await entity_queries.find_capabilities_for_agent(
         agent_id=agent.id,
         query=random_unicode_string(),
+        max_count=3,
     )
 
-    assert len(relevant_capabilities) == 10
-    assert len({c.id for c in relevant_capabilities}) == 10
+    assert len(relevant_capabilities) == 3
+    assert len({c.id for c in relevant_capabilities}) == 3
 
 
 async def test_find_relevant_journeys_for_agent_returns_most_relevant(

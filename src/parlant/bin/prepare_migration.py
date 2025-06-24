@@ -87,7 +87,6 @@ from parlant.core.tags import Tag
 from parlant.core.utterances import (
     UtteranceTagAssociationDocument,
     UtteranceDocument_v0_1_0,
-    UtteranceField,
     UtteranceVectorStore,
 )
 
@@ -758,10 +757,7 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
         if doc["version"] == "0.1.0":
             doc = cast(UtteranceDocument_v0_1_0, doc)
 
-            content = UtteranceVectorStore.assemble_content(
-                value=doc["value"],
-                fields=[UtteranceField(**f) for f in doc["fields"]],
-            )
+            content = doc["value"]
 
             new_doc = {
                 "id": doc["id"],

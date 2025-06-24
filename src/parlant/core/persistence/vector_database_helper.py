@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Awaitable, Callable, Generic, Mapping, Optional, cast
+import heapq
+from typing import Awaitable, Callable, Generic, Mapping, Optional, Sequence, TypeVar, cast
 from typing_extensions import Self
 from parlant.core.common import Version
 from parlant.core.nlp.embedding import Embedder
@@ -38,6 +39,47 @@ async def query_chunks(query: str, embedder: Embedder) -> list[str]:
         chunks.append(chunk)
 
     return [text if await embedder.tokenizer.estimate_token_count(text) else "" for text in chunks]
+
+
+T = TypeVar("T")
+
+
+def calculate_min_vectors_for_max_item_count(
+    items: Sequence[T],
+    count_item_vectors: Callable[[T], int],
+    max_items_to_return: int,
+) -> int:
+    # Vector databases return the top `top_k` vectors globally
+    # — not grouped by item (which may have multiple vectors).
+    #
+    # So if we set `top_k = max_documents`, it's likely that the results will include
+    # fewer than `max_documents` unique items, since a single item may have multiple vectors.
+    #
+    # To guarantee that we retrieve (up to) `max_documents` unique items, we could:
+    # 1. Count how many vectors each item has (from the available items).
+    # 2. Sum the vector counts.
+    # 3. Filter duplicates by item.
+    # 4. Sort by distance.
+    # 5. Select the top `max_items` distinct items.
+    #
+    # To optimize this process, we would like to estimate the minimum number of items (`top_k`)
+    # needed to ensure that at least `max_items` unique items are likely to be represented.
+    #
+    # We do this by:
+    # 1. Counting how many vectors (e.g., content entries) each item has.
+    # 2. Selecting the top `max_items` items with the most vectors (`heapq.nlargest`).
+    # 3. Summing their vector counts to compute `top_k`.
+    #
+    # Example:
+    # - 3 items with 10, 15, and 20 vectors → max_items = 2
+    # - Top two items have 20 and 15 → top_k = 35
+    # - Instead of fetching all 45, we fetch just 35 — enough to likely include the most relevant items.
+    return sum(
+        heapq.nlargest(
+            max_items_to_return,
+            [count_item_vectors(i) for i in items],
+        )
+    )
 
 
 class VectorDocumentStoreMigrationHelper:

@@ -1324,7 +1324,7 @@ Output a JSON object with three properties:
         top_relevant_utterances = await self._utterance_store.find_relevant_utterances(
             query=draft_response.content.response_body,
             available_utterances=utterances,
-            max_utterances=10,
+            max_count=10,
         )
 
         selection_response = await self._utterance_selection_generator.generate(

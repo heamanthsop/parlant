@@ -229,6 +229,7 @@ class EntityQueries:
         self,
         agent_id: AgentId,
         query: str,
+        max_count: int,
     ) -> Sequence[Capability]:
         agent_capabilities = await self._capability_store.list_capabilities(
             tags=[Tag.for_agent_id(agent_id)],
@@ -250,7 +251,7 @@ class EntityQueries:
         result = await self._capability_store.find_relevant_capabilities(
             query,
             list(all_capabilities),
-            max_capabilities=3,
+            max_count=max_count,
         )
 
         return result

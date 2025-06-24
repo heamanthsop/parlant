@@ -15,7 +15,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import heapq
 from itertools import chain
 import json
 from typing import Awaitable, Callable, NewType, Optional, Sequence, TypedDict, cast
@@ -34,6 +33,8 @@ from parlant.core.persistence.vector_database import (
 )
 from parlant.core.persistence.vector_database_helper import (
     VectorDocumentStoreMigrationHelper,
+    calculate_min_vectors_for_max_item_count,
+    query_chunks,
 )
 from parlant.core.persistence.document_database import (
     DocumentCollection,
@@ -107,7 +108,7 @@ class CapabilityStore:
         self,
         query: str,
         available_capabilities: Sequence[Capability],
-        max_capabilities: int,
+        max_count: int,
     ) -> Sequence[Capability]: ...
 
     @abstractmethod
@@ -228,8 +229,6 @@ class CapabilityVectorStore(CapabilityStore):
         capability: Capability,
         content: str,
     ) -> _CapabilityDocument:
-        queries_json = json.dumps(list(capability.queries))
-
         return _CapabilityDocument(
             id=ObjectId(generate_id()),
             capability_id=ObjectId(capability.id),
@@ -237,7 +236,7 @@ class CapabilityVectorStore(CapabilityStore):
             creation_utc=capability.creation_utc.isoformat(),
             title=capability.title,
             description=capability.description,
-            queries=queries_json,
+            queries=json.dumps(list(capability.queries)),
             content=content,
             checksum=md5_checksum(content),
         )
@@ -332,8 +331,7 @@ class CapabilityVectorStore(CapabilityStore):
 
             title = params.get("title", doc["title"])
             description = params.get("description", doc["description"])
-            queries = params.get("queries", json.loads(doc["queries"]))
-            queries = list(queries)
+            queries = params.get("queries", cast(Sequence[str], list(json.loads(doc["queries"]))))
 
             capability = Capability(
                 id=capability_id,
@@ -437,68 +435,44 @@ class CapabilityVectorStore(CapabilityStore):
         self,
         query: str,
         available_capabilities: Sequence[Capability],
-        max_capabilities: int,
+        max_count: int,
     ) -> Sequence[Capability]:
         if not available_capabilities:
             return []
 
-        # Vector databases return the top `n_result` documents globally — not grouped by capability.
-        # So if we set `n_result = max_capabilities`, it's likely that the results will include
-        # fewer than `max_capabilities` unique capabilities, since a single capability may have multiple documents.
-        #
-        # To guarantee that we retrieve `max_capabilities` unique capabilities, we could:
-        # 1. Count how many documents each capability has (from the available_capabilities).
-        # 2. Sum the document counts.
-        # 3. Filter duplicates by capability.
-        # 4. Sort by distance.
-        # 5. Select the top `max_capabilities` distinct capabilities.
-        #
-        # To optimize this process, we would like to estimate the minimum number of documents (`n_result`)
-        # needed to ensure that at least `max_capabilities` unique capabilities are likely to be represented.
-        #
-        # We do this by:
-        # 1. Counting how many documents (e.g., content entries) each capability has.
-        # 2. Selecting the top `max_capabilities` capabilities with the most documents (`heapq.nlargest`).
-        # 3. Summing their document counts to compute `n_result`.
-        #
-        # Example:
-        # - 3 capabilities with 10, 15, and 20 documents → max_capabilities = 2
-        # - Top two capabilities have 20 and 15 → n_result = 35
-        # - Instead of fetching all 45, we fetch just 35 — enough to likely include the most relevant capabilities.
-        n_result = sum(
-            heapq.nlargest(
-                max_capabilities,
-                [len(self._list_capability_contents(c)) for c in available_capabilities],
-            )
-        )
-
         async with self._lock.reader_lock:
-            queries = [query]
+            queries = await query_chunks(query, self._embedder)
             filters: Where = {"capability_id": {"$in": [str(c.id) for c in available_capabilities]}}
 
             tasks = [
                 self._collection.find_similar_documents(
                     filters=filters,
                     query=q,
-                    k=n_result,
+                    k=calculate_min_vectors_for_max_item_count(
+                        items=available_capabilities,
+                        count_item_vectors=lambda c: len(self._list_capability_contents(c)),
+                        max_items_to_return=max_count,
+                    ),
                 )
                 for q in queries
             ]
 
-        all_results = chain.from_iterable(await async_utils.safe_gather(*tasks))
+        all_sdocs = chain.from_iterable(await async_utils.safe_gather(*tasks))
 
-        s_docs: dict[str, SimilarDocumentResult[_CapabilityDocument]] = {}
-        for s_doc in all_results:
+        unique_sdocs: dict[str, SimilarDocumentResult[_CapabilityDocument]] = {}
+
+        for similar_doc in all_sdocs:
             if (
-                s_doc.document["capability_id"] not in s_docs
-                or s_docs[s_doc.document["capability_id"]].distance > s_doc.distance
+                similar_doc.document["capability_id"] not in unique_sdocs
+                or unique_sdocs[similar_doc.document["capability_id"]].distance
+                > similar_doc.distance
             ):
-                s_docs[s_doc.document["capability_id"]] = s_doc
+                unique_sdocs[similar_doc.document["capability_id"]] = similar_doc
 
-            if len(s_docs) >= max_capabilities:
+            if len(unique_sdocs) >= max_count:
                 break
 
-        top_results = sorted(s_docs.values(), key=lambda r: r.distance)[:max_capabilities]
+        top_results = sorted(unique_sdocs.values(), key=lambda r: r.distance)[:max_count]
 
         return [await self._deserialize(r.document) for r in top_results]
 
