@@ -82,7 +82,7 @@ class UtteranceDraftSchema(DefaultBaseModel):
 
 
 class UtteranceSelectionSchema(DefaultBaseModel):
-    reasoning: Optional[str] = None
+    tldr: Optional[str] = None
     chosen_template_id: Optional[str] = None
     match_quality: Optional[str] = None
 
@@ -1173,7 +1173,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
         self,
         context: UtteranceContext,
         draft_message: str,
-        utterances: Sequence[Utterance],
+        utterances: Sequence[tuple[UtteranceId, str]],
     ) -> PromptBuilder:
         guideline_representations = {
             m.guideline.id: internal_representation(m.guideline)
@@ -1197,7 +1197,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
             formatted_guidelines = ""
 
         formatted_utterances = "\n".join(
-            [f'Template ID: {u.id} """\n{u.value}\n"""\n' for u in utterances]
+            [f'Template ID: {u[0]} """\n{u[1]}\n"""' for u in utterances]
         )
 
         builder.add_section(
@@ -1229,7 +1229,7 @@ Draft reply message: ###
 ###
 
 Output a JSON object with three properties:
-1. "reasoning": consider 1-3 best candidate templates for a match (in view of the draft message and the additional behavioral guidelines) and reason about the most appropriate one choice to capture the draft message's main intent while also ensuring to take the behavioral guidelines into account
+1. "tldr": consider 1-3 best candidate templates for a match (in view of the draft message and the additional behavioral guidelines) and reason about the most appropriate one choice to capture the draft message's main intent while also ensuring to take the behavioral guidelines into account. Be very pithy and concise in your reasoning, like a newsline heading stating logical notes and conclusions.
 2. "chosen_template_id" containing the selected template ID.
 3. "match_quality": which can be ONLY ONE OF "low", "partial", "high".
     a. "low": You couldn't find a template that even comes close
@@ -1255,10 +1255,17 @@ Output a JSON object with three properties:
         composition_mode: CompositionMode,
         temperature: float,
     ) -> tuple[Mapping[str, GenerationInfo], Optional[_UtteranceSelectionResult]]:
+        # This will be needed throughout the process for emitting status events
         last_known_event_offset = (
             context.interaction_history[-1].offset if context.interaction_history else -1
         )
 
+        direct_draft_output_mode = (
+            not utterances
+            and context.agent.composition_mode == CompositionMode.COMPOSITED_UTTERANCE
+        )
+
+        # Step 1: Generate the draft message
         draft_prompt = self._build_draft_prompt(
             agent=context.agent,
             context_variables=context.context_variables,
@@ -1275,10 +1282,7 @@ Output a JSON object with three properties:
             shots=await self.shots(context.agent.composition_mode),
         )
 
-        if (
-            not utterances
-            and context.agent.composition_mode == CompositionMode.COMPOSITED_UTTERANCE
-        ):
+        if direct_draft_output_mode:
             await context.event_emitter.emit_status_event(
                 correlation_id=self._correlator.correlation_id,
                 data={
@@ -1300,10 +1304,7 @@ Output a JSON object with three properties:
         if not draft_response.content.response_body:
             return {"draft": draft_response.info}, None
 
-        if (
-            not utterances
-            and context.agent.composition_mode == CompositionMode.COMPOSITED_UTTERANCE
-        ):
+        if direct_draft_output_mode:
             return {
                 "draft": draft_response.info,
             }, _UtteranceSelectionResult(
@@ -1321,17 +1322,32 @@ Output a JSON object with three properties:
             },
         )
 
+        # Step 2: Select the most relevant utterance templates based on the draft message
         top_relevant_utterances = await self._utterance_store.find_relevant_utterances(
             query=draft_response.content.response_body,
             available_utterances=utterances,
             max_count=10,
         )
 
+        # Step 3: Pre-render these templates so that matching works better
+        rendered_utterances = []
+
+        for u in top_relevant_utterances:
+            try:
+                rendered_utterance = await self._render_utterance(context, u.value)
+                rendered_utterances.append((u.id, rendered_utterance))
+            except Exception as exc:
+                self._logger.error(
+                    f"Failed to pre-render utterance for matching '{u.id}' ('{u.value}')"
+                )
+                self._logger.error(f"Utterance rendering failed: {traceback.format_exception(exc)}")
+
+        # Step 4: Try to match the draft message with one of the rendered utterances
         selection_response = await self._utterance_selection_generator.generate(
             prompt=self._build_selection_prompt(
                 context=context,
                 draft_message=draft_response.content.response_body,
-                utterances=top_relevant_utterances,
+                utterances=rendered_utterances,
             ),
             hints={"temperature": 0.1},
         )
@@ -1340,6 +1356,7 @@ Output a JSON object with three properties:
             f"Utterance Selection Completion:\n{selection_response.content.model_dump_json(indent=2)}"
         )
 
+        # Step 5: Respond based on the match quality
         if (
             selection_response.content.match_quality not in ["partial", "high"]
             or not selection_response.content.chosen_template_id
