@@ -35,7 +35,10 @@ from parlant.core.agents import (
     CompositionMode,
 )
 from parlant.core.capabilities import CapabilityId, CapabilityStore, CapabilityVectorStore
-from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
+from parlant.core.context_variables import (
+    ContextVariableDocumentStore,
+    ContextVariableStore,
+)
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerDocumentStore, CustomerStore
 from parlant.core.emissions import EmittedEvent, EventEmitterFactory
@@ -124,6 +127,18 @@ def _load_openai(container: Container) -> NLPService:
 
 
 class _PicoAgentStore(AgentStore):
+    """This is a minimal in-memory implementation of AgentStore for SDK purposes.
+    The reason we use this and not any of the other implementations is that it
+    uses the agent's name as the ID, which is convenient for SDK usage.
+
+    This is because an SDK file would be re-run multiple times within the same testing session,
+    and Parlant's integrated web UI would likely stay running in the background between runs.
+
+    Now, if the agent's ID changed between runs, the UI would not be able to find the agent
+    and would essentially lose context in the sessions it displays.
+
+    Incidentally, this is also why we support using a non-transient session store in the SDK."""
+
     def __init__(self) -> None:
         self._agents: dict[AgentId, _Agent] = {}
 
@@ -258,8 +273,10 @@ class Guideline:
 @dataclass
 class Journey:
     id: JourneyId
+    title: str
     description: str
     conditions: list[Guideline]
+    tags: Sequence[TagId]
 
     _parlant: Server
     _container: Container
@@ -353,6 +370,7 @@ class Agent:
     description: str | None
     max_engine_iterations: int
     composition_mode: CompositionMode
+    tags: Sequence[TagId]
 
     _parlant: Server
     _container: Container
@@ -369,8 +387,10 @@ class Agent:
 
         return Journey(
             id=journey.id,
+            title=journey.title,
             description=description,
             conditions=journey.conditions,
+            tags=journey.tags,
             _parlant=self._parlant,
             _container=self._container,
         )
@@ -522,6 +542,7 @@ class Server:
         description: str,
         composition_mode: CompositionMode = CompositionMode.COMPOSITED_UTTERANCE,
         max_engine_iterations: int | None = None,
+        tags: Sequence[TagId] = [],
     ) -> Agent:
         agent = await self._container[AgentStore].create_agent(
             name=name,
@@ -536,6 +557,7 @@ class Server:
             description=agent.description,
             max_engine_iterations=agent.max_engine_iterations,
             composition_mode=agent.composition_mode,
+            tags=tags,
             _parlant=self,
             _container=self._container,
         )
@@ -545,6 +567,7 @@ class Server:
         title: str,
         description: str,
         conditions: list[str | Guideline],
+        tags: Sequence[TagId] = [],
     ) -> Journey:
         condition_guidelines = [c for c in conditions if isinstance(c, Guideline)]
 
@@ -624,8 +647,10 @@ class Server:
 
         return Journey(
             id=journey.id,
+            title=journey.title,
             description=description,
             conditions=condition_guidelines,
+            tags=tags,
             _container=self._container,
             _parlant=self,
         )
