@@ -2038,3 +2038,38 @@ async def test_that_guideline_relationships_can_be_read(
     assert relationships[0]["source_guideline"]["id"] == guideline.id
     assert relationships[0]["target_guideline"]["id"] == connected_guideline.id
     assert relationships[0]["kind"] == "entailment"
+
+
+async def test_that_guideline_with_relationships_can_be_deleted(
+    async_client: httpx.AsyncClient,
+    container: Container,
+) -> None:
+    guideline_store = container[GuidelineStore]
+    relationship_store = container[RelationshipStore]
+
+    guideline = await guideline_store.create_guideline(
+        condition="the customer wants to get meeting details",
+        action="get meeting event information",
+    )
+
+    connected_guideline = await guideline_store.create_guideline(
+        condition="reply with 'Hello'",
+        action="finish with a smile",
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=guideline.id,
+            kind=RelationshipEntityKind.GUIDELINE,
+        ),
+        target=RelationshipEntity(
+            id=connected_guideline.id,
+            kind=RelationshipEntityKind.GUIDELINE,
+        ),
+        kind=GuidelineRelationshipKind.ENTAILMENT,
+    )
+
+    (await async_client.delete(f"/guidelines/{guideline.id}")).raise_for_status()
+
+    response = await async_client.get(f"/guidelines/{guideline.id}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND

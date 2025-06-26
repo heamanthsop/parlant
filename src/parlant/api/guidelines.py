@@ -1746,8 +1746,6 @@ def create_router(
     ) -> None:
         guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
 
-        await guideline_store.delete_guideline(guideline_id=guideline_id)
-
         for r, _ in await _get_relationships(
             guideline_store=guideline_store,
             tag_store=tag_store,
@@ -1775,5 +1773,7 @@ def create_router(
                         journey_id=journey.id,
                         condition=condition,
                     )
+
+        await guideline_store.delete_guideline(guideline_id=guideline_id)
 
     return router
