@@ -210,9 +210,9 @@ async def get_component_versions() -> list[tuple[str, str]]:
                         VectorDocumentStoreMigrationHelper.get_store_version_key(
                             GlossaryVectorStore.__name__
                         ),
-                        chroma_db_metadata[
-                            "version"
-                        ],  # Back off to the old version key method if not found
+                        chroma_db_metadata.get(
+                            "version", "0.1.0"
+                        ),  # Back off to the old version key method if not found
                     ),
                 )
             )
@@ -224,12 +224,48 @@ async def get_component_versions() -> list[tuple[str, str]]:
     if utterances_version:
         versions.append(("utterances", utterances_version))
 
+    with suppress(chromadb.errors.InvalidCollectionException):
+        if chroma_db.chroma_client.get_collection("utterances_unembedded"):
+            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
+            versions.append(
+                (
+                    "utterances",
+                    chroma_db_metadata.get(
+                        VectorDocumentStoreMigrationHelper.get_store_version_key(
+                            UtteranceVectorStore.__name__
+                        ),
+                        chroma_db_metadata.get(
+                            "version", "0.1.0"
+                        ),  # Back off to the old version key method if not found
+                    ),
+                )
+            )
+
     journeys_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "journeys.json",
         "journeys",
     )
     if journeys_version:
         versions.append(("journeys", journeys_version))
+
+    with suppress(chromadb.errors.InvalidCollectionException):
+        if chroma_db.chroma_client.get_collection("journeys_unembedded"):
+            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
+            versions.append(
+                (
+                    "journeys",
+                    chroma_db_metadata.get(
+                        VectorDocumentStoreMigrationHelper.get_store_version_key(
+                            JourneyVectorStore.__name__
+                        ),
+                        chroma_db_metadata.get(
+                            "version", "0.1.0"
+                        ),  # Back off to the old version key method if not found
+                    ),
+                )
+            )
 
     return versions
 
