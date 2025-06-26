@@ -44,7 +44,7 @@ from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.indexing.behavioral_change_evaluation import GuidelineEvaluator
 from parlant.core.sessions import EventSource, Session
-from parlant.core.tags import Tag, TagId
+from parlant.core.tags import TagId
 from tests.core.common.utils import create_event_message
 from tests.test_utilities import SyncAwaiter, nlp_test
 
@@ -341,7 +341,102 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
                     ), f"clarification message: '{clarification}', expected to contain: '{clarification_must_contain}'"
 
 
-async def test_that_ambiguity_detected_with_relevant_guidelines(
+# TODO : allow skipping guidelines
+
+
+async def test_that_ambiguity_is_not_detected_when_not_needed_based_on_earlier_part_of_the_conversation(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi which roller coasters are currently running?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Right now, only the Snake roller coaster is active. We also have other rides, like the Tiger ferris wheel.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Ok so book me to the first one please",
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "snake_roller_coaster",
+        "turtle_roller_coaster",
+        "tiger_Ferris_wheel",
+    ]
+    disambiguating_guidelines: list[str] = []
+    head_condition = CONDITION_HEAD_DICT["amusement_park"]
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=False,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+    )
+
+
+# TODO: problematic test, decide how to change
+async def test_that_ambiguity_detects_with_relevant_guidelines_based_on_glossary(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, my screen just goes black after I open the app. I don’t really know what happened — I didn’t touch anything in the settings. It worked yesterday."
+            "I have no technical knowledge",
+        ),
+    ]
+    terms = [
+        create_term(
+            name="FixFlow",
+            description="A live, guided troubleshooting session with a technical agent.",
+        ),
+        create_term(
+            name="CoreTrace",
+            description="Relevant when the customer is an engineering- A deeper diagnostic log meant for engineering-level review.",
+        ),
+        create_term(
+            name="QuickPatch",
+            description="A remote patching tool that attempts to fix common bugs or corrupted settings.",
+        ),
+    ]
+    to_disambiguate_guidelines = [
+        "FixFlow",
+        "CoreTrace",
+        "QuickPatch",
+    ]
+    disambiguating_guidelines: list[str] = ["FixFlow", "QuickPatch"]
+    head_condition = CONDITION_HEAD_DICT["fix_bug"]
+    clarification_must_contain = "FixFlow or QuickPatch as ways to help to solve the problem"
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=True,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
+        clarification_must_contain=clarification_must_contain,
+        terms=terms,
+    )
+
+
+# TODO: test is ok, need to rewrite the nlp test
+async def test_that_ambiguity_is_detected_when_previously_applied_and_should_reapply(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -352,308 +447,33 @@ async def test_that_ambiguity_detected_with_relevant_guidelines(
             EventSource.CUSTOMER,
             "Please book me for the roller coaster",
         ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "snake_roller_coaster",
-        "turtle_roller_coaster",
-        "tiger_Ferris_wheel",
-    ]
-    disambiguating_guidelines = [
-        "snake_roller_coaster",
-        "turtle_roller_coaster",
-    ]
-    head_condition = CONDITION_HEAD_DICT["amusement_park"]
-    clarification_must_contain = "snake roller coaster and turtle roller coaster as options"
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-    )
-
-
-async def test_that_ambiguity_detected_with_relevant_guidelines_2(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.AI_AGENT,
+            "We have a snake roller coaster and turtle roller coaster. Which one would you like?",
+        ),
         (
             EventSource.CUSTOMER,
-            "I can’t find my card. I think I lost it in my house",
+            "Turtle roller coaster sound boring. Book me to the snake one",
         ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "report_lost",
-        "lock_card",
-        "report_stealing",
-        "replacement_card",
-        "freeze_card",
-        "report_to_police",
-        "dispute_charge",
-    ]
-    disambiguating_guidelines = [
-        "report_lost",
-        "lock_card",
-        "replacement_card",
-        "freeze_card",
-    ]
-    head_condition = CONDITION_HEAD_DICT["lost_card"]
-    clarification_must_contain = (
-        "option to report lost card, to lock or freeze it or replace it with a new one"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-    )
-
-
-async def test_that_ambiguity_detected_with_relevant_guidelines_3(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.AI_AGENT,
+            "Sure! anything else?",
+        ),
         (
             EventSource.CUSTOMER,
-            "I saw a charge I didn’t make. I'm pretty sure it was stolen",
-        ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "lock_card",
-        "report_stealing",
-        "replacement_card",
-        "freeze_card",
-        "dispute_charge",
-    ]
-    # report lost card is not really likely, but better offer not very relevant options then omit ones.
-    #  It sometimes add it and sometimes not so for now i dont include it in the test
-    disambiguating_guidelines = [
-        "lock_card",
-        "replacement_card",
-        "freeze_card",
-        "report_stealing",
-        "dispute_charge",
-    ]
-    head_condition = CONDITION_HEAD_DICT["stolen_card"]
-    clarification_must_contain = (
-        "option to report to lock or freeze the card, report stealing, or dispute a charge"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-    )
-
-
-async def test_that_ambiguity_detected_based_on_context_variable(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I see I can't make it to the flight. Can you help me?",
-        ),
-    ]
-    context_variables = [
-        create_context_variable(
-            name="Customer tier",
-            data={"tier": "VIP"},
-            tags=[Tag.for_agent_id(agent.id)],
-        ),
-    ]
-    to_disambiguate_guidelines = [
-        "vip_refund",
-        "vip_reschedule",
-        "vip_cancel",
-        "regular_refund_travel_credit",
-        "regular_reschedule",
-        "regular_cancel",
-    ]
-
-    disambiguating_guidelines = [
-        "vip_refund",
-        "vip_reschedule",
-        "vip_cancel",
-    ]
-    head_condition = CONDITION_HEAD_DICT["cancel_flight"]
-    clarification_must_contain = "options to cancel the flight, totally cancel or get a refund to payment method or to travel credit"
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-        context_variables=context_variables,
-    )
-
-
-async def test_that_ambiguity_detected_based_on_context_variable_2(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I see I can't make it to the flight. Can you help me?",
-        ),
-    ]
-    context_variables = [
-        create_context_variable(
-            name="Customer tier",
-            data={"tier": "Basic"},
-            tags=[Tag.for_agent_id(agent.id)],
-        ),
-    ]
-    to_disambiguate_guidelines = [
-        "vip_refund",
-        "vip_reschedule",
-        "vip_cancel",
-        "regular_refund_travel_credit",
-        "regular_reschedule",
-        "regular_cancel",
-    ]
-
-    disambiguating_guidelines = [
-        "regular_refund_travel_credit",
-        "regular_reschedule",
-        "regular_cancel",
-    ]
-    head_condition = CONDITION_HEAD_DICT["cancel_flight"]
-    clarification_must_contain = (
-        "options to reschedule the flight, totally cancel or get a refund to travel credit"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-        context_variables=context_variables,
-    )
-
-
-async def test_that_ambiguity_is_not_detected_when_there_is_no_ambiguity(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "Please book me for the snake roller coaster",
+            "Yes do you have colliding cars right? so that one too",
         ),
     ]
     to_disambiguate_guidelines = [
         "snake_roller_coaster",
         "turtle_roller_coaster",
         "tiger_Ferris_wheel",
+        "adult_colliding_cars",
+        "children_colliding_cars",
     ]
-    disambiguating_guidelines: list[str] = []
+    disambiguating_guidelines: list[str] = ["children_colliding_cars", "adult_colliding_cars"]
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=False,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-    )
-
-
-async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_not_reapply(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    return
-
-
-async def test_that_agent_re_ask_when_customer_didnt_answer_which_option(  # TODO BDD
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    return
-
-
-async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_not_created(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "Hi book me to the roller coaster please",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "Sure, We have snake roller coaster and turtle roller coaster. Which one would you like?.",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "Hmm Let me see",
-        ),
-    ]
-    to_disambiguate_guidelines = [
-        "snake_roller_coaster",
-        "turtle_roller_coaster",
-        "tiger_Ferris_wheel",
-    ]
-    disambiguating_guidelines: list[str] = [
-        "snake_roller_coaster",
-        "turtle_roller_coaster",
-    ]
-    head_condition = CONDITION_HEAD_DICT["amusement_park"]
+    clarification_must_contain = "options to adult colliding cars or children colliding cars"
     await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
         agent,
@@ -662,157 +482,6 @@ async def test_that_when_agent_already_asked_for_clarification_new_clarification
         conversation_context,
         head_condition,
         is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-    )
-
-
-async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_not_created_2(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I can’t find my card. I think I lost it in my house",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "I know that it's lost",
-        ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "report_lost",
-        "lock_card",
-        "report_stealing",
-        "replacement_card",
-        "freeze_card",
-        "report_to_police",
-        "dispute_charge",
-    ]
-    disambiguating_guidelines = [
-        "report_lost",
-        "lock_card",
-        "replacement_card",
-        "freeze_card",
-    ]
-    head_condition = CONDITION_HEAD_DICT["lost_card"]
-    clarification_must_contain = (
-        "option to report lost card, to lock or freeze it or replace it with a new one"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=True,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-    )
-
-
-async def test_that_ambiguity_is_not_detected_when_agent_asked_for_clarification_but_customer_changed_its_mind(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I can’t find my card. I think I lost it in my house",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "Actually I found it. All good",
-        ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "report_lost",
-        "lock_card",
-        "report_stealing",
-        "replacement_card",
-        "freeze_card",
-        "report_to_police",
-        "dispute_charge",
-    ]
-    disambiguating_guidelines: list[str] = []
-    head_condition = CONDITION_HEAD_DICT["lost_card"]
-    clarification_must_contain = (
-        "option to report lost card, to lock or freeze it or replace it with a new one"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=False,
-        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
-        disambiguating_guideline_names=disambiguating_guidelines,
-        clarification_must_contain=clarification_must_contain,
-    )
-
-
-async def test_that_ambiguity_is_not_detected_when_agent_asked_for_clarification_but_customer_changed_subject(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I can’t find my card. I think I lost it in my house",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "To help you with your card, could you please confirm what you'd like to do? Would you like to report it as lost, lock it, freeze it temporarily, or request a replacement?",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "Actually I will handle this later. Can you check my balance?",
-        ),
-    ]
-
-    to_disambiguate_guidelines = [
-        "report_lost",
-        "lock_card",
-        "report_stealing",
-        "replacement_card",
-        "freeze_card",
-        "report_to_police",
-        "dispute_charge",
-    ]
-    disambiguating_guidelines: list[str] = []
-    head_condition = CONDITION_HEAD_DICT["lost_card"]
-    clarification_must_contain = (
-        "option to report lost card, to lock or freeze it or replace it with a new one"
-    )
-    await base_test_that_ambiguity_detected_with_relevant_guidelines(
-        context,
-        agent,
-        new_session,
-        customer,
-        conversation_context,
-        head_condition,
-        is_ambiguous=False,
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
