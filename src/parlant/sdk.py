@@ -18,12 +18,13 @@ import asyncio
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import md5
 from pathlib import Path
 from types import TracebackType
-from typing import Awaitable, Callable, Iterable, Literal, Sequence, cast
+from typing import Awaitable, Callable, Iterable, Literal, Sequence, TypedDict, cast
 from lagom import Container
 
-from parlant.adapters.db.json_file import JSONFileDocumentDatabase
+from parlant.adapters.db.json_file import JSONFileDocumentCollection, JSONFileDocumentDatabase
 from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
@@ -35,6 +36,7 @@ from parlant.core.agents import (
     CompositionMode,
 )
 from parlant.core.capabilities import CapabilityId, CapabilityStore, CapabilityVectorStore
+from parlant.core.common import JSONSerializable, Version
 from parlant.core.context_variables import (
     ContextVariableDocumentStore,
     ContextVariableStore,
@@ -56,7 +58,8 @@ from parlant.core.nlp.generation import (
     SchematicGenerator,
 )
 from parlant.core.nlp.tokenization import EstimatingTokenizer
-from parlant.core.persistence.document_database import DocumentDatabase
+from parlant.core.persistence.common import ObjectId
+from parlant.core.persistence.document_database import DocumentDatabase, identity_loader_for
 from parlant.core.relationships import (
     GuidelineRelationshipKind,
     RelationshipDocumentStore,
@@ -113,6 +116,7 @@ from parlant.core.tools import (
     ToolParameterType,
     ToolResult,
 )
+from parlant.core.version import VERSION
 
 _INTEGRATED_TOOL_SERVICE_NAME = "built-in"
 
@@ -124,6 +128,143 @@ class SDKError(Exception):
 
 def _load_openai(container: Container) -> NLPService:
     return OpenAIService(container[Logger])
+
+
+class _CachedEvaluation(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    action_proposition: str | None
+    properties: dict[str, JSONSerializable]
+
+
+class _CachedEvaluator:
+    @dataclass(frozen=True)
+    class GuidelineEvaluation:
+        action_proposition: str | None
+        properties: dict[str, JSONSerializable]
+
+    def __init__(
+        self,
+        db: JSONFileDocumentDatabase,
+        container: Container,
+    ) -> None:
+        self._db: JSONFileDocumentDatabase = db
+        self._collection: JSONFileDocumentCollection[_CachedEvaluation]
+        self._container = container
+        self._logger = container[Logger]
+        self._exit_stack = AsyncExitStack()
+
+    async def __aenter__(self) -> _CachedEvaluator:
+        await self._exit_stack.enter_async_context(self._db)
+
+        self._collection = await self._db.get_or_create_collection(
+            name="guideline_evaluations",
+            schema=_CachedEvaluation,
+            document_loader=identity_loader_for(_CachedEvaluation),
+        )
+
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool:
+        await self._exit_stack.aclose()
+        return False
+
+    def _hash_guideline(self, g: GuidelineContent) -> str:
+        """Generate a hash for the guideline content."""
+        return md5(f"{g.condition or ''}:{g.action or ''}".encode()).hexdigest()
+
+    async def evaluate_guideline(self, g: GuidelineContent) -> _CachedEvaluator.GuidelineEvaluation:
+        # First check if we have a cached evaluation for this guideline
+        if cached_evaluation := await self._collection.find_one(
+            {"id": {"$eq": self._hash_guideline(g)}}
+        ):
+            # Check if the cached evaluation is based on our current runtime version.
+            # This is important as the required evaluation data can change between versions.
+            if cached_evaluation["version"] == VERSION:
+                self._logger.info(
+                    f"Using cached evaluation for guideline: Condition: {g.condition or 'None'}; Action: {g.action or 'None'}"
+                )
+
+                return self.GuidelineEvaluation(
+                    action_proposition=cached_evaluation.get("action_proposition"),
+                    properties=cached_evaluation["properties"],
+                )
+            else:
+                self._logger.info(
+                    f"Deleting outdated cached evaluation for guideline: {g.condition or 'None'}"
+                )
+
+                await self._collection.delete_one({"id": {"$eq": cached_evaluation["id"]}})
+
+        self._logger.info(
+            f"Evaluating guideline: Condition: {g.condition or 'None'}, Action: {g.action or 'None'}"
+        )
+
+        evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
+            payload_descriptors=[
+                PayloadDescriptor(
+                    PayloadKind.GUIDELINE,
+                    GuidelinePayload(
+                        content=GuidelineContent(
+                            condition=g.condition,
+                            action=g.action,
+                        ),
+                        tool_ids=[],
+                        operation=GuidelinePayloadOperation.ADD,
+                        coherence_check=False,  # Legacy and will be removed in the future
+                        connection_proposition=False,  # Legacy and will be removed in the future
+                        action_proposition=g.action is not None,
+                        properties_proposition=True,
+                    ),
+                )
+            ]
+        )
+
+        while True:
+            evaluation = await self._container[EvaluationStore].read_evaluation(
+                evaluation_id=evaluation_id,
+            )
+
+            if evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
+                await asyncio.sleep(0.5)
+                continue
+            elif evaluation.status == EvaluationStatus.FAILED:
+                raise SDKError(f"Evaluation failed: {evaluation.error}")
+            elif evaluation.status == EvaluationStatus.COMPLETED:
+                if not evaluation.invoices:
+                    raise SDKError("Evaluation completed with no invoices.")
+                if not evaluation.invoices[0].approved:
+                    raise SDKError("Evaluation completed with unapproved invoice.")
+
+                invoice = evaluation.invoices[0]
+
+                if not invoice.data:
+                    raise SDKError(
+                        "Evaluation completed with no properties_proposition in the invoice."
+                    )
+
+            assert invoice.data
+
+            # Cache the evaluation result
+            await self._collection.insert_one(
+                {
+                    "id": ObjectId(self._hash_guideline(g)),
+                    "version": Version.String(VERSION),
+                    "properties": invoice.data.properties_proposition or {},
+                    "action_proposition": invoice.data.action_proposition or None,
+                }
+            )
+
+            # Return the evaluation result
+            return self.GuidelineEvaluation(
+                action_proposition=invoice.data.action_proposition,
+                properties=invoice.data.properties_proposition or {},
+            )
 
 
 class _PicoAgentStore(AgentStore):
@@ -286,10 +427,16 @@ class Journey:
         condition: str,
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
+        metadata: dict[str, JSONSerializable] = {},
     ) -> Guideline:
+        evaluation = await self._parlant._evaluator.evaluate_guideline(
+            GuidelineContent(condition=condition, action=action)
+        )
+
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
-            action=action,
+            action=action or evaluation.action_proposition,
+            metadata={**evaluation.properties, **metadata},
         )
 
         await self._container[RelationshipStore].create_relationship(
@@ -353,6 +500,21 @@ class Journey:
 
         return guideline.id
 
+    async def create_utterance(
+        self,
+        template: str,
+        tags: list[TagId] = [],
+        queries: list[str] = [],
+    ) -> UtteranceId:
+        utterance = await self._container[UtteranceStore].create_utterance(
+            value=template,
+            tags=[Tag.for_journey_id(self.id), *tags],
+            fields=[],
+            queries=[],
+        )
+
+        return utterance.id
+
 
 @dataclass
 class Capability:
@@ -406,10 +568,16 @@ class Agent:
         condition: str,
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
+        metadata: dict[str, JSONSerializable] = {},
     ) -> Guideline:
+        evaluation = await self._parlant._evaluator.evaluate_guideline(
+            GuidelineContent(condition=condition, action=action)
+        )
+
         guideline = await self._container[GuidelineStore].create_guideline(
             condition=condition,
-            action=action,
+            action=action or evaluation.action_proposition,
+            metadata={**evaluation.properties, **metadata},
             tags=[Tag.for_agent_id(self.id)],
         )
 
@@ -460,11 +628,13 @@ class Agent:
         self,
         template: str,
         tags: list[TagId] = [],
+        queries: list[str] = [],
     ) -> UtteranceId:
         utterance = await self._container[UtteranceStore].create_utterance(
             value=template,
             tags=tags,
             fields=[],
+            queries=queries,
         )
 
         return utterance.id
@@ -512,6 +682,7 @@ class Server:
         self.migrate = migrate
 
         self._nlp_service_func = nlp_service
+        self._evaluator: _CachedEvaluator
         self._session_store = session_store
         self._configure_hooks = configure_hooks
         self._configure_container = configure_container
@@ -572,66 +743,27 @@ class Server:
         condition_guidelines = [c for c in conditions if isinstance(c, Guideline)]
 
         str_conditions = [c for c in conditions if isinstance(c, str)]
-        if str_conditions:
-            evaluation_id = await self._container[BehavioralChangeEvaluator].create_evaluation_task(
-                payload_descriptors=[
-                    PayloadDescriptor(
-                        PayloadKind.GUIDELINE,
-                        GuidelinePayload(
-                            content=GuidelineContent(
-                                condition=c,
-                                action=None,
-                            ),
-                            tool_ids=[],
-                            operation=GuidelinePayloadOperation.ADD,
-                            coherence_check=False,  # Legacy and will be removed in the future
-                            connection_proposition=False,  # Legacy and will be removed in the future
-                            action_proposition=False,
-                            properties_proposition=True,
-                        ),
-                    )
-                    for c in str_conditions
-                ]
+
+        for str_condition in str_conditions:
+            evaluation = await self._evaluator.evaluate_guideline(
+                GuidelineContent(condition=str_condition, action=None)
             )
 
-            evaluation = await self._container[EvaluationStore].read_evaluation(
-                evaluation_id=evaluation_id
+            guideline = await self._container[GuidelineStore].create_guideline(
+                condition=str_condition,
+                metadata=evaluation.properties,
             )
 
-            while evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
-                await asyncio.sleep(0.1)
-                evaluation = await self._container[EvaluationStore].read_evaluation(
-                    evaluation_id=evaluation_id
+            condition_guidelines.append(
+                Guideline(
+                    id=guideline.id,
+                    condition=guideline.content.condition,
+                    action=guideline.content.action,
+                    tags=guideline.tags,
+                    _parlant=self,
+                    _container=self._container,
                 )
-
-            if evaluation.status == EvaluationStatus.FAILED:
-                raise SDKError(f"Evaluation failed during journey creation: {evaluation.error}")
-
-            for invoice in evaluation.invoices:
-                if not invoice.approved:
-                    raise SDKError("Invoice was not approved during journey creation.")
-                if not invoice.data:
-                    raise SDKError("Invoice has no data during journey creation.")
-                if not invoice.data.properties_proposition:
-                    raise SDKError(
-                        "Invoice is missing properties_proposition during journey creation."
-                    )
-
-                guideline = await self._container[GuidelineStore].create_guideline(
-                    condition=invoice.payload.content.condition,
-                    metadata=invoice.data.properties_proposition,
-                )
-
-                condition_guidelines.append(
-                    Guideline(
-                        id=guideline.id,
-                        condition=guideline.content.condition,
-                        action=guideline.content.action,
-                        tags=guideline.tags,
-                        _parlant=self,
-                        _container=self._container,
-                    )
-                )
+            )
 
         journey = await self._container[JourneyStore].create_journey(
             title,
@@ -790,6 +922,12 @@ class Server:
 
             await self._exit_stack.enter_async_context(self._plugin_server)
             self._exit_stack.push_async_callback(self._plugin_server.shutdown)
+
+            self._evaluator = _CachedEvaluator(
+                db=JSONFileDocumentDatabase(c[Logger], PARLANT_HOME_DIR / "evaluation_cache.json"),
+                container=c,
+            )
+            await self._exit_stack.enter_async_context(self._evaluator)
 
             if self._initialize:
                 await self._initialize(c)
