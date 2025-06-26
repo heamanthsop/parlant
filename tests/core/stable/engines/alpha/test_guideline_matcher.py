@@ -306,6 +306,10 @@ ACTIONABLE_GUIDELINES_DICT = {
         "condition": "the customer asks for the tiger Ferris wheel",
         "action": "book it",
     },
+    "replace_card": {
+        "condition": "The user wants to replace their card",
+        "action": "List the cards and then assist the user to replace their card until matter is resolved",
+    },
 }
 
 DISAMBIGUATION_GUIDELINES_DICT = {
@@ -3171,4 +3175,52 @@ async def test_that_ambiguity_detected_with_relevant_guidelines_and_other_non_am
         relevant_guideline_names=relevant_guideline_names,
         disambiguation_guideline_name=disambiguation_guideline_name,
         disambiguation_targets_names=disambiguation_targets_names,
+    )
+
+
+async def test_that_a_guideline_that_has_several_steps_is_still_matched(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "replace",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Can you select out of the following cards which card do you want to replace?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "1.Chase Sapphire (CRD1002537) 2.Chase Freedom (CRD1008542)",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "First one",
+        ),
+    ]
+
+    conversation_guideline_names: list[str] = [
+        "replace_card",
+    ]
+
+    relevant_guideline_names: list[str] = [
+        "replace_card",
+    ]
+    previously_matched_guidelines_names: list[str] = [
+        "replace_card",
+    ]
+
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names=relevant_guideline_names,
+        previously_matched_guidelines_names=previously_matched_guidelines_names,
     )
