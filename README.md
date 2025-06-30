@@ -138,7 +138,9 @@ async def configure_agent(server: p.Server) -> None:
 
   # Attach tools to help the AI agent perform actions
   # and retrieve data while following the journey.
-
+  # Tools only get evaluated if the associated condition
+  # currently holds in a conversation—significantly
+  # improving the accuracy of tool calls.
   await recommend_book.attach_tool(
     tool=list_books,
     condition="You need to know what books are available",
