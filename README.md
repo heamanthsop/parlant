@@ -62,6 +62,8 @@ Getting Parlant up and running is straightforward.
 pip install parlant
 ```
 
+### Code Example
+
 ```python
 import asyncio
 from collections import defaultdict
