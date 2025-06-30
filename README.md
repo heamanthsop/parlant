@@ -35,11 +35,6 @@
 # Build a scalable AI chat agent—in minutes.
 Parlant is the open-source backbone for LLM agents that stay under control as you scale their complexity.
 
-[](https://pypi.org/project/parlant/)
-[](https://opensource.org/licenses/MIT)
-[](https://github.com/emcie-co/parlant/stargazers)
-[](https://www.google.com/search?q=YOUR_DISCORD_INVITE_LINK)
-
 ## 💡 Bring control and consistency to LLM agents...
 
 You've built a conversational AI agent—that's great! However, when you actually test it, you see it's not handling many customer interactions properly, and your business experts are displeased with its behavior. We've all been there. What do you do?
