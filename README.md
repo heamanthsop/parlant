@@ -234,6 +234,8 @@ Parlant is ***packed*** with useful features for production conversational AI!
 ## React Widget
 Please see https://github.com/emcie-co/parlant-chat-react for our official, highly-customizable React widget to interact with your Parlant server on your app.
 
+![https://github.com/emcie-co/parlant-chat-react/raw/main/src/assets/chatbox.gif](https://github.com/emcie-co/parlant-chat-react/raw/main/src/assets/chatbox.gif)
+
 ```typescript
 import React from 'react';
 import ParlantChatbox from 'parlant-chat-react';
