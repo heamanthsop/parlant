@@ -213,7 +213,9 @@ pip install parlant
 ## Integrated prototyping playground
 <img alt="Parlant Demo" src="https://github.com/emcie-co/parlant/blob/develop/demo.gif?raw=true" />
 
-## 🛠️ Key Features
+## 🛠️ Key features
+
+Parlant is ***packed*** with useful features for production conversational AI!
 
   * **Behavioral Guidelines:** Easily define rules and guardrails for agent interactions and **dictate and enforce exact conversation behavior**.
   * **Semantic Relationships:** Define how different guidelines relate to each other (dependencies, prioritization, etc.), creating sophisticated and adaptive conversational flows.
