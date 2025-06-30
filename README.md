@@ -52,6 +52,16 @@ Parlant lets you define your conversational rules and logic in natural language,
 - 🎯 Parlant dramatically increases the LLM's consistency in following your instructions
 - 💬 Parlant is a tailor-made framework for conversational, customer-facing use cases. It has a *LOT* of flexible features and optimizations for rich conversation management.
 
+## 🚀 Getting started
+
+Getting Parlant up and running is straightforward.
+
+### Installation
+
+```bash
+pip install parlant
+```
+
 ```python
 import asyncio
 from collections import defaultdict
@@ -199,16 +209,6 @@ Creating Parlant is a significant effort, as conversational semantics are extrem
 Your star goes a long way to support our team's effort in creating a reality where generative AI agents reliably do what we tell them!
 
 [![Star History Chart](https://api.star-history.com/svg?repos=emcie-co/parlant&type=Date)](https://www.star-history.com/#emcie-co/parlant&Date)
-
-## 🚀 Getting started
-
-Getting Parlant up and running is straightforward.
-
-### Installation
-
-```bash
-pip install parlant
-```
 
 ## Integrated prototyping playground
 <img alt="Parlant Demo" src="https://github.com/emcie-co/parlant/blob/develop/demo.gif?raw=true" />
