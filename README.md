@@ -194,7 +194,9 @@ if __name__ == "__main__":
 ```
 
 ## ⭐ Star Parlant to support our vision!
-Creating Parlant is a significant effort, as conversational semantics are extremely complex to get under control. Your star goes a long way to support our team's effort in creating a reality where generative AI agents reliably do what we tell them!
+Creating Parlant is a significant effort, as conversational semantics are extremely complex to get under control.
+
+Your star goes a long way to support our team's effort in creating a reality where generative AI agents reliably do what we tell them!
 
 [![Star History Chart](https://api.star-history.com/svg?repos=emcie-co/parlant&type=Date)](https://www.star-history.com/#emcie-co/parlant&Date)
 
