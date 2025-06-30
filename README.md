@@ -13,7 +13,6 @@
     <a href="https://www.parlant.io/docs/quickstart/introduction" target="_blank">Introduction</a> —
     <a href="https://www.parlant.io/docs/tutorial/getting-started" target="_blank">Tutorial</a> —
     <a href="https://www.parlant.io/docs/about" target="_blank">About</a> —
-    <a href="https://www.reddit.com/r/parlant_official/" target="_blank">Reddit</a>
   </p>
 
 
