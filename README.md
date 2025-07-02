@@ -46,11 +46,11 @@ Building good quality conversational AI means teaching your agents many facts, r
 
 Parlant lets you define your conversational rules and logic in natural language, and it manages the underlying LLM's context such that it knows exactly which rules it must conform to at any point in a conversation.
 
-- 🚀 Parlant gets you up and running with a live conversational agent in minutes
-- ⚡️ Parlant uses clever perceived-performance techniques to deliver responsive chat UX out-of-the-box
-- 🧱 Parlant is a scalable foundation for scaling your agent's knowledge and rules
-- 🎯 Parlant dramatically increases the LLM's consistency in following your instructions
-- 💬 Parlant is a tailor-made framework for conversational, customer-facing use cases. It has a *LOT* of flexible features and optimizations for rich conversation management.
+- 🚀 Gets you up and running with a live conversational agent in minutes
+- ⚡️ Uses perceived-performance techniques to deliver responsive chat UX out-of-the-box
+- 🧱 A scalable foundation for scaling your agent's knowledge and rules
+- 🎯 Dramatically increases the LLM's consistency in following your instructions
+- 💬 Tailor-made framework for conversational, customer-facing use cases
 
 ## 🚀 Getting started
 
