@@ -257,7 +257,7 @@ const LogFilters = ({
 							</SelectTrigger>
 							<SelectContent className='z-[999999]'>
 								<SelectGroup>
-									{ALL_LEVELS.map((level) => (
+									{ALL_LEVELS.toReversed().map((level) => (
 										<SelectItem key={level} value={level} className='capitalize'>{level?.toLowerCase()}</SelectItem>
 									))}
 								</SelectGroup>
