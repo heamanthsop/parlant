@@ -238,7 +238,7 @@ const LogFilters = ({
 						<p className='text-[14px] group-hover:underline font-medium select-none'>Edit Filters</p>
 					</div>
 				</div>
-				<div className={twMerge('hidden border rounded-[7px] absolute top-[38px] left-0 w-[246px] z-50 bg-white', dropdownOpen && 'block', usePopupToLeft ? 'right-0 left-[unset]' : '')} onClick={(e) => e.stopPropagation()}>
+				<div className={twMerge('hidden border rounded-[7px] absolute top-[38px] left-0 w-[246px] z-50 bg-white', dropdownOpen && 'block', usePopupToLeft ? 'right-0 left-[unset]' : '')}>
 					<div className='flex justify-between items-center'>
 						<div className='flex items-center gap-[6px] h-[35px] px-[14px]'>
 							{/* <ListFilter className='[stroke-width:2px] size-[16px]' /> */}
