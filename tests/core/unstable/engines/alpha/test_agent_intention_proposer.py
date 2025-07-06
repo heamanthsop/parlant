@@ -332,173 +332,7 @@ Condition: {guideline.condition}
 Action: {guideline.action}"""
 
 
-async def test_that_actions_which_are_agent_intention_are_classified_correctly(
-    context: ContextOfTest,
-) -> None:
-    guidelines = [
-        GuidelineContent(
-            condition="You answer a question about pricing options",
-            action="Include the most up-to-date pricing from the official source",
-        ),
-        GuidelineContent(
-            condition="You are going to provide medical advice",
-            action="Add a disclaimer that the information is not a substitute for professional medical care",
-        ),
-        GuidelineContent(
-            condition="You make a recommendation about a product",
-            action="Ensure the recommendation is based on factual information",
-        ),
-        GuidelineContent(
-            condition="You likely to make a recommendation about a product",
-            action="Ensure the recommendation is based on factual information",
-        ),
-    ]
-
-    for g in guidelines:
-        await check_guideline(context=context, guideline=g, is_agent_intention=True)
-
-
-async def test_that_actions_which_are_not_agent_intention_are_classified_correctly(
-    context: ContextOfTest,
-) -> None:
-    guidelines = [
-        GuidelineContent(
-            condition="The customer is going to confirm their shipping address",
-            action="Acknowledge and proceed with order processing",
-        ),
-        GuidelineContent(
-            condition="You have already apologized for the inconvenience",
-            action="Do not repeat the apology",
-        ),
-        GuidelineContent(
-            condition="The customer asked about return policies",
-            action="Provide a link to the official return policy page",
-        ),
-        GuidelineContent(
-            condition="Customer indicated your behavior is likely to cause them harm",
-            action="Apologize and ask about what worries the customer",
-        ),
-    ]
-
-    for g in guidelines:
-        await check_guideline(context=context, guideline=g, is_agent_intention=False)
-
-
-def test_that_guideline_with_agent_intention_is_rewritten_and_matched(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I've been having headaches for the past few days. Could it be something serious?",
-        ),
-    ]
-    conversation_guideline_names: list[str] = ["medical_advice"]
-    relevant_guideline_names = conversation_guideline_names
-
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        relevant_guideline_names,
-    )
-
-
-def test_that_guideline_with_agent_intention_is_rewritten_and_matched_2(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I'm looking for a budget-friendly smartphone under $300. What do you suggest?",
-        ),
-    ]
-    conversation_guideline_names: list[str] = ["recommend_product"]
-    relevant_guideline_names = conversation_guideline_names
-
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        relevant_guideline_names,
-    )
-
-
-def test_that_guideline_with_agent_intention_is_rewritten_and_matched_3(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I'm traveling abroad next month and I want to make sure I won’t get charged unexpected fees on my credit card.",
-        ),
-    ]
-    conversation_guideline_names: list[str] = ["international_transaction"]
-    relevant_guideline_names = conversation_guideline_names
-
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        relevant_guideline_names,
-    )
-
-
-def test_that_guideline_with_agent_intention_that_was_matched_is_rewritten_and_matched_again(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    conversation_context: list[tuple[EventSource, str]] = [
-        (
-            EventSource.CUSTOMER,
-            "I’m shopping for laptops. I want something lightweight with good battery life.",
-        ),
-        (
-            EventSource.AI_AGENT,
-            "You might want to look at the MacBook Air or the Dell XPS 13. Both are known for being lightweight and having strong battery performance.",
-        ),
-        (
-            EventSource.CUSTOMER,
-            "What about something a bit cheaper?",
-        ),
-    ]
-    conversation_guideline_names: list[str] = ["recommend_product"]
-    relevant_guideline_names: list[str] = ["recommend_product"]
-    previously_matched_guidelines_names: list[str] = ["recommend_product"]
-    base_test_that_correct_guidelines_are_matched(
-        context,
-        agent,
-        customer,
-        new_session.id,
-        conversation_context,
-        conversation_guideline_names,
-        relevant_guideline_names,
-        previously_applied_guidelines_names=[],
-        previously_matched_guidelines_names=previously_matched_guidelines_names,
-    )
-
-
-def test_that_agent_intention_guideline_is_matched_based_on_capabilities_1(
+def test_that_agent_intention_guideline_is_matched_based_on_capabilities_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -508,20 +342,36 @@ def test_that_agent_intention_guideline_is_matched_based_on_capabilities_1(
         Capability(
             id=CapabilityId("cap_123"),
             creation_utc=datetime.now(timezone.utc),
-            title="Reset Password",
-            description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            title="Order Pizza",
+            description="The ability to order a pizza to the customer's residence",
+            queries=["pizza", "food", "delivery"],
             tags=[],
-        )
+        ),
+        Capability(
+            id=CapabilityId("cap_456"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Order Groceries",
+            description="The ability to help the customer in ordering groceries",
+            queries=["groceries", "food", "delivery"],
+            tags=[],
+        ),
+        Capability(
+            id=CapabilityId("cap_789"),
+            creation_utc=datetime.now(timezone.utc),
+            title="Provide customized recipe",
+            description="The ability to provide the customer with a recipe based on their preferences and available groceries",
+            queries=["recipe", "food", "delivery", "hungry"],
+            tags=[],
+        ),
     ]
     conversation_context: list[tuple[EventSource, str]] = [
         (
             EventSource.CUSTOMER,
-            "I can't remember the password to my account",
+            "I'm so hungry right now, can you help me with that?",
         ),
     ]
-    conversation_guideline_names: list[str] = ["multiple_capabilities", "reset_password_offer"]
-    relevant_guideline_names: list[str] = ["reset_password_offer"]
+    conversation_guideline_names: list[str] = ["multiple_capabilities"]
+    relevant_guideline_names: list[str] = ["multiple_capabilities"]
     base_test_that_correct_guidelines_are_matched(
         context,
         agent,
