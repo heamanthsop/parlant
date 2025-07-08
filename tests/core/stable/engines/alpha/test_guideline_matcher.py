@@ -3195,7 +3195,7 @@ async def test_that_a_guideline_that_has_several_steps_is_still_matched(
         ),
         (
             EventSource.AI_AGENT,
-            "1.Chase Sapphire (CRD1002537) 2.Chase Freedom (CRD1008542)",
+            "1. C11223344 2.D1212121",
         ),
         (
             EventSource.CUSTOMER,
