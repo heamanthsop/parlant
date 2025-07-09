@@ -52,7 +52,7 @@ export default function Chatbot(): ReactElement {
 			<SessionProvider.Provider value={{}}>
 				<Helmet defaultTitle={`${sessionName}`} />
 				<div className={'flex items-center bg-green-main h-[60px] mb-[14px] [box-shadow:0px_0px_25px_0px_#0000000A]'}>
-					<img src='/chat/app-logo.svg' alt='logo' aria-hidden className='ms-[27px] self-center me-[6px]' />
+					<img src='/chat/app-logo.svg' alt='logo' aria-hidden className='ms-[27px] self-center me-[6px] h-[30px]' />
 				</div>
 				<div data-testid='chatbot' className={'main bg-green-light h-[calc(100vh-74px)] flex flex-col rounded-[16px]'}>
 					<div className='hidden max-mobile:block rounded-[16px]'>
