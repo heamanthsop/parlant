@@ -10,10 +10,10 @@ import Tooltip from '../ui/custom/tooltip';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export type Type = 'GuidelineMatcher' | 'MessageEventComposer' | 'ToolCaller';
-export type Level = 'WARNING' | 'ERROR' | 'INFO' | 'DEBUG' | 'TRACE';
+export type Level = 'CRITICAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG' | 'TRACE';
 
 const ALL_TYPES: Type[] = ['GuidelineMatcher', 'ToolCaller', 'MessageEventComposer'];
-const ALL_LEVELS: Level[] = ['WARNING', 'ERROR', 'INFO', 'DEBUG', 'TRACE'];
+const ALL_LEVELS: Level[] = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
 
 const typeOptions: {[key in Type]: {label: string; icon: string; color: string}} = {
 	GuidelineMatcher: {

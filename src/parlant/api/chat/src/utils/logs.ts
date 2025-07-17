@@ -3,7 +3,7 @@
 import { hasOtherOpenedTabs } from '@/lib/broadcast-channel';
 import {Log} from './interfaces';
 
-const logLevels = ['WARNING', 'ERROR', 'INFO', 'DEBUG', 'TRACE'];
+const logLevels = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
 const DB_NAME = 'Parlant';
 const STORE_NAME = 'logs';
 const MAX_RECORDS = 2000;
