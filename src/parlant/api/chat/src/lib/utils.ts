@@ -3,6 +3,7 @@ import {clsx, type ClassValue} from 'clsx';
 import {toast} from 'sonner';
 import {twMerge} from 'tailwind-merge';
 import './broadcast-channel';
+import { DB_NAME, openDB } from '@/utils/logs';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -139,3 +140,64 @@ export const exportToCsv = (data: any[], filename: string, options: any = {}) =>
     throw error;
   }
 };
+
+function openIndexeddbDB(storeName: string, indexVals?: {name: string, keyPath: string}) {
+	return new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open(DB_NAME, 2);
+    request.onupgradeneeded = () => {
+			const db = request.result;
+
+			if (!db.objectStoreNames.contains(storeName)) {
+				const store = db.createObjectStore(storeName, {autoIncrement: true});
+        if (indexVals) {
+          store.createIndex(indexVals.name, indexVals.keyPath, {unique: false});
+        }
+			}
+		};
+
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
+
+export const addItemToIndexedDB = async (
+  storeName: string,
+  key: string,
+  value: any,
+  mode: 'update' | 'multiple' = 'update',
+  indexVals?: {name: string, keyPath: string},
+) => {
+  const db = await openIndexeddbDB(storeName, indexVals);
+  const transaction = db.transaction(storeName, 'readwrite');
+  const store = transaction.objectStore(storeName);
+
+  if (mode === 'multiple') {
+    const getRequest = store.get(key);
+    getRequest.onsuccess = () => {
+      let current = getRequest.result;
+      if (!Array.isArray(current)) {
+        current = current !== undefined ? [current] : [];
+      }
+      current.push(value);
+      const putRequest = store.put(current, key);
+      putRequest.onsuccess = () => {
+        console.log('Item appended in IndexedDB');
+      };
+      putRequest.onerror = () => {
+        console.error('Error appending item in IndexedDB');
+      };
+    };
+    getRequest.onerror = () => {
+      console.error('Error getting item for multiple mode in IndexedDB');
+    };
+  } else {
+    // Default: update (overwrite or add)
+    const request = store.put(value, key);
+    request.onsuccess = () => {
+      console.log('Item updated in IndexedDB');
+    };
+    request.onerror = () => {
+      console.error('Error updating item in IndexedDB');
+    };
+  }
+}

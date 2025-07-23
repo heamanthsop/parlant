@@ -4,7 +4,7 @@ import { hasOtherOpenedTabs } from '@/lib/broadcast-channel';
 import {Log} from './interfaces';
 
 const logLevels = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
-const DB_NAME = 'Parlant';
+export const DB_NAME = 'Parlant';
 const STORE_NAME = 'logs';
 const MAX_RECORDS = 2000;
 const CHECK_INTERVAL = 10 * 60 * 1000;
@@ -92,15 +92,15 @@ export function clearIndexedDBData(dbName = DB_NAME, objectStoreName = STORE_NAM
 	});
 }
 
-function openDB() {
+function openDB(storeName = STORE_NAME) {
 	return new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, 1);
 
 		request.onupgradeneeded = () => {
 			const db = request.result;
 
-			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				const store = db.createObjectStore(STORE_NAME, {autoIncrement: true});
+			if (!db.objectStoreNames.contains(storeName)) {
+				const store = db.createObjectStore(storeName, {autoIncrement: true});
 
 				store.createIndex('timestampIndex', 'timestamp', {unique: false});
 			}
@@ -114,6 +114,7 @@ function openDB() {
 async function getLogs(correlation_id: string): Promise<Log[]> {
 	const db = await openDB();
 	return new Promise((resolve, reject) => {
+		db.deleteObjectStore(STORE_NAME);
 		const transaction = db.transaction(STORE_NAME, 'readonly');
 		const store = transaction.objectStore(STORE_NAME);
 		const request = store.get(correlation_id);

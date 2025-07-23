@@ -1,10 +1,13 @@
-import {sessionAtom} from '@/store';
+import {dialogAtom, sessionAtom} from '@/store';
 import {EventInterface} from '@/utils/interfaces';
 import {useAtom} from 'jotai';
 import {ClassNameValue, twMerge} from 'tailwind-merge';
 import HeaderWrapper from '../header-wrapper/header-wrapper';
 import CopyText from '../ui/custom/copy-text';
-import {X} from 'lucide-react';
+import {Flag, X} from 'lucide-react';
+import { Button } from '../ui/button';
+import FlagMessage from './flag-message';
+
 
 const MessageDetailsHeader = ({
 	event,
@@ -20,6 +23,7 @@ const MessageDetailsHeader = ({
 	className?: ClassNameValue;
 }) => {
 	const [session] = useAtom(sessionAtom);
+	const [dialog] = useAtom(dialogAtom);
 	const isCustomer = event?.source === 'customer';
 
 	return (
@@ -35,6 +39,9 @@ const MessageDetailsHeader = ({
 						</div>
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
+						<Button variant='outline' size='icon' onClick={() => dialog.openDialog('Flag Message', <FlagMessage event={event} sessionId={session?.id as string}/>, {width: '800px', height: '500px'})}>
+							<Flag />
+						</Button>
 						<div
 							className='group bg-[#006E53] [box-shadow:0px_2px_4px_0px_#00403029,0px_1px_5.5px_0px_#006E5329] hover:bg-[#005C3F] flex  h-[38px] rounded-[5px] ms-[4px] items-center gap-[7px] py-[13px] px-[10px]'
 							role='button'
