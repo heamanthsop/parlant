@@ -114,7 +114,6 @@ function openDB(storeName = STORE_NAME) {
 async function getLogs(correlation_id: string): Promise<Log[]> {
 	const db = await openDB();
 	return new Promise((resolve, reject) => {
-		db.deleteObjectStore(STORE_NAME);
 		const transaction = db.transaction(STORE_NAME, 'readonly');
 		const store = transaction.objectStore(STORE_NAME);
 		const request = store.get(correlation_id);

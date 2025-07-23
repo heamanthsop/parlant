@@ -13,7 +13,7 @@ import {spaceClick} from '@/utils/methods';
 import {ClassNameValue, twJoin, twMerge} from 'tailwind-merge';
 import {useAtom} from 'jotai';
 import {agentAtom, agentsAtom, customerAtom, customersAtom, dialogAtom, newSessionAtom, sessionAtom, sessionsAtom} from '@/store';
-import {copy, exportToCsv} from '@/lib/utils';
+import {copy, exportToCsv, getIndexedItemsFromIndexedDB} from '@/lib/utils';
 import Avatar from '@/components/avatar/avatar';
 
 interface Props {
@@ -116,6 +116,9 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 	};
 
 	const exportSessionToCsv = async (e: React.MouseEvent) => {
+		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session.id, {name: 'sessionIndex', keyPath: 'sessionId'}, true);
+		
+		console.log(flaggedItems);
 		e.stopPropagation();
 		
 		try {
@@ -131,6 +134,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 						Participant: message?.data?.participant?.display_name || '',
 						Timestamp: message.creation_utc || '',
 						Message: message.data?.message || '',
+						Flag: flaggedItems?.[message.correlation_id] || ''
 					});
 				});
 			}
@@ -140,6 +144,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 				'Participant',
 				'Timestamp',
 				'Message',
+				'Flag'
 			];
 			
 			const filename = `session_${session.id}_"${session.title.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;

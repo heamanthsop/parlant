@@ -141,9 +141,9 @@ export const exportToCsv = (data: any[], filename: string, options: any = {}) =>
   }
 };
 
-function openIndexeddbDB(storeName: string, indexVals?: {name: string, keyPath: string}) {
+function openIndexeddbDB(dbName: string, storeName: string, indexVals?: {name: string, keyPath: string}) {
 	return new Promise<IDBDatabase>((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, 2);
+		const request = indexedDB.open(dbName, 1);
     request.onupgradeneeded = () => {
 			const db = request.result;
 
@@ -161,13 +161,14 @@ function openIndexeddbDB(storeName: string, indexVals?: {name: string, keyPath: 
 }
 
 export const addItemToIndexedDB = async (
+  dbName: string,
   storeName: string,
   key: string,
   value: any,
   mode: 'update' | 'multiple' = 'update',
   indexVals?: {name: string, keyPath: string},
 ) => {
-  const db = await openIndexeddbDB(storeName, indexVals);
+  const db = await openIndexeddbDB(dbName, storeName, indexVals);
   const transaction = db.transaction(storeName, 'readwrite');
   const store = transaction.objectStore(storeName);
 
@@ -191,13 +192,48 @@ export const addItemToIndexedDB = async (
       console.error('Error getting item for multiple mode in IndexedDB');
     };
   } else {
-    // Default: update (overwrite or add)
     const request = store.put(value, key);
-    request.onsuccess = () => {
-      console.log('Item updated in IndexedDB');
-    };
     request.onerror = () => {
       console.error('Error updating item in IndexedDB');
     };
+  }
+}
+
+export const getItemFromIndexedDB = async (dbName: string, storeName: string, key: string, indexVals?: {name: string, keyPath: string}) => {
+  try {
+
+    const db = await openIndexeddbDB(dbName, storeName, indexVals);
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const response = await new Promise((resolve, reject) => {
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return response;
+  } catch (error) {
+    console.error('Error opening IndexedDB:', error);
+    return null;
+  }
+};
+
+export const getIndexedItemsFromIndexedDB = async (dbName: string, storeName: string, indexName: string, indexKey: string, indexVals?: {name: string, keyPath: string}, asObject?: boolean = false) => {
+  try {
+    const db = await openIndexeddbDB(dbName, storeName, indexVals);
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const index = store.index(indexName);
+    const response = await new Promise((resolve, reject) => {
+      const request = index.getAll(indexKey);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return asObject ? response.reduce((acc, item) => {
+      acc[item.correlationId] = item.flagValue;
+      return acc;
+    }, {} as Record<string, string>) : response;
+  } catch (error) {
+    console.error('Error opening IndexedDB:', error);
+    return null;
   }
 }

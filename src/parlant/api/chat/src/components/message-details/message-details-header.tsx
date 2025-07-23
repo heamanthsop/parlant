@@ -7,6 +7,8 @@ import CopyText from '../ui/custom/copy-text';
 import {Flag, X} from 'lucide-react';
 import { Button } from '../ui/button';
 import FlagMessage from './flag-message';
+import { useEffect, useState } from 'react';
+import { getItemFromIndexedDB } from '@/lib/utils';
 
 
 const MessageDetailsHeader = ({
@@ -25,6 +27,16 @@ const MessageDetailsHeader = ({
 	const [session] = useAtom(sessionAtom);
 	const [dialog] = useAtom(dialogAtom);
 	const isCustomer = event?.source === 'customer';
+	const [messageFlag, setMessageFlag] = useState<any>(null);
+
+	useEffect(() => {
+		const flag = getItemFromIndexedDB('Parlant-flags', 'message_flags', event?.correlation_id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
+		if (flag) {
+			flag.then((f) => {
+				setMessageFlag((f as {flagValue:string})?.flagValue);
+			});	
+		}
+	}, [event]);
 
 	return (
 		<HeaderWrapper className={twMerge('static', !event && '!border-transparent bg-[#f5f6f8]', className)}>
@@ -39,6 +51,7 @@ const MessageDetailsHeader = ({
 						</div>
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
+						{messageFlag}
 						<Button variant='outline' size='icon' onClick={() => dialog.openDialog('Flag Message', <FlagMessage event={event} sessionId={session?.id as string}/>, {width: '800px', height: '500px'})}>
 							<Flag />
 						</Button>

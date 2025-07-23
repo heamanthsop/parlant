@@ -52,4 +52,5 @@ export interface SessionCsvInterafce {
 	Participant: string;
 	Timestamp: Date;
 	Message: string;
+	Flag: string;
 }

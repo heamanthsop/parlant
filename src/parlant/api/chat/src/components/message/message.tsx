@@ -19,6 +19,7 @@ interface Props {
 	isSameSourceAsPrevious?: boolean;
 	isRegenerateHidden?: boolean;
 	isFirstMessageInDate?: boolean;
+	flagged?: string;
 	showLogsForMessage?: EventInterface | null;
 	regenerateMessageFn?: (sessionId: string) => void;
 	resendMessageFn?: (sessionId: string, text?: string) => void;
@@ -26,7 +27,7 @@ interface Props {
 	setIsEditing?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing}: Props) => {
+const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged}: Props) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [agent] = useAtom(agentAtom);
 	const [customer] = useAtom(customerAtom);
@@ -63,7 +64,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 
 	return (
 		<>
-			<div className={(isCustomer ? 'justify-end' : 'justify-start') + ' flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]'}>
+			<div className={twMerge(flagged && 'after:content-["flagged"]', isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
 						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
@@ -168,9 +169,8 @@ const MessageEditing = ({event, resendMessageFn, setIsEditing}: Props) => {
 	);
 };
 
-function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn}: Props): ReactElement {
+function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged}: Props): ReactElement {
 	const [isEditing, setIsEditing] = useState(false);
-
 	return (
 		<div className={twMerge(isEditing && '[direction:rtl] flex justify-center')}>
 			<div
@@ -183,7 +183,7 @@ function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinu
 				{isEditing ? (
 					<MessageEditing resendMessageFn={resendMessageFn} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} />
 				) : (
-					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} />
+					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} flagged={flagged} />
 				)}
 				<Spacer />
 			</div>

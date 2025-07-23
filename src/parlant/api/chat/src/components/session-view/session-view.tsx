@@ -18,7 +18,7 @@ import {agentAtom, agentsAtom, emptyPendingMessage, newSessionAtom, pendingMessa
 import ErrorBoundary from '../error-boundary/error-boundary';
 import DateHeader from './date-header/date-header';
 // import SessoinViewHeader from './session-view-header/session-view-header';
-import {isSameDay} from '@/lib/utils';
+import {getIndexedItemsFromIndexedDB, getItemFromIndexedDB, isSameDay} from '@/lib/utils';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
 import {ShieldEllipsis} from 'lucide-react';
 import { soundDoubleBlip } from '@/utils/sounds';
@@ -40,6 +40,7 @@ const SessionView = (): ReactElement => {
 	const [showLogsForMessage, setShowLogsForMessage] = useState<EventInterface | null>(null);
 	const [isMissingAgent, setIsMissingAgent] = useState<boolean | null>(null);
 	const [isContentFilterMenuOpen, setIsContentFilterMenuOpen] = useState(false);
+	const [flaggedItems, setFlaggedItems] = useState<Record<string, string>>({});
 
 	const [pendingMessage, setPendingMessage] = useAtom<EventInterface>(pendingMessageAtom);
 	const [agents] = useAtom(agentsAtom);
@@ -177,6 +178,21 @@ const SessionView = (): ReactElement => {
 		textareaRef?.current?.focus();
 	};
 
+	const getSessionFlaggedItems = () =>{
+		const flaggedItems = getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
+		if (flaggedItems) {
+			flaggedItems.then((items) => {
+				const asMap = (items as {correlationId: string, flagValue: string; sessionId: string}[]).reduce((acc, item) => {
+					acc[item.correlationId] = item.flagValue;
+					return acc;
+				}, {} as Record<string, string>);
+				setFlaggedItems(asMap);
+			});
+		}
+	};
+
+	
+	useEffect(getSessionFlaggedItems, [session?.id]);
 	useEffect(() => {
 		if (lastOffset === 0) refetch();
 	}, [lastOffset]);
@@ -253,6 +269,7 @@ const SessionView = (): ReactElement => {
 										{!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc) && <DateHeader date={event.creation_utc} isFirst={!i} bgColor='bg-white' />}
 										<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
 											<Message
+												flagged={flaggedItems[event.correlation_id]}
 												isFirstMessageInDate={!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc)}
 												isRegenerateHidden={!!isMissingAgent}
 												event={event}

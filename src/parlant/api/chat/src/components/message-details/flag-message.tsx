@@ -20,7 +20,7 @@ const FlagMessage = ({event, sessionId}: FlagMessageProps) => {
             <Textarea placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none'/>
             <div className='flex justify-end gap-3'>
                 <Button variant='outline' onClick={() => dialog.closeDialog()}>Cancel</Button>
-                <Button onClick={() => addItemToIndexedDB('message_flags', event.correlation_id, {sessionId, flagValue}, 'update', {name: 'sessionIndex', keyPath: 'sessionId'})}>Flag</Button>
+                <Button onClick={() => addItemToIndexedDB('Parlant-flags', 'message_flags', event.correlation_id, {sessionId, correlationId: event.correlation_id, flagValue}, 'update', {name: 'sessionIndex', keyPath: 'sessionId'})}>Flag</Button>
             </div>
         </div>
     )
