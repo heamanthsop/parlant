@@ -197,7 +197,17 @@ export const addItemToIndexedDB = async (
       console.error('Error updating item in IndexedDB');
     };
   }
-}
+};
+
+export const deleteItemFromIndexedDB = async (dbName: string, storeName: string, key: string, indexVals?: {name: string, keyPath: string}) => { 
+  const db = await openIndexeddbDB(dbName, storeName, indexVals);
+  const transaction = db.transaction(storeName, 'readwrite');
+  const store = transaction.objectStore(storeName);
+  const request = store.delete(key);
+  request.onerror = () => {
+    console.error('Error deleting item in IndexedDB');
+  };
+};
 
 export const getItemFromIndexedDB = async (dbName: string, storeName: string, key: string, indexVals?: {name: string, keyPath: string}) => {
   try {

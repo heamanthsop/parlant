@@ -13,6 +13,7 @@ import {getAvatarColor} from '../avatar/avatar';
 import MessageRelativeTime from './message-relative-time';
 import { Switch } from '../ui/switch';
 import { copy } from '@/lib/utils';
+import { Flag } from 'lucide-react';
 
 interface Props {
 	event: EventInterface;
@@ -77,7 +78,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								</div>
 								<div className='font-medium text-[14px] text-[#282828]'>{formattedName}</div>
 							</div>
-							<div className='flex'>
+							<div className='flex items-center'>
 								{!isCustomer && event.data?.draft && (
 									<div className="flex">
 										<div className='text-[14px] text-[#A9A9A9] font-light mr-1'>
@@ -90,6 +91,16 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 										</div>
 									</div>
 								)}
+								{flagged && (
+									<div className='flex items-center gap-1 me-[1em] border-e pe-[1rem]'>
+										<Tooltip value='View comment' side='top'>
+											<Button variant='ghost' className='flex p-1 h-fit items-center gap-1'>
+												<Flag size={16} color='#A1A1A1'/>
+												<div className='text-[14px] text-[#A9A9A9] font-light'>{'Flagged'}</div>
+											</Button>
+										</Tooltip>
+									</div>
+									)}
 								<MessageRelativeTime event={event} />
 							</div>
 						</div>
@@ -119,7 +130,6 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									isCustomer && serverStatus === 'error' && '!bg-[#FDF2F1] hover:!bg-[#F5EFEF]',
 									'max-w-[min(560px,100%)] peer w-[560px] flex items-center relative',
 									event?.serverStatus === 'pending' && 'opacity-50',
-									flagged && 'border-[#9B0360]',
 									isOneLiner ? 'p-[13px_22px_17px_22px] rounded-[16px]' : 'p-[20px_22px_24px_22px] rounded-[22px]'
 								)}>
 								<div className={twMerge('markdown overflow-hidden relative min-w-[200px] max-w-[608px] [word-break:break-word] font-light text-[16px] pe-[38px]')}>

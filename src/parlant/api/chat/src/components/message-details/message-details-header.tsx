@@ -57,11 +57,11 @@ const MessageDetailsHeader = ({
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
 						{!isCustomer && (
-							<Tooltip value={messageFlag || 'Flag Message'} side='top'>
-								<Button variant='ghost' size='icon' onClick={() => dialog.openDialog('Flag Message', <FlagMessage event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '800px', height: '500px'})}>
-									<Flag stroke={messageFlag ? '#9B0360' : 'black'}/>
+								<Button className='gap-1' variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '800px', height: '500px'})}>
+									<Flag color={messageFlag ? 'black' : 'black'} size={16}/>
+									<div>Flag</div>
 								</Button>
-							</Tooltip>)}
+							)}
 						<div
 							className='group bg-[#006E53] [box-shadow:0px_2px_4px_0px_#00403029,0px_1px_5.5px_0px_#006E5329] hover:bg-[#005C3F] flex  h-[38px] rounded-[5px] ms-[4px] items-center gap-[7px] py-[13px] px-[10px]'
 							role='button'
