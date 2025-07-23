@@ -8,12 +8,13 @@ import Tooltip from '../ui/custom/tooltip';
 import {Textarea} from '../ui/textarea';
 import {Button} from '../ui/button';
 import {useAtom} from 'jotai';
-import {agentAtom, customerAtom, sessionAtom} from '@/store';
+import {agentAtom, customerAtom, dialogAtom, sessionAtom} from '@/store';
 import {getAvatarColor} from '../avatar/avatar';
 import MessageRelativeTime from './message-relative-time';
 import { Switch } from '../ui/switch';
 import { copy } from '@/lib/utils';
 import { Flag } from 'lucide-react';
+import FlagMessage from '../message-details/flag-message';
 
 interface Props {
 	event: EventInterface;
@@ -22,6 +23,7 @@ interface Props {
 	isRegenerateHidden?: boolean;
 	isFirstMessageInDate?: boolean;
 	flagged?: string;
+	flaggedChanged?: (flagged: string) => void;
 	showLogsForMessage?: EventInterface | null;
 	regenerateMessageFn?: (sessionId: string) => void;
 	resendMessageFn?: (sessionId: string, text?: string) => void;
@@ -29,13 +31,15 @@ interface Props {
 	setIsEditing?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged}: Props) => {
+const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged, flaggedChanged}: Props) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [agent] = useAtom(agentAtom);
 	const [customer] = useAtom(customerAtom);
 	const markdownRef = useRef<HTMLSpanElement>(null);
 	const [showUtterance, setShowUtterance] = useState(true);
 	const [, setRowCount] = useState(1);
+	const [dialog] = useAtom(dialogAtom);
+	const [session] = useAtom(sessionAtom);
 
 	useEffect(() => {
 		if (!markdownRef?.current) return;
@@ -94,7 +98,10 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								{flagged && (
 									<div className='flex items-center gap-1 me-[1em] border-e pe-[1rem]'>
 										<Tooltip value='View comment' side='top'>
-											<Button variant='ghost' className='flex p-1 h-fit items-center gap-1'>
+											<Button
+												variant='ghost'
+												className='flex p-1 h-fit items-center gap-1'
+												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '800px', height: '500px'})}>
 												<Flag size={16} color='#A1A1A1'/>
 												<div className='text-[14px] text-[#A9A9A9] font-light'>{'Flagged'}</div>
 											</Button>
@@ -184,7 +191,7 @@ const MessageEditing = ({event, resendMessageFn, setIsEditing}: Props) => {
 	);
 };
 
-function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged}: Props): ReactElement {
+function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged, flaggedChanged}: Props): ReactElement {
 	const [isEditing, setIsEditing] = useState(false);
 	return (
 		<div className={twMerge(isEditing && '[direction:rtl] flex justify-center')}>
@@ -198,7 +205,7 @@ function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinu
 				{isEditing ? (
 					<MessageEditing resendMessageFn={resendMessageFn} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} />
 				) : (
-					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} flagged={flagged} />
+					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} flagged={flagged} flaggedChanged={flaggedChanged} />
 				)}
 				<Spacer />
 			</div>

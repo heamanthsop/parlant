@@ -31,7 +31,15 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
 
 	return (
         <div className='p-3 flex flex-col gap-3 h-full'>
-            <p className='italic'>"{event.data?.message}"</p>
+            <div>
+                <p className='text-[14px] text-[#656565] w-[80%]'>
+                Flagging a message is a handy feature that helps users keep track of important communications. When a message is flagged, it stands out in the inbox, making it easier to find later. This is especially useful for messages that require follow-up or contain critical information.
+                </p>
+            </div>
+            <div>
+                <p className='text-[14px] font-medium'>Message:</p>
+                <p className='italic'>"{event.data?.message}"</p>
+            </div>
             <Textarea placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none'/>
             <div className='flex justify-end gap-3'>
                 <Button variant='outline' onClick={() => dialog.closeDialog()}>Cancel</Button>
