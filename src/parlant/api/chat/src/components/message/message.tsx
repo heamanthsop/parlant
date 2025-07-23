@@ -12,6 +12,7 @@ import {agentAtom, customerAtom, sessionAtom} from '@/store';
 import {getAvatarColor} from '../avatar/avatar';
 import MessageRelativeTime from './message-relative-time';
 import { Switch } from '../ui/switch';
+import { copy } from '@/lib/utils';
 
 interface Props {
 	event: EventInterface;
@@ -64,7 +65,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 
 	return (
 		<>
-			<div className={twMerge(flagged && 'after:content-["flagged"]', isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
+			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
 						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
@@ -94,15 +95,18 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 						</div>
 					)}
 					<div className='flex items-center relative max-w-full'>
-						{isCustomer && (
-							<div className={twMerge('self-stretch absolute -left-[40px] top-[50%] -translate-y-1/2 items-center flex invisible group-hover/main:visible peer-hover:visible hover:visible')}>
-								<Tooltip value='Edit' side='left'>
-									<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
-										<img src='icons/edit-message.svg' alt='edit' className='block rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
-									</div>
-								</Tooltip>
-							</div>
-						)}
+						<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
+							<Tooltip value='Copy' side='top'>
+								<div data-testid='copy-button' role='button' onClick={() => copy(event?.data?.message || '')} className='group cursor-pointer'>
+									<img src='icons/copy.svg' alt='edit' className='block rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+								</div>
+							</Tooltip>
+							{isCustomer && <Tooltip value='Edit' side='top'>
+								<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
+									<img src='icons/edit-message.svg' alt='edit' className='block rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+								</div>
+							</Tooltip>}
+						</div>
 						<div className='max-w-full'>
 							<div
 								ref={ref}
@@ -115,6 +119,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									isCustomer && serverStatus === 'error' && '!bg-[#FDF2F1] hover:!bg-[#F5EFEF]',
 									'max-w-[min(560px,100%)] peer w-[560px] flex items-center relative',
 									event?.serverStatus === 'pending' && 'opacity-50',
+									flagged && 'border-[#9B0360]',
 									isOneLiner ? 'p-[13px_22px_17px_22px] rounded-[16px]' : 'p-[20px_22px_24px_22px] rounded-[22px]'
 								)}>
 								<div className={twMerge('markdown overflow-hidden relative min-w-[200px] max-w-[608px] [word-break:break-word] font-light text-[16px] pe-[38px]')}>
