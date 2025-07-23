@@ -41,7 +41,7 @@ const SessionView = (): ReactElement => {
 	const [isMissingAgent, setIsMissingAgent] = useState<boolean | null>(null);
 	const [isContentFilterMenuOpen, setIsContentFilterMenuOpen] = useState(false);
 	const [flaggedItems, setFlaggedItems] = useState<Record<string, string>>({});
-
+	const [refreshFlag, setRefreshFlag] = useState(false);
 	const [pendingMessage, setPendingMessage] = useAtom<EventInterface>(pendingMessageAtom);
 	const [agents] = useAtom(agentsAtom);
 	const [session, setSession] = useAtom(sessionAtom);
@@ -178,21 +178,20 @@ const SessionView = (): ReactElement => {
 		textareaRef?.current?.focus();
 	};
 
-	const getSessionFlaggedItems = () =>{
-		const flaggedItems = getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
-		if (flaggedItems) {
-			flaggedItems.then((items) => {
-				const asMap = (items as {correlationId: string, flagValue: string; sessionId: string}[]).reduce((acc, item) => {
-					acc[item.correlationId] = item.flagValue;
-					return acc;
-				}, {} as Record<string, string>);
-				setFlaggedItems(asMap);
-			});
-		}
+	const getSessionFlaggedItems = async () => {
+		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
+		const asMap = (flaggedItems as {correlationId: string, flagValue: string; sessionId: string}[]).reduce((acc, item) => {
+			acc[item.correlationId] = item.flagValue;
+			return acc;
+		}, {} as Record<string, string>);
+		setFlaggedItems(asMap);
 	};
 
 	
-	useEffect(getSessionFlaggedItems, [session?.id]);
+	useEffect(() => {
+		getSessionFlaggedItems();
+	}, [session?.id, refreshFlag]);
+
 	useEffect(() => {
 		if (lastOffset === 0) refetch();
 	}, [lastOffset]);
@@ -265,7 +264,7 @@ const SessionView = (): ReactElement => {
 							<div className='messages [scroll-snap-type:y_mandatory] fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden' aria-live='polite' role='log' aria-label='Chat messages'>
 								{ErrorTemplate && <ErrorTemplate />}
 								{visibleMessages.map((event, i) => (
-									<React.Fragment key={i}>
+									<React.Fragment key={event.correlation_id || i}>
 										{!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc) && <DateHeader date={event.creation_utc} isFirst={!i} bgColor='bg-white' />}
 										<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
 											<Message
@@ -358,6 +357,9 @@ const SessionView = (): ReactElement => {
 						)}>
 						{showLogsForMessage && (
 							<MessageDetails
+								flaggedChanged={() => {
+									setRefreshFlag(val => !val);
+								}}
 								event={showLogsForMessage}
 								regenerateMessageFn={showLogsForMessage?.index ? regenerateMessageDialog(showLogsForMessage.index) : undefined}
 								resendMessageFn={showLogsForMessage?.index || showLogsForMessage?.index === 0 ? resendMessageDialog(showLogsForMessage.index) : undefined}

@@ -9,6 +9,7 @@ import { Button } from '../ui/button';
 import FlagMessage from './flag-message';
 import { useEffect, useState } from 'react';
 import { getItemFromIndexedDB } from '@/lib/utils';
+import Tooltip from '../ui/custom/tooltip';
 
 
 const MessageDetailsHeader = ({
@@ -17,26 +18,30 @@ const MessageDetailsHeader = ({
 	resendMessageFn,
 	closeLogs,
 	className,
+	flaggedChanged,
 }: {
 	event: EventInterface | null;
 	regenerateMessageFn?: (messageId: string) => void;
 	resendMessageFn?: (messageId: string) => void;
 	closeLogs?: VoidFunction;
 	className?: ClassNameValue;
+	flaggedChanged?: (flagged: boolean) => void;
 }) => {
 	const [session] = useAtom(sessionAtom);
 	const [dialog] = useAtom(dialogAtom);
 	const isCustomer = event?.source === 'customer';
 	const [messageFlag, setMessageFlag] = useState<any>(null);
+	const [refreshFlag, setRefreshFlag] = useState(false);
 
 	useEffect(() => {
 		const flag = getItemFromIndexedDB('Parlant-flags', 'message_flags', event?.correlation_id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
 		if (flag) {
 			flag.then((f) => {
 				setMessageFlag((f as {flagValue:string})?.flagValue);
+				flaggedChanged?.(!!(f as {flagValue:string})?.flagValue);
 			});	
 		}
-	}, [event]);
+	}, [event, refreshFlag]);
 
 	return (
 		<HeaderWrapper className={twMerge('static', !event && '!border-transparent bg-[#f5f6f8]', className)}>
@@ -51,10 +56,12 @@ const MessageDetailsHeader = ({
 						</div>
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
-						{messageFlag}
-						<Button variant='outline' size='icon' onClick={() => dialog.openDialog('Flag Message', <FlagMessage event={event} sessionId={session?.id as string}/>, {width: '800px', height: '500px'})}>
-							<Flag />
-						</Button>
+						{!isCustomer && (
+							<Tooltip value={messageFlag || 'Flag Message'} side='top'>
+								<Button variant='ghost' size='icon' onClick={() => dialog.openDialog('Flag Message', <FlagMessage event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '800px', height: '500px'})}>
+									<Flag stroke={messageFlag ? '#9B0360' : 'black'}/>
+								</Button>
+							</Tooltip>)}
 						<div
 							className='group bg-[#006E53] [box-shadow:0px_2px_4px_0px_#00403029,0px_1px_5.5px_0px_#006E5329] hover:bg-[#005C3F] flex  h-[38px] rounded-[5px] ms-[4px] items-center gap-[7px] py-[13px] px-[10px]'
 							role='button'
