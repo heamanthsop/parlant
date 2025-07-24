@@ -100,7 +100,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 											<Button
 												variant='ghost'
 												className='flex p-1 h-fit items-center gap-1'
-												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '800px', height: '500px'})}>
+												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '556px', height: '636px'})}>
 												<Flag size={16} color='#A1A1A1'/>
 												<div className='text-[14px] text-[#A9A9A9] font-light'>{'Flagged'}</div>
 											</Button>

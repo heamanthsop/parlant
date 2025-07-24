@@ -56,7 +56,7 @@ const MessageDetailsHeader = ({
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
 						{!isCustomer && (
-								<Button className='gap-1' variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '800px', height: '500px'})}>
+								<Button className='gap-1' variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '556px', height: '636px'})}>
 									<Flag color={messageFlag ? 'black' : 'black'} size={16}/>
 									<div>Flag</div>
 								</Button>

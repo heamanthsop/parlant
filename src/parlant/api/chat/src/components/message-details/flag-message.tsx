@@ -5,7 +5,6 @@ import { dialogAtom } from '@/store';
 import { useAtom } from 'jotai';
 import { addItemToIndexedDB, deleteItemFromIndexedDB } from '@/lib/utils';
 import { useState } from 'react';
-import MessageBubble from '../message/message-bubble';
 
 interface FlagMessageProps {
 	event: EventInterface;
@@ -33,7 +32,7 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
 	return (
         <div className='p-3 flex flex-col gap-3 h-full'>
             <div className='message-bubble [&>*]:w-full [&_*]:cursor-default'>
-                <MessageBubble event={event} isContinual={true} showLogs={() => {}} showLogsForMessage={null} />
+                <div className='px-[22px] py-[20px] bg-[#F5F9F7] rounded-[22px] mb-[10px] !w-fit max-w-[90%]'>{event?.data?.message}</div>
             </div>
             <div>
                 <p className='text-[14px] text-[#656565] w-[80%]'>
