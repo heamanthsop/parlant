@@ -9,7 +9,6 @@ import { Button } from '../ui/button';
 import FlagMessage from './flag-message';
 import { useEffect, useState } from 'react';
 import { getItemFromIndexedDB } from '@/lib/utils';
-import Tooltip from '../ui/custom/tooltip';
 
 
 const MessageDetailsHeader = ({

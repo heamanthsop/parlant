@@ -3,7 +3,6 @@ import {clsx, type ClassValue} from 'clsx';
 import {toast} from 'sonner';
 import {twMerge} from 'tailwind-merge';
 import './broadcast-channel';
-import { DB_NAME, openDB } from '@/utils/logs';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -199,8 +198,8 @@ export const addItemToIndexedDB = async (
   }
 };
 
-export const deleteItemFromIndexedDB = async (dbName: string, storeName: string, key: string, indexVals?: {name: string, keyPath: string}) => { 
-  const db = await openIndexeddbDB(dbName, storeName, indexVals);
+export const deleteItemFromIndexedDB = async (dbName: string, storeName: string, key: string) => { 
+  const db = await openIndexeddbDB(dbName, storeName);
   const transaction = db.transaction(storeName, 'readwrite');
   const store = transaction.objectStore(storeName);
   const request = store.delete(key);
@@ -227,18 +226,18 @@ export const getItemFromIndexedDB = async (dbName: string, storeName: string, ke
   }
 };
 
-export const getIndexedItemsFromIndexedDB = async (dbName: string, storeName: string, indexName: string, indexKey: string, indexVals?: {name: string, keyPath: string}, asObject?: boolean = false) => {
+export const getIndexedItemsFromIndexedDB = async (dbName: string, storeName: string, indexName: string, indexKey: string, indexVals?: {name: string, keyPath: string}, asObject?: boolean) => {
   try {
     const db = await openIndexeddbDB(dbName, storeName, indexVals);
     const transaction = db.transaction(storeName, 'readonly');
     const store = transaction.objectStore(storeName);
     const index = store.index(indexName);
-    const response = await new Promise((resolve, reject) => {
+    const response: any = await new Promise((resolve, reject) => {
       const request = index.getAll(indexKey);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    return asObject ? response.reduce((acc, item) => {
+    return asObject ? response.reduce((acc: Record<string, string>, item: any) => {
       acc[item.correlationId] = item.flagValue;
       return acc;
     }, {} as Record<string, string>) : response;

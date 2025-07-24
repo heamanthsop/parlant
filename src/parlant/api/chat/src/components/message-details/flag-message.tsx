@@ -25,7 +25,7 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
     };
 
     const unflagMessage = async() => {
-        await deleteItemFromIndexedDB('Parlant-flags', 'message_flags', event.correlation_id, {sessionId, correlationId: event.correlation_id, flagValue: ''}, 'update', {name: 'sessionIndex', keyPath: 'sessionId'});
+        await deleteItemFromIndexedDB('Parlant-flags', 'message_flags', event.correlation_id);
         onFlag?.('');
         dialog.closeDialog();
     };

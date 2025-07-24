@@ -18,7 +18,7 @@ import {agentAtom, agentsAtom, emptyPendingMessage, newSessionAtom, pendingMessa
 import ErrorBoundary from '../error-boundary/error-boundary';
 import DateHeader from './date-header/date-header';
 // import SessoinViewHeader from './session-view-header/session-view-header';
-import {getIndexedItemsFromIndexedDB, getItemFromIndexedDB, isSameDay} from '@/lib/utils';
+import {getIndexedItemsFromIndexedDB, isSameDay} from '@/lib/utils';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
 import {ShieldEllipsis} from 'lucide-react';
 import { soundDoubleBlip } from '@/utils/sounds';
