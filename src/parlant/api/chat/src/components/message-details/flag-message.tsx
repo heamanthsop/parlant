@@ -30,20 +30,19 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
     };
 
 	return (
-        <div className='p-3 flex flex-col gap-3 h-full'>
-            <div className='message-bubble [&>*]:w-full [&_*]:cursor-default'>
+        <div className='px-[24px] p-3 flex flex-col gap-3 h-full'>
+            <div>
+                <p className='text-[16px] text-[#959595] w-[80%]'>
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut aliquet et magna nec imperdiet. Morbi sodales sit nec iaculisLorem idolor sit amet, consectetur                </p>
+            </div>
+            <div className='message-bubble mt-[26px] [&>*]:w-full [&_*]:cursor-default'>
                 <div className='px-[22px] py-[20px] bg-[#F5F9F7] rounded-[22px] mb-[10px] !w-fit max-w-[90%]'>{event?.data?.message}</div>
             </div>
-            <div>
-                <p className='text-[14px] text-[#656565] w-[80%]'>
-                Flagging a message is a handy feature that helps users keep track of important communications. When a message is flagged, it stands out in the inbox, making it easier to find later. This is especially useful for messages that require follow-up or contain critical information.
-                </p>
-            </div>
-            <Textarea placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none'/>
+            <Textarea placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none text-[16px] placeholder:text-[#959595]'/>
             <div className='flex justify-end gap-3'>
                 <Button variant='outline' onClick={() => dialog.closeDialog()}>Cancel</Button>
                 {existingFlagValue && <Button variant='outline' onClick={unflagMessage}>Unflag</Button>}
-                <Button onClick={flagMessage}>Save</Button>
+                <Button className='bg-[#4C2EFF] hover:bg-[#4C2EFF]' onClick={flagMessage}>Save</Button>
             </div>
         </div>
     )
