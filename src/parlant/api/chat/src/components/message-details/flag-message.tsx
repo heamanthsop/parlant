@@ -30,7 +30,7 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
     };
 
 	return (
-        <div className='px-[24px] p-3 flex flex-col gap-3 h-full'>
+        <div className='px-[24px] pb-3 flex flex-col gap-3 h-full'>
             <div>
                 <p className='text-[16px] text-[#959595] w-[80%]'>
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut aliquet et magna nec imperdiet. Morbi sodales sit nec iaculisLorem idolor sit amet, consectetur                </p>
@@ -42,7 +42,7 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
             <div className='flex justify-end gap-3'>
                 <Button variant='outline' onClick={() => dialog.closeDialog()}>Cancel</Button>
                 {existingFlagValue && <Button variant='outline' onClick={unflagMessage}>Unflag</Button>}
-                <Button className='bg-[#4C2EFF] hover:bg-[#4C2EFF]' onClick={flagMessage}>Save</Button>
+                <Button className='bg-green-main hover:bg-[#005C3F]' onClick={flagMessage}>Save</Button>
             </div>
         </div>
     )
