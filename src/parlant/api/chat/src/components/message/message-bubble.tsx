@@ -35,7 +35,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 	const [agent] = useAtom(agentAtom);
 	const [customer] = useAtom(customerAtom);
 	const markdownRef = useRef<HTMLSpanElement>(null);
-	const [showUtterance, setShowUtterance] = useState(true);
+	const [showDraft, setShowDraft] = useState(false);
 	const [, setRowCount] = useState(1);
 	const [dialog] = useAtom(dialogAtom);
 	const [session] = useAtom(sessionAtom);
@@ -44,7 +44,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 		if (!markdownRef?.current) return;
 		const rowCount = Math.floor(markdownRef.current.offsetHeight / 24);
 		setRowCount(rowCount + 1);
-	}, [markdownRef, showUtterance]);
+	}, [markdownRef, showDraft]);
 
 	// FIXME:
 	// rowCount SHOULD in fact be automatically calculated to
@@ -69,7 +69,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 
 	return (
 		<>
-			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
+			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'group/main flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
 						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
@@ -85,12 +85,12 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								{!isCustomer && event.data?.draft && (
 									<div className="flex">
 										<div className='text-[14px] text-[#A9A9A9] font-light mr-1'>
-											{showUtterance ? 'Utterance' : 'Draft'}
+											{'Show draft'}
 										</div>
 										<div className="mr-4">
 											<Switch
-												checked={showUtterance}
-												onCheckedChange={setShowUtterance} />
+												checked={showDraft}
+												onCheckedChange={setShowDraft} />
 										</div>
 									</div>
 								)}
@@ -111,6 +111,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 						</div>
 					)}
+                    {showDraft && <div className='text-gray-400 px-[22px] py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px]'>{event?.data?.draft}</div>}
 					<div className='flex items-center relative max-w-full'>
 						<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
 							<Tooltip value='Copy' side='top'>
@@ -140,8 +141,8 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								)}>
 								<div className={twMerge('markdown overflow-hidden relative min-w-[200px] max-w-[608px] [word-break:break-word] font-light text-[16px] pe-[38px]')}>
 									<span ref={markdownRef}>
-										<Markdown className={twJoin(!isOneLiner && 'leading-[26px]', !showUtterance && 'text-gray-400')}>
-											{(showUtterance ? event?.data?.message : event?.data?.draft) || ''}
+										<Markdown className={twJoin(!isOneLiner && 'leading-[26px]')}>
+                                            {event?.data?.message || ''}
 										</Markdown>
 									</span>
 								</div>

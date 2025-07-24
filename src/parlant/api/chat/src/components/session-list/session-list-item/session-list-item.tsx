@@ -118,7 +118,6 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 	const exportSessionToCsv = async (e: React.MouseEvent) => {
 		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session.id, {name: 'sessionIndex', keyPath: 'sessionId'}, true);
 		
-		console.log(flaggedItems);
 		e.stopPropagation();
 		
 		try {
