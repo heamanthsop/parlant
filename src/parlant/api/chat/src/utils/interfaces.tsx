@@ -47,10 +47,11 @@ export interface SessionInterface {
 	creation_utc: string;
 }
 
-export interface SessionCsvInterafce {
+export interface SessionCsvInterface {
 	Source: 'AI Agent' | 'Customer';
 	Participant: string;
 	Timestamp: Date;
 	Message: string;
 	Flag: string;
+	'Correlation ID': string;
 }
