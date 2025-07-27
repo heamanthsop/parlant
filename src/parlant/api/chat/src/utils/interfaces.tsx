@@ -52,6 +52,7 @@ export interface SessionCsvInterface {
 	Participant: string;
 	Timestamp: Date;
 	Message: string;
+	Draft: string;
 	Flag: string;
 	'Correlation ID': string;
 }
