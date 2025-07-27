@@ -32,8 +32,9 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
 	return (
         <div className='px-[24px] pb-3 flex flex-col gap-3 h-full'>
             <div>
-                <p className='text-[16px] text-[#959595] w-[80%]'>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut aliquet et magna nec imperdiet. Morbi sodales sit nec iaculisLorem idolor sit amet, consectetur                </p>
+                <p className='text-[16px] text-[#959595]'>
+                    Feedback provided here will show up in the session's exported CSV file.
+                </p>
             </div>
             <div className='message-bubble mt-[26px] [&>*]:w-full [&_*]:cursor-default'>
                 <div className='px-[22px] py-[20px] bg-[#F5F9F7] rounded-[22px] mb-[10px] !w-fit max-w-[90%]'>{event?.data?.message}</div>
