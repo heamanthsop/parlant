@@ -51,7 +51,7 @@ const MessageDetailsHeader = ({
 							<X height={25} width={25} />
 						</div>
 						<div className='group flex items-center gap-[3px] text-[14px] font-normal'>
-							<CopyText preText='Message ID:' textToCopy={event.id} text={` ${event.id}`} />
+							<CopyText textToCopy={event.id} text={`ID: ${event.id}`} className='whitespace-nowrap [&_span]:text-ellipsis [&_span]:overflow-hidden [&_span]:block'/>
 						</div>
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>

@@ -83,11 +83,11 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 							<div className='flex items-center'>
 								{!isCustomer && event.data?.draft && (
-									<div className="flex">
+									<div className="flex items-center">
 										<div className='text-[14px] text-[#A9A9A9] font-light mr-1'>
 											{'Show draft'}
 										</div>
-										<div className="mr-4">
+										<div className="mr-4 flex items-center">
 											<Switch
 												checked={showDraft}
 												onCheckedChange={setShowDraft} />
