@@ -67,6 +67,7 @@ JSONSerializable: TypeAlias = Union[
     Optional[Mapping[str, "JSONSerializable"]],
     Optional[Sequence["JSONSerializable"]],
 ]
+"""A JSON-serializable value."""
 
 UniqueId = NewType("UniqueId", str)
 

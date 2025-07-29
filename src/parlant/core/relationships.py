@@ -41,28 +41,47 @@ RelationshipId = NewType("RelationshipId", str)
 
 
 class RelationshipKind(Enum):
+    """Enumeration of relationship kinds."""
+
     ENTAILMENT = "entailment"
-    PRECEDENCE = "precedence"
-    REQUIREMENT = "requirement"
+    """When SOURCE is activated, TARGET should always be activated."""
+
     PRIORITY = "priority"
-    PERSISTENCE = "persistence"
+    """When both SOURCE and TARGET are activated, only SOURCE should be activated."""
+
     DEPENDENCY = "dependency"
+    """When SOURCE is activated, deactivate it unless T is also activated."""
+
     DISAMBIGUATION = "disambiguation"
+    """When SOURCE is activated and two or more of the targets T ∈ {T₁, T₂, ...} are activated, ask the customer to clarify which action they want to take."""
+
     REEVALUATION = "reevaluation"
+    """When TARGET tool is executed, re-evaluate SOURCE guideline before responding."""
+
     OVERLAP = "overlap"
+    """When SOURCE and TARGET tools are both evaluated, they should be evaluated in the same batch to prevent conflicts."""
 
 
 RelationshipEntityId = Union[GuidelineId, TagId, ToolId]
 
 
 class RelationshipEntityKind(Enum):
+    """Enumeration of relationship entity kinds."""
+
     GUIDELINE = "guideline"
+    """A guideline entity."""
+
     TAG = "tag"
+    """A tag entity."""
+
     TOOL = "tool"
+    """A tool entity."""
 
 
 @dataclass(frozen=True)
 class RelationshipEntity:
+    """An entity that can be part of a relationship."""
+
     id: RelationshipEntityId
     kind: RelationshipEntityKind
 
@@ -72,6 +91,8 @@ class RelationshipEntity:
 
 @dataclass(frozen=True)
 class Relationship:
+    """A relationship between two entities."""
+
     id: RelationshipId
     creation_utc: datetime
     source: RelationshipEntity

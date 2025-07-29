@@ -29,6 +29,8 @@ from parlant.core.sessions import (
 
 @dataclass(frozen=True)
 class EmittedEvent:
+    """An event that has been emitted, but not yet persisted, by the system."""
+
     source: EventSource
     kind: EventKind
     correlation_id: str
@@ -36,32 +38,44 @@ class EmittedEvent:
 
 
 class EventEmitter(ABC):
+    """An interface for emitting events in the system."""
+
     @abstractmethod
     async def emit_status_event(
         self,
         correlation_id: str,
         data: StatusEventData,
-    ) -> EmittedEvent: ...
+    ) -> EmittedEvent:
+        """Emit a status event with the given correlation ID and data."""
+        ...
 
     @abstractmethod
     async def emit_message_event(
         self,
         correlation_id: str,
         data: str | MessageEventData,
-    ) -> EmittedEvent: ...
+    ) -> EmittedEvent:
+        """Emit a message event with the given correlation ID and data."""
+        ...
 
     @abstractmethod
     async def emit_tool_event(
         self,
         correlation_id: str,
         data: ToolEventData,
-    ) -> EmittedEvent: ...
+    ) -> EmittedEvent:
+        """Emit a tool event with the given correlation ID and data."""
+        ...
 
 
 class EventEmitterFactory(ABC):
+    """An interface for creating event emitters."""
+
     @abstractmethod
     async def create_event_emitter(
         self,
         emitting_agent_id: AgentId,
         session_id: SessionId,
-    ) -> EventEmitter: ...
+    ) -> EventEmitter:
+        """Create an event emitter for the given agent and session."""
+        ...

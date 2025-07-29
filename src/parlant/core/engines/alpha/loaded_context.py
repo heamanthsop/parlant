@@ -44,6 +44,8 @@ from parlant.core.tools import ToolId, ToolResult
 
 @dataclass(frozen=True)
 class IterationState:
+    """State of a single iteration in the response process"""
+
     matched_guidelines: list[GuidelineMatch]
     resolved_guidelines: list[GuidelineMatch]
     executed_tools: list[ToolId]

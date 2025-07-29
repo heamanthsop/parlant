@@ -120,11 +120,17 @@ class ToolEntry:
 
 
 class _ToolDecoratorParams(TypedDict, total=False):
-    id: str
     name: str
+    """Defines a custom name for the tool."""
+
     consequential: bool
+    """Defines whether the tool is consequential or not."""
+
     metadata: Mapping[str, JSONSerializable]
+    """Defines metadata for the tool, which can be used to provide additional information about the tool."""
+
     overlap: ToolOverlap
+    """Defines how the tool overlaps with other tools. Defaults to ToolOverlap.AUTO."""
 
 
 _ToolParameterType = Union[str, int, float, bool, date, datetime, list[Any], None]
@@ -418,17 +424,23 @@ def _tool_decorator_impl(
 @overload
 def tool(
     **kwargs: Unpack[_ToolDecoratorParams],
-) -> Callable[[ToolFunction], ToolEntry]: ...
+) -> Callable[[ToolFunction], ToolEntry]:
+    """Decorator for defining a tool function with metadata and options."""
+    ...
 
 
 @overload
-def tool(func: ToolFunction) -> ToolEntry: ...
+def tool(func: ToolFunction) -> ToolEntry:
+    """Decorator for defining a tool function with metadata and options."""
+    ...
 
 
 def tool(
     func: ToolFunction | None = None,
     **kwargs: Unpack[_ToolDecoratorParams],
 ) -> ToolEntry | Callable[[ToolFunction], ToolEntry]:
+    """Decorator for defining a tool function with metadata and options."""
+
     if func:
         return _tool_decorator_impl()(func)
     else:
@@ -472,6 +484,8 @@ ToolContextQuery: TypeAlias = Annotated[
 
 
 class PluginServer:
+    """A server that hosts tools, interfacing with a PluginClient in the form of a ToolService."""
+
     def __init__(
         self,
         tools: Sequence[ToolEntry],

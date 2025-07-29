@@ -46,6 +46,8 @@ ToolServiceKind = Literal["openapi", "sdk", "local", "mcp"]
 
 
 class ServiceRegistry(ABC):
+    """An interface for managing tool services in the engine."""
+
     @abstractmethod
     async def update_tool_service(
         self,

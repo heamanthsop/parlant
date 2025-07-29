@@ -61,6 +61,8 @@ VALID_TOOL_BASE_TYPES = [str, int, float, bool, date, datetime]
 
 
 class ToolParameterDescriptor(TypedDict, total=False):
+    """Descriptor for a tool parameter, used to define its type and other properties."""
+
     type: ToolParameterType
     item_type: ToolParameterType
     enum: Sequence[str]
@@ -70,11 +72,18 @@ class ToolParameterDescriptor(TypedDict, total=False):
 
 # These two aliases are redefined here to avoid a circular reference.
 SessionStatus: TypeAlias = Literal["ready", "processing", "typing"]
+"""The status of the session, indicating whether it is ready for input, currently processing a request, or typing a response."""
+
 SessionMode: TypeAlias = Literal["auto", "manual"]
+"""The mode of the session, indicating whether it is automatically managed by an AI agent or requires manual intervention."""
+
 Lifespan: TypeAlias = Literal["response", "session"]
+"""The lifespan of a tool result, indicating whether it is valid for the duration of a single response or for the entire session."""
 
 
 class ToolContext:
+    """Helpful context for tool execution."""
+
     def __init__(
         self,
         agent_id: str,
@@ -98,30 +107,52 @@ class ToolContext:
         self._emit_status = emit_status
 
     async def emit_message(self, message: str) -> None:
+        """Directly emit a message to the session."""
+
         assert self._emit_message
         await self._emit_message(message)
 
     async def emit_status(
         self,
         status: SessionStatus,
-        data: JSONSerializable,
+        data: JSONSerializable = None,
     ) -> None:
+        """Directly emit a status update to the session."""
+
         assert self._emit_status
         await self._emit_status(status, data)
 
 
 class ControlOptions(TypedDict, total=False):
+    """Options for controlling the processing of a tool result."""
+
     mode: SessionMode
+    """The mode of the session, indicating whether it is automatically managed by an AI agent or requires manual intervention."""
+
     lifespan: Lifespan
+    """The lifespan of the tool result, indicating whether it is valid for the duration of a single response or for the entire session."""
 
 
 @dataclass(frozen=True)
 class ToolResult:
+    """The result of a tool execution, containing the data, metadata, control options, and canned response information."""
+
     data: Any
+    """The data returned by the tool, seen and considered by the agent throughout its processing stages."""
+
     metadata: Mapping[str, Any]
+    """Metadata associated with the tool result, which can be used
+    for additional context or information in the frontend.
+    This is not seen or considered by the agent."""
+
     control: ControlOptions
+    """Control options for the tool result, which can influence how it is processed by the engine."""
+
     canned_responses: Sequence[CannedResponse]
+    """Canned responses associated with the tool result, which can be used to dynamically provide predefined responses."""
+
     canned_response_fields: Mapping[str, Any]
+    """Fields for canned responses, which can be used to provide additional context or information for canned responses."""
 
     def __init__(
         self,
@@ -139,6 +170,8 @@ class ToolResult:
 
 
 class ToolParameterOptions(DefaultBaseModel):
+    """Options for a tool parameter, defining its characteristics and manner of processing."""
+
     hidden: bool = Field(default=False)
     """If true, this parameter is not exposed in tool insights and message generation;
     meaning, agents would not be able to inform customers when it is missing and required."""
@@ -173,6 +206,8 @@ class ToolParameterOptions(DefaultBaseModel):
 
 
 class ToolOverlap(Enum):
+    """Defines how a tool overlaps with other tools in context."""
+
     NONE = auto()
     """The tool never overlaps with any other tool. No need to check relationships."""
 
@@ -185,25 +220,49 @@ class ToolOverlap(Enum):
 
 @dataclass(frozen=True)
 class Tool:
+    """A tool that can be used by agents to perform actions or retrieve information."""
+
     name: str
+    """The name of the tool, which is unique within the service."""
+
     creation_utc: datetime
+    """The UTC timestamp when the tool was created."""
+
     description: str
+    """A description of the tool, which provides context and information about its purpose."""
+
     metadata: Mapping[str, Any]
+    """Metadata associated with the tool."""
+
     parameters: dict[str, tuple[ToolParameterDescriptor, ToolParameterOptions]]
+    """A dictionary of parameters for the tool, where each key is the parameter name and the value is a tuple containing the parameter descriptor and options."""
+
     required: list[str]
+    """A list of required parameters for the tool, which must be provided when calling the tool."""
+
     consequential: bool
+    """If true, the tool is consequential, meaning it has a crucial impact on the agent or customer. Currently unused, but a good marker to have."""
+
     overlap: ToolOverlap
+    """Defines how this tool overlaps with other tools in context. This is used to determine whether the tool should be evaluated in conjunction with other tools to prevent conflicts."""
 
     def __hash__(self) -> int:
         return hash(self.name)
 
 
 class ToolId(NamedTuple):
+    """A unique identifier for a tool, consisting of the service name and tool name."""
+
     service_name: str
+    """The name of the tool service that provides the tool."""
+
     tool_name: str
+    """The name of the tool within the service."""
 
     @staticmethod
     def from_string(s: str) -> ToolId:
+        """Creates a ToolId from a string in the format 'service_name:tool_name'."""
+
         parts = s.split(":", 1)
         if len(parts) != 2:
             raise ValueError(
@@ -212,10 +271,14 @@ class ToolId(NamedTuple):
         return ToolId(service_name=parts[0], tool_name=parts[1])
 
     def to_string(self) -> str:
+        """Converts the ToolId to a string in the format 'service_name:tool_name'."""
+
         return f"{self.service_name}:{self.tool_name}"
 
 
 class ToolError(Exception):
+    """Base class for all tool-related errors."""
+
     def __init__(
         self,
         tool_name: str,
@@ -230,14 +293,20 @@ class ToolError(Exception):
 
 
 class ToolImportError(ToolError):
+    """Raised when a tool cannot be imported or resolved."""
+
     pass
 
 
 class ToolExecutionError(ToolError):
+    """Raised when a tool execution fails."""
+
     pass
 
 
 class ToolResultError(ToolError):
+    """Raised when a tool returns an invalid result."""
+
     pass
 
 

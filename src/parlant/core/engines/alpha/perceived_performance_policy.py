@@ -21,6 +21,8 @@ from parlant.core.sessions import EventKind, EventSource
 
 
 class PerceivedPerformancePolicy(ABC):
+    """An interface for defining perceived performance policies for the engine."""
+
     @abstractmethod
     async def get_processing_indicator_delay(
         self,
@@ -75,6 +77,8 @@ class PerceivedPerformancePolicy(ABC):
 
 
 class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
+    """A default implementation of the perceived performance policy that uses reasonable, randomized delays."""
+
     @override
     async def get_processing_indicator_delay(
         self,

@@ -4,18 +4,24 @@ from typing_extensions import override
 
 
 class OptimizationPolicy(ABC):
+    """An interface for defining optimization policies for the engine."""
+
     @abstractmethod
     def use_embedding_cache(
         self,
         hints: Mapping[str, Any] = {},
-    ) -> bool: ...
+    ) -> bool:
+        """Determines whether to use the embedding cache."""
+        ...
 
     @abstractmethod
     def get_guideline_matching_batch_size(
         self,
         guideline_count: int,
         hints: Mapping[str, Any] = {},
-    ) -> int: ...
+    ) -> int:
+        """Gets the batch size for guideline matching."""
+        ...
 
     @abstractmethod
     def get_message_generation_retry_temperatures(
@@ -27,28 +33,38 @@ class OptimizationPolicy(ABC):
     def get_guideline_matching_batch_retry_temperatures(
         self,
         hints: Mapping[str, Any] = {},
-    ) -> Sequence[float]: ...
+    ) -> Sequence[float]:
+        """Gets the retry temperatures (and number of generation attempts) for a guideline matching batch."""
+        ...
 
     @abstractmethod
     def get_response_analysis_batch_retry_temperatures(
         self,
         hints: Mapping[str, Any] = {},
-    ) -> Sequence[float]: ...
+    ) -> Sequence[float]:
+        """Gets the retry temperatures (and number of generation attempts) for a response analysis batch."""
+        ...
 
     @abstractmethod
     def get_tool_calling_batch_retry_temperatures(
         self,
         hints: Mapping[str, Any] = {},
-    ) -> Sequence[float]: ...
+    ) -> Sequence[float]:
+        """Gets the retry temperatures (and number of generation attempts) for a tool calling batch."""
+        ...
 
     @abstractmethod
     def get_guideline_proposition_retry_temperatures(
         self,
         hints: Mapping[str, Any] = {},
-    ) -> Sequence[float]: ...
+    ) -> Sequence[float]:
+        """Gets the retry temperatures (and number of generation attempts) for guideline propositions."""
+        ...
 
 
 class BasicOptimizationPolicy(OptimizationPolicy):
+    """A basic optimization policy that defines default behaviors for the engine."""
+
     @override
     def use_embedding_cache(
         self,

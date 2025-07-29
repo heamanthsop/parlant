@@ -33,10 +33,14 @@ from parlant.core.persistence.document_database import (
 
 @dataclass(frozen=True)
 class EmbeddingResult:
+    """Result of an embedding operation."""
+
     vectors: Sequence[Sequence[float]]
 
 
 class Embedder(ABC):
+    """An interface for embedding text into vector representations."""
+
     @abstractmethod
     async def embed(
         self,
@@ -63,6 +67,8 @@ class Embedder(ABC):
 
 
 class EmbedderFactory:
+    """Factory for creating embedder instances."""
+
     def __init__(self, container: Container):
         self._container = container
 
@@ -74,6 +80,8 @@ class EmbedderFactory:
 
 
 class NoOpEmbedder(Embedder):
+    """A no-op embedder that returns zero vectors."""
+
     def __init__(self) -> None:
         self._tokenizer = ZeroEstimatingTokenizer()
 
@@ -112,6 +120,8 @@ class EmbedderResultDocument(TypedDict, total=False):
 
 
 class EmbeddingCache(ABC):
+    """An interface for caching embedding results."""
+
     @abstractmethod
     async def get(
         self,
@@ -136,6 +146,8 @@ EmbeddingCacheProvider = Callable[[], EmbeddingCache]
 
 
 class BasicEmbeddingCache(EmbeddingCache):
+    """A basic embedding cache that uses a document database to store results."""
+
     VERSION = Version.from_string("0.1.0")
 
     def __init__(
@@ -222,6 +234,8 @@ class BasicEmbeddingCache(EmbeddingCache):
 
 
 class NullEmbeddingCache(EmbeddingCache):
+    """A no-op embedding cache that does nothing."""
+
     async def get(
         self,
         embedder_type: type[Embedder],

@@ -35,6 +35,7 @@ class EngineHookResult(Enum):
 
 
 EngineHook: TypeAlias = Callable[[LoadedContext, Optional[Exception]], Awaitable[EngineHookResult]]
+"""A callable that takes a LoadedContext and an optional Exception, and returns an EngineHookResult."""
 
 
 @dataclass(frozen=False)

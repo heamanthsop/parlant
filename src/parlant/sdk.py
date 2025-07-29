@@ -56,7 +56,6 @@ from lagom import Container
 
 from parlant.adapters.db.json_file import JSONFileDocumentCollection, JSONFileDocumentDatabase
 from parlant.adapters.db.transient import TransientDocumentDatabase
-from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.core import async_utils
 from parlant.core.agents import (
@@ -198,12 +197,42 @@ JourneyTransitionId: TypeAlias = JourneyEdgeId
 
 
 class SDKError(Exception):
+    """Main class for SDK-related errors."""
+
     def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
-def _load_openai(container: Container) -> NLPService:
-    return OpenAIService(container[Logger])
+class NLPServiceFactories:
+    """A collection of static methods to create built-in NLPService instances for the SDK."""
+
+    @staticmethod
+    def openai(container: Container) -> NLPService:
+        """Creates an OpenAI NLPService instance using the provided container."""
+        from parlant.adapters.nlp.openai_service import OpenAIService
+
+        return OpenAIService(container[Logger])
+
+    @staticmethod
+    def anthropic(container: Container) -> NLPService:
+        """Creates an Anthropic NLPService instance using the provided container."""
+        from parlant.adapters.nlp.anthropic_service import AnthropicService
+
+        return AnthropicService(container[Logger])
+
+    @staticmethod
+    def cerebras(container: Container) -> NLPService:
+        """Creates a Cerebras NLPService instance using the provided container."""
+        from parlant.adapters.nlp.cerebras_service import CerebrasService
+
+        return CerebrasService(container[Logger])
+
+    @staticmethod
+    def together(container: Container) -> NLPService:
+        """Creates a Together NLPService instance using the provided container."""
+        from parlant.adapters.nlp.together_service import TogetherService
+
+        return TogetherService(container[Logger])
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
@@ -587,6 +616,8 @@ class _SdkAgentStore(AgentStore):
 
 @dataclass(frozen=True)
 class Tag:
+    """A tag used to categorize and link entities."""
+
     @staticmethod
     def preamble() -> TagId:
         return _Tag.preamble()
@@ -597,6 +628,8 @@ class Tag:
 
 @dataclass(frozen=True)
 class Relationship:
+    """A relationship between two entities in the system."""
+
     id: RelationshipId
     kind: RelationshipKind
     source: RelationshipEntityId
@@ -605,6 +638,8 @@ class Relationship:
 
 @dataclass(frozen=True)
 class Guideline:
+    """A guideline that defines a condition and an action to be taken."""
+
     id: GuidelineId
     condition: str
     action: str | None
@@ -615,6 +650,7 @@ class Guideline:
     _container: Container
 
     async def prioritize_over(self, guideline: Guideline) -> Relationship:
+        """Creates a priority relationship with another guideline."""
         return await self._create_relationship(
             guideline=guideline,
             kind=RelationshipKind.PRIORITY,
@@ -622,6 +658,7 @@ class Guideline:
         )
 
     async def entail(self, guideline: Guideline) -> Relationship:
+        """Creates an entailment relationship with another guideline."""
         return await self._create_relationship(
             guideline=guideline,
             kind=RelationshipKind.ENTAILMENT,
@@ -629,6 +666,7 @@ class Guideline:
         )
 
     async def depend_on(self, guideline: Guideline) -> Relationship:
+        """Creates a dependency relationship with another guideline."""
         return await self._create_relationship(
             guideline=guideline,
             kind=RelationshipKind.DEPENDENCY,
@@ -636,6 +674,7 @@ class Guideline:
         )
 
     async def disambiguate(self, targets: Sequence[Guideline]) -> Sequence[Relationship]:
+        """Creates a disambiguation relationship with multiple target guidelines."""
         if len(targets) < 2:
             raise SDKError(
                 f"At least two targets are required for disambiguation (got {len(targets)})."
@@ -651,6 +690,7 @@ class Guideline:
         ]
 
     async def reevaluate_after(self, tool: ToolEntry) -> Relationship:
+        """Creates a reevaluation relationship with a tool."""
         relationship = await self._container[RelationshipStore].create_relationship(
             source=RelationshipEntity(
                 id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=tool.tool.name),
@@ -702,6 +742,8 @@ TState = TypeVar("TState", bound="JourneyState")
 
 @dataclass(frozen=True)
 class JourneyTransition(Generic[TState]):
+    """A transition between two states in a journey."""
+
     id: JourneyTransitionId
     condition: str | None
     source: JourneyState
@@ -711,6 +753,8 @@ class JourneyTransition(Generic[TState]):
 
 @dataclass(frozen=True)
 class JourneyState:
+    """A state in a journey that can be transitioned to or from."""
+
     id: JourneyStateId
     action: str | None
     tools: Sequence[ToolEntry]
@@ -719,7 +763,7 @@ class JourneyState:
     _journey: Journey | None
 
     @property
-    def internal_action(self) -> str | None:
+    def _internal_action(self) -> str | None:
         return self.action or cast(str | None, self.metadata.get("internal_action"))
 
     async def _fork(self) -> JourneyTransition[ForkJourneyState]:
@@ -809,9 +853,12 @@ END_JOURNEY = JourneyState(
     metadata={},
     _journey=None,
 )
+"""A special state used to indicate the end of a journey."""
 
 
 class InitialJourneyState(JourneyState):
+    """A special state used to indicate the initial state of a journey."""
+
     @overload
     async def transition_to(
         self,
@@ -864,6 +911,8 @@ class InitialJourneyState(JourneyState):
 
 
 class ToolJourneyState(JourneyState):
+    """A state in a journey that represents a tool being used."""
+
     @overload
     async def transition_to(
         self,
@@ -898,6 +947,8 @@ class ToolJourneyState(JourneyState):
 
 
 class ChatJourneyState(JourneyState):
+    """A state in a journey that represents a chat interaction."""
+
     @overload
     async def transition_to(
         self,
@@ -953,6 +1004,8 @@ class ChatJourneyState(JourneyState):
 
 
 class ForkJourneyState(JourneyState):
+    """A state in a journey that represents a conditional fork in the journey."""
+
     @overload
     async def transition_to(
         self,
@@ -1006,6 +1059,8 @@ class ForkJourneyState(JourneyState):
 
 @dataclass(frozen=True)
 class Journey:
+    """A journey that consists of multiple states and transitions."""
+
     id: JourneyId
     title: str
     description: str
@@ -1020,6 +1075,7 @@ class Journey:
 
     @property
     def initial_state(self) -> InitialJourneyState:
+        """Returns the initial state of the journey."""
         return cast(
             InitialJourneyState, next(n for n in self.states if n.id == self._start_state_id)
         )
@@ -1071,6 +1127,8 @@ class Journey:
         source: JourneyState,
         target: TState,
     ) -> JourneyTransition[TState]:
+        """Creates a transition between two states in the journey."""
+
         self._server._advance_creation_progress()
 
         if target is not None and target.id != END_JOURNEY.id:
@@ -1083,7 +1141,7 @@ class Journey:
 
             self._server._add_state_evaluation(
                 target.id,
-                GuidelineContent(condition=condition or "", action=target.internal_action),
+                GuidelineContent(condition=condition or "", action=target._internal_action),
                 list(target_tool_ids.values()),
             )
 
@@ -1109,6 +1167,8 @@ class Journey:
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
     ) -> Guideline:
+        """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
+
         self._server._advance_creation_progress()
 
         tool_ids = [
@@ -1162,6 +1222,8 @@ class Journey:
         tool: ToolEntry,
         condition: str,
     ) -> GuidelineId:
+        """Attaches a tool to the journey, to be usable by the agent under the specified condition."""
+
         await self._server._plugin_server.enable_tool(tool)
 
         guideline = await self._container[GuidelineStore].create_guideline(
@@ -1200,6 +1262,8 @@ class Journey:
         tags: list[TagId] = [],
         signals: list[str] = [],
     ) -> CannedResponseId:
+        """Creates a journey-scoped canned response with the specified template, tags, and signals."""
+
         self._server._advance_creation_progress()
 
         canrep = await self._container[CannedResponseStore].create_canned_response(
@@ -1214,6 +1278,8 @@ class Journey:
 
 @dataclass(frozen=True)
 class Capability:
+    """A capability informs the agent about a specific functionality it can provide."""
+
     id: CapabilityId
     title: str
     description: str
@@ -1223,6 +1289,8 @@ class Capability:
 
 @dataclass(frozen=True)
 class Term:
+    """A glossary term defines a specific concept in the agent's domain."""
+
     id: TermId
     name: str
     description: str
@@ -1232,6 +1300,8 @@ class Term:
 
 @dataclass(frozen=True)
 class Variable:
+    """A variable that can hold values for customers or customer groups."""
+
     id: ContextVariableId
     name: str
     description: str | None
@@ -1242,6 +1312,8 @@ class Variable:
     _container: Container
 
     async def set_value_for_customer(self, customer: Customer, value: JSONSerializable) -> None:
+        """Sets the value of the variable for a specific customer."""
+
         await self._container[ContextVariableStore].update_value(
             variable_id=self.id,
             key=customer.id,
@@ -1249,6 +1321,8 @@ class Variable:
         )
 
     async def set_value_for_tag(self, tag: TagId, value: JSONSerializable) -> None:
+        """Sets the value of the variable for a specific tag (e.g., a customer group tag)."""
+
         await self._container[ContextVariableStore].update_value(
             variable_id=self.id,
             key=f"tag:{tag}",
@@ -1256,6 +1330,8 @@ class Variable:
         )
 
     async def set_global_value(self, value: JSONSerializable) -> None:
+        """Sets the global value of the variable, which is accessible to all customers by default."""
+
         await self._container[ContextVariableStore].update_value(
             variable_id=self.id,
             key=ContextVariableStore.GLOBAL_KEY,
@@ -1263,6 +1339,8 @@ class Variable:
         )
 
     async def get_value_for_customer(self, customer: Customer) -> JSONSerializable | None:
+        """Retrieves the value of the variable for a specific customer."""
+
         value = await self._container[ContextVariableStore].read_value(
             variable_id=self.id,
             key=customer.id,
@@ -1271,6 +1349,7 @@ class Variable:
         return value.data if value else None
 
     async def get_value_for_tag(self, tag: TagId) -> JSONSerializable | None:
+        """Retrieves the value of the variable for a specific tag (e.g., a customer group tag)."""
         value = await self._container[ContextVariableStore].read_value(
             variable_id=self.id,
             key=f"tag:{tag}",
@@ -1279,6 +1358,8 @@ class Variable:
         return value.data if value else None
 
     async def get_global_value(self) -> JSONSerializable | None:
+        """Retrieves the global value of the variable, which is accessible to all customers by default."""
+
         value = await self._container[ContextVariableStore].read_value(
             variable_id=self.id,
             key=ContextVariableStore.GLOBAL_KEY,
@@ -1289,6 +1370,8 @@ class Variable:
 
 @dataclass(frozen=True)
 class Customer:
+    """A customer represents an individual or entity interacting with the agent."""
+
     @staticmethod
     def guest() -> Customer:
         return Customer(
@@ -1306,6 +1389,8 @@ class Customer:
 
 @dataclass(frozen=True)
 class RetrieverContext:
+    """Context for retriever functions, providing helpful information for data retrieval."""
+
     server: Server
     container: Container
     logger: Logger
@@ -1319,6 +1404,8 @@ class RetrieverContext:
 
 @dataclass(frozen=True)
 class RetrieverResult:
+    """Result of a retriever function, containing the retrieved data and metadata, as well (optionally) as canned response information."""
+
     data: JSONSerializable
     metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
     canned_responses: Sequence[str] = field(default_factory=list)
@@ -1326,13 +1413,22 @@ class RetrieverResult:
 
 
 class CompositionMode(enum.Enum):
+    """Defines the composition mode for the agent, which determines how responses are generated."""
+
     FLUID = _CompositionMode.CANNED_FLUID
+    """Responses are generated fluidly, allowing for dynamic composition of responses."""
+
     COMPOSITED = _CompositionMode.CANNED_COMPOSITED
+    """Responses are generated in such a way as to mimic the style of the provided set of canned responses."""
+
     STRICT = _CompositionMode.CANNED_STRICT
+    """Responses are generated strictly based on the provided canned responses, without fluidity."""
 
 
 @dataclass(frozen=True)
 class Agent:
+    """An agent represents an entity that can interact with customers, manage journeys, and perform various tasks."""
+
     _server: Server
     _container: Container
 
@@ -1353,6 +1449,8 @@ class Agent:
         description: str,
         conditions: list[str | Guideline],
     ) -> Journey:
+        """Creates a new journey with the specified title, description, and conditions."""
+
         self._server._advance_creation_progress()
 
         journey = await self._server.create_journey(title, description, conditions)
@@ -1373,6 +1471,8 @@ class Agent:
         )
 
     async def attach_journey(self, journey: Journey) -> None:
+        """Attaches an existing journey to the agent, allowing it to be used in interactions."""
+
         await self._container[JourneyStore].upsert_tag(
             journey.id,
             _Tag.for_agent_id(self.id),
@@ -1385,6 +1485,7 @@ class Agent:
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
     ) -> Guideline:
+        """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
         self._server._advance_creation_progress()
 
         tool_ids = [
@@ -1426,6 +1527,8 @@ class Agent:
         self,
         condition: str,
     ) -> Guideline:
+        """A shorthand for creating an observational guideline with the specified condition."""
+
         return await self.create_guideline(condition=condition)
 
     async def attach_tool(
@@ -1433,6 +1536,8 @@ class Agent:
         tool: ToolEntry,
         condition: str,
     ) -> GuidelineId:
+        """Attaches a tool to the agent, to be usable under the specified condition."""
+
         await self._server._plugin_server.enable_tool(tool)
 
         guideline = await self._container[GuidelineStore].create_guideline(
@@ -1459,6 +1564,8 @@ class Agent:
         tags: list[TagId] = [],
         signals: list[str] = [],
     ) -> CannedResponseId:
+        """Creates a canned response with the specified template, tags, and signals."""
+
         self._server._advance_creation_progress()
 
         canrep = await self._container[CannedResponseStore].create_canned_response(
@@ -1470,12 +1577,14 @@ class Agent:
 
         return canrep.id
 
-    async def create_capability(
+    async def _create_capability(
         self,
         title: str,
         description: str,
         signals: Sequence[str] | None = None,
     ) -> Capability:
+        """Creates a capability with the specified title, description, and signals."""
+
         self._server._advance_creation_progress()
 
         capability = await self._container[CapabilityStore].create_capability(
@@ -1499,6 +1608,8 @@ class Agent:
         description: str,
         synonyms: Sequence[str] = [],
     ) -> Term:
+        """Creates a glossary term with the specified name, description, and synonyms."""
+
         self._server._advance_creation_progress()
 
         term = await self._container[GlossaryStore].create_term(
@@ -1523,6 +1634,8 @@ class Agent:
         tool: ToolEntry | None = None,
         freshness_rules: str | None = None,
     ) -> Variable:
+        """Creates a variable with the specified name, description, tool, and freshness rules."""
+
         self._server._advance_creation_progress()
 
         variable = await self._container[ContextVariableStore].create_variable(
@@ -1545,6 +1658,8 @@ class Agent:
         )
 
     async def list_variables(self) -> Sequence[Variable]:
+        """Lists all variables associated with the agent."""
+
         variables = await self._container[ContextVariableStore].list_variables(
             tags=[_Tag.for_agent_id(self.id)]
         )
@@ -1571,6 +1686,8 @@ class Agent:
         id: str | None = None,
         name: str | None = None,
     ) -> Variable | None:
+        """Finds a variable by its ID or name."""
+
         if not id and not name:
             raise SDKError("Either id or name must be provided to find a variable.")
 
@@ -1612,6 +1729,8 @@ class Agent:
         )
 
     async def get_variable(self, id: ContextVariableId | str) -> Variable:
+        """Retrieves a variable by its ID, raising an error if not found."""
+
         if variable := await self.find_variable(id=id):
             return variable
         raise SDKError(f"Variable with id {id} not found.")
@@ -1621,6 +1740,8 @@ class Agent:
         retriever: Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]],
         id: str | None = None,
     ) -> None:
+        """Attaches a retriever function to the agent, allowing it to be used in interactions."""
+
         if not id:
             id = f"retriever-{len(self.retrievers) + 1}"
 
@@ -1633,20 +1754,41 @@ class Agent:
 
 
 class ToolContextAccessor:
+    """A context accessor for tools, providing access to the server and other relevant data."""
+
     def __init__(self, context: ToolContext) -> None:
         self.context = context
 
     @property
     def server(self) -> Server:
+        """Returns the server associated with the tool context."""
         return cast(Server, self.context.plugin_data["server"])
 
 
 class Server:
+    """The main server class that manages the agent, journeys, tools, and other components.
+
+    This class is responsible for initializing the server, managing the lifecycle of the agent, and providing access to various services and components.
+
+    Args:
+        port: The port on which the server will run.
+        tool_service_port: The port for the integrated tool service.
+        nlp_service: A factory function to create an NLP service instance. See `NLPServiceFactories` for available options.
+        session_store: The session store to use for managing sessions.
+        customer_store: The customer store to use for managing customers.
+        log_level: The logging level for the server.
+        modules: A list of module names to load for the server.
+        migrate: Whether to allow database migrations on startup (if needed).
+        configure_hooks: A callable to configure engine hooks.
+        configure_container: A callable to configure the dependency injection container.
+        initialize: A callable to perform additional initialization after the container is set up.
+    """
+
     def __init__(
         self,
         port: int = 8800,
         tool_service_port: int = 8818,
-        nlp_service: Callable[[Container], NLPService] = _load_openai,
+        nlp_service: Callable[[Container], NLPService] = NLPServiceFactories.openai,
         session_store: Literal["transient", "local"] | str | SessionStore = "transient",
         customer_store: Literal["transient", "local"] | str | CustomerStore = "transient",
         log_level: LogLevel = LogLevel.INFO,
@@ -2130,6 +2272,8 @@ class Server:
         max_engine_iterations: int | None = None,
         tags: Sequence[TagId] = [],
     ) -> Agent:
+        """Creates a new agent with the specified name, description, and composition mode."""
+
         self._advance_creation_progress()
 
         agent = await self._container[AgentStore].create_agent(
@@ -2151,6 +2295,8 @@ class Server:
         )
 
     async def list_agents(self) -> Sequence[Agent]:
+        """Lists all agents."""
+
         agents = await self._container[AgentStore].list_agents()
 
         return [
@@ -2168,6 +2314,8 @@ class Server:
         ]
 
     async def find_agent(self, *, id: str) -> Agent | None:
+        """Finds an agent by its ID."""
+
         try:
             agent = await self._container[AgentStore].read_agent(AgentId(id))
 
@@ -2185,6 +2333,8 @@ class Server:
             return None
 
     async def get_agent(self, *, id: str) -> Agent:
+        """Retrieves an agent by its ID, raising an error if not found."""
+
         if agent := await self.find_agent(id=id):
             return agent
         raise SDKError(f"Agent with id {id} not found.")
@@ -2195,6 +2345,8 @@ class Server:
         metadata: Mapping[str, str] = {},
         tags: Sequence[TagId] = [],
     ) -> Customer:
+        """Creates a new customer with the specified name and metadata."""
+
         self._advance_creation_progress()
 
         customer = await self._container[CustomerStore].create_customer(
@@ -2211,6 +2363,8 @@ class Server:
         )
 
     async def list_customers(self) -> Sequence[Customer]:
+        """Lists all customers."""
+
         customers = await self._container[CustomerStore].list_customers()
 
         return [
@@ -2229,6 +2383,8 @@ class Server:
         id: str | None = None,
         name: str | None = None,
     ) -> Customer | None:
+        """Finds a customer by its ID or name."""
+
         if not id and not name:
             raise SDKError("Either id or name must be provided to find a customer.")
 
@@ -2261,14 +2417,11 @@ class Server:
         return None
 
     async def get_customer(self, *, id: CustomerId) -> Customer:
-        customer = await self._container[CustomerStore].read_customer(id)
+        """Retrieves a customer by its ID, raising an error if not found."""
 
-        return Customer(
-            id=customer.id,
-            name=customer.name,
-            metadata=customer.extra,
-            tags=customer.tags,
-        )
+        if customer := await self.find_customer(id=id):
+            return customer
+        raise SDKError(f"Customer with id {id} not found.")
 
     async def create_journey(
         self,
@@ -2277,6 +2430,8 @@ class Server:
         conditions: list[str | Guideline],
         tags: Sequence[TagId] = [],
     ) -> Journey:
+        """Creates a new journey with the specified title, description, and conditions."""
+
         self._advance_creation_progress()
 
         condition_guidelines = [c for c in conditions if isinstance(c, Guideline)]

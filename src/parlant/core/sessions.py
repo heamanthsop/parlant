@@ -66,23 +66,47 @@ EventId = NewType("EventId", str)
 
 
 class EventSource(Enum):
+    """The source of an event in a session."""
+
     CUSTOMER = "customer"
+    """Represents an event from the customer, such as a message or action."""
+
     CUSTOMER_UI = "customer_ui"
+    """Represents an event from the customer UI, such as a page navigation or button click."""
+
     HUMAN_AGENT = "human_agent"
+    """Represents an event from a human agent, such as a status update, message or action."""
+
     HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT = "human_agent_on_behalf_of_ai_agent"
+    """Represents an event from a human agent acting on behalf of an AI agent, such as a status update, message or action."""
+
     AI_AGENT = "ai_agent"
+    """Represents an event from an AI agent, such as a status update, message or action."""
+
     SYSTEM = "system"
+    """Represents an event from the system, such as a tool execution."""
 
 
 class EventKind(Enum):
+    """The kind of event in a session."""
+
     MESSAGE = "message"
+    """Represents a message event, such as a message sent by the customer or AI agent."""
+
     TOOL = "tool"
+    """Represents a tool event, such as a tool result or tool error."""
+
     STATUS = "status"
+    """Represents a status event, such as a 'typing', 'thinking', etc."""
+
     CUSTOM = "custom"
+    """Represents a custom event, used in custom frontends."""
 
 
 @dataclass(frozen=True)
 class Event:
+    """Represents an event in a session."""
+
     id: EventId
     source: EventSource
     kind: EventKind
@@ -107,11 +131,15 @@ class Event:
 
 
 class Participant(TypedDict):
+    """Represents a participant in a session, such as a customer or AI agent."""
+
     id: NotRequired[AgentId | CustomerId | None]
     display_name: str
 
 
 class MessageEventData(TypedDict):
+    """Data for a message event in a session."""
+
     message: str
     participant: Participant
     flagged: NotRequired[bool]
@@ -121,6 +149,8 @@ class MessageEventData(TypedDict):
 
 
 class ControlOptions(TypedDict, total=False):
+    """Options for controlling the behavior of a tool result."""
+
     mode: SessionMode
     lifespan: LifeSpan
 
@@ -219,7 +249,10 @@ ConsumerId: TypeAlias = Literal["client"]
 """In the future we may support multiple consumer IDs"""
 
 SessionMode: TypeAlias = Literal["auto", "manual"]
+"""The mode of the session, either 'auto' for automatic handling or 'manual' for manual handling by a human agent."""
+
 LifeSpan: TypeAlias = Literal["response", "session"]
+"""The lifespan of a tool result, either 'response' for just the current response or 'session' for the entire session."""
 
 
 class AgentState(TypedDict):
