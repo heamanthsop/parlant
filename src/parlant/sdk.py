@@ -440,7 +440,7 @@ class _CachedEvaluator:
                     edge_properties=cached_evaluation["edge_properties"],
                 )
             else:
-                self._logger.info(
+                self._logger.trace(
                     f"Deleting outdated cached evaluation for journey: {journey.title or 'None'}"
                 )
 
