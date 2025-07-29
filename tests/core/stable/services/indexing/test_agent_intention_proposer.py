@@ -23,6 +23,7 @@ from parlant.core.agents import Agent
 from parlant.core.capabilities import Capability, CapabilityId
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.customers import Customer
+from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_batch import (
     GenericResponseAnalysisBatch,
     GenericResponseAnalysisSchema,
@@ -32,8 +33,12 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     ReportAnalysisContext,
 )
+from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
+from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
+from parlant.core.engines.types import Context
 from parlant.core.entity_cq import EntityCommands
-from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
+from parlant.core.evaluations import GuidelinePayload, PayloadOperation
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
@@ -106,16 +111,42 @@ def match_guidelines(
 ) -> Sequence[GuidelineMatch]:
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
 
+    loaded_context = LoadedContext(
+        info=Context(
+            session_id=session.id,
+            agent_id=agent.id,
+        ),
+        logger=context.logger,
+        correlation_id="<main>",
+        agent=agent,
+        customer=customer,
+        session=session,
+        session_event_emitter=EventBuffer(agent),
+        response_event_emitter=EventBuffer(agent),
+        interaction=Interaction(
+            history=interaction_history,
+            last_known_event_offset=interaction_history[-1].offset if interaction_history else -1,
+        ),
+        state=ResponseState(
+            context_variables=[],
+            glossary_terms=set(),
+            capabilities=[],
+            iterations=[],
+            ordinary_guideline_matches=[],
+            tool_enabled_guideline_matches={},
+            journeys=[],
+            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            tool_events=[],
+            tool_insights=ToolInsights(),
+            prepared_to_respond=False,
+            message_events=[],
+        ),
+    )
+
     guideline_matching_result = context.sync_await(
         context.container[GuidelineMatcher].match_guidelines(
-            agent=agent,
-            session=session,
-            customer=customer,
-            context_variables=[],
-            interaction_history=interaction_history,
-            terms=[],
-            capabilities=capabilities,
-            staged_events=[],
+            context=loaded_context,
+            active_journeys=[],
             guidelines=context.guidelines,
         )
     )
@@ -140,11 +171,12 @@ def create_guideline(
                             action=action,
                         ),
                         tool_ids=[],
-                        operation=GuidelinePayloadOperation.ADD,
+                        operation=PayloadOperation.ADD,
                         coherence_check=False,
                         connection_proposition=False,
                         action_proposition=True,
                         properties_proposition=True,
+                        journey_node_proposition=False,
                     )
                 ],
             )
@@ -190,13 +222,22 @@ def update_previously_applied_guidelines(
     applied_guideline_ids: list[GuidelineId],
 ) -> None:
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
-    applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
+    applied_guideline_ids.extend(
+        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+    )
 
     context.sync_await(
         context.container[EntityCommands].update_session(
             session_id=session.id,
             params=SessionUpdateParams(
-                agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+                agent_states=list(session.agent_states)
+                + [
+                    AgentState(
+                        correlation_id="<main>",
+                        applied_guideline_ids=applied_guideline_ids,
+                        journey_paths={},
+                    )
+                ]
             ),
         )
     )
@@ -219,7 +260,10 @@ def analyze_response_and_update_session(
             score=10,
         )
         for g in previously_matched_guidelines
-        if g.id not in session.agent_state["applied_guideline_ids"]
+        if (
+            not session.agent_states
+            or g.id not in session.agent_states[-1]["applied_guideline_ids"]
+        )
         and not g.metadata.get("continuous", False)
     ]
 
@@ -229,6 +273,7 @@ def analyze_response_and_update_session(
 
     generic_response_analysis_batch = GenericResponseAnalysisBatch(
         logger=context.container[Logger],
+        optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
         context=ReportAnalysisContext(
             agent=agent,
@@ -510,7 +555,7 @@ def test_that_agent_intention_guideline_is_matched_based_on_capabilities_1(
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]

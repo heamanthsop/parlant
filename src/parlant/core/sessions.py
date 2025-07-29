@@ -42,6 +42,7 @@ from parlant.core.agents import AgentId
 from parlant.core.context_variables import ContextVariableId
 from parlant.core.customers import CustomerId
 from parlant.core.guidelines import GuidelineId
+from parlant.core.journeys import JourneyId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.persistence.common import (
     ObjectId,
@@ -53,7 +54,7 @@ from parlant.core.persistence.document_database import (
     DocumentCollection,
 )
 from parlant.core.glossary import TermId
-from parlant.core.utterances import Utterance, UtteranceId
+from parlant.core.canned_responses import CannedResponse, CannedResponseId
 from parlant.core.persistence.document_database_helper import (
     DocumentMigrationHelper,
     DocumentStoreMigrationHelper,
@@ -116,7 +117,7 @@ class MessageEventData(TypedDict):
     flagged: NotRequired[bool]
     tags: NotRequired[Sequence[str]]
     draft: NotRequired[str]
-    utterances: NotRequired[Sequence[tuple[UtteranceId, str]]]
+    canned_responses: NotRequired[Sequence[tuple[CannedResponseId, str]]]
 
 
 class ControlOptions(TypedDict, total=False):
@@ -128,8 +129,8 @@ class ToolResult(TypedDict):
     data: JSONSerializable
     metadata: Mapping[str, JSONSerializable]
     control: ControlOptions
-    utterances: Sequence[Utterance]
-    utterance_fields: Mapping[str, JSONSerializable]
+    canned_responses: Sequence[CannedResponse]
+    canned_response_fields: Mapping[str, JSONSerializable]
 
 
 class ToolCall(TypedDict):
@@ -222,7 +223,9 @@ LifeSpan: TypeAlias = Literal["response", "session"]
 
 
 class AgentState(TypedDict):
+    correlation_id: str
     applied_guideline_ids: list[GuidelineId]
+    journey_paths: dict[JourneyId, list[Optional[GuidelineId]]]
 
 
 @dataclass(frozen=True)
@@ -234,7 +237,7 @@ class Session:
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
-    agent_state: AgentState
+    agent_states: Sequence[AgentState]
 
 
 class SessionUpdateParams(TypedDict, total=False):
@@ -243,7 +246,7 @@ class SessionUpdateParams(TypedDict, total=False):
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
-    agent_state: AgentState
+    agent_states: Sequence[AgentState]
 
 
 class SessionStore(ABC):
@@ -334,7 +337,7 @@ class SessionStore(ABC):
     ) -> Inspection: ...
 
 
-class _SessionDocument_V_0_4_0(TypedDict, total=False):
+class _SessionDocument_v0_4_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     creation_utc: str
@@ -343,6 +346,18 @@ class _SessionDocument_V_0_4_0(TypedDict, total=False):
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
+
+
+class _SessionDocument_v0_5_0(TypedDict, total=False):
+    id: ObjectId
+    version: Version.String
+    creation_utc: str
+    customer_id: CustomerId
+    agent_id: AgentId
+    mode: SessionMode
+    title: Optional[str]
+    consumption_offsets: Mapping[ConsumerId, int]
+    agent_state: AgentState
 
 
 class _SessionDocument(TypedDict, total=False):
@@ -354,7 +369,7 @@ class _SessionDocument(TypedDict, total=False):
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
-    agent_state: AgentState
+    agent_states: Sequence[AgentState]
 
 
 class _EventDocument(TypedDict, total=False):
@@ -388,7 +403,7 @@ class _GuidelineMatchInspectionDocument(TypedDict):
     batches: Sequence[_GenerationInfoDocument]
 
 
-class _PreparationIterationGenerationsDocument_V_0_2_0(TypedDict):
+class _PreparationIterationGenerationsDocument_v0_2_0(TypedDict):
     guideline_proposition: _GuidelineMatchInspectionDocument
     tool_calls: Sequence[_GenerationInfoDocument]
 
@@ -398,12 +413,12 @@ class _PreparationIterationGenerationsDocument(TypedDict):
     tool_calls: Sequence[_GenerationInfoDocument]
 
 
-class _MessageGenerationInspectionDocument_v_0_1_0(TypedDict):
+class _MessageGenerationInspectionDocument_v0_1_0(TypedDict):
     generation: _GenerationInfoDocument
     messages: Sequence[Optional[MessageEventData]]
 
 
-class _MessageGenerationInspectionDocument_v_0_2_0(TypedDict):
+class _MessageGenerationInspectionDocument_v0_2_0(TypedDict):
     generation: _GenerationInfoDocument
     messages: Sequence[Optional[str]]
 
@@ -414,15 +429,15 @@ class _MessageGenerationInspectionDocument(TypedDict):
     messages: Sequence[Optional[str]]
 
 
-class _PreparationIterationDocument_v_0_2_0(TypedDict):
+class _PreparationIterationDocument_v0_2_0(TypedDict):
     guideline_propositions: Sequence[GuidelineMatch]
     tool_calls: Sequence[ToolCall]
     terms: Sequence[Term]
     context_variables: Sequence[ContextVariable]
-    generations: _PreparationIterationGenerationsDocument_V_0_2_0
+    generations: _PreparationIterationGenerationsDocument_v0_2_0
 
 
-_PreparationIterationDocument_v_0_1_0: TypeAlias = _PreparationIterationDocument_v_0_2_0
+_PreparationIterationDocument_v0_1_0: TypeAlias = _PreparationIterationDocument_v0_2_0
 
 
 class _PreparationIterationDocument(TypedDict):
@@ -433,30 +448,30 @@ class _PreparationIterationDocument(TypedDict):
     generations: _PreparationIterationGenerationsDocument
 
 
-class _InspectionDocument_v_0_1_0(TypedDict, total=False):
+class _InspectionDocument_v0_1_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     session_id: SessionId
     correlation_id: str
-    message_generations: Sequence[_MessageGenerationInspectionDocument_v_0_1_0]
-    preparation_iterations: Sequence[_PreparationIterationDocument_v_0_1_0]
+    message_generations: Sequence[_MessageGenerationInspectionDocument_v0_1_0]
+    preparation_iterations: Sequence[_PreparationIterationDocument_v0_1_0]
 
 
-class _InspectionDocument_V_0_2_0(TypedDict, total=False):
+class _InspectionDocument_v0_2_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     session_id: SessionId
     correlation_id: str
-    message_generations: Sequence[_MessageGenerationInspectionDocument_v_0_2_0]
-    preparation_iterations: Sequence[_PreparationIterationDocument_v_0_2_0]
+    message_generations: Sequence[_MessageGenerationInspectionDocument_v0_2_0]
+    preparation_iterations: Sequence[_PreparationIterationDocument_v0_2_0]
 
 
-class _InspectionDocument_V_0_3_0(TypedDict, total=False):
+class _InspectionDocument_v0_3_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
     session_id: SessionId
     correlation_id: str
-    message_generations: Sequence[_MessageGenerationInspectionDocument_v_0_2_0]
+    message_generations: Sequence[_MessageGenerationInspectionDocument_v0_2_0]
     preparation_iterations: Sequence[_PreparationIterationDocument]
 
 
@@ -469,8 +484,35 @@ class _InspectionDocument(TypedDict, total=False):
     preparation_iterations: Sequence[_PreparationIterationDocument]
 
 
+class _MessageEventData_v0_5_0(TypedDict):
+    message: str
+    participant: Participant
+    flagged: NotRequired[bool]
+    tags: NotRequired[Sequence[str]]
+    draft: NotRequired[str]
+    utterances: NotRequired[Sequence[tuple[CannedResponseId, str]]]
+
+
+class _ToolResult_v0_5_0(TypedDict):
+    data: JSONSerializable
+    metadata: Mapping[str, JSONSerializable]
+    control: ControlOptions
+    utterances: Sequence[CannedResponse]
+    utterance_fields: Mapping[str, JSONSerializable]
+
+
+class _ToolCall_v0_5_0(TypedDict):
+    tool_id: str
+    arguments: Mapping[str, JSONSerializable]
+    result: _ToolResult_v0_5_0
+
+
+class _ToolEventData_v0_5_0(TypedDict):
+    tool_calls: list[_ToolCall_v0_5_0]
+
+
 class SessionDocumentStore(SessionStore):
-    VERSION = Version.from_string("0.5.0")
+    VERSION = Version.from_string("0.6.0")
 
     def __init__(self, database: DocumentDatabase, allow_migration: bool = False):
         self._database = database
@@ -482,9 +524,10 @@ class SessionDocumentStore(SessionStore):
         self._lock = ReaderWriterLock()
 
     async def _session_document_loader(self, doc: BaseDocument) -> Optional[_SessionDocument]:
-        async def v0_1_0_to_v_0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(_SessionDocument_V_0_4_0, doc)
-            return _SessionDocument_V_0_4_0(
+        async def v0_1_0_to_v0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_SessionDocument_v0_4_0, doc)
+
+            return _SessionDocument_v0_4_0(
                 id=doc["id"],
                 version=Version.String("0.4.0"),
                 creation_utc=doc["creation_utc"],
@@ -495,8 +538,28 @@ class SessionDocumentStore(SessionStore):
                 consumption_offsets=doc["consumption_offsets"],
             )
 
-        async def v0_4_0_to_v_0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(_SessionDocument_V_0_4_0, doc)
+        async def v0_4_0_to_v0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_SessionDocument_v0_4_0, doc)
+
+            return _SessionDocument_v0_5_0(
+                id=doc["id"],
+                version=Version.String("0.5.0"),
+                creation_utc=doc["creation_utc"],
+                customer_id=doc["customer_id"],
+                agent_id=doc["agent_id"],
+                mode=doc["mode"],
+                title=doc["title"],
+                consumption_offsets=doc["consumption_offsets"],
+                agent_state=AgentState(
+                    applied_guideline_ids=[],
+                    journey_paths={},
+                    correlation_id="N/A",
+                ),
+            )
+
+        async def v0_5_0_to_v0_6_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_SessionDocument_v0_5_0, doc)
+
             return _SessionDocument(
                 id=doc["id"],
                 version=Version.String("0.5.0"),
@@ -506,21 +569,22 @@ class SessionDocumentStore(SessionStore):
                 mode=doc["mode"],
                 title=doc["title"],
                 consumption_offsets=doc["consumption_offsets"],
-                agent_state=AgentState(applied_guideline_ids=[]),
+                agent_states=[],
             )
 
         return await DocumentMigrationHelper[_SessionDocument](
             self,
             {
-                "0.1.0": v0_1_0_to_v_0_4_0,
-                "0.2.0": v0_1_0_to_v_0_4_0,
-                "0.3.0": v0_1_0_to_v_0_4_0,
-                "0.4.0": v0_4_0_to_v_0_5_0,
+                "0.1.0": v0_1_0_to_v0_4_0,
+                "0.2.0": v0_1_0_to_v0_4_0,
+                "0.3.0": v0_1_0_to_v0_4_0,
+                "0.4.0": v0_4_0_to_v0_5_0,
+                "0.5.0": v0_5_0_to_v0_6_0,
             },
         ).migrate(doc)
 
     async def _event_document_loader(self, doc: BaseDocument) -> Optional[_EventDocument]:
-        async def v0_1_0_to_v_0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
+        async def v0_1_0_to_v0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_EventDocument, doc)
             return _EventDocument(
                 id=doc["id"],
@@ -535,26 +599,82 @@ class SessionDocumentStore(SessionStore):
                 deleted=doc["deleted"],
             )
 
+        async def v0_5_0_to_v0_6_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_EventDocument, doc)
+
+            if doc["kind"] == "message":
+                doc_data = cast(_MessageEventData_v0_5_0, doc["data"])
+
+                data = cast(
+                    JSONSerializable,
+                    MessageEventData(
+                        message=doc_data["message"],
+                        participant=doc_data["participant"],
+                        flagged=doc_data["flagged"],
+                        tags=doc_data["tags"],
+                        draft=doc_data["draft"],
+                        canned_responses=doc_data["utterances"],
+                    ),
+                )
+
+            elif doc["kind"] == "tool":
+                t_data = cast(_ToolEventData_v0_5_0, doc["data"])
+
+                data = cast(
+                    JSONSerializable,
+                    ToolEventData(
+                        tool_calls=[
+                            ToolCall(
+                                tool_id=tc["tool_id"],
+                                arguments=tc["arguments"],
+                                result=ToolResult(
+                                    data=tc["result"]["data"],
+                                    metadata=tc["result"]["metadata"],
+                                    control=tc["result"]["control"],
+                                    canned_responses=tc["result"]["utterances"],
+                                    canned_response_fields=tc["result"]["utterance_fields"],
+                                ),
+                            )
+                            for tc in t_data["tool_calls"]
+                        ]
+                    ),
+                )
+            else:
+                data = doc["data"]
+
+            return _EventDocument(
+                id=doc["id"],
+                version=Version.String("0.6.0"),
+                creation_utc=doc["creation_utc"],
+                session_id=doc["session_id"],
+                source=doc["source"],
+                kind=doc["kind"],
+                offset=doc["offset"],
+                correlation_id=doc["correlation_id"],
+                data=data,
+                deleted=doc["deleted"],
+            )
+
         return await DocumentMigrationHelper[_EventDocument](
             self,
             {
-                "0.1.0": v0_1_0_to_v_0_5_0,
-                "0.2.0": v0_1_0_to_v_0_5_0,
-                "0.3.0": v0_1_0_to_v_0_5_0,
-                "0.4.0": v0_1_0_to_v_0_5_0,
+                "0.1.0": v0_1_0_to_v0_5_0,
+                "0.2.0": v0_1_0_to_v0_5_0,
+                "0.3.0": v0_1_0_to_v0_5_0,
+                "0.4.0": v0_1_0_to_v0_5_0,
             },
         ).migrate(doc)
 
     async def _inspection_document_loader(self, doc: BaseDocument) -> Optional[_InspectionDocument]:
-        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(_InspectionDocument_v_0_1_0, doc)
-            return _InspectionDocument_V_0_2_0(
+        async def v0_1_0_to_v0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_InspectionDocument_v0_1_0, doc)
+            return _InspectionDocument_v0_2_0(
                 id=doc["id"],
                 version=Version.String("0.2.0"),
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=[
-                    _MessageGenerationInspectionDocument_v_0_2_0(
+                    _MessageGenerationInspectionDocument_v0_2_0(
                         generation=mg["generation"],
                         messages=[
                             m if isinstance(m, str) else m["message"] if m else None
@@ -566,15 +686,15 @@ class SessionDocumentStore(SessionStore):
                 preparation_iterations=doc["preparation_iterations"],
             )
 
-        async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(_InspectionDocument_V_0_2_0, doc)
-            return _InspectionDocument_V_0_3_0(
+        async def v0_2_0_to_v0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_InspectionDocument_v0_2_0, doc)
+            return _InspectionDocument_v0_3_0(
                 id=doc["id"],
                 version=Version.String("0.3.0"),
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=[
-                    _MessageGenerationInspectionDocument_v_0_2_0(
+                    _MessageGenerationInspectionDocument_v0_2_0(
                         generation=mg["generation"],
                         messages=[
                             m if isinstance(m, str) else m["message"] if m else None
@@ -618,8 +738,8 @@ class SessionDocumentStore(SessionStore):
                 ],
             )
 
-        async def v0_3_0_to_v_0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
-            doc = cast(_InspectionDocument_V_0_3_0, doc)
+        async def v0_3_0_to_v0_4_0(doc: BaseDocument) -> Optional[BaseDocument]:
+            doc = cast(_InspectionDocument_v0_3_0, doc)
 
             return _InspectionDocument(
                 id=doc["id"],
@@ -642,7 +762,7 @@ class SessionDocumentStore(SessionStore):
                 preparation_iterations=doc["preparation_iterations"],
             )
 
-        async def v0_4_0_to_v_0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
+        async def v0_4_0_to_v0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_InspectionDocument, doc)
             return _InspectionDocument(
                 id=doc["id"],
@@ -656,10 +776,10 @@ class SessionDocumentStore(SessionStore):
         return await DocumentMigrationHelper[_InspectionDocument](
             self,
             {
-                "0.1.0": v0_1_0_to_v_0_2_0,
-                "0.2.0": v0_2_0_to_v_0_3_0,
-                "0.3.0": v0_3_0_to_v_0_4_0,
-                "0.4.0": v0_4_0_to_v_0_5_0,
+                "0.1.0": v0_1_0_to_v0_2_0,
+                "0.2.0": v0_2_0_to_v0_3_0,
+                "0.3.0": v0_3_0_to_v0_4_0,
+                "0.4.0": v0_4_0_to_v0_5_0,
             },
         ).migrate(doc)
 
@@ -708,7 +828,7 @@ class SessionDocumentStore(SessionStore):
             mode=session.mode,
             title=session.title if session.title else None,
             consumption_offsets=session.consumption_offsets,
-            agent_state=session.agent_state,
+            agent_states=session.agent_states,
         )
 
     def _deserialize_session(
@@ -723,7 +843,7 @@ class SessionDocumentStore(SessionStore):
             mode=session_document["mode"],
             title=session_document["title"],
             consumption_offsets=session_document["consumption_offsets"],
-            agent_state=session_document["agent_state"],
+            agent_states=session_document["agent_states"],
         )
 
     def _serialize_event(
@@ -888,7 +1008,7 @@ class SessionDocumentStore(SessionStore):
                 mode=mode or "auto",
                 consumption_offsets=consumption_offsets,
                 title=title,
-                agent_state=AgentState(applied_guideline_ids=[]),
+                agent_states=[],
             )
 
             await self._session_collection.insert_one(document=self._serialize_session(session))

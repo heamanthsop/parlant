@@ -40,6 +40,12 @@ from parlant.core.tools import (
     DEFAULT_PARAMETER_PRECEDENCE,
 )
 
+
+class ToolCallBatchError(Exception):
+    def __init__(self, message: str = "Tool Call Batch failed") -> None:
+        super().__init__(message)
+
+
 ToolCallId = NewType("ToolCallId", str)
 ToolResultId = NewType("ToolResultId", str)
 
@@ -231,7 +237,7 @@ class ToolCaller:
         tool_id: ToolId,
     ) -> ToolCallResult:
         try:
-            self._logger.debug(
+            self._logger.trace(
                 f"Execution::Invocation: ({tool_call.tool_id.to_string()}/{tool_call.id})"
                 + (f"\n{json.dumps(tool_call.arguments, indent=2)}" if tool_call.arguments else "")
             )
@@ -245,7 +251,7 @@ class ToolCaller:
                     tool_call.arguments,
                 )
 
-                self._logger.debug(
+                self._logger.trace(
                     f"Execution::Result: Tool call succeeded ({tool_call.tool_id.to_string()}/{tool_call.id})\n{json.dumps(asdict(result), indent=2, default=str)}"
                 )
             except Exception as exc:
@@ -261,8 +267,8 @@ class ToolCaller:
                     "data": result.data,
                     "metadata": result.metadata,
                     "control": result.control,
-                    "utterances": result.utterances,
-                    "utterance_fields": result.utterance_fields,
+                    "canned_responses": result.canned_responses,
+                    "canned_response_fields": result.canned_response_fields,
                 },
             )
         except Exception as e:
@@ -280,8 +286,8 @@ class ToolCaller:
                     "data": "Tool call error",
                     "metadata": {"error_details": str(e)},
                     "control": {},
-                    "utterances": [],
-                    "utterance_fields": {},
+                    "canned_responses": [],
+                    "canned_response_fields": {},
                 },
             )
 

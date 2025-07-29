@@ -39,7 +39,8 @@ from parlant.core.evaluations import (
     EvaluationStatus,
     EvaluationStore,
     GuidelinePayload,
-    GuidelinePayloadOperation,
+    InvoiceGuidelineData,
+    PayloadOperation,
     InvoiceData,
     Payload,
     PayloadDescriptor,
@@ -85,6 +86,14 @@ GuidelinePayloadPropertiesPropositionField: TypeAlias = Annotated[
     ),
 ]
 
+GuidelinePayloadJourneyNodePropositionField: TypeAlias = Annotated[
+    bool,
+    Field(
+        description="Journey step proposition",
+        examples=[{"action_proposition": True}],
+    ),
+]
+
 guideline_payload_example: ExampleJson = {
     "content": {
         "condition": "User asks about product pricing",
@@ -108,8 +117,9 @@ class GuidelinePayloadDTO(
     tool_ids: Sequence[ToolIdDTO]
     operation: GuidelinePayloadOperationDTO
     updated_id: Optional[GuidelineIdField] = None
-    action_proposition: GuidelinePayloadActionPropositionField
-    properties_proposition: GuidelinePayloadPropertiesPropositionField
+    action_proposition: GuidelinePayloadActionPropositionField = False
+    properties_proposition: GuidelinePayloadPropertiesPropositionField = False
+    journey_node_proposition: GuidelinePayloadJourneyNodePropositionField = False
 
 
 payload_example: ExampleJson = {
@@ -135,15 +145,9 @@ class PayloadDTO(
     guideline: Optional[GuidelinePayloadDTO] = None
 
 
-action_proposition_example: ExampleJson = {
-    "content": {
-        "condition": "User asks about product pricing",
-        "action": "Provide current price list and any active discounts",
-    },
-}
-
 properties_proposition_example: ExampleJson = {
     "continuous": True,
+    "internal_action": "Provide current price list and any active discounts",
 }
 
 
@@ -222,7 +226,6 @@ invoice_example: ExampleJson = {
 }
 
 guideline_invoice_data_example: ExampleJson = {
-    "action_proposition": action_proposition_example,
     "properties_proposition": properties_proposition_example,
 }
 
@@ -277,6 +280,16 @@ def _payload_from_dto(dto: PayloadDTO) -> Payload:
                 detail="Missing Guideline payload",
             )
 
+        if (
+            not dto.guideline.action_proposition
+            and not dto.guideline.properties_proposition
+            and not dto.guideline.journey_node_proposition
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="At least one of action_proposition, properties_proposition or journey_node_proposition must be enabled",
+            )
+
         return GuidelinePayload(
             content=GuidelineContent(
                 condition=dto.guideline.content.condition,
@@ -292,6 +305,7 @@ def _payload_from_dto(dto: PayloadDTO) -> Payload:
             connection_proposition=False,  # Legacy and will be removed in the future
             action_proposition=dto.guideline.action_proposition,
             properties_proposition=dto.guideline.properties_proposition,
+            journey_node_proposition=dto.guideline.journey_node_proposition,
         )
 
     raise HTTPException(
@@ -301,11 +315,11 @@ def _payload_from_dto(dto: PayloadDTO) -> Payload:
 
 
 def _operation_to_operation_dto(
-    operation: GuidelinePayloadOperation,
+    operation: PayloadOperation,
 ) -> GuidelinePayloadOperationDTO:
     if dto := {
-        GuidelinePayloadOperation.ADD: GuidelinePayloadOperationDTO.ADD,
-        GuidelinePayloadOperation.UPDATE: GuidelinePayloadOperationDTO.UPDATE,
+        PayloadOperation.ADD: GuidelinePayloadOperationDTO.ADD,
+        PayloadOperation.UPDATE: GuidelinePayloadOperationDTO.UPDATE,
     }.get(operation):
         return dto
 
@@ -318,17 +332,24 @@ def _payload_descriptor_to_dto(descriptor: PayloadDescriptor) -> PayloadDTO:
             kind=PayloadKindDTO.GUIDELINE,
             guideline=GuidelinePayloadDTO(
                 content=GuidelineContentDTO(
-                    condition=descriptor.payload.content.condition,
-                    action=descriptor.payload.content.action,
+                    condition=cast(GuidelinePayload, descriptor.payload).content.condition,
+                    action=cast(GuidelinePayload, descriptor.payload).content.action,
                 ),
                 tool_ids=[
                     ToolIdDTO(service_name=t.service_name, tool_name=t.tool_name)
-                    for t in descriptor.payload.tool_ids
+                    for t in cast(GuidelinePayload, descriptor.payload).tool_ids
                 ],
                 operation=_operation_to_operation_dto(descriptor.payload.operation),
-                updated_id=descriptor.payload.updated_id,
-                action_proposition=descriptor.payload.properties_proposition,
-                properties_proposition=descriptor.payload.properties_proposition,
+                updated_id=cast(GuidelinePayload, descriptor.payload).updated_id,
+                action_proposition=cast(
+                    GuidelinePayload, descriptor.payload
+                ).properties_proposition,
+                properties_proposition=cast(
+                    GuidelinePayload, descriptor.payload
+                ).properties_proposition,
+                journey_node_proposition=cast(
+                    GuidelinePayload, descriptor.payload
+                ).journey_node_proposition,
             ),
         )
 
@@ -345,8 +366,9 @@ def _invoice_data_to_dto(
     if kind == PayloadKind.GUIDELINE:
         return InvoiceDataDTO(
             guideline=GuidelineInvoiceDataDTO(
-                action_proposition=invoice_data.action_proposition,
-                properties_proposition=invoice_data.properties_proposition,
+                properties_proposition=cast(
+                    InvoiceGuidelineData, invoice_data
+                ).properties_proposition,
             ),
         )
 
@@ -434,8 +456,10 @@ evaluation_example: ExampleJson = {
             "approved": True,
             "data": {
                 "guideline": {
-                    "action_proposition": "provide current pricing information",
-                    "properties_proposition": {"continuous": True},
+                    "properties_proposition": {
+                        "continuous": True,
+                        "internal_action": "Provide current price list and any active discounts",
+                    },
                 }
             },
             "error": None,

@@ -38,8 +38,34 @@ def get_message(event: ClientEvent) -> str:
 
 @dataclass
 class Context:
+    server: p.Server
     client: Client
     container: p.Container
+
+    async def send_and_receive(self, customer_message: str, recipient: p.Agent) -> str:
+        session = await self.client.sessions.create(
+            agent_id=recipient.id,
+            allow_greeting=False,
+        )
+
+        event = await self.client.sessions.create_event(
+            session_id=session.id,
+            kind="message",
+            source="customer",
+            message=customer_message,
+        )
+
+        agent_messages = await self.client.sessions.list_events(
+            session_id=session.id,
+            min_offset=event.offset,
+            source="ai_agent",
+            kinds="message",
+            wait_for_data=30,
+        )
+
+        assert len(agent_messages) == 1
+
+        return get_message(agent_messages[0])
 
 
 class SDKTest:
@@ -53,7 +79,7 @@ class SDKTest:
 
         try:
             await self._wait_for_startup(client)
-            await self.run(Context(client, self.get_container()))
+            await self.run(Context(self.server, client, self.get_container()))
         finally:
             server_task.cancel()
 
@@ -64,11 +90,11 @@ class SDKTest:
 
     async def _create_server_task(self, port: int) -> asyncio.Task[None]:
         async def server_task() -> None:
-            server, self.get_container = await self.create_server(port)
+            self.server, self.get_container = await self.create_server(port)
 
-            async with server:
+            async with self.server:
                 try:
-                    await self.setup(server)
+                    await self.setup(self.server)
                 except BaseException:
                     raise
 
@@ -100,7 +126,7 @@ class SDKTest:
         return p.Server(
             port=port,
             tool_service_port=get_random_port(),
-            log_level=p.LogLevel.DEBUG,
+            log_level=p.LogLevel.TRACE,
             configure_container=configure_container,
         ), lambda: test_container
 

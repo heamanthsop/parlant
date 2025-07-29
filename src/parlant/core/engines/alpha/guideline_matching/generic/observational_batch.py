@@ -17,21 +17,22 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
+import traceback
 from typing_extensions import override
 
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
+    GuidelineMatchingBatchError,
     GuidelineMatchingStrategy,
-    GuidelineMatchingStrategyContext,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -69,12 +70,14 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[GenericObservationalGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
         self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._journeys = journeys
@@ -84,41 +87,71 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
     async def process(self) -> GuidelineMatchingBatchResult:
         prompt = self._build_prompt(shots=await self.shots())
 
-        with self._logger.operation(f"GuidelineMatchingBatch: {len(self._guidelines)} guidelines"):
-            inference = await self._schematic_generator.generate(
-                prompt=prompt,
-                hints={"temperature": 0.15},
+        with self._logger.operation("GenericObservationalGuidelineMatchingBatch"):
+            generation_attempt_temperatures = (
+                self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
+                    hints={"type": self.__class__.__name__}
+                )
             )
 
-        if not inference.content.checks:
-            self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
-        else:
-            self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
+            last_generation_exception: Exception | None = None
 
-        matches = []
-
-        for match in inference.content.checks:
-            if match.applies:
-                self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
-
-                matches.append(
-                    GuidelineMatch(
-                        guideline=self._guidelines[match.guideline_id],
-                        score=10 if match.applies else 1,
-                        rationale=f'''Condition Application Rationale: "{match.rationale}"''',
-                        guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
+            for generation_attempt in range(3):
+                try:
+                    inference = await self._schematic_generator.generate(
+                        prompt=prompt,
+                        hints={"temperature": generation_attempt_temperatures[generation_attempt]},
                     )
-                )
-            else:
-                self._logger.debug(f"Completion::Skipped:\n{match.model_dump_json(indent=2)}")
 
-        return GuidelineMatchingBatchResult(
-            matches=matches,
-            generation_info=inference.info,
-        )
+                    if not inference.content.checks:
+                        self._logger.warning(
+                            "Completion:\nNo checks generated! This shouldn't happen."
+                        )
+                    else:
+                        self._logger.trace(
+                            f"Completion:\n{inference.content.model_dump_json(indent=2)}"
+                        )
+
+                    matches = []
+
+                    for match in inference.content.checks:
+                        if self._match_applies(match):
+                            self._logger.debug(
+                                f"Completion::Activated:\n{match.model_dump_json(indent=2)}"
+                            )
+
+                            matches.append(
+                                GuidelineMatch(
+                                    guideline=self._guidelines[match.guideline_id],
+                                    score=10 if match.applies else 1,
+                                    rationale=f'''Condition Application Rationale: "{match.rationale}"''',
+                                )
+                            )
+                        else:
+                            self._logger.debug(
+                                f"Completion::Skipped:\n{match.model_dump_json(indent=2)}"
+                            )
+
+                    return GuidelineMatchingBatchResult(
+                        matches=matches,
+                        generation_info=inference.info,
+                    )
+
+                except Exception as exc:
+                    self._logger.warning(
+                        f"GenericObservationalGuidelineMatchingBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                    )
+
+                    last_generation_exception = exc
+
+            raise GuidelineMatchingBatchError() from last_generation_exception
 
     async def shots(self) -> Sequence[GenericObservationalGuidelineMatchingShot]:
         return await shot_collection.list()
+
+    def _match_applies(self, match: GenericObservationalGuidelineMatchSchema) -> bool:
+        """This is a separate function to allow overriding in tests and other applications."""
+        return match.applies
 
     def _format_shots(self, shots: Sequence[GenericObservationalGuidelineMatchingShot]) -> str:
         return "\n".join(
@@ -180,7 +213,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
             {
                 "guideline_id": i,
                 "condition": guideline_representations[g.id].condition,
-                "rationale": "<Explanation for why the condition is or isn't met>",
+                "rationale": "<Explanation for why the condition is or isn't met based on recent interaction>",
                 "applies": "<BOOL>",
             }
             for i, g in self._guidelines.items()
@@ -190,7 +223,7 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
             for i, g in self._guidelines.items()
         )
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="guideline-matcher-general-instructions",
@@ -199,7 +232,7 @@ GENERAL INSTRUCTIONS
 -----------------
 In our system, the behavior of a conversational AI agent is guided by how the current state of its interaction with a customer (also referred to as "the user") compares to a number of pre-defined conditions:
 
-- "condition": This is a natural-language condition that specifies when a guideline should apply. 
+- "condition": This is a natural-language condition that specifies when a guideline should apply.
           We evaluate each conversation at its current state against these conditions
           to determine which guidelines should inform the agent's next reply.
 
@@ -209,15 +242,21 @@ Task Description
 ----------------
 Your task is to evaluate whether each provided condition applies to the current interaction between an AI agent and a user. For each condition, you must determine a binary True/False decision.
 
-Application Rules:
-1. Historical Relevance: Generally, mark a condition as applicable (YES) if it has been satisfied at ANY point during the conversation history, even if not in the most recent messages.
+Evaluation Criteria:
+Evaluate each condition based on its natural meaning and context:
 
-2. Temporal Qualifiers: If a condition contains explicit temporal qualifiers (e.g., "currently discussing," "in the process of," "actively seeking"), evaluate only against the CURRENT state of the conversation.
+- Current Activity Or State: Conditions about what's happening "now" in the conversation (e.g., "the conversation is about X", "the user asks about Y") apply based on the most recent messages and current topic of discussion.
+- Historical Events: Conditions about things that happened during the interaction (e.g., "the user mentioned X", "the customer asked about Y") apply if the event occurred at any point in the conversation.
+- Persistent Facts: Conditions about user characteristics or established facts (e.g., "the user is a senior citizen", "the customer has allergies") apply once established, regardless of current discussion topic.
 
-Example:
-- Condition: "the customer is planning a special occasion dinner"
-- Mark as YES if: The user mentions celebrating an anniversary, birthday, graduation, or other special event; asks for restaurant recommendations for a "special night"; discusses making reservations for a celebration; or inquires about upscale dining options for an important date.
-- Mark as NO if: The user is discussing everyday meal planning, looking for quick casual dining options, or has given no indication of planning any special event-related dining.
+When evaluating current activity or state you should:
+- Consider sub issues: Recognize that conversations often evolve naturally within related domains or explore connected subtopics—in these cases, broader thematic conditions may remain applicable.
+- Consider topic shifts: When a user previously discussed something that triggered a condition but the conversation has since moved to a different topic or context with no ongoing connection, mark the condition as not applicable.
+
+Key Considerations:
+- Use natural language intuition to interpret what each condition is actually asking about.
+- Ambiguous phrasing: When a condition's temporal scope is unclear, treat it as a historical event that remains True as long as it was relevant at some point in the interaction.
+
 
 The exact format of your response will be provided later in this prompt.
 
@@ -241,7 +280,6 @@ Examples of Condition Evaluations:
         builder.add_glossary(self._context.terms)
         builder.add_capabilities_for_guideline_matching(self._context.capabilities)
         builder.add_interaction_history(self._context.interaction_history)
-        builder.add_journeys(self._journeys)
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
@@ -283,10 +321,12 @@ class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         entity_queries: EntityQueries,
         schematic_generator: SchematicGenerator[GenericObservationalGuidelineMatchesSchema],
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._entity_queries = entity_queries
         self._schematic_generator = schematic_generator
 
@@ -294,7 +334,7 @@ class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
     async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
-        context: GuidelineMatchingStrategyContext,
+        context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
         journeys = (
             self._entity_queries.find_journeys_on_which_this_guideline_depends.get(
@@ -319,7 +359,7 @@ class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
                 self._create_batch(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingBatchContext(
+                    context=GuidelineMatchingContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -328,7 +368,8 @@ class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
                         terms=context.terms,
                         capabilities=context.capabilities,
                         staged_events=context.staged_events,
-                        relevant_journeys=journeys,
+                        active_journeys=journeys,
+                        journey_paths=context.journey_paths,
                     ),
                 )
             )
@@ -351,10 +392,11 @@ class ObservationalGuidelineMatching(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> GenericObservationalGuidelineMatchingBatch:
         return GenericObservationalGuidelineMatchingBatch(
             logger=self._logger,
+            optimization_policy=self._optimization_policy,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
             journeys=journeys,
@@ -412,15 +454,15 @@ example_1_events = [
 
 example_1_guidelines = [
     GuidelineContent(
-        condition="the customer is a senior citizen.",
+        condition="The customer is a senior citizen.",
         action=None,
     ),
     GuidelineContent(
-        condition="the customer asks about data security",
+        condition="The customer asks about data security",
         action=None,
     ),
     GuidelineContent(
-        condition="our pro plan was discussed or mentioned",
+        condition="Our pro plan is discussed or mentioned",
         action=None,
     ),
 ]
@@ -430,20 +472,20 @@ example_1_expected = GenericObservationalGuidelineMatchesSchema(
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer is a senior citizen",
-            rationale="there is no indication regarding the customer's age.",
+            rationale="There is no indication regarding the customer's age.",
             applies=False,
         ),
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
             condition="the customer asks about data security",
-            rationale="The customer specifically inquired about data security policies.",
+            rationale="The customer asks who can see the account, which is related to data security.",
             applies=True,
         ),
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="our pro plan was discussed or mentioned",
-            rationale="The customer asked to subscribe to the pro plan",
-            applies=True,
+            condition="our pro plan is discussed or mentioned",
+            rationale="Pro plan subscription was discussed and the conversation moved to data security, so it is no longer applicable.",
+            applies=False,
         ),
     ]
 )
@@ -494,15 +536,19 @@ example_2_events = [
 
 example_2_guidelines = [
     GuidelineContent(
-        condition="food allergies are discussed",
+        condition="Food allergies are discussed",
         action=None,
     ),
     GuidelineContent(
-        condition="the customer is allergic to almonds",
+        condition="The customer is allergic to almonds",
         action=None,
     ),
     GuidelineContent(
-        condition="the conversation is currently about peanut allergies",
+        condition="The customer discusses peanut allergies",
+        action=None,
+    ),
+    GuidelineContent(
+        condition="The conversation is about recipe recommendations",
         action=None,
     ),
 ]
@@ -511,25 +557,137 @@ example_2_expected = GenericObservationalGuidelineMatchesSchema(
     checks=[
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="food allergies are discussed",
-            rationale="nut allergies were discussed earlier in the interaction",
+            condition="The customer discussed about food allergies",
+            rationale="Nut allergies were discussed earlier at the conversation",
             applies=True,
         ),
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="the customer is allergic to almonds",
+            condition="The customer is allergic to almonds",
             rationale="While the customer has some nut allergies, we do not know if they are for almonds specifically",
             applies=False,
         ),
         GenericObservationalGuidelineMatchSchema(
             guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
-            condition="the conversation is currently about peanut allergies",
-            rationale="peanut allergies were discussed, but the conversation has moved on from the subject",
+            condition="The customer discusses peanut allergies",
+            rationale="Peanut allergies were discussed, but the conversation has moved on from the subject so the it no longer applies.",
             applies=False,
+        ),
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="The customer asks about recipe recommendation",
+            rationale="The conversation is about preferred foods, which is within the topic of recipe recommendations.",
+            applies=True,
         ),
     ]
 )
 
+example_3_events = [
+    _make_event("11", EventSource.CUSTOMER, "Hi, I'd like to place an order for delivery"),
+    _make_event(
+        "23",
+        EventSource.AI_AGENT,
+        "Great! I'd be happy to help you with your order. What would you like to order today?",
+    ),
+    _make_event(
+        "34",
+        EventSource.CUSTOMER,
+        "I'm looking at your pizza menu. Do you have any vegetarian options?",
+    ),
+    _make_event(
+        "56",
+        EventSource.AI_AGENT,
+        "Absolutely! We have several vegetarian pizzas including Margherita, Veggie Supreme, and Mediterranean. We also have vegan cheese available.",
+    ),
+    _make_event(
+        "88",
+        EventSource.CUSTOMER,
+        "Perfect! I'll take a large Veggie Supreme pizza.",
+    ),
+    _make_event(
+        "90",
+        EventSource.CUSTOMER,
+        "Actually, I'm ordering for a party of 6. Do you have any combo deals or discounts for large orders?",
+    ),
+    _make_event(
+        "91",
+        EventSource.AI_AGENT,
+        "We do! For orders over $50, we offer 15% off. And we have a family deal - 3 large pizzas for $45. Would you like to add more pizzas?",
+    ),
+    _make_event(
+        "92",
+        EventSource.CUSTOMER,
+        "That family deal sounds great! Can I get two more large pizzas - one pepperoni and one Hawaiian?",
+    ),
+    _make_event(
+        "93",
+        EventSource.AI_AGENT,
+        "Perfect! So you'll have three large pizzas total with our family deal. Now, what's your delivery address?",
+    ),
+    _make_event(
+        "94",
+        EventSource.CUSTOMER,
+        "123 Oak Street, apartment 4B. How long will delivery take?",
+    ),
+]
+
+example_3_guidelines = [
+    GuidelineContent(
+        condition="the customer requested vegetarian options",
+        action=None,
+    ),
+    GuidelineContent(
+        condition="the conversation is about dietary restrictions",
+        action=None,
+    ),
+    GuidelineContent(
+        condition="the customer is ordering for multiple people",
+        action=None,
+    ),
+    GuidelineContent(
+        condition="discounts are being discussed",
+        action=None,
+    ),
+    GuidelineContent(
+        condition="Delivery details are discussed",
+        action=None,
+    ),
+]
+
+example_3_expected = GenericObservationalGuidelineMatchesSchema(
+    checks=[
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the customer requests vegetarian options",
+            rationale="The customer asked about vegetarian options earlier in the conversation but now the conversation moved to delivery details.",
+            applies=False,
+        ),
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the conversation is about dietary restrictions",
+            rationale="The conversation has moved from dietary restrictions to delivery details, so it's currently not about dietary restrictions.",
+            applies=False,
+        ),
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="the customer is ordering for multiple people",
+            rationale="The customer mentioned they are ordering for a party of 6 people.",
+            applies=True,
+        ),
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="discounts are being discussed",
+            rationale="Discounts and combo deals were mentioned, but the conversation has moved to delivery logistics.",
+            applies=False,
+        ),
+        GenericObservationalGuidelineMatchSchema(
+            guideline_id=GuidelineId("<example-id-for-few-shots--do-not-use-this-in-output>"),
+            condition="Delivery details are discussed",
+            rationale="The most recent messages are about delivery address and timing, which are delivery details.",
+            applies=True,
+        ),
+    ]
+)
 
 _baseline_shots: Sequence[GenericObservationalGuidelineMatchingShot] = [
     GenericObservationalGuidelineMatchingShot(
@@ -543,6 +701,12 @@ _baseline_shots: Sequence[GenericObservationalGuidelineMatchingShot] = [
         interaction_events=example_2_events,
         guidelines=example_2_guidelines,
         expected_result=example_2_expected,
+    ),
+    GenericObservationalGuidelineMatchingShot(
+        description="",
+        interaction_events=example_3_events,
+        guidelines=example_3_guidelines,
+        expected_result=example_3_expected,
     ),
 ]
 

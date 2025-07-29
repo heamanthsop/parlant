@@ -24,12 +24,13 @@ from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_batch import (
     GenericPreviouslyAppliedActionableGuidelineMatchesSchema,
     GenericPreviouslyAppliedActionableGuidelineMatchingBatch,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
@@ -168,7 +169,7 @@ async def base_test_that_correct_guidelines_are_matched(
 
     session = await context.container[SessionStore].read_session(session_id)
 
-    guideline_matching_context = GuidelineMatchingBatchContext(
+    guideline_matching_context = GuidelineMatchingContext(
         agent=agent,
         session=session,
         customer=customer,
@@ -177,11 +178,13 @@ async def base_test_that_correct_guidelines_are_matched(
         terms=[],
         capabilities=capabilities,
         staged_events=staged_events,
-        relevant_journeys=relevant_journeys,
+        active_journeys=relevant_journeys,
+        journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
     )
 
     guideline_previously_applied_matcher = GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
         logger=context.container[Logger],
+        optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.schematic_generator,
         guidelines=context.guidelines,
         journeys=[],
@@ -509,7 +512,7 @@ async def test_that_previously_applied_guidelines_are_matched_based_on_capabilit
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]
@@ -551,7 +554,7 @@ async def test_that_previously_applied_guidelines_are_not_matched_based_on_irrel
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]

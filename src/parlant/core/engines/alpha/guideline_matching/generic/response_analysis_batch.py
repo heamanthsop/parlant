@@ -15,6 +15,7 @@
 from dataclasses import dataclass
 import json
 from itertools import chain
+import traceback
 from typing import Optional, Sequence
 from typing_extensions import override
 from more_itertools import chunked
@@ -34,9 +35,11 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import (
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     ResponseAnalysisBatch,
+    ResponseAnalysisBatchError,
     ResponseAnalysisBatchResult,
     ReportAnalysisContext,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -77,11 +80,13 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
         context: ReportAnalysisContext,
         guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
         self._batch_size = 5
 
@@ -97,7 +102,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
         guideline_batches = list(chunked(all_guidelines, self._batch_size))
 
         with self._logger.operation(
-            f"ResponseAnalysisBatch: {len(all_guidelines)} guidelines "
+            f"Analyzing response given {len(all_guidelines)} guidelines "
             f"in {len(guideline_batches)} batches (batch size={self._batch_size})"
         ):
             batch_tasks = [
@@ -150,36 +155,61 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
             guidelines=guidelines,
         )
 
-        with self._logger.operation(f"GenericGuidelineMatchingBatch: {len(guidelines)} guidelines"):
-            inference = await self._schematic_generator.generate(
-                prompt=prompt,
-                hints={"temperature": 0.15},
+        with self._logger.operation(
+            f"Running response analysis batch of {len(guidelines)} guidelines"
+        ):
+            generation_attempt_temperatures = (
+                self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
+                    hints={"type": self.__class__.__name__}
+                )
             )
 
-        analyzed_guidelines: list[AnalyzedGuideline] = []
+            last_generation_exception: Exception | None = None
 
-        for check in inference.content.checks:
-            if check.guideline_applied:
-                self._logger.debug(f"Completion::Activated:\n{check.model_dump_json(indent=2)}")
-                analyzed_guidelines.append(
-                    AnalyzedGuideline(
-                        guideline=guidelines[check.guideline_id],
-                        is_previously_applied=True,
+            for generation_attempt in range(3):
+                try:
+                    inference = await self._schematic_generator.generate(
+                        prompt=prompt,
+                        hints={"temperature": generation_attempt_temperatures[generation_attempt]},
                     )
-                )
-            else:
-                self._logger.debug(f"Completion::Skipped:\n{check.model_dump_json(indent=2)}")
-                analyzed_guidelines.append(
-                    AnalyzedGuideline(
-                        guideline=guidelines[GuidelineId(check.guideline_id)],
-                        is_previously_applied=False,
-                    )
-                )
 
-        return ResponseAnalysisBatchResult(
-            analyzed_guidelines=analyzed_guidelines,
-            generation_info=inference.info,
-        )
+                    analyzed_guidelines: list[AnalyzedGuideline] = []
+
+                    for check in inference.content.checks:
+                        if check.guideline_applied:
+                            self._logger.debug(
+                                f"Completion::Applied:\n{check.model_dump_json(indent=2)}"
+                            )
+                            analyzed_guidelines.append(
+                                AnalyzedGuideline(
+                                    guideline=guidelines[check.guideline_id],
+                                    is_previously_applied=True,
+                                )
+                            )
+                        else:
+                            self._logger.debug(
+                                f"Completion::NotApplied:\n{check.model_dump_json(indent=2)}"
+                            )
+                            analyzed_guidelines.append(
+                                AnalyzedGuideline(
+                                    guideline=guidelines[GuidelineId(check.guideline_id)],
+                                    is_previously_applied=False,
+                                )
+                            )
+
+                    return ResponseAnalysisBatchResult(
+                        analyzed_guidelines=analyzed_guidelines,
+                        generation_info=inference.info,
+                    )
+
+                except Exception as exc:
+                    self._logger.warning(
+                        f"Response analysis attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                    )
+
+                    last_generation_exception = exc
+
+            raise ResponseAnalysisBatchError() from last_generation_exception
 
     async def shots(self) -> Sequence[GenericResponseAnalysisShot]:
         return await shot_collection.list()
@@ -264,7 +294,7 @@ Guidelines:
     ) -> PromptBuilder:
         guideline_representations = {g.id: internal_representation(g) for g in guidelines.values()}
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="guideline-previously-applied-general-instructions",
@@ -288,14 +318,14 @@ Your task is to evaluate whether the action specified by each guideline has now 
 satisfies its action so the action can now be considered as applied.
 
 1. Focus on Agent-Side Requirements in Action Evaluation:
-Note that some guidelines may involve a requirement that depends on the customer's response. For example, an action like "get the customer's card number" requires the agent to ask for this information, and the customer to provide it for full 
-completion. In such cases, you should evaluate only the agent’s part of the action. Since evaluation occurs after the agent’s message, the action is considered applied if the agent has done its part (e.g., asked for the information), 
+Note that some guidelines may involve a requirement that depends on the customer's response. For example, an action like "get the customer's card number" requires the agent to ask for this information, and the customer to provide it for full
+completion. In such cases, you should evaluate only the agent’s part of the action. Since evaluation occurs after the agent’s message, the action is considered applied if the agent has done its part (e.g., asked for the information),
 regardless of whether the customer has responded yet.
 
 2. Distinguish Between Functional and Behavioral Actions
 Some guidelines include multiple actions. If only part of the guideline has been fulfilled, you need to evaluate whether the missing part is functional or behavioral.
 
-- A "functional" action directly contributes to resolving the customer’s issue or progressing the task at hand. These actions are core to the outcome of the interaction. If omitted, they may leave the issue unresolved, cause confusion, 
+- A "functional" action directly contributes to resolving the customer’s issue or progressing the task at hand. These actions are core to the outcome of the interaction. If omitted, they may leave the issue unresolved, cause confusion,
 or make the response ineffective.
 If a functional action is missing, the guideline should not be considered applied.
 
@@ -317,7 +347,7 @@ If the answer is no, it's likely behavioral and the guideline can be considered 
 If the answer is yes, it's likely functional and the guideline is still unfulfilled.
 
 3. Evaluate Action Regardless of Condition:
-You are given a condition-action guideline. Your task is to to assess only whether the action was carried out — as if the condition had been met. In some cases, the action may have been carried out for a different reason — triggered by another 
+You are given a condition-action guideline. Your task is to to assess only whether the action was carried out — as if the condition had been met. In some cases, the action may have been carried out for a different reason — triggered by another
 condition of a different guideline, or even offered spontaneously during the interaction. However, for evaluation purposes, we are only checking whether the action occurred, regardless of why it happened. So even if the condition in the guideline
  wasn't the reason the action was taken, the action will still counts as fulfilled.
 

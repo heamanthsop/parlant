@@ -18,10 +18,11 @@ from parlant.core.guidelines import GuidelineStore
 from parlant.core.services.tools.plugins import tool
 from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolResult
-from parlant.core.utterances import UtteranceStore
+from parlant.core.canned_responses import CannedResponseStore
 import parlant.sdk as p
 
 from tests.sdk.utils import Context, SDKTest
+from tests.test_utilities import nlp_test
 
 
 class Test_that_an_agent_can_be_created(SDKTest):
@@ -29,7 +30,7 @@ class Test_that_an_agent_can_be_created(SDKTest):
         await server.create_agent(
             name="Test Agent",
             description="This is a test agent",
-            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
+            composition_mode=p.CompositionMode.COMPOSITED,
         )
 
     async def run(self, ctx: Context) -> None:
@@ -42,13 +43,12 @@ class Test_that_a_capability_can_be_created(SDKTest):
         self.agent = await server.create_agent(
             name="Test Agent",
             description="This is a test agent",
-            composition_mode=p.CompositionMode.COMPOSITED_UTTERANCE,
         )
 
         self.capability = await self.agent.create_capability(
             title="Test Capability",
             description="Some Description",
-            queries=["First Query", "Second Query"],
+            signals=["First Query", "Second Query"],
         )
 
     async def run(self, ctx: Context) -> None:
@@ -60,7 +60,7 @@ class Test_that_a_capability_can_be_created(SDKTest):
         assert capability.id == self.capability.id
         assert capability.title == self.capability.title
         assert capability.description == self.capability.description
-        assert capability.queries == self.capability.queries
+        assert capability.signals == self.capability.signals
 
 
 class Test_that_an_agent_can_be_read_by_id(SDKTest):
@@ -68,7 +68,6 @@ class Test_that_an_agent_can_be_read_by_id(SDKTest):
         self.agent = await server.create_agent(
             name="ReadById Agent",
             description="Agent to be read by ID",
-            composition_mode=p.CompositionMode.FLUID,
         )
 
     async def run(self, ctx: Context) -> None:
@@ -82,7 +81,6 @@ class Test_that_an_agent_can_create_guideline(SDKTest):
         self.agent = await server.create_agent(
             name="Guideline Agent",
             description="Agent for guideline test",
-            composition_mode=p.CompositionMode.FLUID,
         )
         self.guideline = await self.agent.create_guideline(
             condition="Always say hello", action="Say hello to the user"
@@ -103,7 +101,6 @@ class Test_that_an_agent_can_attach_tool(SDKTest):
         self.agent = await server.create_agent(
             name="Tool Agent",
             description="Agent for tool test",
-            composition_mode=p.CompositionMode.FLUID,
         )
 
         @tool
@@ -130,21 +127,78 @@ class Test_that_an_agent_can_attach_tool(SDKTest):
         assert association.guideline_id == guideline.id
 
 
-class Test_that_an_agent_can_create_utterance(SDKTest):
+class Test_that_an_agent_can_create_canned_response(SDKTest):
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(
-            name="Utterance Agent",
-            description="Agent for utterance test",
-            composition_mode=p.CompositionMode.FLUID,
+            name="Canned Response Agent",
+            description="Agent for canned response test",
         )
-        self.utterance_id = await self.agent.create_utterance(
+        self.canrep_id = await self.agent.create_canned_response(
             template="Hello, {user}!", tags=[Tag.for_agent_id(self.agent.id)]
         )
 
     async def run(self, ctx: Context) -> None:
-        utterance_store = ctx.container[UtteranceStore]
+        canrep_store = ctx.container[CannedResponseStore]
 
-        utterance = await utterance_store.read_utterance(utterance_id=self.utterance_id)
+        canrep = await canrep_store.read_canned_response(canned_response_id=self.canrep_id)
 
-        assert utterance.value == "Hello, {user}!"
-        assert Tag.for_agent_id(self.agent.id) in utterance.tags
+        assert canrep.value == "Hello, {user}!"
+        assert Tag.for_agent_id(self.agent.id) in canrep.tags
+
+
+class Test_that_agents_can_be_listed(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.a1 = await server.create_agent(
+            name="List Agent 1",
+            description="First agent for listing",
+        )
+
+        self.a2 = await server.create_agent(
+            name="List Agent 2",
+            description="Second agent for listing",
+        )
+
+    async def run(self, ctx: Context) -> None:
+        agents = await ctx.server.list_agents()
+
+        assert self.a1 in agents
+        assert self.a2 in agents
+
+
+class Test_that_an_agent_can_be_found_by_id(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.a1 = await server.create_agent(
+            name="List Agent 1",
+            description="First agent for listing",
+        )
+
+    async def run(self, ctx: Context) -> None:
+        assert await ctx.server.find_agent(id=self.a1.id) == self.a1
+        assert await ctx.server.find_agent(id="nonexistent") is None
+
+
+class Test_that_an_agent_can_be_found_using_tool_context(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Tool Context Agent",
+            description="Agent for tool context test",
+        )
+
+        @p.tool
+        async def check_what_is_spatio(context: ToolContext) -> ToolResult:
+            agent = await p.ToolContextAccessor(context).server.find_agent(id=context.agent_id)
+
+            if agent is None:
+                return ToolResult("A spatio is a special type of spaghetti spoon.")
+            else:
+                return ToolResult("Spatio is the name of a famous fictional mouse.")
+
+        await self.agent.attach_tool(check_what_is_spatio, condition="the user asks about spatio")
+
+    async def run(self, ctx: Context) -> None:
+        answer = await ctx.send_and_receive(
+            customer_message="What is spatio?",
+            recipient=self.agent,
+        )
+
+        assert await nlp_test(answer, "It says that spatio is the name of a mouse.")

@@ -19,7 +19,7 @@ import json
 from typing import Optional
 
 
-from parlant.core.utterances import Utterance
+from parlant.core.canned_responses import CannedResponse
 from parlant.core.tools import ToolResult
 
 
@@ -88,14 +88,14 @@ def add(first_number: int, second_number: int) -> ToolResult:
 def multiply(first_number: int, second_number: int) -> ToolResult:
     return ToolResult(
         first_number * second_number,
-        utterances=[
-            Utterance(
-                id=Utterance.TRANSIENT_ID,
+        canned_responses=[
+            CannedResponse(
+                id=CannedResponse.TRANSIENT_ID,
                 creation_utc=datetime.now(),
                 value="asd",
                 fields=[],
                 tags=[],
-                queries=[],
+                signals=[],
             )
         ],
     )
@@ -280,7 +280,7 @@ def get_bookings(customer_id: str) -> ToolResult:
 def get_qualification_info() -> ToolResult:
     return ToolResult(
         data={"qualification_info": "5+ years of experience"},
-        utterance_fields={"qualification_info": "5+ years of experience"},
+        canned_response_fields={"qualification_info": "5+ years of experience"},
     )
 
 
@@ -502,3 +502,55 @@ def check_current_time() -> ToolResult:
 
 def check_current_time_emit() -> ToolResult:
     return ToolResult(data="Current time is 9:59", control={"lifespan": "session"})
+
+
+def availability_check() -> ToolResult:
+    return ToolResult(data={"Luxury": False})
+
+
+def check_customer_location() -> ToolResult:
+    return ToolResult(data="Spain!!")
+
+
+def check_eligibility(account_id: int, amount: int) -> ToolResult:
+    return ToolResult(
+        data=f"Account {account_id} is eligible for a loan of {amount} over 24 months at a rate of 6.5% interest per month."
+    )
+
+
+async def change_credit_limit(
+    username: str,
+    new_limit: float,
+    current_limit: float,
+) -> ToolResult:
+    diff = abs(new_limit - current_limit)
+
+    if diff <= 10_000:
+        return ToolResult(
+            {
+                "result": f"Credit limit for {username} has been successfully changed from ${current_limit:,.2f} to ${new_limit:,.2f}."
+            }
+        )
+    else:
+        return ToolResult(
+            {
+                "result": f"Requested change from ${current_limit:,.2f} to ${new_limit:,.2f} exceeds $10,000. Supervisor approval is required."
+            }
+        )
+
+
+async def get_credit_limit(username: str) -> ToolResult:
+    def _mock_lookup_credit_limit(username: str) -> Optional[float]:
+        mock_database = {
+            "alice": 15000.0,
+            "bob": 10000.0,
+            "charlie": 20000.0,
+        }
+        return mock_database.get(username.lower(), 12000.0)  # default limit
+
+    current_limit = _mock_lookup_credit_limit(username)
+    return ToolResult(
+        {
+            "result": f"Current credit limit for {username} is ${current_limit:,.2f}.",
+        }
+    )

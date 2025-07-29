@@ -27,7 +27,6 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
     GuidelineInternalRepresentation,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
-from parlant.core.journeys import Journey
 from parlant.core.sessions import Event, EventKind, EventSource, MessageEventData, ToolEventData
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.utils import (
@@ -351,7 +350,7 @@ Supported Capability {i}: {capability.title}
 Below are the capabilities available to you as an agent.
 You may inform the customer that you can assist them using these capabilities.
 If you choose to use any of them, additional details will be provided in your next response.
-Always prefer adhering to guidelines and relevant journey steps, before offering capabilities - only offer capabilities if you have no other instruction that's relevant for the current stage of the interaction.
+Always prefer adhering to guidelines, before offering capabilities - only offer capabilities if you have no other instruction that's relevant for the current stage of the interaction.
 Be proactive and offer the most relevant capabilities—but only if they are likely to move the conversation forward.
 If multiple capabilities are appropriate, aim to present them all to the customer.
 If none of the capabilities address the current request of the customer - DO NOT MENTION THEM."""
@@ -372,7 +371,7 @@ If none of the capabilities address the current request of the customer - DO NOT
             self.add_section(
                 name=BuiltInSection.CAPABILITIES,
                 template="""
-When evaluating guidelines, you may sometimes be given capabilities to assist the customer beyond those dictated through guidelines and journeys. 
+When evaluating guidelines, you may sometimes be given capabilities to assist the customer beyond those dictated through guidelines.
 However, in this case, no capabilities relevant to the current state of the conversation were found, besides the ones potentially listed in other sections of this prompt.
 
 
@@ -393,7 +392,7 @@ However, in this case, no capabilities relevant to the current state of the conv
             self.add_section(
                 name=BuiltInSection.CAPABILITIES,
                 template="""
-The following are the capabilities that you hold as an agent. 
+The following are the capabilities that you hold as an agent.
 They may or may not effect your decision regarding the specified guidelines.
 ###
 {capabilities_string}
@@ -424,45 +423,6 @@ The following are observations that were deemed relevant to the interaction with
 
         return self
 
-    def add_journeys(
-        self,
-        journeys: Sequence[Journey],
-    ) -> PromptBuilder:
-        if journeys:
-            journeys_string = "\n\n".join(
-                [
-                    f"""
-Supported Journey {i}: {journey.title}
-----------------------------
-{journey.description}
-"""
-                    for i, journey in enumerate(journeys, start=1)
-                ]
-            )
-
-            self.add_section(
-                name=BuiltInSection.JOURNEYS,
-                template="""
-The following are 'journeys' - predefined processes from the business you represent that guide user interactions. Journeys may include step-by-step workflows, general instructions, or relevant knowledge to help you assist users effectively.
-
-If a conversation is already in progress along a journey path, continue with the next appropriate step. For journeys with multiple steps:
-1. Identify which steps have already been completed
-2. Perform only the next logical step (either by the journey's steps or by your deduction) in the sequence
-3. Reserve subsequent steps for later in the conversation
-4. If the customer changes their decision regarding earlier journey steps, return to the step where the change occurred, and continue from there.
-
-Follow each journey exactly as specified. If a journey indicates multiple actions should be taken in a single step, follow those instructions. Otherwise, take only one step at a time to avoid overwhelming the user.
-
-Example: In a product return journey with steps to 1) verify purchase details, 2) assess return eligibility, 3) provide return instructions, and 4) process refund, if you've just confirmed the item is eligible for return (step 2 complete), your next response should only provide shipping instructions (step 3), leaving the refund processing (step 4) for after the user has shipped the item.
-###
-{journeys_string}
-###
-""",  # noqa
-                props={"journeys_string": journeys_string},
-                status=SectionStatus.ACTIVE,
-            )
-        return self
-
     def add_guidelines_for_message_generation(
         self,
         ordinary: Sequence[GuidelineMatch],
@@ -489,11 +449,26 @@ you don't need to specifically double-check if you followed or broke any guideli
 
         guidelines = []
         agent_intention_guidelines = []
+        customer_dependent_guideline_indices = []
 
         for i, p in enumerate(all_matches, start=1):
             if guideline_representations[p.guideline.id].action:
-                guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
-                guideline += f"\n   Rationale: {p.rationale}"
+                if cast(
+                    dict[str, bool],
+                    p.guideline.metadata.get("customer_dependent_action_data", dict()),
+                ).get("is_customer_dependent", False):
+                    customer_dependent_guideline_indices.append(i)
+
+                if guideline_representations[p.guideline.id].condition:
+                    guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
+                else:
+                    guideline = (
+                        f"Guideline #{i}) {guideline_representations[p.guideline.id].action}"
+                    )
+
+                if p.rationale:
+                    guideline += f"\n      - Rationale: {p.rationale}"
+
                 if p.guideline.metadata.get("agent_intention_condition"):
                     agent_intention_guidelines.append(guideline)
                 else:
@@ -517,10 +492,19 @@ You should only follow these guidelines if you are actually going to produce a m
             guideline_instruction += f"""
 
 For any other guidelines, do not disregard a guideline because you believe its 'when' condition or rationale does not apply—this filtering has already been handled.
+
 - **Guidelines**:
     {guideline_list}
 
     """
+
+        if customer_dependent_guideline_indices:
+            customer_dependent_guideline_indices_str = ", ".join(
+                [str(i) for i in customer_dependent_guideline_indices]
+            )
+            guideline_instruction += f"""
+Important note - some guidelines ({customer_dependent_guideline_indices_str}) may require asking specific questions. Never skip these questions, even if you believe the customer already provided the answer. Instead, ask them to confirm their previous response.
+"""
         guideline_instruction += """
 
 You may choose not to follow a guideline only in the following cases:
@@ -529,7 +513,7 @@ You may choose not to follow a guideline only in the following cases:
     - It lacks sufficient context or data to apply reliably.
     - It conflicts with an insight.
     - It depends on an agent intention condition that does not apply in the current situation (as mentioned above)
-    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by 
+    - If a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), follow both by
         choosing the permitted alternative (i.e., do Y).
 In all other situations, you are expected to adhere to the guidelines.
 These guidelines have already been pre-filtered based on the interaction's context and other considerations outside your scope.

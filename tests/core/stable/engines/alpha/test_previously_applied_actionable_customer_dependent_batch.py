@@ -27,8 +27,9 @@ from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_
     GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
@@ -162,7 +163,7 @@ async def base_test_that_correct_guidelines_are_matched(
 
     session = await context.container[SessionStore].read_session(session_id)
 
-    guideline_matching_context = GuidelineMatchingBatchContext(
+    guideline_matching_context = GuidelineMatchingContext(
         agent=agent,
         session=session,
         customer=customer,
@@ -171,12 +172,14 @@ async def base_test_that_correct_guidelines_are_matched(
         terms=[],
         capabilities=capabilities,
         staged_events=staged_events,
-        relevant_journeys=relevant_journeys,
+        active_journeys=relevant_journeys,
+        journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
     )
 
     guideline_previously_applied_matcher = (
         GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
             logger=context.container[Logger],
+            optimization_policy=context.container[OptimizationPolicy],
             schematic_generator=context.schematic_generator,
             guidelines=context.guidelines,
             journeys=[],
@@ -530,7 +533,7 @@ async def test_that_customer_dependent_guideline_is_matched_based_on_capabilitie
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]
@@ -573,7 +576,7 @@ async def test_that_customer_dependent_guideline_is_matched_based_on_capabilitie
             creation_utc=datetime.now(timezone.utc),
             title="Increase Credit Limit",
             description="The ability to increase the customer's credit limit",
-            queries=["increase credit limit", "credit limit"],
+            signals=["increase credit limit", "credit limit"],
             tags=[],
         ),
         Capability(
@@ -581,7 +584,7 @@ async def test_that_customer_dependent_guideline_is_matched_based_on_capabilitie
             creation_utc=datetime.now(timezone.utc),
             title="Decrease Credit Limit",
             description="The ability to decrease the customer's credit limit",
-            queries=["decrease credit limit", "credit limit"],
+            signals=["decrease credit limit", "credit limit"],
             tags=[],
         ),
     ]

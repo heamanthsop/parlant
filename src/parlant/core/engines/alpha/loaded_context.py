@@ -14,7 +14,8 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Sequence, cast
+from datetime import datetime
+from typing import Any, Optional, Sequence, cast
 
 from parlant.core.agents import Agent
 from parlant.core.capabilities import Capability
@@ -26,11 +27,35 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import Guidel
 from parlant.core.engines.types import Context
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
 from parlant.core.glossary import Term
-from parlant.core.guidelines import Guideline
-from parlant.core.journeys import Journey
+from parlant.core.guidelines import Guideline, GuidelineId
+from parlant.core.journeys import Journey, JourneyId
 from parlant.core.loggers import Logger
 from parlant.core.sessions import Event, EventKind, EventSource, Session, ToolEventData
 from parlant.core.tools import ToolId, ToolResult
+
+
+@dataclass(frozen=True)
+class IterationState:
+    matched_guidelines: list[GuidelineMatch]
+    resolved_guidelines: list[GuidelineMatch]
+    executed_tools: list[ToolId]
+
+
+@dataclass(frozen=True)
+class InteractionMessage:
+    """A message in the interaction history"""
+
+    source: EventSource
+    """The source of the message (e.g., customer, AI agent, etc.)"""
+
+    correlation_id: str
+    """The correlation ID of the message"""
+
+    content: str
+    """The content of the message"""
+
+    creation_utc: datetime
+    """The timestamp when the message was created"""
 
 
 @dataclass(frozen=True)
@@ -40,7 +65,36 @@ class Interaction:
     @staticmethod
     def empty() -> Interaction:
         """Returns an empty interaction state"""
-        return Interaction([], -1)
+        return Interaction(history=[], last_known_event_offset=-1)
+
+    @property
+    def messages(self) -> Sequence[InteractionMessage]:
+        """Returns the messages in the interaction session"""
+        return [
+            InteractionMessage(
+                source=event.source,
+                correlation_id=event.correlation_id,
+                content=cast(str, cast(dict[str, Any], event.data).get("message", "")),
+                creation_utc=event.creation_utc,
+            )
+            for event in self.history
+            if event.kind == EventKind.MESSAGE
+        ]
+
+    @property
+    def last_customer_message(self) -> Optional[InteractionMessage]:
+        """Returns the last customer message in the interaction session, if it exists"""
+        for event in reversed(self.history):
+            if event.kind == EventKind.MESSAGE and event.source == EventSource.CUSTOMER:
+                message = cast(str, cast(dict[str, Any], event.data).get("message"))
+
+                return InteractionMessage(
+                    source=event.source,
+                    correlation_id=event.correlation_id,
+                    content=message,
+                    creation_utc=event.creation_utc,
+                )
+        return None
 
     history: Sequence[Event]
     """An sequenced event-by-event representation of the interaction"""
@@ -56,12 +110,13 @@ class ResponseState:
     context_variables: list[tuple[ContextVariable, ContextVariableValue]]
     glossary_terms: set[Term]
     capabilities: list[Capability]
+    iterations: list[IterationState]
     ordinary_guideline_matches: list[GuidelineMatch]
     tool_enabled_guideline_matches: dict[GuidelineMatch, list[ToolId]]
     journeys: list[Journey]
+    journey_paths: dict[JourneyId, list[Optional[GuidelineId]]]
     tool_events: list[EmittedEvent]
     tool_insights: ToolInsights
-    iterations_completed: int
     prepared_to_respond: bool
     message_events: list[EmittedEvent]
 
@@ -131,7 +186,7 @@ class LoadedContext:
                 data=cast(
                     JSONSerializable,
                     ToolEventData(
-                        # TODO: Add a common method to create a session-store comptatible ToolCall from ToolResult
+                        # TODO: Add a common method to create a session-store compatible ToolCall from ToolResult
                         tool_calls=[
                             {
                                 "tool_id": tool_id.to_string(),
@@ -140,8 +195,8 @@ class LoadedContext:
                                     "data": result.data,
                                     "metadata": result.metadata,
                                     "control": result.control,
-                                    "utterances": result.utterances,
-                                    "utterance_fields": result.utterance_fields,
+                                    "canned_responses": result.canned_responses,
+                                    "canned_response_fields": result.canned_response_fields,
                                 },
                             }
                         ]

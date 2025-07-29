@@ -32,6 +32,7 @@ from parlant.core.context_variables import (
     ContextVariableValueId,
 )
 from parlant.core.customers import Customer
+from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
@@ -44,27 +45,31 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingStrategyContext,
+    GuidelineMatchingContext,
     ResponseAnalysisBatch,
     ResponseAnalysisBatchResult,
     ReportAnalysisContext,
     GuidelineMatchingStrategy,
     GuidelineMatchingStrategyResolver,
 )
+from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
+from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
+from parlant.core.engines.types import Context
 from parlant.core.entity_cq import EntityCommands
-from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
+from parlant.core.evaluations import GuidelinePayload, PayloadOperation
 from parlant.core.glossary import Term
+from parlant.core.journeys import Journey
 from parlant.core.nlp.generation import SchematicGenerator
 
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     AnalyzedGuideline,
-    PreviouslyAppliedType,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.relationships import (
-    GuidelineRelationshipKind,
+    RelationshipKind,
     RelationshipEntity,
     RelationshipEntityKind,
     RelationshipStore,
@@ -131,6 +136,26 @@ OBSERVATIONAL_GUIDELINES_DICT = {
     },
     "unsupported_capability": {
         "condition": "When a customer asks about a capability that is not supported",
+        "observation": "-",
+    },
+    "reset_password": {
+        "condition": "The customer currently wants to reset their password",
+        "observation": "-",
+    },
+    "lost_card": {
+        "condition": "The customer said that they lost their card",
+        "observation": "-",
+    },
+    "business_class": {
+        "condition": "The customer is currently saying that they want a business class",
+        "observation": "-",
+    },
+    "book_flight": {
+        "condition": "The customer wants to book a flight",
+        "observation": "-",
+    },
+    "book_flight_2": {
+        "condition": "The conversation is about flight booking",
         "observation": "-",
     },
 }
@@ -347,19 +372,46 @@ async def match_guidelines(
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     capabilities: Sequence[Capability] = [],
+    activated_journeys: Sequence[Journey] = [],
     staged_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[GuidelineMatch]:
     session = await context.container[SessionStore].read_session(session_id)
 
-    guideline_matching_result = await context.container[GuidelineMatcher].match_guidelines(
+    loaded_context = LoadedContext(
+        info=Context(
+            session_id=session.id,
+            agent_id=agent.id,
+        ),
+        logger=context.logger,
+        correlation_id="<main>",
         agent=agent,
-        session=session,
         customer=customer,
-        context_variables=context_variables,
-        interaction_history=interaction_history,
-        terms=terms,
-        capabilities=capabilities,
-        staged_events=staged_events,
+        session=session,
+        session_event_emitter=EventBuffer(agent),
+        response_event_emitter=EventBuffer(agent),
+        interaction=Interaction(
+            history=interaction_history,
+            last_known_event_offset=interaction_history[-1].offset if interaction_history else -1,
+        ),
+        state=ResponseState(
+            context_variables=list(context_variables),
+            glossary_terms=set(terms),
+            capabilities=list(capabilities),
+            iterations=[],
+            ordinary_guideline_matches=[],
+            tool_enabled_guideline_matches={},
+            journeys=[],
+            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            tool_events=list(staged_events),
+            tool_insights=ToolInsights(),
+            prepared_to_respond=False,
+            message_events=[],
+        ),
+    )
+
+    guideline_matching_result = await context.container[GuidelineMatcher].match_guidelines(
+        context=loaded_context,
+        active_journeys=activated_journeys,
         guidelines=context.guidelines,
     )
 
@@ -383,11 +435,12 @@ async def create_guideline(
                         action=action,
                     ),
                     tool_ids=[],
-                    operation=GuidelinePayloadOperation.ADD,
+                    operation=PayloadOperation.ADD,
                     coherence_check=False,
                     connection_proposition=False,
                     action_proposition=True,
                     properties_proposition=True,
+                    journey_node_proposition=False,
                 )
             ],
         )
@@ -438,7 +491,7 @@ async def create_disambiguation_guideline(
                 id=g.id,
                 kind=RelationshipEntityKind.GUIDELINE,
             ),
-            kind=GuidelineRelationshipKind.DISAMBIGUATION,
+            kind=RelationshipKind.DISAMBIGUATION,
         )
 
     return guideline
@@ -507,12 +560,21 @@ async def update_previously_applied_guidelines(
     applied_guideline_ids: list[GuidelineId],
 ) -> None:
     session = await context.container[SessionStore].read_session(session_id)
-    applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
+    applied_guideline_ids.extend(
+        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+    )
 
     await context.container[EntityCommands].update_session(
         session_id=session.id,
         params=SessionUpdateParams(
-            agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+            agent_states=list(session.agent_states)
+            + [
+                AgentState(
+                    correlation_id="<main>",
+                    applied_guideline_ids=applied_guideline_ids,
+                    journey_paths={},
+                )
+            ]
         ),
     )
 
@@ -537,7 +599,10 @@ async def analyze_response_and_update_session(
             score=10,
         )
         for g in previously_matched_guidelines
-        if g.id not in session.agent_state["applied_guideline_ids"]
+        if (
+            not session.agent_states
+            or g.id not in session.agent_states[-1]["applied_guideline_ids"]
+        )
         and not g.metadata.get("continuous", False)
     ]
 
@@ -547,6 +612,7 @@ async def analyze_response_and_update_session(
 
     generic_response_analysis_batch = GenericResponseAnalysisBatch(
         logger=context.container[Logger],
+        optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
         context=ReportAnalysisContext(
             agent=agent,
@@ -1429,7 +1495,6 @@ class ActivateEveryGuidelineBatch(GuidelineMatchingBatch):
                     guideline=g,
                     score=10,
                     rationale="",
-                    guideline_previously_applied=PreviouslyAppliedType.NO,
                 )
                 for g in self.guidelines
             ],
@@ -1477,7 +1542,7 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [
                 ActivateEveryGuidelineBatch(guidelines=guidelines),
@@ -1503,7 +1568,7 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [SkipAllGuidelineBatch(guidelines=guidelines)]
 
@@ -1572,7 +1637,7 @@ async def test_that_strategy_for_specific_guideline_can_be_overridden_in_default
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [ActivateEveryGuidelineBatch(guidelines=guidelines)]
 
@@ -2161,7 +2226,198 @@ async def test_that_observational_guidelines_are_matched_based_on_old_messages(
         ),
     ]
     conversation_guideline_names: list[str] = ["lock_card_request_1", "lock_card_request_2"]
-    relevant_guideline_names = ["lock_card_request_1", "lock_card_request_2"]
+    relevant_guideline_names: list[str] = ["lock_card_request_2", "lock_card_request_1"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_observational_guidelines_are_not_matched_based_when_topic_was_shifted(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hi, I forgot my password. Can you help me reset it?",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Of course, I'd be happy to help. Can you please provide your account name?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Yes, it's jenny_the_cat89",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Thanks! Now, could you share the email address or phone number associated with your account?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Sure, it's jenny@example.com",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Great. I hope you're having a lovely day!",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Thanks, you too!",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Thank you! Resetting your password now...",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Your password has been successfully reset. Please check your email for further instructions.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Thanks! Also, I'd like to change my credit limit.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I'd be glad to help with that. Could you tell me what you'd like your new credit limit to be?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "I'd like to increase it to $5,000.",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["reset_password", "credit_limits_discussion"]
+    relevant_guideline_names = ["credit_limits_discussion"]
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_observational_guidelines_are_not_matched_based_when_topic_was_shifted_2(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey, I need to book a flight.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure! Can you please tell me your departure and destination airports?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Flying from JFK to LAX.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it. What date would you like to travel?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "July 18th.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "And would you prefer economy or business class?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Business class, please.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Perfect. Lastly, can I have the name of the traveler?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Jennifer Morales.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Thanks, Jennifer. I’ll go ahead and book your business class flight from JFK to LAX on July 18th.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Your flight has been booked! A confirmation has been sent to your email.",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["business_class"]
+    relevant_guideline_names: list[str] = []
+    await base_test_that_correct_guidelines_are_matched(
+        context,
+        agent,
+        customer,
+        new_session.id,
+        conversation_context,
+        conversation_guideline_names,
+        relevant_guideline_names,
+    )
+
+
+async def test_that_observational_guidelines_are_matched_when_conversation_is_on_sub_topic(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "Hey, I need to book a flight.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Sure! Can you please tell me your departure and destination airports?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Flying from JFK to LAX.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Got it. What date would you like to travel?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "July 18th.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "And would you prefer economy or business class?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Business class, please.",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Perfect. Lastly, can I have the name of the traveler?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Jennifer Morales.",
+        ),
+    ]
+    conversation_guideline_names: list[str] = ["book_flight", "book_flight_2"]
+    relevant_guideline_names: list[str] = ["book_flight", "book_flight_2"]
     await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
@@ -2285,7 +2541,10 @@ async def analyze_response(
             score=10,
         )
         for g in context.guidelines
-        if g.id not in session.agent_state["applied_guideline_ids"]
+        if (
+            not session.agent_states
+            or g.id not in session.agent_states[-1]["applied_guideline_ids"]
+        )
         and not g.metadata.get("continuous", False)
     ]
 
@@ -2414,7 +2673,7 @@ async def test_that_response_analysis_strategy_can_be_overridden(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return []
 
@@ -2493,7 +2752,6 @@ async def test_that_batch_processing_retries_on_key_error(
                         guideline=g,
                         score=10,
                         rationale="Success after retry",
-                        guideline_previously_applied=PreviouslyAppliedType.NO,
                     )
                     for g in self.guidelines
                 ],
@@ -2546,7 +2804,7 @@ async def test_that_batch_processing_retries_on_key_error(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [
                 FailingBatch(
@@ -2637,7 +2895,7 @@ async def test_that_batch_processing_fails_after_max_retries(
         async def create_matching_batches(
             self,
             guidelines: Sequence[Guideline],
-            context: GuidelineMatchingStrategyContext,
+            context: GuidelineMatchingContext,
         ) -> Sequence[GuidelineMatchingBatch]:
             return [AlwaysFailingBatch(guidelines=guidelines)]
 
@@ -3092,7 +3350,7 @@ async def test_that_observational_guidelines_are_matched_based_on_capabilities_1
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]
@@ -3124,7 +3382,7 @@ async def test_that_observational_guidelines_are_not_falsely_matched_based_on_ca
             creation_utc=datetime.now(timezone.utc),
             title="Reset Password",
             description="The ability to send the customer an email with a link to reset their password. The password can only be reset via this link",
-            queries=["reset password", "password"],
+            signals=["reset password", "password"],
             tags=[],
         )
     ]

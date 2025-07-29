@@ -23,8 +23,9 @@ from lagom import Container
 from pytest import fixture, mark
 from datetime import datetime, timezone
 
+from parlant.core.common import generate_id
 from parlant.core.engines.alpha.message_generator import MessageSchema
-from parlant.core.utterances import UtteranceStore
+from parlant.core.canned_responses import CannedResponseStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.tags import Tag
 from parlant.core.tools import ToolResult
@@ -32,6 +33,7 @@ from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams, Composit
 from parlant.core.async_utils import Timeout
 from parlant.core.customers import CustomerId
 from parlant.core.sessions import (
+    AgentState,
     EventKind,
     EventSource,
     MessageEventData,
@@ -82,7 +84,7 @@ async def strict_agent_id(
     agent = await agent_store.create_agent(name="strict_test_agent")
     await agent_store.update_agent(
         agent.id,
-        params=AgentUpdateParams(composition_mode=CompositionMode.STRICT_UTTERANCE),
+        params=AgentUpdateParams(composition_mode=CompositionMode.CANNED_STRICT),
     )
     return agent.id
 
@@ -91,12 +93,13 @@ def make_event_params(
     source: EventSource,
     data: dict[str, Any] = {},
     kind: EventKind = EventKind.CUSTOM,
+    correlation_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "source": source,
         "kind": kind,
         "creation_utc": str(datetime.now(timezone.utc)),
-        "correlation_id": "dummy_correlation_id",
+        "correlation_id": correlation_id or generate_id(),
         "data": data,
         "deleted": False,
     }
@@ -813,6 +816,43 @@ async def test_that_deleted_events_no_longer_show_up_in_the_listing(
     assert all(e["offset"] > event_to_delete["offset"] for e in remaining_events) is False
 
 
+async def test_that_delete_events_raises_if_not_first_of_correlation_id(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    session_id: SessionId,
+) -> None:
+    correlation_id = generate_id()
+    session_events = [
+        make_event_params(
+            EventSource.CUSTOMER,
+            data={"content": "first"},
+            correlation_id=correlation_id,
+        ),
+        make_event_params(
+            EventSource.CUSTOMER,
+            data={"content": "second"},
+            correlation_id=correlation_id,
+        ),
+    ]
+    await populate_session_id(container, session_id, session_events)
+
+    events = (await async_client.get(f"/sessions/{session_id}/events")).raise_for_status().json()
+    assert len(events) == 2
+    first_event = events[0]
+    second_event = events[1]
+    assert first_event["correlation_id"] == correlation_id
+    assert second_event["correlation_id"] == correlation_id
+
+    response = await async_client.delete(
+        f"/sessions/{session_id}/events?min_offset={second_event['offset']}"
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert (
+        response.json()["detail"]
+        == "Cannot delete events with offset < min_offset unless they are the first event of their correlation ID"
+    )
+
+
 async def test_that_a_message_can_be_inspected(
     async_client: httpx.AsyncClient,
     container: Container,
@@ -1032,7 +1072,7 @@ async def test_that_an_agent_message_can_be_regenerated(
     assert "cold" in events[0]["data"]["message"].lower()
 
 
-async def test_that_an_agent_message_can_be_generated_from_utterance_requests(
+async def test_that_an_agent_message_can_be_generated_from_canrep_requests(
     async_client: httpx.AsyncClient,
     session_id: SessionId,
 ) -> None:
@@ -1075,12 +1115,12 @@ async def test_that_an_agent_message_can_be_generated_from_utterance_requests(
     assert "thinking" in events[0]["data"]["message"].lower()
 
 
-async def test_that_an_event_with_utterances_can_be_generated(
+async def test_that_an_event_with_canned_responses_can_be_generated(
     async_client: httpx.AsyncClient,
     container: Container,
     strict_agent_id: AgentId,
 ) -> None:
-    utterance_store = container[UtteranceStore]
+    canrep_store = container[CannedResponseStore]
 
     customer = await create_customer(
         container=container,
@@ -1093,7 +1133,7 @@ async def test_that_an_event_with_utterances_can_be_generated(
         customer_id=customer.id,
     )
 
-    utterance = await utterance_store.create_utterance(value="Hello, how can I assist?", fields=[])
+    canrep = await canrep_store.create_canned_response(value="Hello, how can I assist?", fields=[])
 
     customer_event = await post_message(
         container=container,
@@ -1120,6 +1160,91 @@ async def test_that_an_event_with_utterances_can_be_generated(
     assert len(events) == 1
 
     event = events[0]
-    assert event["data"].get("utterances")
+    assert event["data"].get("canned_responses")
 
-    assert any(utterance.id == id for id, _ in event["data"]["utterances"])
+    assert any(canrep.id == id for id, _ in event["data"]["canned_responses"])
+
+
+async def test_that_agent_state_is_deleted_when_deleting_events(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    session_id: SessionId,
+) -> None:
+    session_store = container[SessionStore]
+
+    first_event_correlation_id = generate_id()
+    second_event_correlation_id = generate_id()
+    third_event_correlation_id = generate_id()
+
+    session_events = [
+        make_event_params(
+            EventSource.CUSTOMER,
+            data={"content": "Hello"},
+            correlation_id=first_event_correlation_id,
+        ),
+        make_event_params(
+            EventSource.AI_AGENT,
+            data={"content": "Hi, how can I assist you?"},
+            correlation_id=first_event_correlation_id,
+        ),
+        make_event_params(
+            EventSource.CUSTOMER,
+            data={"content": "What's the weather today?"},
+            correlation_id=second_event_correlation_id,
+        ),
+        make_event_params(
+            EventSource.AI_AGENT,
+            data={"content": "It's sunny and warm."},
+            correlation_id=second_event_correlation_id,
+        ),
+        make_event_params(
+            EventSource.CUSTOMER,
+            data={"content": "Thank you!"},
+            correlation_id=third_event_correlation_id,
+        ),
+        make_event_params(
+            EventSource.AI_AGENT,
+            data={"content": "You're welcome!"},
+            correlation_id=third_event_correlation_id,
+        ),
+    ]
+
+    await populate_session_id(container, session_id, session_events)
+    await session_store.update_session(
+        session_id=session_id,
+        params={
+            "agent_states": [
+                AgentState(
+                    correlation_id=first_event_correlation_id,
+                    journey_paths={},
+                    applied_guideline_ids=[],
+                ),
+                AgentState(
+                    correlation_id=second_event_correlation_id,
+                    journey_paths={},
+                    applied_guideline_ids=[],
+                ),
+                AgentState(
+                    correlation_id=third_event_correlation_id,
+                    journey_paths={},
+                    applied_guideline_ids=[],
+                ),
+            ]
+        },
+    )
+
+    initial_events = (
+        (await async_client.get(f"/sessions/{session_id}/events")).raise_for_status().json()
+    )
+
+    event_to_delete = initial_events[2]
+
+    (
+        await async_client.delete(
+            f"/sessions/{session_id}/events?min_offset={event_to_delete['offset']}"
+        )
+    ).raise_for_status()
+
+    session = await session_store.read_session(session_id)
+
+    assert len(session.agent_states) == 1

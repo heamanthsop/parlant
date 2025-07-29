@@ -13,12 +13,15 @@
 # limitations under the License.
 
 import json
+import traceback
 from typing import Any, Optional, Sequence
 from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.emissions import EmittedEvent
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.glossary import Term
 from parlant.core.journeys import Journey
@@ -33,6 +36,7 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
     MissingToolData,
     ToolCall,
     ToolCallBatch,
+    ToolCallBatchError,
     ToolCallBatchResult,
     ToolCallContext,
     ToolCallId,
@@ -85,13 +89,15 @@ class OverlappingToolsBatch(ToolCallBatch):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         service_registry: ServiceRegistry,
         schematic_generator: SchematicGenerator[OverlappingToolsBatchSchema],
         overlapping_tools_batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
         context: ToolCallContext,
     ) -> None:
-        self._service_registry = service_registry
         self._logger = logger
+        self._optimization_policy = optimization_policy
+        self._service_registry = service_registry
         self._schematic_generator = schematic_generator
         self._context = context
         self._overlapping_tools_batch = overlapping_tools_batch
@@ -141,15 +147,35 @@ class OverlappingToolsBatch(ToolCallBatch):
             await self.shots(),
         )
 
-        # Send the tool call inference prompt to the LLM
-        generation_info, inference_output = await self._run_inference(inference_prompt)
-
-        # Evaluate the tool calls
-        tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
-            inference_output, overlapping_tools_batch
+        generation_attempt_temperatures = (
+            self._optimization_policy.get_tool_calling_batch_retry_temperatures()
         )
 
-        return generation_info, tool_calls, missing_data
+        last_generation_exception: Exception | None = None
+
+        for generation_attempt in range(3):
+            try:
+                # Send the tool call inference prompt to the LLM
+                generation_info, inference_output = await self._run_inference(
+                    prompt=inference_prompt,
+                    temperature=generation_attempt_temperatures[generation_attempt],
+                )
+
+                # Evaluate the tool calls
+                tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
+                    inference_output, overlapping_tools_batch
+                )
+
+                return generation_info, tool_calls, missing_data
+
+            except Exception as exc:
+                self._logger.warning(
+                    f"OverlappingToolBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                )
+
+                last_generation_exception = exc
+
+        raise ToolCallBatchError() from last_generation_exception
 
     def _get_tool_descriptor(
         self,
@@ -187,7 +213,7 @@ class OverlappingToolsBatch(ToolCallBatch):
                             if evaluation.parameter_name in tool.required
                         ):
                             self._logger.debug(
-                                f"Inference::Completion::Activated:\n{tc.model_dump_json(indent=2)}"
+                                f"Inference::Completion::Activated: {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                             )
 
                             arguments = {}
@@ -238,7 +264,7 @@ class OverlappingToolsBatch(ToolCallBatch):
 
                     else:
                         self._logger.debug(
-                            f"Inference::Completion::Skipped:\n{tc.model_dump_json(indent=2)}"
+                            f"Inference::Completion::Skipped: {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                         )
 
         return tool_calls, missing_data
@@ -301,7 +327,7 @@ Example #{i}: ###
     ) -> PromptBuilder:
         staged_calls = self._get_staged_calls(staged_events)
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="tool-caller-general-instructions",
@@ -372,7 +398,6 @@ EXAMPLES
                 status=SectionStatus.ACTIVE,
             )
         builder.add_interaction_history(interaction_event_list)
-        builder.add_journeys(journeys=journeys)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._add_guideline_matches_section(
@@ -562,9 +587,9 @@ Tools: ###
         if ordinary_guideline_matches:
             ordinary_guidelines_list = "\n".join(
                 [
-                    f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                    f"{i}) When {internal_representation(p.guideline).condition}, then {internal_representation(p.guideline).action}"
                     for i, p in enumerate(ordinary_guideline_matches, start=1)
-                    if p.guideline.content.action
+                    if internal_representation(p.guideline).action
                 ]
             )
 
@@ -573,8 +598,8 @@ Tools: ###
             for id, _, guidelines in tools_propositions:
                 tool_guidelines: list[str] = []
                 for i, p in enumerate(guidelines, start=1):
-                    if p.guideline.content.action:
-                        guideline = f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
+                    if internal_representation(p.guideline).action:
+                        guideline = f"{i}) When {internal_representation(p.guideline).condition}, then {internal_representation(p.guideline).action}"
                         tool_guidelines.append(guideline)
                 if tool_guidelines:
                     tools_guidelines.append("\n".join(tool_guidelines))
@@ -609,13 +634,14 @@ Guidelines:
     async def _run_inference(
         self,
         prompt: PromptBuilder,
+        temperature: float,
     ) -> tuple[GenerationInfo, Sequence[OverlappingToolsBatchToolEvaluation]]:
         inference = await self._schematic_generator.generate(
             prompt=prompt,
-            hints={"temperature": 0.05},
+            hints={"temperature": temperature},
         )
 
-        self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
+        self._logger.trace(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         return inference.info, inference.content.tools_evaluation
 

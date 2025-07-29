@@ -22,7 +22,7 @@ from typing_extensions import override, TypedDict, Self
 import networkx  # type: ignore
 
 from parlant.core.async_utils import ReaderWriterLock
-from parlant.core.common import ItemNotFoundError, UniqueId, Version, generate_id
+from parlant.core.common import ItemNotFoundError, UniqueId, Version, IdGenerator
 from parlant.core.guidelines import GuidelineId
 from parlant.core.persistence.common import ObjectId, Where
 from parlant.core.persistence.document_database import (
@@ -40,7 +40,7 @@ from parlant.core.tools import ToolId
 RelationshipId = NewType("RelationshipId", str)
 
 
-class GuidelineRelationshipKind(Enum):
+class RelationshipKind(Enum):
     ENTAILMENT = "entailment"
     PRECEDENCE = "precedence"
     REQUIREMENT = "requirement"
@@ -48,13 +48,8 @@ class GuidelineRelationshipKind(Enum):
     PERSISTENCE = "persistence"
     DEPENDENCY = "dependency"
     DISAMBIGUATION = "disambiguation"
-
-
-class ToolRelationshipKind(Enum):
+    REEVALUATION = "reevaluation"
     OVERLAP = "overlap"
-
-
-RelationshipKind = Union[GuidelineRelationshipKind, ToolRelationshipKind]
 
 
 RelationshipEntityId = Union[GuidelineId, TagId, ToolId]
@@ -132,7 +127,7 @@ class GuidelineRelationshipDocument_v0_2_0(TypedDict, total=False):
     creation_utc: str
     source: GuidelineId
     target: GuidelineId
-    kind: GuidelineRelationshipKind
+    kind: RelationshipKind
 
 
 class RelationshipDocument(TypedDict, total=False):
@@ -149,25 +144,32 @@ class RelationshipDocument(TypedDict, total=False):
 class RelationshipDocumentStore(RelationshipStore):
     VERSION = Version.from_string("0.3.0")
 
-    def __init__(self, database: DocumentDatabase, allow_migration: bool = False) -> None:
+    def __init__(
+        self,
+        id_generator: IdGenerator,
+        database: DocumentDatabase,
+        allow_migration: bool = False,
+    ) -> None:
+        self._id_generator = id_generator
+
         self._database = database
         self._collection: DocumentCollection[RelationshipDocument]
-        self._graphs: dict[GuidelineRelationshipKind | ToolRelationshipKind, networkx.DiGraph] = {}
+        self._graphs: dict[RelationshipKind | RelationshipKind, networkx.DiGraph] = {}
         self._allow_migration = allow_migration
         self._lock = ReaderWriterLock()
 
     async def _document_loader(self, doc: BaseDocument) -> Optional[RelationshipDocument]:
-        async def v0_2_0_to_v_0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
+        async def v0_2_0_to_v0_3_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise ValueError("Cannot load v0.2.0 relationships")
 
-        async def v0_1_0_to_v_0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
+        async def v0_1_0_to_v0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             raise ValueError("Cannot load v0.1.0 relationships")
 
         return await DocumentMigrationHelper[RelationshipDocument](
             self,
             {
-                "0.1.0": v0_1_0_to_v_0_2_0,
-                "0.2.0": v0_2_0_to_v_0_3_0,
+                "0.1.0": v0_1_0_to_v0_2_0,
+                "0.2.0": v0_2_0_to_v0_3_0,
             },
         ).migrate(doc)
 
@@ -239,9 +241,9 @@ class RelationshipDocumentStore(RelationshipStore):
         )
 
         kind = (
-            GuidelineRelationshipKind(relationship_document["kind"])
+            RelationshipKind(relationship_document["kind"])
             if source.kind in {RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG}
-            else ToolRelationshipKind(relationship_document["kind"])
+            else RelationshipKind(relationship_document["kind"])
         )
 
         return Relationship(
@@ -295,8 +297,10 @@ class RelationshipDocumentStore(RelationshipStore):
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
+            relationship_checksum = f"{source.id_to_string()}{target.id_to_string()}{kind.value}"
+
             relationship = Relationship(
-                id=RelationshipId(generate_id()),
+                id=RelationshipId(self._id_generator.generate(relationship_checksum)),
                 creation_utc=creation_utc,
                 source=source,
                 target=target,
@@ -409,8 +413,8 @@ class RelationshipDocumentStore(RelationshipStore):
                     [kind]
                     if kind
                     else [
-                        *list(GuidelineRelationshipKind),
-                        *list(ToolRelationshipKind),
+                        *list(RelationshipKind),
+                        *list(RelationshipKind),
                     ]
                 ):
                     graph = await self._get_relationships_graph(_kind)

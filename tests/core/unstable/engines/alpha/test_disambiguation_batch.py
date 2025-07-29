@@ -35,9 +35,10 @@ from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch 
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
 )
-from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
+from parlant.core.evaluations import GuidelinePayload, PayloadOperation
 from parlant.core.glossary import Term, TermId
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -213,11 +214,12 @@ async def create_guideline(
                         action=action,
                     ),
                     tool_ids=[],
-                    operation=GuidelinePayloadOperation.ADD,
+                    operation=PayloadOperation.ADD,
                     coherence_check=False,
                     connection_proposition=False,
                     action_proposition=True,
                     properties_proposition=True,
+                    journey_node_proposition=False,
                 )
             ],
         )
@@ -298,7 +300,7 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
         if (guideline := to_disambiguate_guidelines.get(name)) is not None
     ]
 
-    guideline_matching_context = GuidelineMatchingBatchContext(
+    guideline_matching_context = GuidelineMatchingContext(
         agent,
         session,
         customer,
@@ -307,11 +309,13 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
         terms,
         capabilities,
         staged_events,
-        relevant_journeys=[],
+        active_journeys=[],
+        journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
     )
 
     disambiguation_resolver = GenericDisambiguationGuidelineMatchingBatch(
         logger=context.logger,
+        optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.schematic_generator,
         disambiguation_guideline=guideline_head,
         disambiguation_targets=guideline_targets,

@@ -15,7 +15,8 @@
 from dataclasses import dataclass
 from typing import Optional, cast
 
-from parlant.core.guidelines import Guideline
+from parlant.core.guidelines import Guideline, GuidelineId
+from parlant.core.journeys import JourneyEdgeId, JourneyNodeId
 
 
 @dataclass
@@ -30,4 +31,17 @@ def internal_representation(g: Guideline) -> GuidelineInternalRepresentation:
     if agent_intention_condition := g.metadata.get("agent_intention_condition"):
         condition = cast(str, agent_intention_condition) or condition
 
+    if internal_action := g.metadata.get("internal_action"):
+        action = cast(str, internal_action) or action
+
     return GuidelineInternalRepresentation(condition, action)
+
+
+def format_journey_node_guideline_id(
+    node_id: JourneyNodeId,
+    edge_id: Optional[JourneyEdgeId] = None,
+) -> GuidelineId:
+    if edge_id:
+        return GuidelineId(f"journey_node:{node_id}:{edge_id}")
+
+    return GuidelineId(f"journey_node:{node_id}")

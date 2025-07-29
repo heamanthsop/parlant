@@ -76,7 +76,7 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
                     RateLimitError,
                 ),
             ),
-            retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
+            retry(InternalServerError, max_exceptions=2, wait_times=(1.0, 5.0)),
         ]
     )
     @override
@@ -125,7 +125,7 @@ class CerebrasSchematicGenerator(SchematicGenerator[T]):
         t_end = time.time()
 
         if response.usage:  # type: ignore
-            self._logger.debug(response.usage.model_dump_json(indent=2))  # type: ignore
+            self._logger.trace(response.usage.model_dump_json(indent=2))  # type: ignore
 
         raw_content = response.choices[0].message.content or "{}"  # type: ignore
 

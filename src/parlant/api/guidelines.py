@@ -64,7 +64,7 @@ from parlant.core.relationships import (
     RelationshipEntityKind,
     RelationshipEntity,
     RelationshipId,
-    GuidelineRelationshipKind,
+    RelationshipKind,
     RelationshipStore,
 )
 from parlant.core.guidelines import (
@@ -81,7 +81,7 @@ from parlant.core.guideline_tool_associations import (
 from parlant.core.application import Application
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.tags import TagId, TagStore, Tag
-from parlant.core.tools import ToolId
+from parlant.core.tools import Tool, ToolId
 
 API_GROUP = "guidelines"
 
@@ -383,14 +383,14 @@ class LegacyGuidelineUpdateParamsDTO(
 
 @dataclass
 class _GuidelineRelationship:
-    """Represents one relationship between two Guidelines."""
+    """Represents a relationship between a guideline and another entity (guideline, tag, or tool)."""
 
     id: RelationshipId
-    source: Guideline | Tag
+    source: Guideline | Tag | Tool
     source_type: RelationshipEntityKind
-    target: Guideline | Tag
+    target: Guideline | Tag | Tool
     target_type: RelationshipEntityKind
-    kind: GuidelineRelationshipKind
+    kind: RelationshipKind
 
 
 def _invoice_dto_to_invoice(dto: LegacyInvoiceDTO) -> Invoice:
@@ -423,6 +423,7 @@ def _invoice_dto_to_invoice(dto: LegacyInvoiceDTO) -> Invoice:
         connection_proposition=dto.payload.guideline.connection_proposition,
         action_proposition=False,
         properties_proposition=False,
+        journey_node_proposition=False,
         updated_id=dto.payload.guideline.updated_id,
     )
 
@@ -509,7 +510,6 @@ def _invoice_data_dto_to_invoice_data(dto: LegacyInvoiceDataDTO) -> InvoiceGuide
         return InvoiceGuidelineData(
             coherence_checks=coherence_checks,
             entailment_propositions=connection_propositions,
-            action_proposition=None,
             properties_proposition=None,
         )
     except Exception:
@@ -524,7 +524,7 @@ async def _get_guideline_relationships_by_kind(
     tag_store: TagStore,
     relationship_store: RelationshipStore,
     entity_id: GuidelineId | TagId,
-    kind: GuidelineRelationshipKind,
+    kind: RelationshipKind,
     include_indirect: bool = True,
 ) -> Sequence[tuple[_GuidelineRelationship, bool]]:
     async def _get_entity(
@@ -554,7 +554,7 @@ async def _get_guideline_relationships_by_kind(
     ):
         assert r.source.kind in (RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG)
         assert r.target.kind in (RelationshipEntityKind.GUIDELINE, RelationshipEntityKind.TAG)
-        assert type(r.kind) is GuidelineRelationshipKind
+        assert type(r.kind) is RelationshipKind
 
         relationships.append(
             _GuidelineRelationship(
@@ -567,37 +567,48 @@ async def _get_guideline_relationships_by_kind(
             )
         )
 
-    return [(r, entity_id not in [r.source.id, r.target.id]) for r in relationships]
+    return [
+        (
+            r,
+            entity_id
+            not in [cast(Guideline | Tag, r.source).id, cast(Guideline | Tag, r.target).id],
+        )
+        for r in relationships
+    ]
 
 
 def _guideline_relationship_kind_dto_to_kind(
     dto: RelationshipKindDTO,
-) -> GuidelineRelationshipKind:
+) -> RelationshipKind:
     match dto:
         case RelationshipKindDTO.ENTAILMENT:
-            return GuidelineRelationshipKind.ENTAILMENT
+            return RelationshipKind.ENTAILMENT
         case RelationshipKindDTO.PRIORITY:
-            return GuidelineRelationshipKind.PRIORITY
+            return RelationshipKind.PRIORITY
         case RelationshipKindDTO.DEPENDENCY:
-            return GuidelineRelationshipKind.DEPENDENCY
+            return RelationshipKind.DEPENDENCY
         case RelationshipKindDTO.DISAMBIGUATION:
-            return GuidelineRelationshipKind.DISAMBIGUATION
+            return RelationshipKind.DISAMBIGUATION
+        case RelationshipKindDTO.REEVALUATION:
+            return RelationshipKind.REEVALUATION
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {dto.value}")
 
 
 def _guideline_relationship_kind_to_dto(
-    kind: GuidelineRelationshipKind,
+    kind: RelationshipKind,
 ) -> RelationshipKindDTO:
     match kind:
-        case GuidelineRelationshipKind.ENTAILMENT:
+        case RelationshipKind.ENTAILMENT:
             return RelationshipKindDTO.ENTAILMENT
-        case GuidelineRelationshipKind.PRIORITY:
+        case RelationshipKind.PRIORITY:
             return RelationshipKindDTO.PRIORITY
-        case GuidelineRelationshipKind.DEPENDENCY:
+        case RelationshipKind.DEPENDENCY:
             return RelationshipKindDTO.DEPENDENCY
-        case GuidelineRelationshipKind.DISAMBIGUATION:
+        case RelationshipKind.DISAMBIGUATION:
             return RelationshipKindDTO.DISAMBIGUATION
+        case RelationshipKind.REEVALUATION:
+            return RelationshipKindDTO.REEVALUATION
         case _:
             raise ValueError(f"Invalid guideline relationship kind: {kind.value}")
 
@@ -620,7 +631,7 @@ async def _get_relationships(
                     kind=kind,
                     include_indirect=include_indirect,
                 )
-                for kind in list(GuidelineRelationshipKind)
+                for kind in list(RelationshipKind)
             ]
         )
     )
@@ -649,7 +660,7 @@ def create_legacy_router(
     guideline_tool_association_store: GuidelineToolAssociationStore,
 ) -> APIRouter:
     """
-    DEPRECATED: This router uses agent-based paths which are being phased out.
+    DEPRECATED: This router uses agent-based paths which are being phased out, and will be removed in a future release.
     Use the tag-based API instead.
     """
     router = APIRouter()
@@ -677,7 +688,7 @@ def create_legacy_router(
         params: LegacyGuidelineCreationParamsDTO,
     ) -> LegacyGuidelineCreationResult:
         """
-        DEPRECATED: Use the tag-based API instead.
+        DEPRECATED AND WILL REMOVED IN A FUTURE RELEASE: Use the tag-based API instead.
 
         Creates new guidelines from the provided invoices.
 
@@ -730,8 +741,12 @@ def create_legacy_router(
                     connections=[
                         LegacyGuidelineConnectionDTO(
                             id=relationship.id,
-                            source=_legacy_guideline_dto(relationship.source),
-                            target=_legacy_guideline_dto(relationship.target),
+                            source=_legacy_guideline_dto(
+                                cast(Guideline | Tag, relationship.source)
+                            ),
+                            target=_legacy_guideline_dto(
+                                cast(Guideline | Tag, relationship.target)
+                            ),
                             indirect=indirect,
                         )
                         for relationship, indirect in await _get_guideline_relationships_by_kind(
@@ -739,7 +754,7 @@ def create_legacy_router(
                             tag_store=tag_store,
                             relationship_store=relationship_store,
                             entity_id=guideline.id,
-                            kind=GuidelineRelationshipKind.ENTAILMENT,
+                            kind=RelationshipKind.ENTAILMENT,
                             include_indirect=True,
                         )
                     ],
@@ -768,7 +783,7 @@ def create_legacy_router(
         guideline_id: GuidelineIdPath,
     ) -> LegacyGuidelineWithConnectionsAndToolAssociationsDTO:
         """
-        DEPRECATED: Use the tag-based API instead.
+        DEPRECATED AND WILL REMOVED IN A FUTURE RELEASE: Use the tag-based API instead.
 
         Retrieves a specific guideline with all its connections and tool associations.
 
@@ -795,7 +810,7 @@ def create_legacy_router(
             tag_store=tag_store,
             relationship_store=relationship_store,
             entity_id=guideline_id,
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind=RelationshipKind.ENTAILMENT,
             include_indirect=True,
         )
 
@@ -809,8 +824,8 @@ def create_legacy_router(
             connections=[
                 LegacyGuidelineConnectionDTO(
                     id=relationship.id,
-                    source=_legacy_guideline_dto(relationship.source),
-                    target=_legacy_guideline_dto(relationship.target),
+                    source=_legacy_guideline_dto(cast(Guideline | Tag, relationship.source)),
+                    target=_legacy_guideline_dto(cast(Guideline | Tag, relationship.target)),
                     indirect=indirect,
                 )
                 for relationship, indirect in relationships
@@ -847,7 +862,7 @@ def create_legacy_router(
         agent_id: agents.AgentIdPath,
     ) -> Sequence[LegacyGuidelineDTO]:
         """
-        DEPRECATED: Use the tag-based API instead.
+        DEPRECATED AND WILL REMOVED IN A FUTURE RELEASE: Use the tag-based API instead.
 
         Lists all guidelines for the specified agent.
 
@@ -894,7 +909,7 @@ def create_legacy_router(
         params: LegacyGuidelineUpdateParamsDTO,
     ) -> LegacyGuidelineWithConnectionsAndToolAssociationsDTO:
         """
-        DEPRECATED: Use the tag-based API instead.
+        DEPRECATED AND WILL REMOVED IN A FUTURE RELEASE: Use the tag-based API instead.
 
         Updates a guideline's connections and tool associations.
 
@@ -960,7 +975,7 @@ def create_legacy_router(
                 await relationship_store.create_relationship(
                     source=RelationshipEntity(id=req.source, kind=RelationshipEntityKind.GUIDELINE),
                     target=RelationshipEntity(id=req.target, kind=RelationshipEntityKind.GUIDELINE),
-                    kind=GuidelineRelationshipKind.ENTAILMENT,
+                    kind=RelationshipKind.ENTAILMENT,
                 )
 
         relationships = await _get_guideline_relationships_by_kind(
@@ -968,14 +983,20 @@ def create_legacy_router(
             tag_store=tag_store,
             relationship_store=relationship_store,
             entity_id=guideline_id,
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind=RelationshipKind.ENTAILMENT,
             include_indirect=False,
         )
 
         if params.connections and params.connections.remove:
             for id in params.connections.remove:
                 if found_relationship := next(
-                    (r for r, _ in relationships if id in [r.source.id, r.target.id]), None
+                    (
+                        r
+                        for r, _ in relationships
+                        if id
+                        in [cast(Guideline | Tag, r.source).id, cast(Guideline | Tag, r.target).id]
+                    ),
+                    None,
                 ):
                     await relationship_store.delete_relationship(found_relationship.id)
                 else:
@@ -1029,8 +1050,8 @@ def create_legacy_router(
             connections=[
                 LegacyGuidelineConnectionDTO(
                     id=relationship.id,
-                    source=_legacy_guideline_dto(relationship.source),
-                    target=_legacy_guideline_dto(relationship.target),
+                    source=_legacy_guideline_dto(cast(Guideline | Tag, relationship.source)),
+                    target=_legacy_guideline_dto(cast(Guideline | Tag, relationship.target)),
                     indirect=indirect,
                 )
                 for relationship, indirect in await _get_guideline_relationships_by_kind(
@@ -1038,7 +1059,7 @@ def create_legacy_router(
                     tag_store=tag_store,
                     relationship_store=relationship_store,
                     entity_id=guideline_id,
-                    kind=GuidelineRelationshipKind.ENTAILMENT,
+                    kind=RelationshipKind.ENTAILMENT,
                     include_indirect=True,
                 )
             ],
@@ -1074,7 +1095,7 @@ def create_legacy_router(
         guideline_id: GuidelineIdPath,
     ) -> None:
         """
-        DEPRECATED: Use the tag-based API instead.
+        DEPRECATED AND WILL REMOVED IN A FUTURE RELEASE: Use the tag-based API instead.
 
         Deletes a guideline from the agent.
 
@@ -1105,12 +1126,12 @@ def create_legacy_router(
             deleted = True
         for r in chain(
             await relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.ENTAILMENT,
+                kind=RelationshipKind.ENTAILMENT,
                 indirect=False,
                 source_id=guideline_id,
             ),
             await relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.ENTAILMENT,
+                kind=RelationshipKind.ENTAILMENT,
                 indirect=False,
                 target_id=guideline_id,
             ),
@@ -1374,7 +1395,7 @@ def _guideline_relationship_to_dto(
         if relationship.source_type == RelationshipEntityKind.TAG
         else None,
         target_guideline=GuidelineDTO(
-            id=relationship.target.id,
+            id=cast(Guideline | Tag, relationship.target).id,
             creation_utc=rel_target_guideline.creation_utc,
             condition=rel_target_guideline.content.condition,
             action=rel_target_guideline.content.action,
@@ -1753,7 +1774,9 @@ def create_router(
             guideline_id=guideline_id,
             include_indirect=False,
         ):
-            related_guideline = r.target if r.source.id == guideline_id else r.source
+            related_guideline = (
+                r.target if cast(Guideline | Tag, r.source).id == guideline_id else r.source
+            )
             if (
                 isinstance(related_guideline, Guideline)
                 and related_guideline.tags

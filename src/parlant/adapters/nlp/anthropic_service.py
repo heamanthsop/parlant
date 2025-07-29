@@ -90,7 +90,7 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
                     APIResponseValidationError,
                 )
             ),
-            retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
+            retry(InternalServerError, max_exceptions=2, wait_times=(1.0, 5.0)),
         ]
     )
     @override
@@ -166,6 +166,19 @@ class Claude_Sonnet_3_5(AnthropicAISchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
             model_name="claude-3-5-sonnet-20241022",
+            logger=logger,
+        )
+
+    @override
+    @property
+    def max_tokens(self) -> int:
+        return 200 * 1024
+
+
+class Claude_Opus_4(AnthropicAISchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="claude-opus-4-20250514",
             logger=logger,
         )
 

@@ -18,10 +18,10 @@ from parlant.core.agents import AgentId
 from parlant.core.common import JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.entity_cq import EntityCommands
-from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
+from parlant.core.evaluations import GuidelinePayload, PayloadOperation
 from parlant.core.relationships import (
     RelationshipEntityKind,
-    GuidelineRelationshipKind,
+    RelationshipKind,
     RelationshipEntity,
     RelationshipStore,
 )
@@ -30,6 +30,7 @@ from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineStore
 from parlant.core.services.indexing.behavioral_change_evaluation import GuidelineEvaluator
 from parlant.core.sessions import AgentState, SessionId, SessionStore, SessionUpdateParams
 from parlant.core.tags import Tag
+from parlant.core.tools import ToolId
 from tests.core.common.engines.alpha.utils import step
 from tests.core.common.utils import ContextOfTest
 
@@ -49,11 +50,12 @@ def get_guideline_properties(
                         action=action,
                     ),
                     tool_ids=[],
-                    operation=GuidelinePayloadOperation.ADD,
+                    operation=PayloadOperation.ADD,
                     coherence_check=False,
                     connection_proposition=False,
                     action_proposition=True,
                     properties_proposition=True,
+                    journey_node_proposition=False,
                 )
             ],
         )
@@ -93,13 +95,22 @@ def given_a_previously_applied_guideline(
     session = context.sync_await(context.container[SessionStore].read_session(session_id))
 
     applied_guideline_ids = [context.guidelines[guideline_name].id]
-    applied_guideline_ids.extend(session.agent_state["applied_guideline_ids"])
+    applied_guideline_ids.extend(
+        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+    )
 
     context.sync_await(
         context.container[EntityCommands].update_session(
             session_id=session_id,
             params=SessionUpdateParams(
-                agent_state=AgentState(applied_guideline_ids=applied_guideline_ids)
+                agent_states=list(session.agent_states)
+                + [
+                    AgentState(
+                        correlation_id="<main>",
+                        applied_guideline_ids=applied_guideline_ids,
+                        journey_paths={},
+                    )
+                ]
             ),
         )
     )
@@ -562,7 +573,7 @@ def given_an_entailment_guideline_relationship(
                 id=context.guidelines[guideline_b].id,
                 kind=RelationshipEntityKind.GUIDELINE,
             ),
-            kind=GuidelineRelationshipKind.ENTAILMENT,
+            kind=RelationshipKind.ENTAILMENT,
         )
     )
 
@@ -588,7 +599,7 @@ def given_an_guideline_grouped_under(
                 id=context.guidelines[guideline].id,
                 kind=RelationshipEntityKind.GUIDELINE,
             ),
-            kind=GuidelineRelationshipKind.DISAMBIGUATION,
+            kind=RelationshipKind.DISAMBIGUATION,
         )
     )
 
@@ -617,6 +628,34 @@ def given_an_dependency_between_guideline_and_a_journey(
                 id=Tag.for_journey_id(journey.id),
                 kind=RelationshipEntityKind.TAG,
             ),
-            kind=GuidelineRelationshipKind.DEPENDENCY,
+            kind=RelationshipKind.DEPENDENCY,
+        )
+    )
+
+
+@step(
+    given,
+    parsers.parse(
+        'a reevaluation relationship between the guideline "{guideline_name}" and the "{tool_name}" tool'
+    ),
+)
+def given_an_reevaluation_between_guideline_and_a_tool(
+    context: ContextOfTest,
+    guideline_name: str,
+    tool_name: str,
+) -> None:
+    store = context.container[RelationshipStore]
+
+    context.sync_await(
+        store.create_relationship(
+            source=RelationshipEntity(
+                id=ToolId(service_name="local", tool_name=tool_name),
+                kind=RelationshipEntityKind.TOOL,
+            ),
+            target=RelationshipEntity(
+                id=context.guidelines[guideline_name].id,
+                kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            kind=RelationshipKind.DEPENDENCY,
         )
     )

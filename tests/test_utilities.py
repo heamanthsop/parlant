@@ -91,7 +91,8 @@ from parlant.core.persistence.common import ObjectId
 from parlant.core.persistence.document_database import BaseDocument, DocumentCollection
 
 T = TypeVar("T")
-GLOBAL_CACHE_FILE = Path("schematic_generation_test_cache.json")
+GLOBAL_SCHEMATIC_GENERATION_CACHE_FILE = Path("schematic_generation_test_cache.json")
+GLOBAL_EMBEDDER_CACHE_FILE = Path("schematic_generation_test_cache.json")
 
 SERVER_PORT = 8089
 PLUGIN_SERVER_PORT = 8091
@@ -135,6 +136,7 @@ class _TestLogger(Logger):
     def set_level(self, log_level: LogLevel) -> None:
         self.logger.setLevel(
             {
+                LogLevel.TRACE: logging.DEBUG,
                 LogLevel.DEBUG: logging.DEBUG,
                 LogLevel.INFO: logging.INFO,
                 LogLevel.WARNING: logging.WARNING,
@@ -142,6 +144,9 @@ class _TestLogger(Logger):
                 LogLevel.CRITICAL: logging.CRITICAL,
             }[log_level]
         )
+
+    def trace(self, message: str) -> None:
+        self.logger.debug(message)
 
     def debug(self, message: str) -> None:
         self.logger.debug(message)
@@ -431,8 +436,8 @@ class CachedSchematicGenerator(SchematicGenerator[TBaseModel]):
         self._ensure_cache_file_exists()
 
     def _ensure_cache_file_exists(self) -> None:
-        if not GLOBAL_CACHE_FILE.exists():
-            GLOBAL_CACHE_FILE.write_text("{}")
+        if not GLOBAL_SCHEMATIC_GENERATION_CACHE_FILE.exists():
+            GLOBAL_SCHEMATIC_GENERATION_CACHE_FILE.write_text("{}")
 
     def _generate_id(
         self,
@@ -546,7 +551,7 @@ async def create_schematic_generation_result_collection(
             return cast(SchematicGenerationResultDocument, doc)
         return None
 
-    async with JSONFileDocumentDatabase(logger, GLOBAL_CACHE_FILE) as db:
+    async with JSONFileDocumentDatabase(logger, GLOBAL_SCHEMATIC_GENERATION_CACHE_FILE) as db:
         yield await db.get_or_create_collection(
             name="schematic_generation_result_cache",
             schema=SchematicGenerationResultDocument,

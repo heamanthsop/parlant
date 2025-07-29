@@ -18,21 +18,32 @@ import asyncio
 from contextlib import asynccontextmanager, AsyncExitStack
 from dataclasses import dataclass
 import importlib
+import inspect
 import os
 import traceback
 from lagom import Container, Singleton
-from typing import AsyncIterator, Awaitable, Callable, Iterable, Literal, Optional, Sequence, cast
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Literal,
+    Optional,
+    Sequence,
+    cast,
+)
 import rich
 import toml
 from typing_extensions import NoReturn
 import click
-import click_completion
 from pathlib import Path
 import sys
 import uvicorn
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
+from parlant.core.common import IdGenerator
 from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.guideline_matching.generic import (
     guideline_actionable_batch,
@@ -42,6 +53,9 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
 )
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
     DisambiguationGuidelineMatchesSchema,
+)
+from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
+    JourneyNodeSelectionSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
@@ -77,6 +91,10 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingStrategyResolver,
 )
 from parlant.core.engines.alpha.hooks import EngineHooks
+from parlant.core.engines.alpha.optimization_policy import (
+    BasicOptimizationPolicy,
+    OptimizationPolicy,
+)
 from parlant.core.engines.alpha.perceived_performance_policy import (
     BasicPerceivedPerformancePolicy,
     PerceivedPerformancePolicy,
@@ -85,15 +103,16 @@ from parlant.core.engines.alpha.relational_guideline_resolver import RelationalG
 from parlant.core.engines.alpha.tool_calling.overlapping_tools_batch import (
     OverlappingToolsBatchSchema,
 )
-from parlant.core.engines.alpha.utterance_selector import (
-    UtteranceDraftSchema,
-    UtteranceFieldExtractionSchema,
-    UtteranceFieldExtractor,
-    UtteranceFluidPreambleSchema,
-    UtteranceSelectionSchema,
-    UtteranceRevisionSchema,
-    UtteranceSelector,
+from parlant.core.engines.alpha.canned_response_generator import (
+    CannedResponseDraftSchema,
+    CannedResponseFieldExtractionSchema,
+    CannedResponseFieldExtractor,
+    CannedResponsePreambleSchema,
+    CannedResponseSelectionSchema,
+    CannedResponseRevisionSchema,
+    CannedResponseGenerator,
 )
+from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.services.indexing.guideline_agent_intention_proposer import (
     AgentIntentionProposerSchema,
 )
@@ -111,7 +130,12 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
+from parlant.core.services.indexing.relative_action_proposer import RelativeActionSchema
+from parlant.core.services.indexing.tool_running_action_detector import (
+    ToolRunningActionDetector,
+    ToolRunningActionSchema,
+)
+from parlant.core.canned_responses import CannedResponseStore, CannedResponseVectorStore
 from parlant.core.nlp.service import NLPService
 from parlant.core.persistence.common import MigrationRequired, ServerOutdated
 from parlant.core.shots import ShotCollection
@@ -141,7 +165,13 @@ from parlant.core.guidelines import (
     GuidelineStore,
 )
 from parlant.adapters.db.json_file import JSONFileDocumentDatabase
-from parlant.core.nlp.embedding import Embedder, EmbedderFactory
+from parlant.core.nlp.embedding import (
+    BasicEmbeddingCache,
+    Embedder,
+    EmbedderFactory,
+    EmbeddingCache,
+    NullEmbeddingCache,
+)
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.services.tools.service_registry import (
     ServiceRegistry,
@@ -380,6 +410,9 @@ async def setup_container() -> AsyncIterator[Container]:
     web_socket_logger = WebSocketLogger(CORRELATOR, LogLevel.INFO)
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
+
+    c[IdGenerator] = Singleton(IdGenerator)
+
     c[ShotCollection[GenericResponseAnalysisShot]] = response_analysis_batch.shot_collection
     c[ShotCollection[GenericPreviouslyAppliedActionableGuidelineGuidelineMatchingShot]] = (
         guideline_previously_applied_actionable_batch.shot_collection
@@ -403,16 +436,20 @@ async def setup_container() -> AsyncIterator[Container]:
     c[EntityCommands] = Singleton(EntityCommands)
 
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
-    c[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
-    c[UtteranceSelector] = Singleton(UtteranceSelector)
+    c[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
+    c[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
     c[MessageGenerator] = Singleton(MessageGenerator)
     c[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
+    c[OptimizationPolicy] = Singleton(BasicOptimizationPolicy)
 
     c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
     c[CoherenceChecker] = Singleton(CoherenceChecker)
     c[GuidelineActionProposer] = Singleton(GuidelineActionProposer)
     c[GuidelineContinuousProposer] = Singleton(GuidelineContinuousProposer)
     c[CustomerDependentActionDetector] = Singleton(CustomerDependentActionDetector)
+    c[ToolRunningActionDetector] = ToolRunningActionDetector
+
+    c[JourneyGuidelineProjection] = Singleton(JourneyGuidelineProjection)
 
     c[LegacyBehavioralChangeEvaluator] = Singleton(LegacyBehavioralChangeEvaluator)
     c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
@@ -442,6 +479,7 @@ async def initialize_container(
             c[t] = await value_func()
 
     async def try_define_document_store(
+        id_generator: IdGenerator,
         store_type: type,
         store_doc_type: type,
         filename: str,
@@ -454,12 +492,21 @@ async def initialize_container(
                 )
             )
 
-            c[store_type] = await EXIT_STACK.enter_async_context(
-                store_doc_type(
-                    db,
-                    migrate,
-                )
-            )
+            sig = inspect.signature(store_doc_type)
+            params = list(sig.parameters.keys())
+
+            # Remove 'self' from parameters list
+            if "self" in params:
+                params.remove("self")
+
+            # Build arguments based on what the constructor accepts
+            args: list[Any] = []
+            if "id_generator" in params:
+                args.append(id_generator)
+
+            args.extend([db, migrate])
+
+            c[store_type] = await EXIT_STACK.enter_async_context(store_doc_type(*args))
 
     async def try_define_vector_store(
         store_type: type,
@@ -468,6 +515,7 @@ async def initialize_container(
         document_db_filename: str,
         embedder_type_provider: Callable[[], Awaitable[type[Embedder]]],
         embedder_factory: EmbedderFactory,
+        id_generator: IdGenerator,
     ) -> None:
         if store_type not in c.defined_types:
             vector_db = await vector_db_factory()
@@ -479,6 +527,7 @@ async def initialize_container(
             )
             c[store_type] = await EXIT_STACK.enter_async_context(
                 store_class(
+                    id_generator=id_generator,
                     vector_db=vector_db,
                     document_db=document_db,
                     embedder_type_provider=embedder_type_provider,
@@ -530,7 +579,7 @@ async def initialize_container(
             (RelationshipStore, RelationshipDocumentStore, "relationships.json"),
             (SessionStore, SessionDocumentStore, "sessions.json"),
         ]:
-            await try_define_document_store(interface, implementation, filename)
+            await try_define_document_store(c[IdGenerator], interface, implementation, filename)
 
         async def make_service_document_registry() -> ServiceRegistry:
             db = await EXIT_STACK.enter_async_context(
@@ -559,6 +608,18 @@ async def initialize_container(
 
         shared_chroma_db: VectorDatabase | None = None
 
+        if c[OptimizationPolicy].use_embedding_cache():
+            c[EmbeddingCache] = BasicEmbeddingCache(
+                await EXIT_STACK.enter_async_context(
+                    JSONFileDocumentDatabase(
+                        c[Logger],
+                        PARLANT_HOME_DIR / "cache_embeddings.json",
+                    )
+                )
+            )
+        else:
+            c[EmbeddingCache] = NullEmbeddingCache()
+
         async def get_shared_chroma_db() -> VectorDatabase:
             nonlocal shared_chroma_db
             if shared_chroma_db is None:
@@ -569,6 +630,7 @@ async def initialize_container(
                         c[Logger],
                         PARLANT_HOME_DIR,
                         embedder_factory,
+                        lambda: c[EmbeddingCache],
                     ),
                 )
             return cast(VectorDatabase, shared_chroma_db)
@@ -578,9 +640,9 @@ async def initialize_container(
 
         for store_type, store_class, document_db_filename in [
             (GlossaryStore, GlossaryVectorStore, "glossary_tags.json"),
-            (UtteranceStore, UtteranceVectorStore, "utterance_tags.json"),
+            (CannedResponseStore, CannedResponseVectorStore, "canned_responses.json"),
             (JourneyStore, JourneyVectorStore, "journey_associations.json"),
-            (CapabilityStore, CapabilityVectorStore, "capability_tags.json"),
+            (CapabilityStore, CapabilityVectorStore, "capabilities.json"),
         ]:
             await try_define_vector_store(
                 store_type,
@@ -589,6 +651,7 @@ async def initialize_container(
                 document_db_filename,
                 get_embedder_type,
                 embedder_factory,
+                c[IdGenerator],
             )
 
     except MigrationRequired as e:
@@ -607,11 +670,11 @@ async def initialize_container(
         GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
         GenericObservationalGuidelineMatchesSchema,
         MessageSchema,
-        UtteranceDraftSchema,
-        UtteranceSelectionSchema,
-        UtteranceFluidPreambleSchema,
-        UtteranceRevisionSchema,
-        UtteranceFieldExtractionSchema,
+        CannedResponseDraftSchema,
+        CannedResponseSelectionSchema,
+        CannedResponsePreambleSchema,
+        CannedResponseRevisionSchema,
+        CannedResponseFieldExtractionSchema,
         SingleToolBatchSchema,
         ConditionsEntailmentTestsSchema,
         ActionsContradictionTestsSchema,
@@ -620,8 +683,11 @@ async def initialize_container(
         GuidelineActionPropositionSchema,
         GuidelineContinuousPropositionSchema,
         CustomerDependentActionSchema,
+        ToolRunningActionSchema,
         AgentIntentionProposerSchema,
         DisambiguationGuidelineMatchesSchema,
+        JourneyNodeSelectionSchema,
+        RelativeActionSchema,
     ):
         try_define(
             SchematicGenerator[schema],  # type: ignore
@@ -743,10 +809,41 @@ async def load_app(params: StartupParameters) -> AsyncIterator[tuple[ASGIApplica
         )
 
         if not params.configure:
-            # Running in non-pico mode
+            # Running in non-SDK mode
             await create_agent_if_absent(actual_container[AgentStore])
 
+        _print_startup_banner()
+
         yield await create_api_app(actual_container), actual_container
+
+
+def _print_startup_banner() -> None:
+    ascii_logo = rf"""
+                           ..           
+                        :=++++=-        
+                      :+***+++**+.      
+                    .=*****++++*+=:.    
+                   .=+++*******-        
+           ..:::::...  .::::=++         
+       .-+***#####**+=-..=+=:.          
+     :+######***********. =***=.        
+    =####**###**********+ .*****-       
+   =#******###** v{VERSION[:3]} **+ .******-      
+  :#*******#######****=. =********:     
+  .*#******#*:---=-::..-*********+      
+   -##*##***. -----=++*******++**:      
+    :*###**: =****###**********+:       
+      -+*#- -****************+-         
+        .: .*******++++++==-.           
+          .****+=:.                     
+          =+=:.                         
+         ..    
+    """.strip("\n")
+
+    ascii_logo = "\n".join([f"  {line}" for line in ascii_logo.splitlines()])
+    ascii_logo = f"\n{ascii_logo}\n"
+
+    rich.print(rich.text.Text(ascii_logo, style=f"bold {'#0e8766'}"))
 
 
 async def serve_app(
@@ -806,7 +903,8 @@ async def start_parlant(params: StartupParameters) -> AsyncIterator[Container]:
 
     if "PARLANT_HOME" not in os.environ and DEFAULT_HOME_DIR == "runtime-data":
         LOGGER.warning(
-            "'runtime-data' is deprecated as the name of the default PARLANT_HOME directory"
+            "'runtime-data' as the default PARLANT_HOME directory is deprecated "
+            "and will be removed in a future release. "
         )
         LOGGER.warning(
             "Please rename 'runtime-data' to 'parlant-data' to avoid this warning in the future."
@@ -822,8 +920,6 @@ async def start_parlant(params: StartupParameters) -> AsyncIterator[Container]:
 
 
 def main() -> None:
-    click_completion.init()
-
     @click.group(invoke_without_command=True)
     @click.pass_context
     def cli(context: click.Context) -> None:

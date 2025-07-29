@@ -89,7 +89,7 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
                     APIResponseValidationError,
                 )
             ),
-            retry(InternalServerError, max_attempts=2, wait_times=(1.0, 5.0)),
+            retry(InternalServerError, max_exceptions=2, wait_times=(1.0, 5.0)),
         ]
     )
     async def generate(
@@ -136,7 +136,7 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
             t_end = time.time()
 
             if response.usage:
-                self._logger.debug(response.usage.model_dump_json(indent=2))
+                self._logger.trace(response.usage.model_dump_json(indent=2))
 
             parsed_object = response.choices[0].message.parsed
             assert parsed_object
@@ -191,7 +191,7 @@ class AzureSchematicGenerator(SchematicGenerator[T]):
             t_end = time.time()
 
             if response.usage:
-                self._logger.debug(response.usage.model_dump_json(indent=2))
+                self._logger.trace(response.usage.model_dump_json(indent=2))
 
             raw_content = response.choices[0].message.content or "{}"
 

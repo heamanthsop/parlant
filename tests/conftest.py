@@ -22,12 +22,14 @@ from lagom import Container, Singleton
 from pytest import fixture, Config
 import pytest
 
+from parlant.adapters.db.json_file import JSONFileDocumentDatabase
 from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.app import create_api_app, ASGIApplication
 from parlant.core.background_tasks import BackgroundTaskService
 from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
+from parlant.core.common import IdGenerator
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.context_variables import ContextVariableDocumentStore, ContextVariableStore
 from parlant.core.emission.event_publisher import EventPublisherFactory
@@ -51,11 +53,18 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
     DisambiguationGuidelineMatchesSchema,
 )
+from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
+    JourneyNodeSelectionSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.generic_guideline_matching_strategy_resolver import (
     GenericGuidelineMatchingStrategyResolver,
 )
+from parlant.core.engines.alpha.optimization_policy import (
+    BasicOptimizationPolicy,
+    OptimizationPolicy,
+)
 from parlant.core.engines.alpha.perceived_performance_policy import (
-    BasicPerceivedPerformancePolicy,
+    NullPerceivedPerformancePolicy,
     PerceivedPerformancePolicy,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_previously_applied_actionable_customer_dependent_batch import (
@@ -83,14 +92,14 @@ from parlant.core.engines.alpha import message_generator
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
 from parlant.core.engines.alpha.tool_calling.default_tool_call_batcher import DefaultToolCallBatcher
-from parlant.core.engines.alpha.utterance_selector import (
-    UtteranceDraftSchema,
-    UtteranceFieldExtractionSchema,
-    UtteranceFieldExtractor,
-    UtteranceFluidPreambleSchema,
-    UtteranceSelector,
-    UtteranceSelectionSchema,
-    UtteranceRevisionSchema,
+from parlant.core.engines.alpha.canned_response_generator import (
+    CannedResponseDraftSchema,
+    CannedResponseFieldExtractionSchema,
+    CannedResponseFieldExtractor,
+    CannedResponsePreambleSchema,
+    CannedResponseGenerator,
+    CannedResponseSelectionSchema,
+    CannedResponseRevisionSchema,
 )
 from parlant.core.evaluations import (
     EvaluationListener,
@@ -98,6 +107,7 @@ from parlant.core.evaluations import (
     EvaluationDocumentStore,
     EvaluationStore,
 )
+from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.journeys import JourneyStore, JourneyVectorStore
 from parlant.core.services.indexing.customer_dependent_action_detector import (
     CustomerDependentActionDetector,
@@ -115,8 +125,22 @@ from parlant.core.services.indexing.guideline_continuous_proposer import (
     GuidelineContinuousProposer,
     GuidelineContinuousPropositionSchema,
 )
-from parlant.core.utterances import UtteranceStore, UtteranceVectorStore
-from parlant.core.nlp.embedding import Embedder, EmbedderFactory
+from parlant.core.services.indexing.relative_action_proposer import (
+    RelativeActionProposer,
+    RelativeActionSchema,
+)
+from parlant.core.services.indexing.tool_running_action_detector import (
+    ToolRunningActionDetector,
+    ToolRunningActionSchema,
+)
+from parlant.core.canned_responses import CannedResponseStore, CannedResponseVectorStore
+from parlant.core.nlp.embedding import (
+    BasicEmbeddingCache,
+    Embedder,
+    EmbedderFactory,
+    EmbeddingCache,
+    NullEmbeddingCache,
+)
 from parlant.core.nlp.generation import T, SchematicGenerator
 from parlant.core.relationships import (
     RelationshipDocumentStore,
@@ -186,6 +210,7 @@ from parlant.core.tags import TagDocumentStore, TagStore
 from parlant.core.tools import LocalToolService
 
 from .test_utilities import (
+    GLOBAL_EMBEDDER_CACHE_FILE,
     CachedSchematicGenerator,
     JournalingEngineHooks,
     SchematicGenerationResultDocument,
@@ -219,7 +244,9 @@ def logger(correlator: ContextualCorrelator) -> Logger:
 @dataclass(frozen=True)
 class CacheOptions:
     cache_enabled: bool
-    cache_collection: DocumentCollection[SchematicGenerationResultDocument] | None
+    cache_schematic_generation_collection: (
+        DocumentCollection[SchematicGenerationResultDocument] | None
+    )
 
 
 @fixture
@@ -229,10 +256,20 @@ async def cache_options(
 ) -> AsyncIterator[CacheOptions]:
     if not request.config.getoption("no_cache", True):
         logger.warning("*** Cache is enabled")
-        async with create_schematic_generation_result_collection(logger=logger) as collection:
-            yield CacheOptions(cache_enabled=True, cache_collection=collection)
+
+        async with (
+            create_schematic_generation_result_collection(logger=logger) as schematic_collection,
+        ):
+            yield CacheOptions(
+                cache_enabled=True,
+                cache_schematic_generation_collection=schematic_collection,
+            )
+
     else:
-        yield CacheOptions(cache_enabled=False, cache_collection=None)
+        yield CacheOptions(
+            cache_enabled=False,
+            cache_schematic_generation_collection=None,
+        )
 
 
 @fixture
@@ -253,11 +290,11 @@ async def make_schematic_generator(
     base_generator = await container[NLPService].get_schematic_generator(schema)
 
     if cache_options.cache_enabled:
-        assert cache_options.cache_collection
+        assert cache_options.cache_schematic_generation_collection
 
         return CachedSchematicGenerator[T](
             base_generator=base_generator,
-            collection=cache_options.cache_collection,
+            collection=cache_options.cache_schematic_generation_collection,
             use_cache=True,
         )
     else:
@@ -276,6 +313,8 @@ async def container(
     container[Logger] = logger
     container[WebSocketLogger] = WebSocketLogger(container[ContextualCorrelator])
 
+    container[IdGenerator] = Singleton(IdGenerator)
+
     async with AsyncExitStack() as stack:
         container[BackgroundTaskService] = await stack.enter_async_context(
             BackgroundTaskService(container[Logger])
@@ -286,28 +325,30 @@ async def container(
         )
 
         container[AgentStore] = await stack.enter_async_context(
-            AgentDocumentStore(TransientDocumentDatabase())
+            AgentDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[GuidelineStore] = await stack.enter_async_context(
-            GuidelineDocumentStore(TransientDocumentDatabase())
+            GuidelineDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[RelationshipStore] = await stack.enter_async_context(
-            RelationshipDocumentStore(TransientDocumentDatabase())
+            RelationshipDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[SessionStore] = await stack.enter_async_context(
             SessionDocumentStore(TransientDocumentDatabase())
         )
         container[ContextVariableStore] = await stack.enter_async_context(
-            ContextVariableDocumentStore(TransientDocumentDatabase())
+            ContextVariableDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[TagStore] = await stack.enter_async_context(
-            TagDocumentStore(TransientDocumentDatabase())
+            TagDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[CustomerStore] = await stack.enter_async_context(
-            CustomerDocumentStore(TransientDocumentDatabase())
+            CustomerDocumentStore(container[IdGenerator], TransientDocumentDatabase())
         )
         container[GuidelineToolAssociationStore] = await stack.enter_async_context(
-            GuidelineToolAssociationDocumentStore(TransientDocumentDatabase())
+            GuidelineToolAssociationDocumentStore(
+                container[IdGenerator], TransientDocumentDatabase()
+            )
         )
         container[SessionListener] = PollingSessionListener
         container[EvaluationStore] = await stack.enter_async_context(
@@ -334,9 +375,23 @@ async def container(
 
         embedder_factory = EmbedderFactory(container)
 
+        if cache_options.cache_enabled:
+            embedding_cache: EmbeddingCache = BasicEmbeddingCache(
+                document_database=await stack.enter_async_context(
+                    JSONFileDocumentDatabase(logger, GLOBAL_EMBEDDER_CACHE_FILE),
+                )
+            )
+        else:
+            embedding_cache = NullEmbeddingCache()
+
         container[JourneyStore] = await stack.enter_async_context(
             JourneyVectorStore(
-                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+                container[IdGenerator],
+                vector_db=TransientVectorDatabase(
+                    container[Logger],
+                    embedder_factory,
+                    lambda: embedding_cache,
+                ),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type_provider=get_embedder_type,
@@ -345,16 +400,24 @@ async def container(
 
         container[GlossaryStore] = await stack.enter_async_context(
             GlossaryVectorStore(
-                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+                container[IdGenerator],
+                vector_db=TransientVectorDatabase(
+                    container[Logger],
+                    embedder_factory,
+                    lambda: embedding_cache,
+                ),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type_provider=get_embedder_type,
             )
         )
 
-        container[UtteranceStore] = await stack.enter_async_context(
-            UtteranceVectorStore(
-                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+        container[CannedResponseStore] = await stack.enter_async_context(
+            CannedResponseVectorStore(
+                container[IdGenerator],
+                vector_db=TransientVectorDatabase(
+                    container[Logger], embedder_factory, lambda: embedding_cache
+                ),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type_provider=get_embedder_type,
@@ -363,7 +426,12 @@ async def container(
 
         container[CapabilityStore] = await stack.enter_async_context(
             CapabilityVectorStore(
-                vector_db=TransientVectorDatabase(container[Logger], embedder_factory),
+                container[IdGenerator],
+                vector_db=TransientVectorDatabase(
+                    container[Logger],
+                    embedder_factory,
+                    lambda: embedding_cache,
+                ),
                 document_db=TransientDocumentDatabase(),
                 embedder_factory=embedder_factory,
                 embedder_type_provider=get_embedder_type,
@@ -373,17 +441,19 @@ async def container(
         container[EntityQueries] = Singleton(EntityQueries)
         container[EntityCommands] = Singleton(EntityCommands)
 
+        container[JourneyGuidelineProjection] = Singleton(JourneyGuidelineProjection)
+
         for generation_schema in (
             GenericObservationalGuidelineMatchesSchema,
             GenericActionableGuidelineMatchesSchema,
             GenericPreviouslyAppliedActionableGuidelineMatchesSchema,
             GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchesSchema,
             MessageSchema,
-            UtteranceDraftSchema,
-            UtteranceSelectionSchema,
-            UtteranceFluidPreambleSchema,
-            UtteranceRevisionSchema,
-            UtteranceFieldExtractionSchema,
+            CannedResponseDraftSchema,
+            CannedResponseSelectionSchema,
+            CannedResponsePreambleSchema,
+            CannedResponseRevisionSchema,
+            CannedResponseFieldExtractionSchema,
             single_tool_batch.SingleToolBatchSchema,
             overlapping_tools_batch.OverlappingToolsBatchSchema,
             ConditionsEntailmentTestsSchema,
@@ -392,9 +462,12 @@ async def container(
             GuidelineActionPropositionSchema,
             GuidelineContinuousPropositionSchema,
             CustomerDependentActionSchema,
+            ToolRunningActionSchema,
             GenericResponseAnalysisSchema,
             AgentIntentionProposerSchema,
             DisambiguationGuidelineMatchesSchema,
+            JourneyNodeSelectionSchema,
+            RelativeActionSchema,
         ):
             container[SchematicGenerator[generation_schema]] = await make_schematic_generator(  # type: ignore
                 container,
@@ -431,6 +504,8 @@ async def container(
         container[GuidelineContinuousProposer] = Singleton(GuidelineContinuousProposer)
         container[CustomerDependentActionDetector] = Singleton(CustomerDependentActionDetector)
         container[AgentIntentionProposer] = Singleton(AgentIntentionProposer)
+        container[ToolRunningActionDetector] = Singleton(ToolRunningActionDetector)
+        container[RelativeActionProposer] = Singleton(RelativeActionProposer)
         container[LocalToolService] = cast(
             LocalToolService,
             await container[ServiceRegistry].update_tool_service(
@@ -461,11 +536,12 @@ async def container(
         container[ToolCallBatcher] = lambda container: container[DefaultToolCallBatcher]
         container[ToolCaller] = Singleton(ToolCaller)
         container[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
-        container[UtteranceSelector] = Singleton(UtteranceSelector)
-        container[UtteranceFieldExtractor] = Singleton(UtteranceFieldExtractor)
+        container[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
+        container[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
         container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)
-        container[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
+        container[PerceivedPerformancePolicy] = Singleton(NullPerceivedPerformancePolicy)
+        container[OptimizationPolicy] = Singleton(BasicOptimizationPolicy)
 
         hooks = JournalingEngineHooks()
         container[JournalingEngineHooks] = hooks
@@ -553,48 +629,48 @@ def no_cache(container: Container) -> None:
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceDraftSchema]],
+        container[SchematicGenerator[CannedResponseDraftSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceDraftSchema],
-            container[SchematicGenerator[UtteranceDraftSchema]],
+            CachedSchematicGenerator[CannedResponseDraftSchema],
+            container[SchematicGenerator[CannedResponseDraftSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceSelectionSchema]],
+        container[SchematicGenerator[CannedResponseSelectionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceSelectionSchema],
-            container[SchematicGenerator[UtteranceSelectionSchema]],
+            CachedSchematicGenerator[CannedResponseSelectionSchema],
+            container[SchematicGenerator[CannedResponseSelectionSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceFluidPreambleSchema]],
+        container[SchematicGenerator[CannedResponsePreambleSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceFluidPreambleSchema],
-            container[SchematicGenerator[UtteranceFluidPreambleSchema]],
+            CachedSchematicGenerator[CannedResponsePreambleSchema],
+            container[SchematicGenerator[CannedResponsePreambleSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceRevisionSchema]],
+        container[SchematicGenerator[CannedResponseRevisionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceRevisionSchema],
-            container[SchematicGenerator[UtteranceRevisionSchema]],
+            CachedSchematicGenerator[CannedResponseRevisionSchema],
+            container[SchematicGenerator[CannedResponseRevisionSchema]],
         ).use_cache = False
 
     if isinstance(
-        container[SchematicGenerator[UtteranceFieldExtractionSchema]],
+        container[SchematicGenerator[CannedResponseFieldExtractionSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[UtteranceFieldExtractionSchema],
-            container[SchematicGenerator[UtteranceFieldExtractionSchema]],
+            CachedSchematicGenerator[CannedResponseFieldExtractionSchema],
+            container[SchematicGenerator[CannedResponseFieldExtractionSchema]],
         ).use_cache = False
 
     if isinstance(
@@ -639,4 +715,12 @@ def no_cache(container: Container) -> None:
         cast(
             CachedSchematicGenerator[DisambiguationGuidelineMatchesSchema],
             container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
+        ).use_cache = False
+    if isinstance(
+        container[SchematicGenerator[JourneyNodeSelectionSchema]],
+        CachedSchematicGenerator,
+    ):
+        cast(
+            CachedSchematicGenerator[JourneyNodeSelectionSchema],
+            container[SchematicGenerator[JourneyNodeSelectionSchema]],
         ).use_cache = False

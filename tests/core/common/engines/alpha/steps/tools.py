@@ -20,7 +20,7 @@ from parlant.core.relationships import (
     RelationshipEntityKind,
     RelationshipEntity,
     RelationshipStore,
-    ToolRelationshipKind,
+    RelationshipKind,
 )
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.guideline_tool_associations import (
@@ -799,6 +799,66 @@ TOOLS: dict[str, dict[str, Any]] = {
         "parameters": {"age": {"type": "integer", "description": "The age of the traveler"}},
         "required": ["age"],
     },
+    "availability_check": {
+        "name": "availability_check",
+        "description": "Check if the luxury suite is available for booking",
+        "module_path": "tests.tool_utilities",
+        "parameters": {},
+        "required": [],
+    },
+    "check_customer_location": {
+        "name": "check_customer_location",
+        "description": "Check the customer's location",
+        "module_path": "tests.tool_utilities",
+        "parameters": {},
+        "required": [],
+    },
+    "check_eligibility": {
+        "name": "check_eligibility",
+        "description": "Check the customer's eligibility for a loan",
+        "module_path": "tests.tool_utilities",
+        "parameters": {
+            "account_id": {
+                "type": "int",
+            },
+            "amount": {
+                "type": "int",
+            },
+        },
+        "required": ["account_id", "amount"],
+    },
+    "change_credit_limit": {
+        "name": "change_credit_limit",
+        "description": "Changes the credit limit for an account. Can increase or decrease by $10,000 without supervisor approval. Larger changes require supervisor authorization.",
+        "module_path": "tests.tool_utilities",
+        "parameters": {
+            "username": {
+                "type": "string",
+                "description": "The account's username",
+            },
+            "new_limit": {
+                "type": "int",
+                "description": "The new requested credit limit in USD",
+            },
+            "current_limit": {
+                "type": "int",
+                "description": "The current credit limit in USD",
+            },
+        },
+        "required": ["username", "new_limit", "current_limit"],
+    },
+    "get_credit_limit": {
+        "name": "get_credit_limit",
+        "description": "Retrieves the current credit limit for a given account.",
+        "module_path": "tests.tool_utilities",
+        "parameters": {
+            "username": {
+                "type": "string",
+                "description": "The account's username",
+            }
+        },
+        "required": ["username"],
+    },
 }
 
 
@@ -985,6 +1045,6 @@ def given_an_overlapping_tools_relationship(
                 id=tool_b_id,
                 kind=RelationshipEntityKind.TOOL,
             ),
-            kind=ToolRelationshipKind.OVERLAP,
+            kind=RelationshipKind.OVERLAP,
         )
     )

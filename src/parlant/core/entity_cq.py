@@ -13,10 +13,11 @@
 # limitations under the License.
 
 from itertools import chain
-from typing import Optional, Sequence, cast
+from typing import Mapping, Optional, Sequence, cast
 
 from cachetools import TTLCache
 
+from parlant.core import async_utils
 from parlant.core.agents import Agent, AgentId, AgentStore
 from parlant.core.capabilities import Capability, CapabilityStore
 from parlant.core.common import JSONSerializable
@@ -27,14 +28,15 @@ from parlant.core.context_variables import (
     ContextVariableValue,
 )
 from parlant.core.customers import Customer, CustomerId, CustomerStore
+from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.guidelines import (
     Guideline,
     GuidelineId,
     GuidelineStore,
 )
-from parlant.core.journeys import Journey, JourneyStore
+from parlant.core.journeys import Journey, JourneyId, JourneyNodeId, JourneyStore
 from parlant.core.relationships import (
-    GuidelineRelationshipKind,
+    RelationshipKind,
     RelationshipEntityKind,
     RelationshipStore,
 )
@@ -54,8 +56,8 @@ from parlant.core.sessions import (
 )
 from parlant.core.services.tools.service_registry import ServiceRegistry
 from parlant.core.tags import Tag
-from parlant.core.tools import ToolService
-from parlant.core.utterances import Utterance, UtteranceStore
+from parlant.core.tools import ToolId, ToolService
+from parlant.core.canned_responses import CannedResponse, CannedResponseStore
 
 
 class EntityQueries:
@@ -71,8 +73,9 @@ class EntityQueries:
         glossary_store: GlossaryStore,
         journey_store: JourneyStore,
         service_registry: ServiceRegistry,
-        utterance_store: UtteranceStore,
+        canned_response_store: CannedResponseStore,
         capability_store: CapabilityStore,
+        journey_guideline_projection: JourneyGuidelineProjection,
     ) -> None:
         self._agent_store = agent_store
         self._session_store = session_store
@@ -85,7 +88,8 @@ class EntityQueries:
         self._journey_store = journey_store
         self._capability_store = capability_store
         self._service_registry = service_registry
-        self._utterance_store = utterance_store
+        self._canned_response_store = canned_response_store
+        self._journey_guideline_projection = journey_guideline_projection
 
         self.find_journeys_on_which_this_guideline_depends = TTLCache[GuidelineId, list[Journey]](
             maxsize=1024, ttl=120
@@ -128,29 +132,36 @@ class EntityQueries:
             tags=[Tag.for_journey_id(journey.id) for journey in journeys]
         )
 
+        tasks = [
+            self._journey_guideline_projection.project_journey_to_guidelines(journey.id)
+            for journey in journeys
+        ]
+        projected_journey_guidelines = await async_utils.safe_gather(*tasks)
+
         all_guidelines = set(
             chain(
                 agent_guidelines,
                 global_guidelines,
                 guidelines_for_agent_tags,
                 guidelines_for_journeys,
+                *projected_journey_guidelines,
             )
         )
 
         return list(all_guidelines)
 
-    async def find_journey_scoped_guidelines(
+    async def find_journey_related_guidelines(
         self,
         journey: Journey,
     ) -> Sequence[GuidelineId]:
-        """Return guidelines that are dependent on the specified journey."""
+        """Return guidelines that are dependent or derived on the specified journey."""
         iterated_relationships = set()
 
         guideline_ids = set()
 
         relationships = set(
             await self._relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.DEPENDENCY,
+                kind=RelationshipKind.DEPENDENCY,
                 indirect=False,
                 target_id=Tag.for_journey_id(journey.id),
             )
@@ -166,7 +177,7 @@ class EntityQueries:
                 guideline_ids.add(cast(GuidelineId, r.source.id))
 
             new_relationships = await self._relationship_store.list_relationships(
-                kind=GuidelineRelationshipKind.DEPENDENCY,
+                kind=RelationshipKind.DEPENDENCY,
                 indirect=False,
                 target_id=r.source.id,
             )
@@ -182,6 +193,13 @@ class EntityQueries:
             journeys.append(journey)
 
             self.find_journeys_on_which_this_guideline_depends[id] = journeys
+
+        guideline_ids.update(
+            g.id
+            for g in await self._journey_guideline_projection.project_journey_to_guidelines(
+                journey.id
+            )
+        )
 
         return list(guideline_ids)
 
@@ -224,6 +242,12 @@ class EntityQueries:
         self,
     ) -> Sequence[GuidelineToolAssociation]:
         return await self._guideline_tool_association_store.list_associations()
+
+    async def find_journey_node_tool_associations(
+        self,
+        node_id: JourneyNodeId,
+    ) -> Sequence[ToolId]:
+        return (await self._journey_store.read_node(node_id=node_id)).tools
 
     async def find_capabilities_for_agent(
         self,
@@ -298,7 +322,7 @@ class EntityQueries:
 
         return list(set(chain(agent_journeys, global_journeys, journeys_for_agent_tags)))
 
-    async def find_relevant_journeys_for_context(
+    async def sort_journeys_by_contextual_relevance(
         self,
         available_journeys: Sequence[Journey],
         query: str,
@@ -309,35 +333,86 @@ class EntityQueries:
             max_journeys=len(available_journeys),
         )
 
-    async def find_utterances_for_context(
+    async def find_canned_responses_for_context(
         self,
         agent_id: AgentId,
         journeys: Sequence[Journey],
-    ) -> Sequence[Utterance]:
-        agent_utterances = await self._utterance_store.list_utterances(
+    ) -> Sequence[CannedResponse]:
+        agent_canreps = await self._canned_response_store.list_canned_responses(
             tags=[Tag.for_agent_id(agent_id)],
         )
-        global_utterances = await self._utterance_store.list_utterances(tags=[])
+        global_canreps = await self._canned_response_store.list_canned_responses(tags=[])
 
         agent = await self._agent_store.read_agent(agent_id)
-        utterances_for_agent_tags = await self._utterance_store.list_utterances(
+        canreps_for_agent_tags = await self._canned_response_store.list_canned_responses(
             tags=[tag for tag in agent.tags]
         )
 
-        journey_utterances = await self._utterance_store.list_utterances(
+        journey_canreps = await self._canned_response_store.list_canned_responses(
             tags=[Tag.for_journey_id(journey.id) for journey in journeys]
         )
 
-        all_utterances = set(
+        all_canreps = set(
             chain(
-                agent_utterances,
-                global_utterances,
-                utterances_for_agent_tags,
-                journey_utterances,
+                agent_canreps,
+                global_canreps,
+                canreps_for_agent_tags,
+                journey_canreps,
             )
         )
 
-        return list(all_utterances)
+        return list(all_canreps)
+
+    async def find_guidelines_that_need_reevaluation(
+        self,
+        available_guidelines: dict[GuidelineId, Guideline],
+        active_journeys: Sequence[Journey],
+        tool_call_ids: Sequence[ToolId],
+    ) -> Sequence[Guideline]:
+        # Find guidelines that need reevaluation based on the tool calls made.
+        active_journeys_mapping = {journey.id: journey for journey in active_journeys}
+        guidelines: list[Guideline] = []
+
+        tasks = [
+            self._relationship_store.list_relationships(
+                kind=RelationshipKind.REEVALUATION,
+                indirect=False,
+                source_id=tool_id,
+            )
+            for tool_id in tool_call_ids
+        ]
+
+        relationships = list(chain.from_iterable(await async_utils.safe_gather(*tasks)))
+
+        for relationship in relationships:
+            if g_id := next(
+                iter(g for g in available_guidelines if g.startswith(relationship.target.id)), None
+            ):
+                guideline = available_guidelines[g_id]
+
+                if guideline.metadata.get("journey_node") is not None:
+                    # If the guideline is a journey node, we add all the journey nodes of this journey
+                    journey_id = cast(
+                        JourneyId,
+                        cast(
+                            Mapping[str, JSONSerializable], guideline.metadata["journey_node"]
+                        ).get("journey_id"),
+                    )
+
+                    if journey_id in active_journeys_mapping:
+                        projected_journey_guidelines = (
+                            await self._journey_guideline_projection.project_journey_to_guidelines(
+                                journey_id
+                            )
+                        )
+
+                        guidelines.extend(projected_journey_guidelines)
+                else:
+                    # If the guideline is not associated with a journey step, we add it to the list of guidelines
+                    # that need reevaluation.
+                    guidelines.append(guideline)
+
+        return list(set(guidelines))
 
 
 class EntityCommands:

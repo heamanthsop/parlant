@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
+import traceback
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.common import (
@@ -25,15 +26,15 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
+    GuidelineMatchingBatchError,
     GuidelineMatchingStrategy,
-    GuidelineMatchingStrategyContext,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -66,12 +67,14 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
         self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._journeys = journeys
@@ -84,37 +87,63 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
         with self._logger.operation(
             f"ActionableGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
         ):
-            inference = await self._schematic_generator.generate(
-                prompt=prompt,
-                hints={"temperature": 0.15},
-            )
-
-        if not inference.content.checks:
-            self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
-        else:
-            self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
-
-        matches = []
-
-        for match in inference.content.checks:
-            if match.applies:
-                self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
-
-                matches.append(
-                    GuidelineMatch(
-                        guideline=self._guidelines[match.guideline_id],
-                        score=10 if match.applies else 1,
-                        rationale=f'''Not previously applied matcher rationale: "{match.rationale}"''',
-                        guideline_previously_applied=PreviouslyAppliedType.NO,
+            try:
+                generation_attempt_temperatures = (
+                    self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
+                        hints={"type": self.__class__.__name__}
                     )
                 )
-            else:
-                self._logger.debug(f"Completion::Skipped:\n{match.model_dump_json(indent=2)}")
 
-        return GuidelineMatchingBatchResult(
-            matches=matches,
-            generation_info=inference.info,
-        )
+                last_generation_exception: Exception | None = None
+
+                for generation_attempt in range(3):
+                    inference = await self._schematic_generator.generate(
+                        prompt=prompt,
+                        hints={"temperature": generation_attempt_temperatures[generation_attempt]},
+                    )
+
+                    if not inference.content.checks:
+                        self._logger.warning(
+                            "Completion:\nNo checks generated! This shouldn't happen."
+                        )
+                    else:
+                        self._logger.trace(
+                            f"Completion:\n{inference.content.model_dump_json(indent=2)}"
+                        )
+
+                    matches = []
+
+                    for match in inference.content.checks:
+                        if match.applies:
+                            self._logger.debug(
+                                f"Completion::Activated:\n{match.model_dump_json(indent=2)}"
+                            )
+
+                            matches.append(
+                                GuidelineMatch(
+                                    guideline=self._guidelines[match.guideline_id],
+                                    score=10 if match.applies else 1,
+                                    rationale=match.rationale,
+                                )
+                            )
+                        else:
+                            self._logger.debug(
+                                f"Completion::Skipped:\n{match.model_dump_json(indent=2)}"
+                            )
+
+                    return GuidelineMatchingBatchResult(
+                        matches=matches,
+                        generation_info=inference.info,
+                    )
+
+            except Exception as exc:
+                self._logger.warning(
+                    f"ActionableGuidelineMatchingBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                )
+
+                last_generation_exception = exc
+
+        raise GuidelineMatchingBatchError() from last_generation_exception
 
     async def shots(self) -> Sequence[GenericActionableGuidelineGuidelineMatchingShot]:
         return await shot_collection.list()
@@ -183,7 +212,7 @@ class GenericActionableGuidelineMatchingBatch(GuidelineMatchingBatch):
             for i, g in self._guidelines.items()
         )
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="guideline-not-previously-applied-general-instructions",
@@ -204,9 +233,9 @@ Each guideline is composed of two parts:
 Task Description
 ----------------
 Your task is to evaluate the relevance and applicability of a set of provided 'when' conditions to the most recent state of an interaction between yourself (an AI agent) and a user.
-You examine the applicability of each guideline under the assumption that the action was not taken yet during the interaction. 
+You examine the applicability of each guideline under the assumption that the action was not taken yet during the interaction.
 
-A guideline should be marked as applicable if it is relevant to the latest part of the conversation and in particular the most recent customer message. Do not mark a guideline as 
+A guideline should be marked as applicable if it is relevant to the latest part of the conversation and in particular the most recent customer message. Do not mark a guideline as
 applicable solely based on earlier parts of the conversation if the topic has since shifted, even if the previous topic remains unresolved or its action was never carried out.
 
 If the conversation moves from a broader issue to a related sub-issue (a related detail or follow-up within the same overall issue), you should still consider the guideline as applicable
@@ -214,7 +243,7 @@ if it is relevant to the sub-issue, as it is part of the ongoing discussion.
 In contrast, if the conversation has clearly moved on to an entirely new topic, previous guidelines should not be marked as applicable.
 This ensures that applicability is tied to the current context, but still respects the continuity of a discussion when diving deeper into subtopics.
 
-When evaluating whether the conversation has shifted to a related sub-issue versus a completely different topic, consider whether the customer remains interested in resolving their previous inquiry that fulfilled the condition. 
+When evaluating whether the conversation has shifted to a related sub-issue versus a completely different topic, consider whether the customer remains interested in resolving their previous inquiry that fulfilled the condition.
 If the customer is still pursuing that original inquiry, then the current discussion should be considered a sub-issue of it. Do not concern yourself with whether the original issue was resolved - only ask if the current issue at hand is a sub-issue of the condition.
 
 
@@ -240,7 +269,6 @@ Examples of Guideline Match Evaluations:
         builder.add_glossary(self._context.terms)
         builder.add_capabilities_for_guideline_matching(self._context.capabilities)
         builder.add_interaction_history(self._context.interaction_history)
-        builder.add_journeys(self._journeys)
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
@@ -298,10 +326,12 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         entity_queries: EntityQueries,
         schematic_generator: SchematicGenerator[GenericActionableGuidelineMatchesSchema],
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._entity_queries = entity_queries
         self._schematic_generator = schematic_generator
 
@@ -309,7 +339,7 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
     async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
-        context: GuidelineMatchingStrategyContext,
+        context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
         journeys = (
             self._entity_queries.find_journeys_on_which_this_guideline_depends.get(
@@ -334,7 +364,7 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
                 self._create_batch(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingBatchContext(
+                    context=GuidelineMatchingContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -343,7 +373,8 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
                         terms=context.terms,
                         capabilities=context.capabilities,
                         staged_events=context.staged_events,
-                        relevant_journeys=journeys,
+                        active_journeys=journeys,
+                        journey_paths=context.journey_paths,
                     ),
                 )
             )
@@ -366,10 +397,11 @@ class GenericActionableGuidelineMatching(GuidelineMatchingStrategy):
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> GenericActionableGuidelineMatchingBatch:
         return GenericActionableGuidelineMatchingBatch(
             logger=self._logger,
+            optimization_policy=self._optimization_policy,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
             journeys=journeys,

@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
+import traceback
 from typing import Optional, Sequence
 from typing_extensions import override
 from parlant.core.common import DefaultBaseModel, JSONSerializable
@@ -25,15 +26,15 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingBatchResult,
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
+    GuidelineMatchingBatchError,
     GuidelineMatchingStrategy,
-    GuidelineMatchingStrategyContext,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -50,7 +51,6 @@ class GenericPreviouslyAppliedActionableBatch(DefaultBaseModel):
     action: str
     condition_met_again: bool
     action_wasnt_taken: Optional[bool] = None
-    # tldr: str
     should_reapply: bool
 
 
@@ -69,14 +69,16 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[
             GenericPreviouslyAppliedActionableGuidelineMatchesSchema
         ],
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
         self._guidelines = {str(i): g for i, g in enumerate(guidelines, start=1)}
         self._journeys = journeys
@@ -89,37 +91,61 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
         with self._logger.operation(
             f"PreviouslyAppliedActionableGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
         ):
-            inference = await self._schematic_generator.generate(
-                prompt=prompt,
-                hints={"temperature": 0.15},
-            )
-
-        if not inference.content.checks:
-            self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
-        else:
-            self._logger.debug(f"Completion:\n{inference.content.model_dump_json(indent=2)}")
-
-        matches = []
-
-        for match in inference.content.checks:
-            if match.should_reapply:
-                self._logger.debug(f"Completion::Activated:\n{match.model_dump_json(indent=2)}")
-
-                matches.append(
-                    GuidelineMatch(
-                        guideline=self._guidelines[match.guideline_id],
-                        score=10 if match.should_reapply else 1,
-                        rationale='''reapply rational: ""''',
-                        guideline_previously_applied=PreviouslyAppliedType.FULLY,
+            try:
+                generation_attempt_temperatures = (
+                    self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
+                        hints={"type": self.__class__.__name__}
                     )
                 )
-            else:
-                self._logger.debug(f"Completion::Skipped:\n{match.model_dump_json(indent=2)}")
 
-        return GuidelineMatchingBatchResult(
-            matches=matches,
-            generation_info=inference.info,
-        )
+                last_generation_exception: Exception | None = None
+
+                for generation_attempt in range(3):
+                    inference = await self._schematic_generator.generate(
+                        prompt=prompt,
+                        hints={"temperature": generation_attempt_temperatures[generation_attempt]},
+                    )
+
+                if not inference.content.checks:
+                    self._logger.warning("Completion:\nNo checks generated! This shouldn't happen.")
+                else:
+                    self._logger.trace(
+                        f"Completion:\n{inference.content.model_dump_json(indent=2)}"
+                    )
+
+                matches = []
+
+                for match in inference.content.checks:
+                    if match.should_reapply:
+                        self._logger.debug(
+                            f"Completion::Activated:\n{match.model_dump_json(indent=2)}"
+                        )
+
+                        matches.append(
+                            GuidelineMatch(
+                                guideline=self._guidelines[match.guideline_id],
+                                score=10 if match.should_reapply else 1,
+                                rationale="",
+                            )
+                        )
+                    else:
+                        self._logger.debug(
+                            f"Completion::Skipped:\n{match.model_dump_json(indent=2)}"
+                        )
+
+                return GuidelineMatchingBatchResult(
+                    matches=matches,
+                    generation_info=inference.info,
+                )
+
+            except Exception as exc:
+                self._logger.warning(
+                    f"PreviouslyAppliedActionableGuidelineMatchingBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                )
+
+                last_generation_exception = exc
+
+        raise GuidelineMatchingBatchError() from last_generation_exception
 
     async def shots(
         self,
@@ -191,7 +217,7 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
             for i, g in self._guidelines.items()
         )
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="guideline-previously-applied-general-instructions",
@@ -219,7 +245,7 @@ In general, a guideline should be reapplied if:
 
 Your task is to determine whether reapplying the action is appropriate, based on whether the guideline’s condition is met again in a way that justifies repeating the action. We will want to repeat the action if the current application refers
  to a new or subtly different context or information
-For example, a guideline with the condition “the customer is asking a question” should be reapplied each time the customer asks a new question. 
+For example, a guideline with the condition “the customer is asking a question” should be reapplied each time the customer asks a new question.
 In contrast, guidelines involving one-time behaviors (e.g., “send the user our address”) should be reapplied more conservatively: only if the condition ceased to be true for a while and is now clearly true again in the current context.
 For instance, if the customer previously complained about an issue and you already offered compensation, then mentions the same issue again, it is usually not necessary to repeat the compensation offer. However, if the customer raises a new
  issue or clearly indicates a different concern, it may warrant reapplying the guideline.
@@ -231,7 +257,7 @@ Context May Shift:
     Sometimes, the user may briefly raise an issue that would normally trigger a guideline, but then shift the topic within the same message or shortly after. In such cases, the condition should NOT be considered active, and the guideline should
     not be reapplied.
 Conditions Can Arise and Resolve Multiple Times:
-    A condition may be met more than once over the course of a conversation and may also be resolved multiple times (the action was taken). If the most recent instance of the condition has already been addressed and resolved, there is no need to 
+    A condition may be met more than once over the course of a conversation and may also be resolved multiple times (the action was taken). If the most recent instance of the condition has already been addressed and resolved, there is no need to
     reapply the guideline. However, if the user is still clearly engaging with the same unresolved issue, or if a new instance of the condition arises, reapplying the guideline may be appropriate.
 
 
@@ -257,7 +283,6 @@ Examples of Guideline Match Evaluations:
         builder.add_glossary(self._context.terms)
         builder.add_capabilities_for_guideline_matching(self._context.capabilities)
         builder.add_interaction_history(self._context.interaction_history)
-        builder.add_journeys(self._journeys)
         builder.add_staged_events(self._context.staged_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINES,
@@ -316,12 +341,14 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         entity_queries: EntityQueries,
         schematic_generator: SchematicGenerator[
             GenericPreviouslyAppliedActionableGuidelineMatchesSchema
         ],
     ) -> None:
         self._logger = logger
+        self._optimization_policy = optimization_policy
         self._entity_queries = entity_queries
         self._schematic_generator = schematic_generator
 
@@ -329,7 +356,7 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
     async def create_matching_batches(
         self,
         guidelines: Sequence[Guideline],
-        context: GuidelineMatchingStrategyContext,
+        context: GuidelineMatchingContext,
     ) -> Sequence[GuidelineMatchingBatch]:
         journeys = (
             self._entity_queries.find_journeys_on_which_this_guideline_depends.get(
@@ -354,7 +381,7 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
                 self._create_batch(
                     guidelines=list(batch.values()),
                     journeys=journeys,
-                    context=GuidelineMatchingBatchContext(
+                    context=GuidelineMatchingContext(
                         agent=context.agent,
                         session=context.session,
                         customer=context.customer,
@@ -363,7 +390,8 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
                         terms=context.terms,
                         capabilities=context.capabilities,
                         staged_events=context.staged_events,
-                        relevant_journeys=journeys,
+                        active_journeys=journeys,
+                        journey_paths=context.journey_paths,
                     ),
                 )
             )
@@ -386,10 +414,11 @@ class GenericPreviouslyAppliedActionableGuidelineMatching(GuidelineMatchingStrat
         self,
         guidelines: Sequence[Guideline],
         journeys: Sequence[Journey],
-        context: GuidelineMatchingBatchContext,
+        context: GuidelineMatchingContext,
     ) -> GenericPreviouslyAppliedActionableGuidelineMatchingBatch:
         return GenericPreviouslyAppliedActionableGuidelineMatchingBatch(
             logger=self._logger,
+            optimization_policy=self._optimization_policy,
             schematic_generator=self._schematic_generator,
             guidelines=guidelines,
             journeys=journeys,
@@ -464,7 +493,6 @@ example_1_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             condition="the customer initiates a purchase.",
             action="Open a new cart for the customer",
             condition_met_again=False,
-            # tldr="The purchase-related guideline was initiated earlier, but is currently irrelevant since the customer completed the purchase and the conversation has moved to a new topic.",
             should_reapply=False,
         ),
         GenericPreviouslyAppliedActionableBatch(
@@ -473,8 +501,6 @@ example_1_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             action="Refer the customer to our privacy policy page",
             condition_met_again=True,
             action_wasnt_taken=True,
-            # tldr="While the customer has already asked a question to do with data security, and has been REFERRED to the privacy policy page, they now asked another question, so I should tell"
-            # " them once again to refer to the privacy policy page, perhaps stressing it more this time",
             should_reapply=True,
         ),
     ]
@@ -515,7 +541,6 @@ example_2_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             action="provide the price using the 'check_stock_price' tool",
             condition_met_again=True,
             action_wasnt_taken=True,
-            # tldr="The agent previously provided the price of that stock, but since the price might have changed since it should be checked and provided again",
             should_reapply=True,
         ),
         GenericPreviouslyAppliedActionableBatch(
@@ -523,7 +548,6 @@ example_2_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             condition="the weather at a certain location is discussed.",
             action="check the weather at that location using the 'check_weather' tool",
             condition_met_again=False,
-            # tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
             should_reapply=False,
         ),
     ]
@@ -577,7 +601,6 @@ example_3_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             condition="The customer asks about their account balance, billing amount, or payment status.",
             action="Provide the current account balance or billing information clearly.",
             condition_met_again=False,
-            # tldr="The customer last request is not related to balance or payment",
             should_reapply=False,
         ),
     ]
@@ -619,7 +642,6 @@ example_4_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             action="provide the price using the 'check_stock_price' tool",
             condition_met_again=True,
             action_wasnt_taken=False,
-            # tldr="The customer asked for the stock price again and was answered.",
             should_reapply=False,
         ),
         GenericPreviouslyAppliedActionableBatch(
@@ -627,7 +649,6 @@ example_4_expected = GenericPreviouslyAppliedActionableGuidelineMatchesSchema(
             condition="the weather at a certain location is discussed.",
             action="check the weather at that location using the 'check_weather' tool",
             condition_met_again=False,
-            # tldr="while weather was discussed earlier, the conversation have moved on to an entirely different topic (stock prices)",
             should_reapply=False,
         ),
     ]

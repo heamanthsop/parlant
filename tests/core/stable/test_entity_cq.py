@@ -22,10 +22,10 @@ from parlant.core.glossary import GlossaryStore
 from parlant.core.relationships import (
     RelationshipEntity,
     RelationshipStore,
-    GuidelineRelationshipKind,
+    RelationshipKind,
     RelationshipEntityKind,
 )
-from parlant.core.utterances import UtteranceStore
+from parlant.core.canned_responses import CannedResponseStore
 from parlant.core.guidelines import GuidelineStore
 from parlant.core.journeys import JourneyStore
 from parlant.core.tags import Tag, TagId, TagStore
@@ -203,51 +203,52 @@ async def test_that_guideline_tagged_with_disabled_journey_is_filtered_out_when_
     assert len(result) == 0
 
 
-async def test_that_find_utterances_for_agent_returns_global_utterances(
-    container: Container, agent: Agent
+async def test_that_find_canned_responses_for_agent_returns_global_canned_responses(
+    container: Container,
+    agent: Agent,
 ) -> None:
-    utterance_store: UtteranceStore = container[UtteranceStore]
+    canrep_store: CannedResponseStore = container[CannedResponseStore]
     entity_queries = container[EntityQueries]
 
-    untagged_utterance = await utterance_store.create_utterance(
+    untagged_canrep = await canrep_store.create_canned_response(
         value="Hello world",
         fields=[],
     )
 
-    results = await entity_queries.find_utterances_for_context(
+    results = await entity_queries.find_canned_responses_for_context(
         agent_id=agent.id,
         journeys=[],
     )
     assert len(results) == 1
-    assert results[0].id == untagged_utterance.id
+    assert results[0].id == untagged_canrep.id
 
 
-async def test_that_find_utterances_for_agent_returns_none_for_non_matching_tag(
+async def test_that_find_canned_responses_for_agent_returns_none_for_non_matching_tag(
     container: Container, agent: Agent
 ) -> None:
-    utterance_store: UtteranceStore = container[UtteranceStore]
+    canrep_store: CannedResponseStore = container[CannedResponseStore]
     entity_queries = container[EntityQueries]
 
     tag1 = TagId("tag1")
-    await utterance_store.create_utterance(
-        value="Tagged utterance",
+    await canrep_store.create_canned_response(
+        value="Tagged canned response",
         fields=[],
         tags=[tag1],
     )
 
     await container[AgentStore].upsert_tag(agent_id=agent.id, tag_id=TagId("non_matching_tag"))
 
-    results = await entity_queries.find_utterances_for_context(
+    results = await entity_queries.find_canned_responses_for_context(
         agent_id=agent.id,
         journeys=[],
     )
     assert len(results) == 0
 
 
-async def test_that_find_utterances_for_agent_and_journey_returns_journey_utterances(
+async def test_that_find_canned_responses_for_agent_and_journey_returns_journey_canned_responses(
     container: Container, agent: Agent
 ) -> None:
-    utterance_store: UtteranceStore = container[UtteranceStore]
+    canrep_store: CannedResponseStore = container[CannedResponseStore]
     journey_store = container[JourneyStore]
     entity_queries = container[EntityQueries]
 
@@ -258,18 +259,18 @@ async def test_that_find_utterances_for_agent_and_journey_returns_journey_uttera
     )
 
     journey_tag = Tag.for_journey_id(journey.id)
-    journey_utterance = await utterance_store.create_utterance(
-        value="Journey utterance",
+    journey_canrep = await canrep_store.create_canned_response(
+        value="Journey canrep",
         fields=[],
         tags=[journey_tag],
     )
 
-    results = await entity_queries.find_utterances_for_context(
+    results = await entity_queries.find_canned_responses_for_context(
         agent_id=agent.id,
         journeys=[journey],
     )
     assert len(results) == 1
-    assert results[0].id == journey_utterance.id
+    assert results[0].id == journey_canrep.id
 
 
 async def test_that_find_glossary_terms_for_agent_returns_all_when_no_tags(
@@ -333,13 +334,13 @@ async def test_that_find_capabilities_for_agent_returns_unique_capabilities(
         capability = {
             "title": random_unicode_string(),
             "description": random_unicode_string(),
-            "queries": [random_unicode_string() for _ in range(5)],
+            "signals": [random_unicode_string() for _ in range(5)],
         }
 
         await capability_store.create_capability(
             title=str(capability["title"]),
             description=str(capability["description"]),
-            queries=capability["queries"],
+            signals=capability["signals"],
         )
 
     relevant_capabilities = await entity_queries.find_capabilities_for_agent(
@@ -381,7 +382,7 @@ async def test_find_relevant_journeys_for_agent_returns_most_relevant(
         conditions=[],
     )
 
-    results = await entity_queries.find_relevant_journeys_for_context(
+    results = await entity_queries.sort_journeys_by_contextual_relevance(
         [onboarding_journey, support_journey], "I'd like to reset my password"
     )
 
@@ -418,10 +419,10 @@ async def test_list_guidelines_dependent_directly_on_journey(
         target=RelationshipEntity(
             id=Tag.for_journey_id(journey.id), kind=RelationshipEntityKind.TAG
         ),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
+        kind=RelationshipKind.DEPENDENCY,
     )
 
-    result = await entity_queries.find_journey_scoped_guidelines(journey)
+    result = await entity_queries.find_journey_related_guidelines(journey)
 
     assert len(result) == 1
     assert result[0] == guideline1.id
@@ -461,29 +462,29 @@ async def test_list_guidelines_dependent_indirectly_on_journey(
         target=RelationshipEntity(
             id=Tag.for_journey_id(journey.id), kind=RelationshipEntityKind.TAG
         ),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
+        kind=RelationshipKind.DEPENDENCY,
     )
 
     await relationship_store.create_relationship(
         source=RelationshipEntity(id=guideline2.id, kind=RelationshipEntityKind.GUIDELINE),
         target=RelationshipEntity(id=guideline1.id, kind=RelationshipEntityKind.GUIDELINE),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
+        kind=RelationshipKind.DEPENDENCY,
     )
 
     await relationship_store.create_relationship(
         source=RelationshipEntity(id=guideline3.id, kind=RelationshipEntityKind.GUIDELINE),
         target=RelationshipEntity(id=tag.id, kind=RelationshipEntityKind.TAG),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
+        kind=RelationshipKind.DEPENDENCY,
     )
     await relationship_store.create_relationship(
         source=RelationshipEntity(id=tag.id, kind=RelationshipEntityKind.TAG),
         target=RelationshipEntity(
             id=Tag.for_journey_id(journey.id), kind=RelationshipEntityKind.TAG
         ),
-        kind=GuidelineRelationshipKind.DEPENDENCY,
+        kind=RelationshipKind.DEPENDENCY,
     )
 
-    result = await entity_queries.find_journey_scoped_guidelines(journey)
+    result = await entity_queries.find_journey_related_guidelines(journey)
 
     assert len(result) == 3
 

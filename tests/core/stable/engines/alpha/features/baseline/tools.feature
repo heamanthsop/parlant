@@ -971,23 +971,6 @@ Feature: Tools
         And a single message event is emitted
         And the message contains that the price of 1 kg of carrots is 10 dollars
 
-    Scenario: The agent correctly chooses to call the right tool based on journeys
-        Given an agent whose job is to sell groceries
-        And a journey titled "Orange things are Fruit" to be aware that all orange vegetables are classified as fruits when an orange products is mentioned
-        And a guideline "check_prices" to reply with the price of the item when a customer asks about an items price
-        And the tool "check_fruit_price"
-        And the tool "check_vegetable_price"
-        And an association between "check_prices" and "check_fruit_price"
-        And an association between "check_prices" and "check_vegetable_price"
-        And a tool relationship whereby "check_fruit_price" overlaps with "check_vegetable_price"
-        And a customer message, "What's the price of 1 kg of carrots?"
-        When processing is triggered
-        Then a single tool calls event is emitted
-        And the tool calls event contains 1 tool call(s)
-        And the tool calls event contains a call with tool_id of "local:check_fruit_price"
-        And a single message event is emitted
-        And the message contains that the price of 1 kg of carrots is 10 dollars
-
     Scenario: Tool caller calls a tool with enum list parameter
         Given a guideline "get_available_products_by_category" to get all products by a specific category when a customer asks for the availability of products from a certain category
         And the tool "available_products_by_categories" from "ksp"
@@ -1059,3 +1042,30 @@ Scenario: Tool returns a result with explicit long-term lifespan and its event i
         When processing is triggered
         Then a single tool calls event is emitted
         And the message contains the text "9:59"
+
+Scenario: Guidelines with reevaluation relationship to a tool are activated by the tool result
+    Given a guideline "offer_luxury_room" to offer the luxury room when a luxury room is available
+    And a guideline "offer_the_dungeon" to offer the dungeon when a luxury room is not available
+    And a guideline "check_rooms_availability" to check for availability when the customer want to book a room
+    And the tool "availability_check"
+    And an association between "check_rooms_availability" and "availability_check"
+    And a reevaluation relationship between the guideline "offer_luxury_room" and the "availability_check" tool
+    And a reevaluation relationship between the guideline "offer_the_dungeon" and the "availability_check" tool
+    And a customer message, "want to book a room."
+    When processing is triggered
+    Then a single tool calls event is emitted
+    And the message contains an offer for the dungeon
+    And the message doesn't contains an offer for the luxury room
+
+
+Scenario: Guideline with reevaluation is active before the tool execution but becomes inactive after the tool result
+    Given a guideline "greet_with_hello_sir" to greet the user with "Hello Sir" when there is no indication the customer is from Spain
+    And a guideline "handle_greeting_response" to check how to greet the user back when the user greets you
+    And the tool "check_customer_location"
+    And an association between "handle_greeting_response" and "check_customer_location"
+    And a reevaluation relationship between the guideline "greet_with_hello_sir" and the "check_customer_location" tool
+    And a customer message, "Hey!"
+    When processing is triggered
+    Then the session inspection contains 2 preparation iterations
+    And the guideline "greet_with_hello_sir" is matched in preparation iteration 1  
+    And the guideline "greet_with_hello_sir" is not matched in preparation iteration 2

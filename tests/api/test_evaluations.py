@@ -67,7 +67,7 @@ async def test_that_an_evaluation_can_be_created_and_fetched_with_completed_stat
     assert invoice["approved"]
 
     assert invoice["data"]
-    assert invoice["data"]["guideline"]["action_proposition"] == "greet them back with 'Hello'"
+    assert invoice["data"]["guideline"]["internal_action"] == "greet them back with 'Hello'"
 
 
 async def test_that_an_evaluation_can_be_fetched_with_running_status(
@@ -223,4 +223,75 @@ async def test_that_action_proposition_is_evaluated(
         assert invoice["approved"]
 
         assert invoice["data"]
-        assert isinstance(invoice["data"]["guideline"]["action_proposition"], str)
+        assert isinstance(invoice["data"]["guideline"]["properties"], dict)
+        assert invoice["data"]["guideline"]["properties"].get("internal_action") is not None
+
+
+async def test_that_error_is_returned_when_no_propositions_are_provided_in_a_payload(
+    async_client: httpx.AsyncClient,
+) -> None:
+    response = await async_client.post(
+        "/evaluations",
+        json={
+            "payloads": [
+                {
+                    "kind": "guideline",
+                    "guideline": {
+                        "content": {
+                            "condition": "the customer greets you",
+                            "action": "greet them back with 'Hello'",
+                        },
+                        "tool_ids": [
+                            {"service_name": "google_calendar", "tool_name": "get_events"}
+                        ],
+                        "operation": "add",
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    data = response.json()
+
+    assert "detail" in data
+    assert (
+        data["detail"]
+        == "At least one of action_proposition, properties_proposition or journey_node_proposition must be enabled"
+    )
+
+
+async def test_that_error_is_returned_when_all_propositions_are_disabled_in_a_payload(
+    async_client: httpx.AsyncClient,
+) -> None:
+    response = await async_client.post(
+        "/evaluations",
+        json={
+            "payloads": [
+                {
+                    "kind": "guideline",
+                    "guideline": {
+                        "content": {
+                            "condition": "the customer greets you",
+                            "action": "greet them back with 'Hello'",
+                        },
+                        "tool_ids": [
+                            {"service_name": "google_calendar", "tool_name": "get_events"}
+                        ],
+                        "operation": "add",
+                        "action_proposition": False,
+                        "properties_proposition": False,
+                    },
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    data = response.json()
+
+    assert "detail" in data
+    assert (
+        data["detail"]
+        == "At least one of action_proposition, properties_proposition or journey_node_proposition must be enabled"
+    )

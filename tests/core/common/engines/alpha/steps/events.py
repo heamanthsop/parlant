@@ -20,7 +20,7 @@ from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import JSONSerializable
 from parlant.core.customers import CustomerStore
 from parlant.core.emissions import EmittedEvent
-from parlant.core.engines.alpha.utterance_selector import DEFAULT_NO_MATCH_UTTERANCE
+from parlant.core.engines.alpha.canned_response_generator import DEFAULT_NO_MATCH_CAN_REP
 from parlant.core.nlp.moderation import ModerationTag
 
 from parlant.core.sessions import (
@@ -69,7 +69,7 @@ def given_an_agent_message(
             session_id=session.id,
             source=EventSource.AI_AGENT,
             kind=EventKind.MESSAGE,
-            correlation_id="test_correlation_id",
+            correlation_id="<main>",
             data=cast(JSONSerializable, message_data),
         )
     )
@@ -109,7 +109,7 @@ def given_a_human_message_on_behalf_of_the_agent(
             session_id=session.id,
             source=EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
             kind=EventKind.MESSAGE,
-            correlation_id="test_correlation_id",
+            correlation_id="<main>",
             data=cast(JSONSerializable, message_data),
         )
     )
@@ -144,7 +144,7 @@ def given_a_customer_message(
             session_id=session.id,
             source=EventSource.CUSTOMER,
             kind=EventKind.MESSAGE,
-            correlation_id="test_correlation_id",
+            correlation_id="<main>",
             data=cast(JSONSerializable, message_data),
         )
     )
@@ -186,7 +186,7 @@ def given_a_flagged_customer_message(
             session_id=session.id,
             source=EventSource.CUSTOMER,
             kind=EventKind.MESSAGE,
-            correlation_id="test_correlation_id",
+            correlation_id="<main>",
             data=cast(JSONSerializable, message_data),
         )
     )
@@ -276,6 +276,23 @@ def then_the_message_contains(
     ), f"message: '{message}', expected to contain: '{something}'"
 
 
+@step(then, parsers.parse("the message doesn't contains {something}"))
+def then_the_doesnt_message_contains(
+    context: ContextOfTest,
+    emitted_events: list[EmittedEvent],
+    something: str,
+) -> None:
+    message_event = next(e for e in emitted_events if e.kind == EventKind.MESSAGE)
+    message = cast(MessageEventData, message_event.data)["message"]
+
+    assert context.sync_await(
+        nlp_test(
+            context=f"Here's a message from an AI agent to a customer, in the context of a conversation: {message}",
+            condition=f"The message NOT contains {something}",
+        )
+    ), f"message: '{message}', expected to contain: '{something}'"
+
+
 @step(then, parsers.parse("the message mentions {something}"))
 def then_the_message_mentions(
     context: ContextOfTest,
@@ -295,31 +312,31 @@ def then_the_message_mentions(
 
 @step(
     then,
-    parsers.parse('the message uses the utterance "{utterance_text}"'),
+    parsers.parse('the message uses the canned response "{canrep_text}"'),
 )
-def then_the_message_uses_the_utterance(
+def then_the_message_uses_the_canned_response(
     emitted_events: list[EmittedEvent],
-    utterance_text: str,
+    canned_response_text: str,
 ) -> None:
     message_event = next(e for e in emitted_events if e.kind == EventKind.MESSAGE)
     message_data = cast(MessageEventData, message_event.data)
-    assert message_data["utterances"]
+    assert message_data["canned_responses"]
 
-    assert any(utterance_text in utterance for _, utterance in message_data["utterances"])
+    assert any(canned_response_text in canrep for _, canrep in message_data["canned_responses"])
 
 
 @step(
     then,
-    parsers.parse('the message doesn\'t use the utterance "{utterance_text}"'),
+    parsers.parse('the message doesn\'t use the canned response "{canrep_text}"'),
 )
-def then_the_message_does_not_use_the_utterance(
+def then_the_message_does_not_use_the_canned_response(
     emitted_events: list[EmittedEvent],
-    utterance_text: str,
+    canned_response_text: str,
 ) -> None:
     message_event = next(e for e in emitted_events if e.kind == EventKind.MESSAGE)
     message_data = cast(MessageEventData, message_event.data)
 
-    assert all(utterance_text not in utterance for _, utterance in message_data["utterances"])
+    assert all(canned_response_text not in canrep for _, canrep in message_data["canned_responses"])
 
 
 @step(then, "no events are emitted")
@@ -344,8 +361,8 @@ def then_a_no_match_message_is_emitted(
     message = cast(MessageEventData, message_event.data)["message"]
 
     assert (
-        message == DEFAULT_NO_MATCH_UTTERANCE
-    ), f"message: '{message}', expected to be{DEFAULT_NO_MATCH_UTTERANCE}'"
+        message == DEFAULT_NO_MATCH_CAN_REP
+    ), f"message: '{message}', expected to be{DEFAULT_NO_MATCH_CAN_REP}'"
 
 
 def _has_status_event(
@@ -618,3 +635,74 @@ def then_the_tool_calls_staged_event_contains_expected_content(
             condition=f"The calls contain {expected_content}",
         )
     ), pformat(tool_calls, indent=2)
+
+
+@step(
+    then,
+    parsers.parse("the session inspection contains {count:d} preparation iterations"),
+)
+def then_the_session_inspection_contains_preparation_iterations(
+    context: ContextOfTest,
+    session_id: SessionId,
+    count: int,
+) -> None:
+    session_store = context.container[SessionStore]
+    inspection = context.sync_await(
+        session_store.read_inspection(session_id=session_id, correlation_id="<main>")
+    )
+
+    assert (
+        len(inspection.preparation_iterations) >= count
+    ), f"Expected at least {count} preparation iterations, but found {len(inspection.preparation_iterations)}"
+
+
+@step(
+    then,
+    parsers.parse(
+        'the guideline "{guideline_name}" is matched in preparation iteration {iteration:d}'
+    ),
+)
+def then_the_guideline_is_in_the_specified_preparation_iteration(
+    context: ContextOfTest,
+    session_id: SessionId,
+    guideline_name: str,
+    iteration: int,
+) -> None:
+    session_store = context.container[SessionStore]
+    inspection = context.sync_await(
+        session_store.read_inspection(session_id=session_id, correlation_id="<main>")
+    )
+
+    guideline_id = context.guidelines[guideline_name].id
+
+    preparation_iteration = inspection.preparation_iterations[iteration - 1]
+
+    assert any(
+        m["guideline_id"] == guideline_id for m in preparation_iteration.guideline_matches
+    ), f"Expected guideline '{guideline_name}' to be matched in iteration {iteration}, but it was not found."
+
+
+@step(
+    then,
+    parsers.parse(
+        'the guideline "{guideline_name}" is not matched in preparation iteration {iteration:d}'
+    ),
+)
+def then_the_guideline_is_not_in_the_specified_preparation_iteration(
+    context: ContextOfTest,
+    session_id: SessionId,
+    guideline_name: str,
+    iteration: int,
+) -> None:
+    session_store = context.container[SessionStore]
+    inspection = context.sync_await(
+        session_store.read_inspection(session_id=session_id, correlation_id="<main>")
+    )
+
+    guideline_id = context.guidelines[guideline_name].id
+
+    preparation_iteration = inspection.preparation_iterations[iteration - 1]
+
+    assert all(
+        m["guideline_id"] != guideline_id for m in preparation_iteration.guideline_matches
+    ), f"Expected guideline '{guideline_name}' to be matched in iteration {iteration}, but it was not found."

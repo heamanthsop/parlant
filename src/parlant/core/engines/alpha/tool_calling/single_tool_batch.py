@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from itertools import chain
 import ast
 import json
+import traceback
 from typing import Any, Literal, Optional, Sequence, TypeAlias
 from typing_extensions import override
 
@@ -23,13 +24,16 @@ from parlant.core.agents import Agent
 from parlant.core.common import DefaultBaseModel, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
 from parlant.core.emissions import EmittedEvent
+from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
     MissingToolData,
     InvalidToolData,
     ToolCall,
     ToolCallBatch,
+    ToolCallBatchError,
     ToolCallBatchResult,
     ToolCallContext,
     ToolCallId,
@@ -102,13 +106,15 @@ class SingleToolBatch(ToolCallBatch):
     def __init__(
         self,
         logger: Logger,
+        optimization_policy: OptimizationPolicy,
         service_registry: ServiceRegistry,
         schematic_generator: SchematicGenerator[SingleToolBatchSchema],
         candidate_tool: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         context: ToolCallContext,
     ) -> None:
-        self._service_registry = service_registry
         self._logger = logger
+        self._optimization_policy = optimization_policy
+        self._service_registry = service_registry
         self._schematic_generator = schematic_generator
         self._context = context
         self._candidate_tool = candidate_tool
@@ -181,14 +187,34 @@ class SingleToolBatch(ToolCallBatch):
 
         # Send the tool call inference prompt to the LLM
         with self._logger.operation(f"Evaluation: {tool_id}"):
-            generation_info, inference_output = await self._run_inference(inference_prompt)
+            generation_attempt_temperatures = (
+                self._optimization_policy.get_tool_calling_batch_retry_temperatures()
+            )
 
-        # Evaluate the tool calls
-        tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls(
-            inference_output, candidate_descriptor
-        )
+            last_generation_exception: Exception | None = None
 
-        return generation_info, tool_calls, missing_data, invalid_data
+            for generation_attempt in range(3):
+                try:
+                    generation_info, inference_output = await self._run_inference(
+                        prompt=inference_prompt,
+                        temperature=generation_attempt_temperatures[generation_attempt],
+                    )
+
+                    # Evaluate the tool calls
+                    tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls(
+                        inference_output, candidate_descriptor
+                    )
+
+                    return generation_info, tool_calls, missing_data, invalid_data
+
+                except Exception as exc:
+                    self._logger.warning(
+                        f"SingleToolBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                    )
+
+                    last_generation_exception = exc
+
+        raise ToolCallBatchError() from last_generation_exception
 
     async def _evaluate_tool_calls(
         self,
@@ -237,7 +263,7 @@ class SingleToolBatch(ToolCallBatch):
                     if evaluation.parameter_name in tool.required
                 ):
                     self._logger.debug(
-                        f"Inference::Completion::Activated: {tool.name}:\n{tc.model_dump_json(indent=2)}"
+                        f"Inference::Completion::Activated: {tool_id.to_string()}:\n{tc.model_dump_json(indent=2)}"
                     )
 
                     arguments = {}
@@ -286,12 +312,12 @@ class SingleToolBatch(ToolCallBatch):
                                 )
 
                     self._logger.debug(
-                        f"Inference::Completion::Skipped: Missing arguments for {tool.name}\n{tc.model_dump_json(indent=2)}"
+                        f"Inference::Completion::Skipped: Missing arguments for {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                     )
 
             else:
                 self._logger.debug(
-                    f"Inference::Completion::Skipped: {tool.name}\n{tc.model_dump_json(indent=2)}"
+                    f"Inference::Completion::Skipped: {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                 )
 
         return tool_calls, missing_data, invalid_data
@@ -366,7 +392,7 @@ Example #{i}: ###
     ) -> PromptBuilder:
         staged_calls = self._get_staged_calls(staged_events)
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="tool-caller-general-instructions",
@@ -433,7 +459,6 @@ EXAMPLES
                 status=SectionStatus.ACTIVE,
             )
         builder.add_interaction_history(interaction_event_list)
-        builder.add_journeys(journeys)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._add_guideline_matches_section(
@@ -691,16 +716,15 @@ Candidate tool: ###
         all_matches = [
             match
             for match in chain(ordinary_guideline_matches, tool_id_propositions[1])
-            if match.guideline.content.action
+            if internal_representation(match.guideline).action
         ]
 
+        guideline_list = ""
         if all_matches:
             guidelines = []
 
             for i, p in enumerate(all_matches, start=1):
-                guideline = (
-                    f"{i}) When {p.guideline.content.condition}, then {p.guideline.content.action}"
-                )
+                guideline = f"{i}) When {internal_representation(p.guideline).condition}, then {internal_representation(p.guideline).action}"
                 guidelines.append(guideline)
 
             guideline_list = "\n".join(guidelines)
@@ -733,12 +757,13 @@ Guidelines:
     async def _run_inference(
         self,
         prompt: PromptBuilder,
+        temperature: float,
     ) -> tuple[GenerationInfo, Sequence[SingleToolBatchToolCallEvaluation]]:
         inference = await self._schematic_generator.generate(
             prompt=prompt,
-            hints={"temperature": 0.05},
+            hints={"temperature": temperature},
         )
-        self._logger.debug(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
+        self._logger.trace(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
 
         return inference.info, inference.content.tool_calls_for_candidate_tool
 

@@ -32,6 +32,7 @@ from parlant.core.engines.alpha.message_event_composer import (
     MessageEventComposer,
     MessageEventComposition,
 )
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
     MissingToolData,
     ToolInsights,
@@ -108,7 +109,6 @@ class MessageSchema(DefaultBaseModel):
     produced_reply: Optional[bool] = None
     produced_reply_rationale: Optional[str] = None
     guidelines: Optional[list[str]] = None
-    current_journey_step: Optional[str] = None
     context_evaluation: Optional[ContextEvaluation] = None
     insights: Optional[list[str]] = None
     evaluation_for_each_instruction: Optional[list[InstructionEvaluation]] = None
@@ -125,10 +125,12 @@ class MessageGenerator(MessageEventComposer):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
+        optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[MessageSchema],
     ) -> None:
         self._logger = logger
         self._correlator = correlator
+        self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
 
     async def shots(self) -> Sequence[MessageGeneratorShot]:
@@ -197,8 +199,8 @@ class MessageGenerator(MessageEventComposer):
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
                 for tool_call in tool_calls:
-                    if "utterances" in tool_call.get("result", {}):
-                        del tool_call["result"]["utterances"]
+                    if "canned_responses" in tool_call.get("result", {}):
+                        del tool_call["result"]["canned_responses"]
 
         return staged_events
 
@@ -236,7 +238,6 @@ class MessageGenerator(MessageEventComposer):
             terms=terms,
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=journeys,
             capabilities=capabilities,
             staged_events=staged_events,
             tool_insights=tool_insights,
@@ -254,11 +255,9 @@ class MessageGenerator(MessageEventComposer):
             },
         )
 
-        generation_attempt_temperatures = {
-            0: 0.1,
-            1: 0.3,
-            2: 0.5,
-        }
+        generation_attempt_temperatures = (
+            self._optimization_policy.get_message_generation_retry_temperatures()
+        )
 
         last_generation_exception: Exception | None = None
 
@@ -322,7 +321,6 @@ class MessageGenerator(MessageEventComposer):
         capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
         staged_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
@@ -332,7 +330,7 @@ class MessageGenerator(MessageEventComposer):
             for m in chain(ordinary_guideline_matches, tool_enabled_guideline_matches)
         }
 
-        builder = PromptBuilder(on_build=lambda prompt: self._logger.debug(f"Prompt:\n{prompt}"))
+        builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
             name="message-generator-general-instructions",
@@ -413,7 +411,6 @@ To generate an optimal response that aligns with all guidelines and the current 
 1. INSIGHT GATHERING (Pre-Revision)
    - Before starting revisions, identify up to three key insights from:
      * Explicit or implicit customer requests
-     * Relevant parts of an active journey
      * Relevant principles from this prompt
      * Observations that you find particularly important
      * Notable patterns or conclusions from the interaction
@@ -425,7 +422,6 @@ To generate an optimal response that aligns with all guidelines and the current 
    - Draft an initial response based on:
      * Primary customer needs
      * Applicable guidelines
-     * The relevant journey step, if there is one
      * Gathered insights
    - Focus on addressing the core request first
 
@@ -457,14 +453,14 @@ To generate an optimal response that aligns with all guidelines and the current 
 
 PRIORITIZING INSTRUCTIONS (GUIDELINES VS. INSIGHTS)
 -----------------
-Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization. 
+Deviating from an instruction (either guideline or insight) is acceptable only when the deviation arises from a deliberate prioritization.
 Consider the following valid reasons for such deviations:
     - The instruction contradicts a customer request.
     - The instruction lacks sufficient context or data to apply reliably.
     - The instruction conflicts with an insight (see below).
     - The instruction depends on an agent intention condition that does not apply in the current situation.
-    - When a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"), 
-    follow both by choosing the permitted alternative (i.e., do Y). 
+    - When a guideline offers multiple options (e.g., "do X or Y") and another more specific guideline restricts one of those options (e.g., "don’t do X"),
+    follow both by choosing the permitted alternative (i.e., do Y).
 In all other cases, even if you believe that a guideline's condition does not apply, you must follow it.
 If fulfilling a guideline is not possible, explicitly justify why in your response.
 
@@ -476,9 +472,6 @@ However, remember that the guidelines reflect the explicit wishes of the busines
 For instance, if a guideline explicitly prohibits a specific action (e.g., "never do X"), you must not perform that action, even if requested by the customer or supported by an insight.
 
 In cases of conflict, prioritize the business's values and ensure your decisions align with their overarching goals.
-
-Journeys are unlike guidelines and insights - you may only follow them if you find it useful, unless they explicitly dictate an action you must take at this moment.
-Prioritize guidelines over journeys, in cases of conflict.
 
 """,  # noqa
         )
@@ -510,7 +503,6 @@ INTERACTION CONTEXT
                 'When providing your full response, list offered capabilities under the "offered_services" key, and not under "factual_information_provided".'
             ],
         )
-        builder.add_journeys(journeys)
         builder.add_guidelines_for_message_generation(
             ordinary_guideline_matches,
             tool_enabled_guideline_matches,
@@ -670,7 +662,6 @@ Produce a valid JSON object in the following format: ###
     "produced_reply": "<BOOL, should be true unless the customer explicitly asked you not to respond>",
     "produced_reply_rationale": "<str, optional. required only if produced_reply is false>",
     "guidelines": [{guidelines_list_text}],
-    "current_journey_step": <STR, the next step to take according to the active journey/s, if there are ones. Otherwise, this field can be omitted>
     "context_evaluation": {{
         "most_recent_customer_inquiries_or_needs": "<fill out accordingly>",
         "parts_of_the_context_i_have_here_if_any_with_specific_information_on_how_to_address_these_needs": "<fill out accordingly>",
@@ -732,7 +723,7 @@ Produce a valid JSON object in the following format: ###
             hints={"temperature": temperature},
         )
 
-        self._logger.debug(
+        self._logger.trace(
             f"Completion:\n{message_event_response.content.model_dump_json(indent=2)}"
         )
 
@@ -740,7 +731,7 @@ Produce a valid JSON object in the following format: ###
             message_event_response.content.produced_reply is False
             or not message_event_response.content.revisions
         ):
-            self._logger.debug("Produced no reply")
+            self._logger.trace("Produced no reply")
             return message_event_response.info, None
 
         if first_correct_revision := next(

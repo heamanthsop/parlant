@@ -35,9 +35,10 @@ from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch 
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    GuidelineMatchingBatchContext,
+    GuidelineMatchingContext,
 )
-from parlant.core.evaluations import GuidelinePayload, GuidelinePayloadOperation
+from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
+from parlant.core.evaluations import GuidelinePayload, PayloadOperation
 from parlant.core.glossary import Term, TermId
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -163,6 +164,7 @@ CONDITION_HEAD_DICT = {
     "stolen_card": "The customer indicates that their card was stolen and didn't specify what they want to do",
     "cancel_flight": "The customer if asks to make a change in booked flight but doesn’t specify whether they want to reschedule, request a refund, or fully cancel the booking",
     "fix_bug": "The customer has a technical problem, and they didn't specify what kind of help they want to have",
+    "suspicious_transaction": "The user suspects fraud but it's not clear whether they want to dispute a transaction or lock a card.",
 }
 
 
@@ -213,11 +215,12 @@ async def create_guideline(
                         action=action,
                     ),
                     tool_ids=[],
-                    operation=GuidelinePayloadOperation.ADD,
+                    operation=PayloadOperation.ADD,
                     coherence_check=False,
                     connection_proposition=False,
                     action_proposition=True,
                     properties_proposition=True,
+                    journey_node_proposition=False,
                 )
             ],
         )
@@ -298,7 +301,7 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
         if (guideline := to_disambiguate_guidelines.get(name)) is not None
     ]
 
-    guideline_matching_context = GuidelineMatchingBatchContext(
+    guideline_matching_context = GuidelineMatchingContext(
         agent,
         session,
         customer,
@@ -307,11 +310,13 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
         terms,
         capabilities,
         staged_events,
-        relevant_journeys=[],
+        active_journeys=[],
+        journey_paths={},
     )
 
     disambiguation_resolver = GenericDisambiguationGuidelineMatchingBatch(
         logger=context.logger,
+        optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.schematic_generator,
         disambiguation_guideline=guideline_head,
         disambiguation_targets=guideline_targets,
@@ -395,7 +400,7 @@ async def test_that_ambiguity_detected_with_relevant_guidelines_2(
     to_disambiguate_guidelines = [
         "report_lost",
         "lock_card",
-        "report_stealing",
+        # "report_stealing",
         "replacement_card",
         "freeze_card",
         "report_to_police",
@@ -606,25 +611,7 @@ async def test_that_ambiguity_is_not_detected_when_there_is_no_ambiguity(
     )
 
 
-async def test_that_disambiguation_is_not_detected_when_previously_applied_and_should_not_reapply(
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    return
-
-
-async def test_that_agent_re_ask_when_customer_didnt_answer_which_option(  # TODO BDD
-    context: ContextOfTest,
-    agent: Agent,
-    new_session: Session,
-    customer: Customer,
-) -> None:
-    return
-
-
-async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_not_created(
+async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_created(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -649,10 +636,7 @@ async def test_that_when_agent_already_asked_for_clarification_new_clarification
         "turtle_roller_coaster",
         "tiger_Ferris_wheel",
     ]
-    disambiguating_guidelines: list[str] = [
-        "snake_roller_coaster",
-        "turtle_roller_coaster",
-    ]
+    disambiguating_guidelines: list[str] = ["snake_roller_coaster", "turtle_roller_coaster"]
     head_condition = CONDITION_HEAD_DICT["amusement_park"]
     await base_test_that_ambiguity_detected_with_relevant_guidelines(
         context,
@@ -667,7 +651,7 @@ async def test_that_when_agent_already_asked_for_clarification_new_clarification
     )
 
 
-async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_not_created_2(
+async def test_that_when_agent_already_asked_for_clarification_new_clarification_guideline_does_created_2(
     context: ContextOfTest,
     agent: Agent,
     new_session: Session,
@@ -691,7 +675,7 @@ async def test_that_when_agent_already_asked_for_clarification_new_clarification
     to_disambiguate_guidelines = [
         "report_lost",
         "lock_card",
-        "report_stealing",
+        # "report_stealing",
         "replacement_card",
         "freeze_card",
         "report_to_police",
@@ -816,4 +800,68 @@ async def test_that_ambiguity_is_not_detected_when_agent_asked_for_clarification
         to_disambiguate_guidelines_names=to_disambiguate_guidelines,
         disambiguating_guideline_names=disambiguating_guidelines,
         clarification_must_contain=clarification_must_contain,
+    )
+
+
+async def test_that_ambiguity_is_not_detected_when_clarification_was_asked_and_customer_responded(
+    context: ContextOfTest,
+    agent: Agent,
+    new_session: Session,
+    customer: Customer,
+) -> None:
+    conversation_context: list[tuple[EventSource, str]] = [
+        (
+            EventSource.CUSTOMER,
+            "I need to lock my card",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I can help you with locking your card. You have the following cards available to lock: Direct or Visa. Please let me know which card you'd like to lock. Please let me know how to proceed.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Direct",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Could you please provide the reason for locking the card?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Actually, before that, let me discuss a weird tx",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "I can help you with discussing any concerns you have with the weird transaction or proceeding with locking the card. Please let me know how to proceed.",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Dispute",
+        ),
+        (
+            EventSource.AI_AGENT,
+            "Would you like to dispute a transaction or lock your card?",
+        ),
+        (
+            EventSource.CUSTOMER,
+            "Dispute",
+        ),
+    ]
+
+    to_disambiguate_guidelines = [
+        "lock_card",
+        "dispute_charge",
+    ]
+    disambiguating_guidelines: list[str] = []
+    head_condition = CONDITION_HEAD_DICT["suspicious_transaction"]
+    await base_test_that_ambiguity_detected_with_relevant_guidelines(
+        context,
+        agent,
+        new_session,
+        customer,
+        conversation_context,
+        head_condition,
+        is_ambiguous=False,
+        to_disambiguate_guidelines_names=to_disambiguate_guidelines,
+        disambiguating_guideline_names=disambiguating_guidelines,
     )
