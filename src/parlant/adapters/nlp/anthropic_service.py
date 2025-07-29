@@ -175,6 +175,19 @@ class Claude_Sonnet_3_5(AnthropicAISchematicGenerator[T]):
         return 200 * 1024
 
 
+class Claude_Opus_4(AnthropicAISchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="claude-opus-4-20250514",
+            logger=logger,
+        )
+
+    @override
+    @property
+    def max_tokens(self) -> int:
+        return 200 * 1024
+
+
 class AnthropicService(NLPService):
     def __init__(self, logger: Logger) -> None:
         self._logger = logger
