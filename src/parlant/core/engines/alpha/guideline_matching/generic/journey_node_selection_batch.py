@@ -106,40 +106,18 @@ def get_pruned_nodes(
     # TODO can be implemented in cleaner fashion if we maintain a dictionary of the distance of each node from the previous path / current node
     # If we encounter any trouble with pruning - we should implement it as such
     if previous_path:
-        previous_nodes = set(previous_path[:-1])
-        last_executed = previous_path[-1]
+        nodes_to_traverse = set(previous_path)
     else:
-        previous_nodes = set()
-        last_executed = "1"
+        nodes_to_traverse = set("1")
 
     visited: set[str | None] = set()
     result: set[str | None] = set()
 
-    queue = deque([(last_executed, 0)])
-    while queue:
-        current, depth = queue.popleft()
-        if not current:
-            continue
+    queue: deque[tuple[str | None, int]] = deque()
 
-        if depth > max_depth or current in visited:
-            continue
-
-        visited.add(current)
-        result.add(current)
-
-        # If node run tools, no need to show the steps further.
-        if nodes[current].kind == JourneyNodeKind.TOOL and (
-            not previous_path or current != last_executed
-        ):
-            continue
-
-        for edge in nodes[current].outgoing_edges:
-            neighbor = edge.target_node_index
-            queue.append((neighbor, depth + 1))
-
-    for prev_node in previous_nodes:
+    for node in nodes_to_traverse:
         visited = set()
-        queue.append((prev_node, 0))
+        queue.append((node, 0))
         while queue:
             current, depth = queue.popleft()
             if not current:
@@ -150,6 +128,12 @@ def get_pruned_nodes(
 
             visited.add(current)
             result.add(current)
+
+            # If node run tools, no need to show the steps further.
+            if nodes[current].kind == JourneyNodeKind.TOOL and (
+                not previous_path or current not in previous_path
+            ):
+                continue
 
             for edge in nodes[current].outgoing_edges:
                 neighbor = edge.target_node_index
@@ -257,7 +241,12 @@ def get_journey_transition_map_text(
         if len(node.outgoing_edges) == 0:
             result = f"""↳ If "this step is completed",  → {EXIT_JOURNEY_INSTRUCTION}"""
         elif len(node.outgoing_edges) == 1:
-            if to_prune and nodes[node.outgoing_edges[0].target_node_index].action:
+            if (
+                to_prune
+                and nodes[node.outgoing_edges[0].target_node_index].action
+                and node.outgoing_edges[0].target_node_index in nodes
+                and node.outgoing_edges[0].target_node_index not in unpruned_nodes
+            ):
                 result = LAST_PRESENTED_NODE_INSTRUCTION
             else:
                 followup_instruction = (
@@ -271,7 +260,9 @@ def get_journey_transition_map_text(
                 result = f"""↳ If "{node.outgoing_edges[0].condition or SINGLE_FOLLOW_UP_CONDITION_STR}" → {followup_instruction}"""
         else:
             if to_prune and any(
-                e.target_node_index not in unpruned_nodes for e in node.outgoing_edges
+                e.target_node_index not in unpruned_nodes
+                for e in node.outgoing_edges
+                if nodes[node.outgoing_edges[0].target_node_index].action
             ):
                 result = LAST_PRESENTED_NODE_INSTRUCTION
             else:
@@ -813,6 +804,7 @@ Example section is over. The following is the real data you need to use for your
                 previous_path=self._previous_path,
                 journey_conditions=journey_conditions,
                 print_customer_action_description=True,
+                to_prune=True,
             ),
         )
         builder.add_section(
