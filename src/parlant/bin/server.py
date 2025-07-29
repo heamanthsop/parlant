@@ -809,10 +809,41 @@ async def load_app(params: StartupParameters) -> AsyncIterator[tuple[ASGIApplica
         )
 
         if not params.configure:
-            # Running in non-pico mode
+            # Running in non-SDK mode
             await create_agent_if_absent(actual_container[AgentStore])
 
+        _print_startup_banner()
+
         yield await create_api_app(actual_container), actual_container
+
+
+def _print_startup_banner() -> None:
+    ascii_logo = rf"""
+                           ..           
+                        :=++++=-        
+                      :+***+++**+.      
+                    .=*****++++*+=:.    
+                   .=+++*******-        
+           ..:::::...  .::::=++         
+       .-+***#####**+=-..=+=:.          
+     :+######***********. =***=.        
+    =####**###**********+ .*****-       
+   =#******###** v{VERSION[:3]} **+ .******-      
+  :#*******#######****=. =********:     
+  .*#******#*:---=-::..-*********+      
+   -##*##***. -----=++*******++**:      
+    :*###**: =****###**********+:       
+      -+*#- -****************+-         
+        .: .*******++++++==-.           
+          .****+=:.                     
+          =+=:.                         
+         ..    
+    """.strip("\n")
+
+    ascii_logo = "\n".join([f"  {line}" for line in ascii_logo.splitlines()])
+    ascii_logo = f"\n{ascii_logo}\n"
+
+    rich.print(rich.text.Text(ascii_logo, style=f"bold {'#0e8766'}"))
 
 
 async def serve_app(

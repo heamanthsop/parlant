@@ -1955,6 +1955,8 @@ class Server:
                             value=value,
                         )
 
+        print()
+
     async def _setup_retrievers(self) -> None:
         async def setup_retriever(
             c: Container,
