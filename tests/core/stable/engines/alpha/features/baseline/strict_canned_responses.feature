@@ -2,7 +2,7 @@ Feature: Strict Canned Response
     Background:
         Given the alpha engine
         And an agent
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And an empty session
 
     Scenario: The agent has no option to greet the customer (strict canned response)
@@ -47,7 +47,7 @@ Feature: Strict Canned Response
 
     Scenario: Uttering agent and customer names (strict canned response)
         Given an agent named "Bozo" whose job is to sell pizza
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer named "Georgie Boy"
         And an empty session with "Georgie Boy"
         And a customer message, "What is your name?"
@@ -184,7 +184,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent chooses the closest canned response when none completely apply (strict canned response)
         Given an agent whose job is to sell pizza
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer message, "Hi"
         And a guideline to offer to sell them pizza when the customer says hello
         And a canned response, "Hello! Would you like to try our specialty pizzas today?"
@@ -197,7 +197,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent correctly applies greeting guidelines based on auxiliary data (strict canned response)
         Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer named "Beef Wellington"
         And an empty session with "Beef Wellingotn"
         And the term "Bug" defined as The name of our tech retail store, specializing in gadgets, computers, and tech services.
@@ -221,7 +221,7 @@ Feature: Strict Canned Response
 
     Scenario: Agent chooses canned response which uses glossary (strict canned response)
         Given an agent whose job is to assist customers with specialized banking products
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And the term "Velcron Account" defined as A high-security digital banking account with multi-layered authentication that offers enhanced privacy features
         And the term "Quandrex Protocol" defined as The security verification process used for high-value transactions that require additional identity confirmation
         And a guideline to recommend a Velcron Account and explain the Quandrex Protocol when customers ask about secure banking options
@@ -237,7 +237,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent selects response based on customer's subscription tier context variable (strict canned response)
         Given an agent whose job is to provide technical support for cloud-based molecular modeling software
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a tag "Enterprise"
         And a tag "Standard"
         And a customer named "Joanna"
@@ -258,7 +258,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent responds based on its description (strict canned response)
         Given an agent named "Dr. Terra" whose job is to advise farmers on regenerative agriculture practices. You are scientifically rigorous but also pragmatic, understanding that farmers need practical and economically viable solutions. You avoid recommending synthetic chemicals and focus on natural systems that enhance soil health.
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer message, "My corn yields have been declining for the past three seasons. What should I do?"
         And a canned response, "You should rotate your crops and consider leaving some fields fallow to restore natural soil nutrients. I'd recommend integrating cover crops like clover between growing seasons to fix nitrogen naturally. Soil health assessments would also help identify specific deficiencies affecting your corn yields."
         And a canned response, "I recommend applying additional nitrogen fertilizer and pesticides to boost your yields quickly."
@@ -271,7 +271,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent correctly fills in numeric field (strict canned response)
         Given an agent whose job is to process orders for a specialty yarn and fabric shop
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer named "Joanna"
         And a guideline to check stock levels in the context variables when a customer makes a specific order
         And an empty session with "Joanna"
@@ -288,7 +288,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent adheres to guidelines in field extraction (strict canned response)
         Given an agent whose job is to provide account information
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer named "Alex Smith"
         And an empty session with "Alex Smith"
         And a context variable "account_balance" set to "1243.67" for "Alex Smith"
@@ -302,7 +302,7 @@ Feature: Strict Canned Response
 
     Scenario: The agent follows a guideline with agent intention (strict canned response)
         Given a guideline to do not provide any personal medical information even if you have it when you discusses a patient's medical record
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer named "Alex Smith"
         And an empty session with "Alex Smith"
         And a context variable "medical_record" set to "Amoxicillin and Lisinopril" for "Alex Smith" 
@@ -317,7 +317,7 @@ Feature: Strict Canned Response
     Scenario: The agent ignores a matched agent intention guideline when you doesn't intend to do its condition (strict canned response)
         Given a guideline to remind that we have a special sale if they book today when you recommends on flights options
         Given a guideline to suggest only ground based travel options when the customer asks about travel options
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         And a customer message, "Hi, I want to go to California from New york next week. What are my options?"
         And a canned response, "I recommend taking a direct flight. It's the most efficient and comfortable option."
         And a canned response, "I recommend taking a train or a long-distance bus service. It's the most efficient and comfortable option"
@@ -330,7 +330,7 @@ Feature: Strict Canned Response
 
  Scenario: Journey returns to earlier step when the conversation justifies doing so (1) (strict canned response) 
         Given an agent whose job is to book taxi rides
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         Given the journey called "Book Taxi Ride"
         And a customer message, "Hi, I'd like to book a taxi for myself"
         And an agent message, "Great! What's the pickup location?"
@@ -349,7 +349,7 @@ Feature: Strict Canned Response
 
     Scenario: Journey returns to earlier step when the conversation justifies doing so (2) (strict canned response)
         Given an agent whose job is to handle food orders
-        And that the agent uses the strict_canned message composition mode
+        And that the agent uses the canned_strict message composition mode
         Given the journey called "Place Food Order"
         And a customer message, "Hey, I'd like to make an order"
         And an agent message, "Great! What would you like to order? We have either a salad or a sandwich."
@@ -371,15 +371,15 @@ Feature: Strict Canned Response
         Then a single message event is emitted
         And the message contains asking asking what green base the customer wants for their salad 
 
-    Scenario: Two journeys are used in unison (strict utterance) 
+    Scenario: Two journeys are used in unison (strict canned response) 
         Given the journey called "Book Flight"
         And a guideline "skip steps" to skip steps that are inapplicable due to other contextual reasons when applying a book flight journey
         And a dependency relationship between the guideline "skip steps" and the "Book Flight" journey
         And a guideline "Business Adult Only" to know that travelers under the age of 21 are illegible for business class, and may only use economy when a flight is being booked
-        And an utterance, "Great. Are you interested in economy or business class?"
-        And an utterance, "Great. Only economy class is available for this booking. What is the name of the traveler?"
-        And an utterance, "Great. What is the name of the traveler?"
-        And an utterance, "Great. Are you interested in economy or business class? Also, what is the name of the person traveling?"
+        And a canned response, "Great. Are you interested in economy or business class?"
+        And a canned response, "Great. Only economy class is available for this booking. What is the name of the traveler?"
+        And a canned response, "Great. What is the name of the traveler?"
+        And a canned response, "Great. Are you interested in economy or business class? Also, what is the name of the person traveling?"
         And a customer message, "Hi, I'd like to book a flight for myself. I'm 19 if that effects anything."
         And an agent message, "Great! From and to where would are you looking to fly?"
         And a customer message, "From LAX to JFK"
@@ -391,7 +391,7 @@ Feature: Strict Canned Response
         And the message contains either asking for the name of the person traveling, or informing them that they are only eligible for economy class
 
 
-    Scenario: Multistep journey invokes tool calls correctly (strict utterance) 
+    Scenario: Multistep journey invokes tool calls correctly (strict canned response) 
         Given the journey called "Reset Password Journey"
         And a journey path "[2, 3, 4]" for the journey "Reset Password Journey"
         And a customer message, "I want to reset my password"
@@ -401,13 +401,13 @@ Feature: Strict Canned Response
         And a customer message, "the email is leonardobarbosa@gmail.br"
         And an agent message, "Got it. Before proceeding to reset your password, I wanted to wish you a good day"
         And a customer message, "Thank you! Have a great day as well!"
-        And an utterance, "What is the name of your account?"
-        And an utterance, "can you please provide the email address or phone number attached to this account?"
-        And an utterance, "Thank you, have a good day!"
-        And an utterance, "I'm sorry but I have no information about that"
-        And an utterance, "Is there anything else I could help you with?"
-        And an utterance, "Your password was successfully reset. An email with further instructions will be sent to your address."
-        And an utterance, "An error occurred, your password could not be reset"
+        And a canned response, "What is the name of your account?"
+        And a canned response, "can you please provide the email address or phone number attached to this account?"
+        And a canned response, "Thank you, have a good day!"
+        And a canned response, "I'm sorry but I have no information about that"
+        And a canned response, "Is there anything else I could help you with?"
+        And a canned response, "Your password was successfully reset. An email with further instructions will be sent to your address."
+        And a canned response, "An error occurred, your password could not be reset"
         When processing is triggered
         Then a single tool calls event is emitted
         And the tool calls event contains 1 tool call(s)
