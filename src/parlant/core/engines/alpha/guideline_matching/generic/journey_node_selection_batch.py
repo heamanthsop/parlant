@@ -79,8 +79,8 @@ class JourneyNodeAdvancement(DefaultBaseModel):
 
 
 class JourneyNodeSelectionSchema(DefaultBaseModel):
-    journey_applies: bool
     rationale: str
+    journey_applies: bool
     requires_backtracking: bool
     backtracking_target_step: Optional[str] | None = ""
     step_advancement: Optional[Sequence[JourneyNodeAdvancement]] = None

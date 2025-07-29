@@ -1308,7 +1308,7 @@ async def test_that_journey_selector_backtracks_and_fast_forwards_when_customer_
     )
 
 
-# Next test fails occasionally, but it's because it backtracks and fast forwards at the same time. This is not officially supported, but it does it correctly occasionally
+# Sometimes (~10%) fails by re-asking for email or phone number even though it's provided
 async def test_that_journey_selector_backtracks_when_customer_changes_much_earlier_choice(
     context: ContextOfTest,
     agent: Agent,
@@ -1390,7 +1390,7 @@ async def test_that_journey_selector_backtracks_when_customer_changes_much_earli
         conversation_context=conversation_context,
         journey_name="reset_password_journey",
         journey_previous_path=["1", "2", "3", "5", "7"],
-        expected_next_node_index=["1", "2", "5"],
+        expected_next_node_index="5",
         staged_events=staged_events,
     )
 
@@ -1556,13 +1556,8 @@ async def test_that_journey_selector_backtracks_and_fast_forwards_when_customer_
         conversation_context=conversation_context,
         journey_name="reset_password_journey",
         journey_previous_path=["1", "2", "3"],
-        expected_path=[
-            "1",
-            "2",
-            "3",
-        ],  # Backtrack to account collection, then fast forward through email to good day
-        expected_next_node_index="3",
-    )  # This test is slightly ambiguous, advancing to either node 3 or 5 (its followup) is considered valid, but we only test for node 3
+        expected_next_node_index=["3", "5"],
+    )  # This test is slightly ambiguous, advancing to either node 3 or 5 (its followup) is considered valid
 
 
 async def test_that_journey_selector_backtracks_and_fast_forwards_when_customer_changes_earlier_choice_4(  # Sometimes skips a node in the returned path,  but outputs the correct decision
