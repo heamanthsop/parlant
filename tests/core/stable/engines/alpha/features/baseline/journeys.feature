@@ -207,7 +207,7 @@ Feature: Journeys
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
-        And the message contains asking for account number
+        And the message contains asking for the email address or the phone number
 
     Scenario: reset password journey is created with new steps
         Given a journey "reset_password"
