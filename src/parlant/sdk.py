@@ -2057,8 +2057,8 @@ class Server:
                     if not (
                         retriever_result.data
                         or retriever_result.metadata
-                        or retriever_result.utterances
-                        or retriever_result.utterance_fields
+                        or retriever_result.canned_responses
+                        or retriever_result.canned_response_fields
                     ):
                         # No need to emit tool event if nothing was retrieved.
                         return EngineHookResult.CALL_NEXT
