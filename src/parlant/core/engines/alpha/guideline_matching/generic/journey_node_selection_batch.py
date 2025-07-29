@@ -13,7 +13,6 @@ from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
@@ -411,7 +410,6 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
                                 guideline=last_visited_node.outgoing_edges[0].target_guideline,
                                 score=10,
                                 rationale="This guideline was selected as part of a 'journey' - a sequence of actions that are performed in order. It was automatically selected as the only viable follow up for the last step that was executed",
-                                guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
                                 metadata={
                                     "journey_path": [
                                         last_visited_node.id,
@@ -498,7 +496,6 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
                                 guideline=matched_guideline,
                                 score=10,
                                 rationale=f"This guideline was selected as part of a 'journey' - a sequence of actions that are performed in order. Use this rationale to better understand how the conversation got to its current point. The rationale for choosing this specific step in the journey was: {inference.content.rationale}",
-                                guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
                                 metadata={
                                     "journey_path": journey_path,
                                     "step_selection_journey_id": self._examined_journey.id,

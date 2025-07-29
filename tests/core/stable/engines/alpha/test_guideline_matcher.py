@@ -65,7 +65,6 @@ from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
     AnalyzedGuideline,
-    PreviouslyAppliedType,
 )
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
@@ -1496,7 +1495,6 @@ class ActivateEveryGuidelineBatch(GuidelineMatchingBatch):
                     guideline=g,
                     score=10,
                     rationale="",
-                    guideline_previously_applied=PreviouslyAppliedType.NO,
                 )
                 for g in self.guidelines
             ],
@@ -2754,7 +2752,6 @@ async def test_that_batch_processing_retries_on_key_error(
                         guideline=g,
                         score=10,
                         rationale="Success after retry",
-                        guideline_previously_applied=PreviouslyAppliedType.NO,
                     )
                     for g in self.guidelines
                 ],

@@ -22,7 +22,6 @@ from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
@@ -142,7 +141,6 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
                             guideline=self._disambiguation_guideline,
                             score=10 if inference.content.is_ambiguous else 1,
                             rationale=f'''Not previously applied matcher rationale: "{inference.content.tldr}"''',
-                            guideline_previously_applied=PreviouslyAppliedType.NO,
                             metadata=metadata,
                         )
                     ]

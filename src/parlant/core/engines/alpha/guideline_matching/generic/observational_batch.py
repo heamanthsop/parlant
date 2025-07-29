@@ -24,7 +24,6 @@ from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
@@ -126,7 +125,6 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
                                     guideline=self._guidelines[match.guideline_id],
                                     score=10 if match.applies else 1,
                                     rationale=f'''Condition Application Rationale: "{match.rationale}"''',
-                                    guideline_previously_applied=PreviouslyAppliedType.IRRELEVANT,
                                 )
                             )
                         else:

@@ -26,7 +26,6 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import (
     GuidelineMatch,
-    PreviouslyAppliedType,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
@@ -135,7 +134,6 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
                                     guideline=self._guidelines[match.guideline_id],
                                     score=10 if match.should_apply else 1,
                                     rationale=match.tldr,
-                                    guideline_previously_applied=PreviouslyAppliedType.FULLY,
                                 )
                             )
                         else:
