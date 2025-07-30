@@ -604,7 +604,7 @@ You will now be given the current state of the interaction to which you must gen
         last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
 
         await event_emitter.emit_status_event(
-            correlation_id=f"{self._correlator.correlation_id}.preamble",
+            correlation_id=f"{self._correlator.correlation_id}",
             data={
                 "acknowledged_offset": last_known_event_offset,
                 "status": "typing",
@@ -628,8 +628,12 @@ You will now be given the current state of the interaction to which you must gen
                 return []
 
         emitted_event = await event_emitter.emit_message_event(
-            correlation_id=f"{self._correlator.correlation_id}.preamble",
-            data=canrep.content.preamble,
+            correlation_id=f"{self._correlator.correlation_id}",
+            data=MessageEventData(
+                message=canrep.content.preamble,
+                participant=Participant(id=agent.id, display_name=agent.name),
+                tags=[Tag.preamble()],
+            ),
         )
 
         return [

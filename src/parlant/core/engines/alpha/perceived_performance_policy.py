@@ -14,10 +14,12 @@
 
 from abc import ABC, abstractmethod
 import random
+from typing import cast
 from typing_extensions import override
 
 from parlant.core.engines.alpha.loaded_context import LoadedContext
-from parlant.core.sessions import EventKind, EventSource
+from parlant.core.sessions import EventKind, EventSource, MessageEventData
+from parlant.core.tags import Tag
 
 
 class PerceivedPerformancePolicy(ABC):
@@ -108,6 +110,9 @@ class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
         if context is None:
             return False
 
+        if self._last_agent_message_is_preamble(context):
+            return False
+
         previous_wait_times = self._calculate_previous_customer_wait_times(context)
 
         if len(previous_wait_times) <= 2:
@@ -124,6 +129,23 @@ class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
             return True
 
         return False
+
+    def _last_agent_message_is_preamble(self, context: LoadedContext) -> bool:
+        last_agent_message = next(
+            (
+                e
+                for e in reversed(context.interaction.history)
+                if e.kind == EventKind.MESSAGE and e.source == EventSource.AI_AGENT
+            ),
+            None,
+        )
+
+        if not last_agent_message:
+            return False
+
+        message_data = cast(MessageEventData, last_agent_message.data)
+
+        return Tag.preamble() in message_data.get("tags", [])
 
     def _calculate_previous_customer_wait_times(self, context: LoadedContext) -> list[float]:
         result = []
