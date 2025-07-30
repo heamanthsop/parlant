@@ -45,7 +45,7 @@ class Test_that_a_capability_can_be_created(SDKTest):
             description="This is a test agent",
         )
 
-        self.capability = await self.agent._create_capability(
+        self.capability = await self.agent.experimental_features.create_capability(
             title="Test Capability",
             description="Some Description",
             signals=["First Query", "Second Query"],

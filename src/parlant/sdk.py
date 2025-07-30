@@ -1425,6 +1425,36 @@ class CompositionMode(enum.Enum):
     """Responses are generated strictly based on the provided canned responses, without fluidity."""
 
 
+class ExperimentalAgentFeatures:
+    def __init__(self, agent: Agent) -> None:
+        self._agent = agent
+
+    async def create_capability(
+        self,
+        title: str,
+        description: str,
+        signals: Sequence[str] | None = None,
+    ) -> Capability:
+        """Creates a capability with the specified title, description, and signals."""
+
+        self._agent._server._advance_creation_progress()
+
+        capability = await self._agent._container[CapabilityStore].create_capability(
+            title=title,
+            description=description,
+            signals=signals,
+            tags=[_Tag.for_agent_id(self._agent.id)],
+        )
+
+        return Capability(
+            id=capability.id,
+            title=capability.title,
+            description=capability.description,
+            signals=capability.signals,
+            tags=capability.tags,
+        )
+
+
 @dataclass(frozen=True)
 class Agent:
     """An agent represents an entity that can interact with customers, manage journeys, and perform various tasks."""
@@ -1442,6 +1472,11 @@ class Agent:
     retrievers: Mapping[str, Callable[[RetrieverContext], Awaitable[JSONSerializable]]] = field(
         default_factory=dict
     )
+
+    @property
+    def experimental_features(self) -> ExperimentalAgentFeatures:
+        """Provides access to experimental features of the agent."""
+        return ExperimentalAgentFeatures(self)
 
     async def create_journey(
         self,
@@ -1576,31 +1611,6 @@ class Agent:
         )
 
         return canrep.id
-
-    async def _create_capability(
-        self,
-        title: str,
-        description: str,
-        signals: Sequence[str] | None = None,
-    ) -> Capability:
-        """Creates a capability with the specified title, description, and signals."""
-
-        self._server._advance_creation_progress()
-
-        capability = await self._container[CapabilityStore].create_capability(
-            title=title,
-            description=description,
-            signals=signals,
-            tags=[_Tag.for_agent_id(self.id)],
-        )
-
-        return Capability(
-            id=capability.id,
-            title=capability.title,
-            description=capability.description,
-            signals=capability.signals,
-            tags=capability.tags,
-        )
 
     async def create_term(
         self,
