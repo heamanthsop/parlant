@@ -21,6 +21,7 @@ from parlant.core.agents import Agent
 from parlant.core.capabilities import Capability
 from parlant.core.common import JSONSerializable
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
+from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent, EventEmitter
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
@@ -166,8 +167,8 @@ class LoadedContext:
     logger: Logger
     """The logger used to log messages in the current context"""
 
-    correlation_id: str
-    """The correlation ID for the current context"""
+    correlator: ContextualCorrelator
+    """The correlator used to track the correlation ID and properties in the current context"""
 
     agent: Agent
     """The agent which is currently requested to respond"""
@@ -201,7 +202,7 @@ class LoadedContext:
             EmittedEvent(
                 source=EventSource.SYSTEM,
                 kind=EventKind.TOOL,
-                correlation_id=self.correlation_id,
+                correlation_id=self.correlator.correlation_id,
                 data=cast(
                     JSONSerializable,
                     ToolEventData(

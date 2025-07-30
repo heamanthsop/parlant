@@ -125,7 +125,7 @@ class JournalingEngineHooks(EngineHooks):
         context: LoadedContext,
         exc: Optional[Exception] = None,
     ) -> bool:
-        self.latest_context_per_correlation_id[context.correlation_id] = context
+        self.latest_context_per_correlation_id[context.correlator.correlation_id] = context
         return await super().call_hooks(hooks, context, exc)
 
 

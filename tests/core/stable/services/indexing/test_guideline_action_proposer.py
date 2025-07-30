@@ -18,6 +18,7 @@ from lagom import Container
 from pytest import fixture
 
 from parlant.core.agents import Agent
+from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import Customer
 from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import GuidelineMatcher
@@ -332,7 +333,7 @@ async def base_test_that_guideline_with_proposed_action_matched(
             agent_id=agent.id,
         ),
         logger=context.logger,
-        correlation_id="<main>",
+        correlator=context.container[ContextualCorrelator],
         agent=agent,
         customer=customer,
         session=session,

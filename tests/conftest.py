@@ -15,7 +15,8 @@
 import asyncio
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, cast
+import os
+from typing import Any, AsyncIterator, Iterator, cast
 from fastapi import FastAPI
 import httpx
 from lagom import Container, Singleton
@@ -149,6 +150,7 @@ from parlant.core.relationships import (
 from parlant.core.guidelines import GuidelineDocumentStore, GuidelineStore
 from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.core.nlp.service import NLPService
+from parlant.core.persistence.data_collection import DataCollectingSchematicGenerator
 from parlant.core.persistence.document_database import DocumentCollection
 from parlant.core.services.tools.service_registry import (
     ServiceDocumentRegistry,
@@ -232,8 +234,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 @fixture
-def correlator() -> ContextualCorrelator:
-    return ContextualCorrelator()
+def correlator(request: pytest.FixtureRequest) -> Iterator[ContextualCorrelator]:
+    correlator = ContextualCorrelator()
+
+    with correlator.properties({"scenario_id": request.node.name}):
+        yield correlator
 
 
 @fixture
@@ -287,18 +292,24 @@ async def make_schematic_generator(
     cache_options: CacheOptions,
     schema: type[T],
 ) -> SchematicGenerator[T]:
-    base_generator = await container[NLPService].get_schematic_generator(schema)
+    generator = await container[NLPService].get_schematic_generator(schema)
 
     if cache_options.cache_enabled:
         assert cache_options.cache_schematic_generation_collection
 
-        return CachedSchematicGenerator[T](
-            base_generator=base_generator,
+        generator = CachedSchematicGenerator[schema](  # type: ignore
+            base_generator=generator,
             collection=cache_options.cache_schematic_generation_collection,
             use_cache=True,
         )
-    else:
-        return base_generator
+
+    if os.environ.get("PARLANT_DATA_COLLECTION", "false").lower() not in ["false", "no", "0"]:
+        generator = DataCollectingSchematicGenerator[schema](  # type: ignore
+            generator,
+            container[ContextualCorrelator],
+        )
+
+    return generator
 
 
 @fixture

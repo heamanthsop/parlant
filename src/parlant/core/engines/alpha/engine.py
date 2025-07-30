@@ -393,7 +393,7 @@ class AlphaEngine(Engine):
         return LoadedContext(
             info=context,
             logger=self._logger,
-            correlation_id=self._correlator.correlation_id,
+            correlator=self._correlator,
             agent=agent,
             customer=customer,
             session=session,

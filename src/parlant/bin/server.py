@@ -173,6 +173,7 @@ from parlant.core.nlp.embedding import (
     NullEmbeddingCache,
 )
 from parlant.core.nlp.generation import SchematicGenerator
+from parlant.core.persistence.data_collection import DataCollectingSchematicGenerator
 from parlant.core.services.tools.service_registry import (
     ServiceRegistry,
     ServiceDocumentRegistry,
@@ -689,9 +690,17 @@ async def initialize_container(
         JourneyNodeSelectionSchema,
         RelativeActionSchema,
     ):
+        generator = await nlp_service_instance.get_schematic_generator(schema)
+
+        if os.environ.get("PARLANT_DATA_COLLECTION", "false").lower() not in ["false", "no", "0"]:
+            generator = DataCollectingSchematicGenerator[schema](  # type: ignore
+                generator,
+                c[ContextualCorrelator],
+            )
+
         try_define(
             SchematicGenerator[schema],  # type: ignore
-            await nlp_service_instance.get_schematic_generator(schema),
+            generator,
         )
 
     try_define(
@@ -819,25 +828,25 @@ async def load_app(params: StartupParameters) -> AsyncIterator[tuple[ASGIApplica
 
 def _print_startup_banner() -> None:
     ascii_logo = rf"""
-                           ..           
-                        :=++++=-        
-                      :+***+++**+.      
-                    .=*****++++*+=:.    
-                   .=+++*******-        
-           ..:::::...  .::::=++         
-       .-+***#####**+=-..=+=:.          
-     :+######***********. =***=.        
-    =####**###**********+ .*****-       
-   =#******###** v{VERSION[:3]} **+ .******-      
-  :#*******#######****=. =********:     
-  .*#******#*:---=-::..-*********+      
-   -##*##***. -----=++*******++**:      
-    :*###**: =****###**********+:       
-      -+*#- -****************+-         
-        .: .*******++++++==-.           
-          .****+=:.                     
-          =+=:.                         
-         ..    
+                           ..
+                        :=++++=-
+                      :+***+++**+.
+                    .=*****++++*+=:.
+                   .=+++*******-
+           ..:::::...  .::::=++
+       .-+***#####**+=-..=+=:.
+     :+######***********. =***=.
+    =####**###**********+ .*****-
+   =#******###** v{VERSION[:3]} **+ .******-
+  :#*******#######****=. =********:
+  .*#******#*:---=-::..-*********+
+   -##*##***. -----=++*******++**:
+    :*###**: =****###**********+:
+      -+*#- -****************+-
+        .: .*******++++++==-.
+          .****+=:.
+          =+=:.
+         ..
     """.strip("\n")
 
     ascii_logo = "\n".join([f"  {line}" for line in ascii_logo.splitlines()])

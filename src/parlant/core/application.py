@@ -131,7 +131,7 @@ class Application:
         return event
 
     async def dispatch_processing_task(self, session: Session) -> str:
-        with self._correlator.correlation_scope(session.id):
+        with self._correlator.scope(session.id, {"session": session}):
             await self._background_task_service.restart(
                 self._process_session(session),
                 tag=f"process-session({session.id})",
@@ -158,7 +158,7 @@ class Application:
         session: Session,
         requests: Sequence[CannedResponseRequest],
     ) -> str:
-        with self._correlator.correlation_scope(session.id):
+        with self._correlator.scope(session.id, {"session": session}):
             event_emitter = await self._event_emitter_factory.create_event_emitter(
                 emitting_agent_id=session.agent_id,
                 session_id=session.id,

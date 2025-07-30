@@ -1394,7 +1394,7 @@ class RetrieverContext:
     server: Server
     container: Container
     logger: Logger
-    correlation_id: str
+    correlator: ContextualCorrelator
     session: Session
     agent: Agent
     customer: Customer
@@ -2168,7 +2168,7 @@ class Server:
                         server=self,
                         container=self._container,
                         logger=self._container[Logger],
-                        correlation_id=ctx.correlation_id,
+                        correlator=self._container[ContextualCorrelator],
                         session=ctx.session,
                         agent=agent,
                         customer=customer,
@@ -2181,10 +2181,10 @@ class Server:
                 )
 
                 c[Logger].trace(
-                    f"Starting retriever {retriever_id} for agent {agent_id} with correlation {ctx.correlation_id}"
+                    f"Starting retriever {retriever_id} for agent {agent_id} with correlation {ctx.correlator.correlation_id}"
                 )
 
-                tasks_for_this_retriever[ctx.correlation_id] = (
+                tasks_for_this_retriever[ctx.correlator.correlation_id] = (
                     Timeout(600),  # Expiration timeout for garbage collection purposes
                     asyncio.create_task(
                         cast(Coroutine[Any, Any, JSONSerializable | RetrieverResult], coroutine),
@@ -2198,7 +2198,9 @@ class Server:
                 ctx: LoadedContext,
                 exc: Optional[Exception],
             ) -> EngineHookResult:
-                if timeout_and_task := tasks_for_this_retriever.pop(ctx.correlation_id, None):
+                if timeout_and_task := tasks_for_this_retriever.pop(
+                    ctx.correlator.correlation_id, None
+                ):
                     _, task = timeout_and_task
                     task_result = await task
 
@@ -2223,7 +2225,7 @@ class Server:
 
                     ctx.state.tool_events.append(
                         await ctx.response_event_emitter.emit_tool_event(
-                            ctx.correlation_id,
+                            ctx.correlator.correlation_id,
                             ToolEventData(
                                 tool_calls=[
                                     _SessionToolCall(
