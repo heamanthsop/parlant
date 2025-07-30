@@ -264,7 +264,7 @@ const SessionView = (): ReactElement => {
 							<div className='messages [scroll-snap-type:y_mandatory] fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden' aria-live='polite' role='log' aria-label='Chat messages'>
 								{ErrorTemplate && <ErrorTemplate />}
 								{visibleMessages.map((event, i) => (
-									<React.Fragment key={event.correlation_id || i}>
+									<React.Fragment key={(event.correlation_id || 0) + `${i}`}>
 										{!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc) && <DateHeader date={event.creation_utc} isFirst={!i} bgColor='bg-white' />}
 										<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
 											<Message
@@ -275,6 +275,7 @@ const SessionView = (): ReactElement => {
 												isFirstMessageInDate={!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc)}
 												isRegenerateHidden={!!isMissingAgent}
 												event={event}
+												sameCorrelationMessages={visibleMessages.filter((e) => e.correlation_id === event.correlation_id)}
 												isSameSourceAsPrevious={event.source === visibleMessages[i - 1]?.source}
 												isContinual={event.correlation_id === visibleMessages[i - 1]?.correlation_id}
 												regenerateMessageFn={regenerateMessageDialog(i)}
