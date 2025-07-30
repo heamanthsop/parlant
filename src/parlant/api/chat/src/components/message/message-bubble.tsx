@@ -10,7 +10,7 @@ import {getAvatarColor} from '../avatar/avatar';
 // import MessageRelativeTime from './message-relative-time';
 import { Switch } from '../ui/switch';
 import { copy } from '@/lib/utils';
-import { Flag, Search } from 'lucide-react';
+import { Eye, EyeOff, Flag, Search } from 'lucide-react';
 import FlagMessage from '../message-details/flag-message';
 import { EventInterface } from '@/utils/interfaces';
 
@@ -30,7 +30,7 @@ interface Props {
 }
 
 
-const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged, flaggedChanged}: Props) => {
+const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged, flaggedChanged, sameCorrelationMessages}: Props) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [agent] = useAtom(agentAtom);
 	const [customer] = useAtom(customerAtom);
@@ -82,16 +82,16 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								<div className='font-medium text-[14px] text-[#282828]'>{formattedName}</div>
 							</div>
 							<div className='flex items-center'>
-								{!isCustomer && event.data?.draft && (
-									<div className="flex items-center">
-										<div className='text-[14px] text-[#A9A9A9] font-light mr-1'>
-											{'Show draft'}
-										</div>
-										<div className="mr-4 flex items-center">
-											<Switch
-												checked={showDraft}
-												onCheckedChange={setShowDraft} />
-										</div>
+								{!isCustomer && sameCorrelationMessages?.some((e) => e.data?.draft) && (
+									<div className="flex items-center me-[1rem] pe-[1rem] border-e border-[#EBECF0]">
+										<Tooltip value={showDraft ? 'Hide Draft' : 'Show Draft'} side='top'>
+											<Button data-selected={showDraft} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => setShowDraft(!showDraft)}>
+												<div className='text-[14px] text-[#777] font-light px-[.25em] flex items-center gap-[6px]'>
+													{showDraft ? <Eye size={16} color='#777'/> : <EyeOff size={16} color='#777'/>}
+													Draft
+												</div>
+											</Button>
+										</Tooltip>
 									</div>
 								)}
 								{flagged && (
@@ -102,21 +102,24 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 												className='flex p-1 h-fit items-center gap-1'
 												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '600px', height: '636px'})}>
 												<Flag size={16} color='#777'/>
-												<div className='text-[14px] text-[#777] font-light'>{'Flagged'}</div>
+												<div className='text-[14px] text-[#777] font-light px-[.25em]'>{'Flagged'}</div>
 											</Button>
 										</Tooltip>
 									</div>
 									)}
 								{/* <MessageRelativeTime event={event} /> */}
-								{!isCustomer && 
-								<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
-									<Search size={16} color='#777'/>
-									<div className='text-[14px] text-[#777] font-light'>Inspect</div>
-								</Button>}
+								{!isCustomer &&
+								<Tooltip value='View message actions and logs' side='top'>
+									<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
+										<Search size={16} color='#777'/>
+										<div className='text-[14px] text-[#777] font-light px-[.25em]'>Inspect</div>
+									</Button>
+									</Tooltip>
+									}
 							</div>
 						</div>
 					)}
-                    {showDraft && <div className='text-gray-400 px-[22px] py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>{event?.data?.draft}</div>}
+                    {showDraft && <div className='text-gray-400 px-[22px] py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>{sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft}</div>}
 					<div className='flex items-center relative max-w-full'>
 						<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
 							<Tooltip value='Copy' side='top'>

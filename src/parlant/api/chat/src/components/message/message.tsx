@@ -11,6 +11,7 @@ import MessageBubble from './message-bubble';
 
 interface Props {
 	event: EventInterface;
+	sameCorrelationMessages?: EventInterface[];
 	isContinual: boolean;
 	isSameSourceAsPrevious?: boolean;
 	isRegenerateHidden?: boolean;
@@ -61,13 +62,13 @@ const MessageEditing = ({event, resendMessageFn, setIsEditing}: Props) => {
 	);
 };
 
-function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged, flaggedChanged}: Props): ReactElement {
+function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged, flaggedChanged, sameCorrelationMessages}: Props): ReactElement {
 	const [isEditing, setIsEditing] = useState(false);
 	return (
 		<div className={twMerge(isEditing && '[direction:rtl] flex justify-center')}>
 			<div
 				className={twMerge(
-					'flex py-[12px] mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
+					'flex py-[6px] mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
 					isSameSourceAsPrevious && 'py-0 pb-[12px]',
 					isEditing && 'flex-1 flex justify-start max-w-[1000px] items-end w-[calc(100%-412px)] max-[2100px]:w-[calc(100%-200px)] self-end max-[1700px]:w-[calc(100%-40px)]'
 				)}>
@@ -75,7 +76,7 @@ function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinu
 				{isEditing ? (
 					<MessageEditing resendMessageFn={resendMessageFn} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} />
 				) : (
-					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} flagged={flagged} flaggedChanged={flaggedChanged} />
+					<MessageBubble isFirstMessageInDate={isFirstMessageInDate} setIsEditing={setIsEditing} event={event} isContinual={isContinual} showLogs={showLogs} showLogsForMessage={showLogsForMessage} flagged={flagged} flaggedChanged={flaggedChanged} sameCorrelationMessages={sameCorrelationMessages} />
 				)}
 				<Spacer />
 			</div>
