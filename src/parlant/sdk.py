@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 import enum
 from hashlib import md5
 import importlib.util
+from itertools import chain
 from pathlib import Path
 from rich.console import Group
 from rich.progress import (
@@ -649,44 +650,71 @@ class Guideline:
     _server: Server
     _container: Container
 
-    async def prioritize_over(self, guideline: Guideline) -> Relationship:
-        """Creates a priority relationship with another guideline."""
-        return await self._create_relationship(
-            guideline=guideline,
-            kind=RelationshipKind.PRIORITY,
-            direction="source",
-        )
-
     async def entail(self, guideline: Guideline) -> Relationship:
         """Creates an entailment relationship with another guideline."""
         return await self._create_relationship(
-            guideline=guideline,
+            target=guideline,
             kind=RelationshipKind.ENTAILMENT,
             direction="source",
         )
 
-    async def depend_on(self, guideline: Guideline) -> Relationship:
-        """Creates a dependency relationship with another guideline."""
-        return await self._create_relationship(
-            guideline=guideline,
-            kind=RelationshipKind.DEPENDENCY,
-            direction="source",
-        )
+    async def prioritize_over(self, target: Guideline | Journey) -> Relationship:
+        """Creates a priority relationship with another guideline or journey."""
+        if isinstance(target, Guideline):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.PRIORITY,
+                direction="source",
+            )
+        elif isinstance(target, Journey):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.PRIORITY,
+                direction="source",
+            )
+        else:
+            raise SDKError("Either guideline or journey must be provided for prioritization.")
 
-    async def disambiguate(self, targets: Sequence[Guideline]) -> Sequence[Relationship]:
-        """Creates a disambiguation relationship with multiple target guidelines."""
+    async def depend_on(
+        self,
+        target: Guideline | Journey,
+    ) -> Relationship:
+        if isinstance(target, Guideline):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.DEPENDENCY,
+                direction="source",
+            )
+        elif isinstance(target, Journey):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.DEPENDENCY,
+                direction="source",
+            )
+        else:
+            raise SDKError("Either guideline or journey must be provided for dependency.")
+
+    async def disambiguate(
+        self,
+        targets: Sequence[Guideline | Journey],
+    ) -> Sequence[Relationship]:
         if len(targets) < 2:
             raise SDKError(
                 f"At least two targets are required for disambiguation (got {len(targets)})."
             )
 
+        guideline_targets = [t for t in targets if isinstance(t, Guideline)]
+        journey_conditions = list(
+            chain.from_iterable([t.conditions for t in targets if isinstance(t, Journey)])
+        )
+
         return [
             await self._create_relationship(
-                guideline=t,
+                target=t,
                 kind=RelationshipKind.DISAMBIGUATION,
                 direction="source",
             )
-            for t in targets
+            for t in guideline_targets + journey_conditions
         ]
 
     async def reevaluate_after(self, tool: ToolEntry) -> Relationship:
@@ -712,20 +740,32 @@ class Guideline:
 
     async def _create_relationship(
         self,
-        guideline: Guideline,
+        target: Guideline | Journey,
         kind: RelationshipKind,
         direction: Literal["source", "target"],
     ) -> Relationship:
         if direction == "source":
-            source = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
-            target = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
+            entity_source = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
+            entity_target = (
+                RelationshipEntity(id=target.id, kind=RelationshipEntityKind.GUIDELINE)
+                if isinstance(target, Guideline)
+                else RelationshipEntity(
+                    id=_Tag.for_journey_id(target.id), kind=RelationshipEntityKind.TAG
+                )
+            )
         else:
-            source = RelationshipEntity(id=guideline.id, kind=RelationshipEntityKind.GUIDELINE)
-            target = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
+            entity_source = (
+                RelationshipEntity(id=target.id, kind=RelationshipEntityKind.GUIDELINE)
+                if isinstance(target, Guideline)
+                else RelationshipEntity(
+                    id=_Tag.for_journey_id(target.id), kind=RelationshipEntityKind.TAG
+                )
+            )
+            entity_target = RelationshipEntity(id=self.id, kind=RelationshipEntityKind.GUIDELINE)
 
         relationship = await self._container[RelationshipStore].create_relationship(
-            source=source,
-            target=target,
+            source=entity_source,
+            target=entity_target,
             kind=kind,
         )
 
@@ -1274,6 +1314,84 @@ class Journey:
         )
 
         return canrep.id
+
+    async def prioritize_over(
+        self,
+        target: Guideline | Journey,
+    ) -> Relationship:
+        """Creates a priority relationship with another guideline or journey."""
+        if isinstance(target, Guideline):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.PRIORITY,
+                direction="source",
+            )
+        else:
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.PRIORITY,
+                direction="source",
+            )
+
+    async def depend_on(
+        self,
+        target: Guideline | Journey,
+    ) -> Relationship:
+        """Creates a dependency relationship with a journey or guideline."""
+        if isinstance(target, Guideline):
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.DEPENDENCY,
+                direction="source",
+            )
+        else:
+            return await self._create_relationship(
+                target=target,
+                kind=RelationshipKind.DEPENDENCY,
+                direction="source",
+            )
+
+    async def _create_relationship(
+        self,
+        target: Guideline | Journey,
+        kind: RelationshipKind,
+        direction: Literal["source", "target"],
+    ) -> Relationship:
+        if direction == "source":
+            entity_source = RelationshipEntity(
+                id=_Tag.for_journey_id(self.id), kind=RelationshipEntityKind.TAG
+            )
+            entity_target = (
+                RelationshipEntity(id=target.id, kind=RelationshipEntityKind.GUIDELINE)
+                if isinstance(target, Guideline)
+                else RelationshipEntity(
+                    id=_Tag.for_journey_id(target.id), kind=RelationshipEntityKind.TAG
+                )
+            )
+        else:
+            entity_source = (
+                RelationshipEntity(id=target.id, kind=RelationshipEntityKind.GUIDELINE)
+                if isinstance(target, Guideline)
+                else RelationshipEntity(
+                    id=_Tag.for_journey_id(target.id), kind=RelationshipEntityKind.TAG
+                )
+            )
+            entity_target = RelationshipEntity(
+                id=_Tag.for_journey_id(self.id), kind=RelationshipEntityKind.TAG
+            )
+
+        relationship = await self._container[RelationshipStore].create_relationship(
+            source=entity_source,
+            target=entity_target,
+            kind=kind,
+        )
+
+        return Relationship(
+            id=relationship.id,
+            kind=relationship.kind,
+            source=relationship.source.id,
+            target=relationship.target.id,
+        )
 
 
 @dataclass(frozen=True)
