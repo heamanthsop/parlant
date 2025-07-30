@@ -203,7 +203,7 @@ class SDKError(Exception):
         super().__init__(message)
 
 
-class NLPServiceFactories:
+class NLPServices:
     """A collection of static methods to create built-in NLPService instances for the SDK."""
 
     @staticmethod
@@ -1798,7 +1798,7 @@ class Server:
         self,
         port: int = 8800,
         tool_service_port: int = 8818,
-        nlp_service: Callable[[Container], NLPService] = NLPServiceFactories.openai,
+        nlp_service: Callable[[Container], NLPService] = NLPServices.openai,
         session_store: Literal["transient", "local"] | str | SessionStore = "transient",
         customer_store: Literal["transient", "local"] | str | CustomerStore = "transient",
         log_level: LogLevel = LogLevel.INFO,
