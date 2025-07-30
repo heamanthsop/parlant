@@ -1960,11 +1960,11 @@ async def test_that_metadata_can_be_updated_for_a_guideline(
         f"/guidelines/{guideline.id}",
         json={
             "metadata": {
-                "add": {
+                "set": {
                     "key1": "value1",
                     "key2": "value2",
                 },
-                "remove": ["key3"],
+                "unset": ["key3"],
             }
         },
     )

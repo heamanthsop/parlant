@@ -1248,7 +1248,7 @@ class GuidelineCreationParamsDTO(
     tags: Optional[GuidelineTagsField] = None
 
 
-GuidelineMetadataRemoveField: TypeAlias = Annotated[
+GuidelineMetadataUnsetField: TypeAlias = Annotated[
     Sequence[str],
     Field(description="Metadata keys to remove from the guideline"),
 ]
@@ -1268,8 +1268,8 @@ class GuidelineMetadataUpdateParamsDTO(
 ):
     """Parameters for updating the metadata of a guideline."""
 
-    add: Optional[GuidelineMetadataField] = None
-    remove: Optional[GuidelineMetadataRemoveField] = None
+    set: Optional[GuidelineMetadataField] = None
+    unset: Optional[GuidelineMetadataUnsetField] = None
 
 
 guideline_update_params_example: ExampleJson = {
@@ -1660,16 +1660,16 @@ def create_router(
             )
 
         if params.metadata:
-            if params.metadata.add:
-                for key, value in params.metadata.add.items():
+            if params.metadata.set:
+                for key, value in params.metadata.set.items():
                     await guideline_store.set_metadata(
                         guideline_id=guideline_id,
                         key=key,
                         value=value,
                     )
 
-            if params.metadata.remove:
-                for key in params.metadata.remove:
+            if params.metadata.unset:
+                for key in params.metadata.unset:
                     await guideline_store.unset_metadata(
                         guideline_id=guideline_id,
                         key=key,
