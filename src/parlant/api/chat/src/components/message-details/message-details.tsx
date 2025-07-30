@@ -7,7 +7,7 @@ import {twJoin, twMerge} from 'tailwind-merge';
 import clsx from 'clsx';
 import {useLocalStorage} from '@/hooks/useLocalStorage';
 import LogFilters, {Level, Type} from '../log-filters/log-filters';
-import MessageUtterances from '../message-utterances/message-utterances';
+import CannedResponses from '../canned-responses/canned-responses';
 import EmptyState from './empty-state';
 import FilterTabs from './filter-tabs';
 import MessageDetailsHeader from './message-details-header';
@@ -142,7 +142,8 @@ const MessageDetails = ({
 	};
 
 	const shouldRenderTabs = event && !!logs?.length && !!filterTabs?.length;
-	const utteranceEntries = Object.entries(event?.data?.utterances || {}).map(([id, value]) => ({id, value}));
+	const showCannedResponse = false;
+	const cannedResponseEntries = Object.entries(event?.data?.canned_responses || {}).map(([id, value]) => ({id, value}));
 	const isError = event?.serverStatus === 'error';
 
 	return (
@@ -161,7 +162,7 @@ const MessageDetails = ({
 				</ResizablePanel>
 				<ResizableHandle withHandle className={twJoin(!isError && 'hidden')} />
 				<ResizablePanel minSize={isError ? 0 : 100} maxSize={isError ? 99 : 100} defaultSize={isError ? 50 : 100} className='flex flex-col bg-white'>
-					{!!utteranceEntries.length && <MessageUtterances utterances={utteranceEntries} />}
+					{showCannedResponse && !!cannedResponseEntries.length && <CannedResponses cannedResponses={cannedResponseEntries} />}
 					<div className='flex justify-between bg-white z-[1] items-center min-h-[58px] h-[58px] p-[10px] pb-[4px] pe-0'>
 						<div className='ps-[14px] text-[#282828]'>Logs</div>
 						{!shouldRenderTabs && (

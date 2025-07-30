@@ -11,8 +11,8 @@ import {twMerge} from 'tailwind-merge';
 // 	);
 // };
 
-const MessageUtterance = ({utterance: utterance}: {utterance: {id: string; value: string}}) => {
-	const [id, value] = utterance?.value || ['', ''];
+const CannedResponse = ({cannedResponse: cannedResponse}: {cannedResponse: {id: string; value: string}}) => {
+	const [id, value] = cannedResponse?.value || ['', ''];
 	return (
 		<div className='group relative flex justify-between group min-h-[40px] bg-white hover:bg-[#FAFAFA]'>
 			<div className='group [word-break:break-word] w-full flex gap-[17px] font-light [&:first-child]:rounded-t-[3px] items-start text-[#656565] py-[8px] ps-[15px] pe-[38px]'>
@@ -32,4 +32,4 @@ const MessageUtterance = ({utterance: utterance}: {utterance: {id: string; value
 	);
 };
 
-export default MessageUtterance;
+export default CannedResponse;

@@ -32,7 +32,7 @@ export interface EventInterface {
 		participant?: {display_name?: string}
 		status?: ServerStatus;
 		draft?: string;
-		utterances?: string[];
+		canned_responses?: string[];
 		message: string;
 		data?: {exception?: string};
 	};

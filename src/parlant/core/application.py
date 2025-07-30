@@ -21,7 +21,6 @@ from lagom import Container
 
 from parlant.core.async_utils import Timeout
 from parlant.core.background_tasks import BackgroundTaskService
-from parlant.core.common import generate_id
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.agents import AgentId
 from parlant.core.emissions import EventEmitterFactory
@@ -132,7 +131,7 @@ class Application:
         return event
 
     async def dispatch_processing_task(self, session: Session) -> str:
-        with self._correlator.correlation_scope(generate_id()):
+        with self._correlator.correlation_scope(session.id):
             await self._background_task_service.restart(
                 self._process_session(session),
                 tag=f"process-session({session.id})",
@@ -159,7 +158,7 @@ class Application:
         session: Session,
         requests: Sequence[CannedResponseRequest],
     ) -> str:
-        with self._correlator.correlation_scope(generate_id()):
+        with self._correlator.correlation_scope(session.id):
             event_emitter = await self._event_emitter_factory.create_event_emitter(
                 emitting_agent_id=session.agent_id,
                 session_id=session.id,

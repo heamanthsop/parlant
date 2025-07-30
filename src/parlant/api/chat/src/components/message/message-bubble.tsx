@@ -50,9 +50,9 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 	// rowCount SHOULD in fact be automatically calculated to
 	// benefit from nice, smaller one-line message boxes.
 	// However, currently we couldn't make it work in all
-	// of the following use cases in draft/utterance switches:
-	// 1. When both draft and utterance are multi-line
-	// 2. When both draft and utterance are one-liners
+	// of the following use cases in draft/canned-response switches:
+	// 1. When both draft and canned response are multi-line
+	// 2. When both draft and canned response are one-liners
 	// 3. When one is a one-liner and the other isn't
 	// Therefore for now I'm disabling isOneLiner
 	// until fixed.  -- Yam
