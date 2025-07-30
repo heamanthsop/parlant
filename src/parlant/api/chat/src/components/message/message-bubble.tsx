@@ -8,7 +8,6 @@ import {useAtom} from 'jotai';
 import {agentAtom, customerAtom, dialogAtom, sessionAtom} from '@/store';
 import {getAvatarColor} from '../avatar/avatar';
 // import MessageRelativeTime from './message-relative-time';
-import { Switch } from '../ui/switch';
 import { copy } from '@/lib/utils';
 import { Eye, EyeOff, Flag, Search } from 'lucide-react';
 import FlagMessage from '../message-details/flag-message';
@@ -27,6 +26,7 @@ interface Props {
 	resendMessageFn?: (sessionId: string, text?: string) => void;
 	showLogs: (event: EventInterface) => void;
 	setIsEditing?: React.Dispatch<React.SetStateAction<boolean>>;
+	sameCorrelationMessages?: EventInterface[];
 }
 
 
@@ -82,7 +82,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								<div className='font-medium text-[14px] text-[#282828]'>{formattedName}</div>
 							</div>
 							<div className='flex items-center'>
-								{!isCustomer && sameCorrelationMessages?.some((e) => e.data?.draft) && (
+								{!isCustomer && sameCorrelationMessages?.some((e: EventInterface) => e.data?.draft) && (
 									<div className="flex items-center me-[1rem] pe-[1rem] border-e border-[#EBECF0]">
 										<Tooltip value={showDraft ? 'Hide Draft' : 'Show Draft'} side='top'>
 											<Button data-selected={showDraft} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => setShowDraft(!showDraft)}>
