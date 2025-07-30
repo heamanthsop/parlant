@@ -8,6 +8,12 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+	--tw-ring-offset-shadow: transparent !important;
+	--tw-ring-shadow: transparent !important;
+	--tw-shadow: transparent !important;
+}
+
 @layer base {
 	:root {
 		--main: #fbfbfb;

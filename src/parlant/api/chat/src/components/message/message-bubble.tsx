@@ -72,7 +72,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'group/main flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
-						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
+						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px] max-w-[min(560px,100%)]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
 							<div className={twJoin('flex gap-[8px] items-center', isCustomer && 'flex-row-reverse')}>
 								<div
 									className='size-[26px] flex rounded-[6.5px] select-none items-center justify-center font-semibold'
@@ -111,7 +111,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 						</div>
 					)}
-                    {showDraft && <div className='text-gray-400 px-[22px] py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px]'>{event?.data?.draft}</div>}
+                    {showDraft && <div className='text-gray-400 px-[22px] py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>{event?.data?.draft}</div>}
 					<div className='flex items-center relative max-w-full'>
 						<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
 							<Tooltip value='Copy' side='top'>
