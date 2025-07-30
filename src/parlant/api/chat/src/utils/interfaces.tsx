@@ -35,6 +35,7 @@ export interface EventInterface {
 		canned_responses?: string[];
 		message: string;
 		data?: {exception?: string};
+		tags?: string;
 	};
 	index?: number;
 }
@@ -53,6 +54,7 @@ export interface SessionCsvInterface {
 	Timestamp: Date;
 	Message: string;
 	Draft: string;
+	Tags: string;
 	Flag: string;
 	'Correlation ID': string;
 }

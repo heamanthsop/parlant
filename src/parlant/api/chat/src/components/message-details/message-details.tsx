@@ -16,6 +16,7 @@ import {ImperativePanelHandle} from 'react-resizable-panels';
 import Tooltip from '../ui/custom/tooltip';
 import {copy} from '@/lib/utils';
 import MessageLogs from './message-logs';
+import CopyText from '../ui/custom/copy-text';
 
 interface DefInterface {
 	level?: Level;
@@ -156,6 +157,9 @@ const MessageDetails = ({
 				className={twJoin('shadow-main h-[60px] min-h-[60px]', Object.keys(filters || {}).length ? 'border-[#F3F5F9]' : '')}
 				flaggedChanged={flaggedChanged}
 			/>
+			<div className='ps-[20px] pt-[10px] flex items-center gap-[3px] text-[14px] font-normal bg-white'>
+				<CopyText textToCopy={event?.correlation_id} preText='Correlation ID: ' text={`${event?.correlation_id}`} className='whitespace-nowrap [&_span]:text-ellipsis [&_span]:overflow-hidden [&_span]:block'/>
+			</div>
 			<ResizablePanelGroup direction='vertical' className={twJoin('w-full h-full overflow-auto flex flex-col justify-start pt-0 pe-0 bg-[#FBFBFB]')}>
 				<ResizablePanel ref={resizableRef} minSize={0} maxSize={isError ? 99 : 0} defaultSize={isError ? 50 : 0}>
 					{isError && <MessageError event={event} />}

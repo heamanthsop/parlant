@@ -5,11 +5,12 @@ import ErrorBoundary from '../error-boundary/error-boundary';
 import ChatHeader from '../chat-header/chat-header';
 import {useDialog} from '@/hooks/useDialog';
 import {Helmet} from 'react-helmet';
-import {NEW_SESSION_ID} from '../agents-list/agent-list';
+import AgentList, {NEW_SESSION_ID} from '../agents-list/agent-list';
 import {useAtom} from 'jotai';
-import {dialogAtom, sessionAtom} from '@/store';
+import {agentAtom, dialogAtom, sessionAtom, sessionsAtom} from '@/store';
 import {twMerge} from 'tailwind-merge';
 import SessionView from '../session-view/session-view';
+import { spaceClick } from '@/utils/methods';
 
 export const SessionProvider = createContext({});
 
@@ -27,9 +28,22 @@ export default function Chatbot(): ReactElement {
 	// const SessionView = lazy(() => import('../session-view/session-view'));
 	const [sessionName, setSessionName] = useState<string | null>('');
 	const {openDialog, DialogComponent, closeDialog} = useDialog();
-	const [session] = useAtom(sessionAtom);
+	const [showMessage, setShowMessage] = useState(false);
+	const [sessions] = useAtom(sessionsAtom);
+	const [session, setSession] = useAtom(sessionAtom);
 	const [, setDialog] = useAtom(dialogAtom);
 	const [filterSessionVal, setFilterSessionVal] = useState('');
+	const [, setAgent] = useAtom(agentAtom);
+	const [dialog] = useAtom(dialogAtom);
+
+	useEffect(() => {
+		if (sessions) {
+			setShowMessage(!!sessions.length);
+		}
+		setTimeout(() => {
+			setShowMessage(true);
+		}, 500);
+	}, [sessions]);
 
 	useEffect(() => {
 		if (session?.id) {
@@ -47,6 +61,12 @@ export default function Chatbot(): ReactElement {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	const createNewSession = () => {
+		setSession(null);
+		setAgent(null);
+		dialog.openDialog('', <AgentList />, {height: '536px', width: '604px'});
+	};
+
 	return (
 		<ErrorBoundary>
 			<SessionProvider.Provider value={{}}>
@@ -59,14 +79,22 @@ export default function Chatbot(): ReactElement {
 						<SessionsSection />
 						{session?.id ? (
 							<div className='h-full w-[calc(100vw-352px-40px)] bg-white rounded-[16px] max-w-[calc(100vw-352px-40px)] max-[800px]:max-w-full max-[800px]:w-full '>
-								{/* <Suspense> */}
 								<SessionView />
-								{/* </Suspense> */}
 							</div>
 						) : (
 							<div className='flex-1 flex flex-col gap-[27px] items-center justify-center'>
 								<img className='pointer-events-none' src='select-session.svg' fetchPriority='high' alt='' />
-								<p className='text-[#3C8C71] select-none font-light text-[18px]'>Select a session to get started</p>
+								{showMessage && !sessions.length && 
+								<p className='text-[#3C8C71] select-none font-light text-[18px] flex flex-col gap-[10px] items-center'>
+									Start a session to begin chatting
+									<div className='group'>
+										<img src='buttons/new-session.svg' alt='add session' className='shadow-main cursor-pointer group-hover:hidden' tabIndex={1} role='button' onKeyDown={spaceClick} onClick={createNewSession} />
+										<img src='buttons/new-session-hover.svg' alt='add session' className='shadow-main cursor-pointer hidden group-hover:block' tabIndex={1} role='button' onKeyDown={spaceClick} onClick={createNewSession} />
+									</div>
+								</p>
+								}
+								{!!sessions?.length && 
+								<p className='text-[#3C8C71] select-none font-light text-[18px]'>Select or start a session to begin chatting</p>}
 							</div>
 						)}
 					</div>

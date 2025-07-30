@@ -3,7 +3,6 @@ import {EventInterface} from '@/utils/interfaces';
 import {useAtom} from 'jotai';
 import {ClassNameValue, twMerge} from 'tailwind-merge';
 import HeaderWrapper from '../header-wrapper/header-wrapper';
-import CopyText from '../ui/custom/copy-text';
 import {Flag, X} from 'lucide-react';
 import { Button } from '../ui/button';
 import FlagMessage from './flag-message';
@@ -46,19 +45,16 @@ const MessageDetailsHeader = ({
 		<HeaderWrapper className={twMerge('static', !event && '!border-transparent bg-[#f5f6f8]', className)}>
 			{event && (
 				<div className={twMerge('flex items-center justify-between w-full pe-[12px]')}>
-					<div className='flex ps-[16px]'>
+					<div className='flex'>
 						<div role='button' className='p-[5px] pe-[10px]' onClick={() => closeLogs?.()}>
 							<X height={25} width={25} />
-						</div>
-						<div className='group flex items-center gap-[3px] text-[14px] font-normal'>
-							<CopyText textToCopy={event.id} text={`ID: ${event.id}`} className='whitespace-nowrap [&_span]:text-ellipsis [&_span]:overflow-hidden [&_span]:block'/>
 						</div>
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
 						{!isCustomer && (
-								<Button className='gap-1' variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '600px', height: '636px'})}>
-									<Flag color={messageFlag ? 'black' : 'black'} size={16}/>
-									<div>Flag</div>
+								<Button className={twMerge('gap-1', messageFlag && 'border-[#9B0360] !text-[#9B0360]')} variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '600px', height: '636px'})}>
+									<Flag color={messageFlag ? '#9B0360' : 'black'} size={16}/>
+									<div>{messageFlag ? 'View Comment' : 'Flag'}</div>
 								</Button>
 							)}
 						<div

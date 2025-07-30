@@ -7,10 +7,10 @@ import {Button} from '../ui/button';
 import {useAtom} from 'jotai';
 import {agentAtom, customerAtom, dialogAtom, sessionAtom} from '@/store';
 import {getAvatarColor} from '../avatar/avatar';
-import MessageRelativeTime from './message-relative-time';
+// import MessageRelativeTime from './message-relative-time';
 import { Switch } from '../ui/switch';
 import { copy } from '@/lib/utils';
-import { Flag } from 'lucide-react';
+import { Flag, Search } from 'lucide-react';
 import FlagMessage from '../message-details/flag-message';
 import { EventInterface } from '@/utils/interfaces';
 
@@ -95,19 +95,24 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									</div>
 								)}
 								{flagged && (
-									<div className='flex items-center gap-1 me-[1em] border-e pe-[1rem]'>
+									<div className='flex items-center gap-1 pe-[1rem] me-[1rem] border-e border-[#EBECF0]'>
 										<Tooltip value='View comment' side='top'>
 											<Button
 												variant='ghost'
 												className='flex p-1 h-fit items-center gap-1'
 												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '600px', height: '636px'})}>
-												<Flag size={16} color='#A1A1A1'/>
-												<div className='text-[14px] text-[#A9A9A9] font-light'>{'Flagged'}</div>
+												<Flag size={16} color='#777'/>
+												<div className='text-[14px] text-[#777] font-light'>{'Flagged'}</div>
 											</Button>
 										</Tooltip>
 									</div>
 									)}
-								<MessageRelativeTime event={event} />
+								{/* <MessageRelativeTime event={event} /> */}
+								{!isCustomer && 
+								<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
+									<Search size={16} color='#777'/>
+									<div className='text-[14px] text-[#777] font-light'>Inspect</div>
+								</Button>}
 							</div>
 						</div>
 					)}
@@ -116,12 +121,12 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 						<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
 							<Tooltip value='Copy' side='top'>
 								<div data-testid='copy-button' role='button' onClick={() => copy(event?.data?.message || '')} className='group cursor-pointer'>
-									<img src='icons/copy.svg' alt='edit' className='block rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+									<img src='icons/copy.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
 								</div>
 							</Tooltip>
 							{isCustomer && <Tooltip value='Edit' side='top'>
 								<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
-									<img src='icons/edit-message.svg' alt='edit' className='block rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+									<img src='icons/edit-message.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
 								</div>
 							</Tooltip>}
 						</div>
@@ -130,10 +135,10 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								ref={ref}
 								tabIndex={0}
 								data-testid='message'
-								onClick={() => showLogs(event)}
+								
 								className={twMerge(
-									'bg-green-light border-[2px] hover:bg-[#F5F9F3] text-black border-transparent cursor-pointer',
-									isViewingCurrentMessage && '!bg-white hover:!bg-white border-[#EEEEEE] shadow-main',
+									'bg-green-light border-[2px] hover:bg-[#F5F9F3] text-black border-transparent',
+									// isViewingCurrentMessage && '!bg-white hover:!bg-white border-[#EEEEEE] shadow-main',
 									isCustomer && serverStatus === 'error' && '!bg-[#FDF2F1] hover:!bg-[#F5EFEF]',
 									'max-w-[min(560px,100%)] peer w-[560px] flex items-center relative',
 									event?.serverStatus === 'pending' && 'opacity-50',

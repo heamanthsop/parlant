@@ -134,6 +134,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 						Timestamp: message.creation_utc || '',
 						Message: message.data?.message || '',
 						Draft: message.data?.draft || '',
+						Tags: message.data?.tags || '',
 						Flag: flaggedItems?.[message.correlation_id] || ''
 					});
 				});
@@ -146,6 +147,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 				'Timestamp',
 				'Message',
 				'Draft',
+				'Tags',
 				'Flag'
 			];
 			
