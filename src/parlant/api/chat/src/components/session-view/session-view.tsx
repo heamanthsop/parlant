@@ -187,7 +187,7 @@ const SessionView = (): ReactElement => {
 		setFlaggedItems(asMap);
 	};
 
-	
+
 	useEffect(() => {
 		getSessionFlaggedItems();
 	}, [session?.id, refreshFlag]);

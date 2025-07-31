@@ -86,7 +86,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									<div className="flex items-center me-[1rem] pe-[1rem] border-e border-[#EBECF0]">
 										<Tooltip value={showDraft ? 'Hide Draft' : 'Show Draft'} side='top'>
 											<Button data-selected={showDraft} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => setShowDraft(!showDraft)}>
-												<div className='text-[14px] text-[#777] font-light px-[.25em] flex items-center gap-[6px]'>
+												<div className='text-[14px] text-[#777] font-normal px-[.25em] flex items-center gap-[6px]'>
 													{showDraft ? <Eye size={16} color='#777'/> : <EyeOff size={16} color='#777'/>}
 													Draft
 												</div>
@@ -102,7 +102,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 												className='flex p-1 h-fit items-center gap-1'
 												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '600px', height: '636px'})}>
 												<Flag size={16} color='#777'/>
-												<div className='text-[14px] text-[#777] font-light px-[.25em]'>{'Flagged'}</div>
+												<div className='text-[14px] text-[#777] font-normal px-[.25em]'>{'Flagged'}</div>
 											</Button>
 										</Tooltip>
 									</div>
@@ -112,7 +112,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								<Tooltip value='View message actions and logs' side='top'>
 									<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
 										<Search size={16} color='#777'/>
-										<div className='text-[14px] text-[#777] font-light px-[.25em]'>Inspect</div>
+										<div className='text-[14px] text-[#777] font-normal px-[.25em]'>Inspect</div>
 									</Button>
 									</Tooltip>
 									}
@@ -138,7 +138,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 								ref={ref}
 								tabIndex={0}
 								data-testid='message'
-								
+
 								className={twMerge(
 									'bg-green-light border-[2px] hover:bg-[#F5F9F3] text-black border-transparent',
 									// isViewingCurrentMessage && '!bg-white hover:!bg-white border-[#EEEEEE] shadow-main',

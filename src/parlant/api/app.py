@@ -142,7 +142,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
             return await call_next(request)
 
         request_id = generate_id()
-        with correlator.scope(f"RID({request_id})", {"request_id": request_id}):
+        with correlator.scope(f"R{request_id}", {"request_id": request_id}):
             with logger.operation(
                 f"HTTP Request: {request.method} {request.url.path}",
                 level=LogLevel.DEBUG,
