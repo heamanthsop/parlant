@@ -1424,7 +1424,7 @@ Output a JSON object with three properties:
             top_relevant_canreps = await self._canned_response_store.find_relevant_canned_responses(
                 query=draft_response.content.response_body,
                 available_canned_responses=canned_responses,
-                max_count=10,
+                max_count=30,
             )
 
         # Step 3: Pre-render these templates so that matching works better
