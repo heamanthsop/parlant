@@ -120,20 +120,8 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 						</div>
 					)}
                     {showDraft && <div className='text-gray-400 px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>{sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft}</div>}
-					<div className='group/main'>
-						<div className='flex items-center relative max-w-full'>
-							<div className={twMerge('self-stretch absolute invisible -left-[70px] top-[50%] -translate-y-1/2 items-center flex group-hover/main:visible peer-hover:visible hover:visible', !isCustomer && 'left-[unset] !-right-[40px]')}>
-								<Tooltip value='Copy' side='top'>
-									<div data-testid='copy-button' role='button' onClick={() => copy(event?.data?.message || '')} className='group cursor-pointer'>
-										<img src='icons/copy.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
-									</div>
-								</Tooltip>
-								{isCustomer && <Tooltip value='Edit' side='top'>
-									<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
-										<img src='icons/edit-message.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
-									</div>
-								</Tooltip>}
-							</div>
+					<div className='group/main relative'>
+						<div className={twMerge('flex items-center max-w-full', isCustomer && 'flex-row-reverse')}>
 							<div className='max-w-full'>
 								<div
 									ref={ref}
@@ -157,6 +145,18 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									</div>
 									<div className={twMerge('flex h-full font-normal text-[11px] text-[#AEB4BB] pe-[20px] font-inter self-end items-end whitespace-nowrap leading-[14px]', isOneLiner ? 'ps-[12px]' : '')}></div>
 								</div>
+							</div>
+							<div className={twMerge('mx-[10px] self-stretch relative invisible items-center flex group-hover/main:visible peer-hover:visible hover:visible')}>
+								<Tooltip value='Copy' side='top'>
+									<div data-testid='copy-button' role='button' onClick={() => copy(event?.data?.message || '')} className='group cursor-pointer'>
+										<img src='icons/copy.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+									</div>
+								</Tooltip>
+								{isCustomer && <Tooltip value='Edit' side='top'>
+									<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
+										<img src='icons/edit-message.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+									</div>
+								</Tooltip>}
 							</div>
 						</div>
 					</div>
