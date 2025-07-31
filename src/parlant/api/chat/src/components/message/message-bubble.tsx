@@ -12,6 +12,7 @@ import { copy } from '@/lib/utils';
 import { Eye, EyeOff, Flag, Search } from 'lucide-react';
 import FlagMessage from '../message-details/flag-message';
 import { EventInterface } from '@/utils/interfaces';
+import DraftBubble from './draft-bubble';
 
 interface Props {
 	event: EventInterface;
@@ -72,7 +73,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
-						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px] max-w-[min(560px,100%)]', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
+						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px] max-w-[min(560px,100%)]', isCustomer && 'justify-self-end', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
 							<div className={twJoin('flex gap-[8px] items-center', isCustomer && 'flex-row-reverse')}>
 								<div
 									className='size-[26px] flex rounded-[6.5px] select-none items-center justify-center font-semibold'
@@ -119,7 +120,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 						</div>
 					)}
-                    {showDraft && <div className='text-gray-400 px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>{sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft}</div>}
+                    {showDraft && <DraftBubble draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>}
 					<div className='group/main relative'>
 						<div className={twMerge('flex items-center max-w-full', isCustomer && 'flex-row-reverse')}>
 							<div className='max-w-full'>
