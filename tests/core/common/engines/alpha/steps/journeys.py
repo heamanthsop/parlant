@@ -1582,25 +1582,20 @@ def given_a_journey_titled(
 
 @step(
     given,
-    parsers.parse('the journey "{journey_title}" is triggered when {condition}'),
+    parsers.parse('the journey "{journey_title}" is triggered by the condition "{condition_name}"'),
 )
-def given_the_journey_is_triggered_when(
+def given_the_journey_is_triggered_by_condition_applies(
     context: ContextOfTest,
     journey_title: str,
-    condition: str,
+    condition_name: str,
 ) -> Journey:
     journey_store = context.container[JourneyStore]
     guideline_store = context.container[GuidelineStore]
 
     journey = context.journeys[journey_title]
 
-    guideline_condition = context.sync_await(
-        guideline_store.create_guideline(
-            condition=condition,
-            action=None,
-            metadata={},
-        )
-    )
+    guideline_condition = context.guidelines[condition_name]
+
     context.sync_await(
         journey_store.add_condition(
             journey_id=journey.id,
@@ -1622,20 +1617,25 @@ def given_the_journey_is_triggered_when(
 
 @step(
     given,
-    parsers.parse('the journey "{journey_title}" is triggered when "{condition_name}" applies'),
+    parsers.parse('the journey "{journey_title}" is triggered when {condition}'),
 )
-def given_the_journey_is_triggered_when_condition_applies(
+def given_the_journey_is_triggered_when(
     context: ContextOfTest,
     journey_title: str,
-    condition_name: str,
+    condition: str,
 ) -> Journey:
     journey_store = context.container[JourneyStore]
     guideline_store = context.container[GuidelineStore]
 
     journey = context.journeys[journey_title]
 
-    guideline_condition = context.guidelines[condition_name]
-
+    guideline_condition = context.sync_await(
+        guideline_store.create_guideline(
+            condition=condition,
+            action=None,
+            metadata={},
+        )
+    )
     context.sync_await(
         journey_store.add_condition(
             journey_id=journey.id,

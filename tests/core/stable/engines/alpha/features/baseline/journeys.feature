@@ -243,15 +243,15 @@ Feature: Journeys
         And a journey "Dispute a transaction"
         And an observational guideline "fraud" when the customer suspects fraudulent activity
         And an observational guideline "issue" when the customer has an issue with some transaction
-        And the journey "Dispute a transaction" is triggered when "fraud" applies
-        And the journey "Dispute a transaction" is triggered when "issue" applies
+        And the journey "Dispute a transaction" is triggered by the condition "fraud"
+        And the journey "Dispute a transaction" is triggered by the condition "issue"
         And a node "mother" to first ask them to verify the name of their mother in "Dispute a transaction" journey
         And a transition from the root to "mother" in "Dispute a transaction" journey
         And a journey "Lock card"
         And an observational guideline "recognize" when the customer does not recognize activity on their card
         And an observational guideline "fraud2" when the customer suspects fraudulent activity
-        And the journey "Lock card" is triggered when "recognize" applies
-        And the journey "Lock card" is triggered when "fraud2" applies
+        And the journey "Lock card" is triggered by the condition "recognize"
+        And the journey "Lock card" is triggered by the condition "fraud2"
         And a node "father" to first ask them to verify the name of their father in "Lock card" journey
         And a transition from the root to "father" in "Lock card" journey
         And a disambiguation group head "issue_with_transaction" to activate when the customer has an issue with a transaction but it's not clear what they action they want to take in its regard
