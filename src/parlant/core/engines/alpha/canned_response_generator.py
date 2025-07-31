@@ -543,11 +543,12 @@ You must generate the preamble message. You must produce a JSON object with a si
                 if Tag.preamble() in canrep.tags
             ]
 
-            preamble_choices = [
-                str(r.rendered_text)
-                for r in await self._render_responses(context, preamble_responses)
-                if not r.failed
-            ]
+            with self._logger.operation("Rendering canned preamble templates"):
+                preamble_choices = [
+                    str(r.rendered_text)
+                    for r in await self._render_responses(context, preamble_responses)
+                    if not r.failed
+                ]
 
             if not preamble_choices:
                 return []
@@ -1427,41 +1428,44 @@ Output a JSON object with three properties:
             )
 
         # Step 3: Pre-render these templates so that matching works better
-        rendered_canreps = [
-            (r.response.id, str(r.rendered_text))
-            for r in await self._render_responses(
-                context=context,
-                responses=top_relevant_canreps,
-            )
-            if not r.failed
-        ]
+        with self._logger.operation("Rendering canned response templates"):
+            rendered_canreps = [
+                (r.response.id, str(r.rendered_text))
+                for r in await self._render_responses(
+                    context=context,
+                    responses=top_relevant_canreps,
+                )
+                if not r.failed
+            ]
 
         # Step 4.1: In composited mode, recompose the draft message with the style of the rendered canned responses
         if composition_mode == CompositionMode.CANNED_COMPOSITED:
-            recomposition_generation_info, composited_message = await self._recompose(
-                context=context,
-                draft_message=draft_response.content.response_body,
-                reference_messages=[canrep[1] for canrep in rendered_canreps],
-            )
+            with self._logger.operation("Recomposing draft using canned responses"):
+                recomposition_generation_info, composited_message = await self._recompose(
+                    context=context,
+                    draft_message=draft_response.content.response_body,
+                    reference_messages=[canrep[1] for canrep in rendered_canreps],
+                )
 
-            return {
-                "draft": draft_response.info,
-                "composition": recomposition_generation_info,
-            }, _CannedResponseSelectionResult(
-                message=composited_message,
-                draft=draft_response.content.response_body,
-                canned_responses=[],
-            )
+                return {
+                    "draft": draft_response.info,
+                    "composition": recomposition_generation_info,
+                }, _CannedResponseSelectionResult(
+                    message=composited_message,
+                    draft=draft_response.content.response_body,
+                    canned_responses=[],
+                )
 
         # Step 4.2: In non-composited mode, try to match the draft message with one of the rendered canned responses
-        selection_response = await self._canrep_selection_generator.generate(
-            prompt=self._build_selection_prompt(
-                context=context,
-                draft_message=draft_response.content.response_body,
-                canned_responses=rendered_canreps,
-            ),
-            hints={"temperature": 0.1},
-        )
+        with self._logger.operation("Selecting canned response"):
+            selection_response = await self._canrep_selection_generator.generate(
+                prompt=self._build_selection_prompt(
+                    context=context,
+                    draft_message=draft_response.content.response_body,
+                    canned_responses=rendered_canreps,
+                ),
+                hints={"temperature": 0.1},
+            )
 
         self._logger.trace(
             f"Canned Response Selection Completion:\n{selection_response.content.model_dump_json(indent=2)}"

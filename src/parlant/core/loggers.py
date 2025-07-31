@@ -151,7 +151,7 @@ class Logger(ABC):
         self,
         name: str,
         props: dict[str, Any] = {},
-        level: LogLevel = LogLevel.INFO,
+        level: LogLevel = LogLevel.DEBUG,
     ) -> Iterator[None]:
         """Create a new timed logging operation with a name and properties."""
         ...
@@ -250,7 +250,7 @@ class CorrelationalLogger(Logger):
         self,
         name: str,
         props: dict[str, Any] = {},
-        level: LogLevel = LogLevel.INFO,
+        level: LogLevel = LogLevel.DEBUG,
     ) -> Iterator[None]:
         log_func = {
             LogLevel.TRACE: self.trace,

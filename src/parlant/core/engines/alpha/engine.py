@@ -89,7 +89,7 @@ from parlant.core.engines.alpha.utils import context_variables_to_json
 from parlant.core.engines.types import Context, Engine, CannedResponseReason, CannedResponseRequest
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
-from parlant.core.loggers import Logger
+from parlant.core.loggers import LogLevel, Logger
 from parlant.core.entity_cq import EntityQueries, EntityCommands
 from parlant.core.tools import ToolContext, ToolId
 
@@ -164,7 +164,9 @@ class AlphaEngine(Engine):
             return True
 
         try:
-            with self._logger.operation(f"Processing context for session {context.session_id}"):
+            with self._logger.operation(
+                f"Processing context for session {context.session_id}", level=LogLevel.INFO
+            ):
                 await self._do_process(loaded_context)
             return True
         except asyncio.CancelledError:
