@@ -39,7 +39,7 @@ const FlagMessage = ({event, sessionId, existingFlagValue, onFlag}: FlagMessageP
             <div className='message-bubble mt-[26px] [&>*]:w-full [&_*]:cursor-default'>
                 <div className='px-[22px] py-[20px] bg-[#F5F9F7] rounded-[22px] mb-[10px] !w-fit max-w-[90%]'>{event?.data?.message}</div>
             </div>
-            <Textarea placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none text-[16px] placeholder:text-[#959595]'/>
+            <Textarea autoFocus placeholder='Enter your flag reason' value={flagValue} onChange={(e) => setFlagValue(e.target.value)} className='!ring-0 !ring-offset-0 flex-1 !resize-none text-[16px] placeholder:text-[#959595]'/>
             <div className='flex justify-end gap-3'>
                 <Button variant='outline' onClick={() => dialog.closeDialog()}>Cancel</Button>
                 {existingFlagValue && <Button variant='outline' onClick={unflagMessage}>Unflag</Button>}

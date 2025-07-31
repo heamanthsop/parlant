@@ -56,14 +56,14 @@ const ChatHeader = ({setFilterSessionVal, filterSessionVal}: {setFilterSessionVa
 						</Sheet>
 					</div>
 				</div>
-				<a href='https://parlant.io' target='_blank' className='flex items-center max-mobile:hidden'>
+				<a href='https://parlant.io' target='_blank' className='flex items-center ms-[2px] max-mobile:hidden'>
 					<img src='/chat/app-logo.svg' alt='logo' aria-hidden className='self-center h-[30px]' />
 				</a>
 				<div className='flex items-center ps-[12px] flex-1 relative !shadow-main max-mobile:hidden'>
 					<img src='icons/search.svg' alt='' className='absolute left-[24px]' />
 					<Input placeholder='Filter sessions' onChange={(e) => setFilterSessionVal(e.target.value)} className='!ring-0 !ring-offset-0 h-[38px] w-full placeholder:font-light ps-[35px] rounded-[6px] !pointer-events-auto' />
 				</div>
-				<div className='group mx-[8px]'>
+				<div className='group ms-[8px]'>
 					<Tooltip value='New Session' side='right' className='group'>
 						<>
 							<img src='buttons/new-session.svg' alt='add session' className='shadow-main cursor-pointer group-hover:hidden' tabIndex={1} role='button' onKeyDown={spaceClick} onClick={createNewSession} />

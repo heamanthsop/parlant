@@ -167,8 +167,7 @@ const MessageDetails = ({
 				<ResizableHandle withHandle className={twJoin(!isError && 'hidden')} />
 				<ResizablePanel minSize={isError ? 0 : 100} maxSize={isError ? 99 : 100} defaultSize={isError ? 50 : 100} className='flex flex-col bg-white'>
 					{showCannedResponse && !!cannedResponseEntries.length && <CannedResponses cannedResponses={cannedResponseEntries} />}
-					<div className='flex justify-between bg-white z-[1] items-center min-h-[58px] h-[58px] p-[10px] pb-[4px] pe-0'>
-						<div className='ps-[14px] text-[#282828]'>Logs</div>
+					<div className={twMerge('flex justify-between bg-white z-[1] items-center min-h-[58px] h-[58px] p-[10px] pb-[4px] pe-0', shouldRenderTabs && 'min-h-0 h-0')}>
 						{!shouldRenderTabs && (
 							<LogFilters
 								showDropdown
