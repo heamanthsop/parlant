@@ -349,7 +349,7 @@ The canned response template we're rendering is this: ###
 We're rendering one field at a time out of this canned response.
 Your job now is to take all of the context above and extract out of it the value for the field '{field_name}' within the canned response template.
 
-Output a JSON object containing the extracted field such that it neatly renders (substituting the field variable) into the canned response template.
+Output a SINGLE JSON OBJECT containing the extracted field such that it neatly renders (substituting the field variable) into the canned response template.
 
 When applicable, if the field is substituted by a list or dict, consider rendering the value in Markdown format.
 
