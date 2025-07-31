@@ -393,7 +393,7 @@ class CompositeLogger(Logger):
         self,
         name: str,
         props: dict[str, Any] = {},
-        level: LogLevel = LogLevel.INFO,
+        level: LogLevel = LogLevel.DEBUG,
     ) -> Iterator[None]:
         with ExitStack() as stack:
             for context in [logger.operation(name, props, level) for logger in self._loggers]:
