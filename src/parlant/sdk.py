@@ -2291,7 +2291,7 @@ class Server:
         agent = await self._container[AgentStore].create_agent(
             name=name,
             description=description,
-            max_engine_iterations=max_engine_iterations or 1,
+            max_engine_iterations=max_engine_iterations or 3,
             composition_mode=composition_mode.value,
         )
 
