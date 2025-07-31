@@ -150,14 +150,14 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
         guidelines = {str(i): g for i, g in enumerate(batch_guidelines, start=1)}
 
-        prompt = self._build_prompt(
-            shots=await self.shots(),
-            guidelines=guidelines,
-        )
-
         with self._logger.operation(
             f"Running response analysis batch of {len(guidelines)} guidelines"
         ):
+            prompt = self._build_prompt(
+                shots=await self.shots(),
+                guidelines=guidelines,
+            )
+
             generation_attempt_temperatures = (
                 self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
                     hints={"type": self.__class__.__name__}

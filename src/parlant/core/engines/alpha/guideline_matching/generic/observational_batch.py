@@ -85,9 +85,9 @@ class GenericObservationalGuidelineMatchingBatch(GuidelineMatchingBatch):
 
     @override
     async def process(self) -> GuidelineMatchingBatchResult:
-        prompt = self._build_prompt(shots=await self.shots())
-
         with self._logger.operation("GenericObservationalGuidelineMatchingBatch"):
+            prompt = self._build_prompt(shots=await self.shots())
+
             generation_attempt_temperatures = (
                 self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
                     hints={"type": self.__class__.__name__}

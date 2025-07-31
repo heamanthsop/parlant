@@ -86,11 +86,11 @@ class GenericPreviouslyAppliedActionableGuidelineMatchingBatch(GuidelineMatching
 
     @override
     async def process(self) -> GuidelineMatchingBatchResult:
-        prompt = self._build_prompt(shots=await self.shots())
-
         with self._logger.operation(
             f"PreviouslyAppliedActionableGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
         ):
+            prompt = self._build_prompt(shots=await self.shots())
+
             try:
                 generation_attempt_temperatures = (
                     self._optimization_policy.get_guideline_matching_batch_retry_temperatures(

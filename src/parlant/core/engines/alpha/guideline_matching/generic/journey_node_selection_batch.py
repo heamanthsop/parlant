@@ -440,9 +440,9 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
             )
         )
 
-        prompt = self._build_prompt(journey_conditions, shots=await self.shots())
-
         with self._logger.operation(f"JourneyNodeSelectionBatch: {self._examined_journey.title}"):
+            prompt = self._build_prompt(journey_conditions, shots=await self.shots())
+
             generation_attempt_temperatures = (
                 self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
                     hints={"type": self.__class__.__name__}
