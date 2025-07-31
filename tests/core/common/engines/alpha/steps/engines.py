@@ -34,6 +34,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_bat
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     ReportAnalysisContext,
 )
+from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.message_generator import MessageGenerator
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.utils import context_variables_to_json
@@ -332,12 +333,6 @@ def when_messages_are_emitted(
         context.container[CustomerStore].read_customer(session.customer_id)
     )
 
-    event_buffer = EventBuffer(
-        context.sync_await(
-            context.container[AgentStore].read_agent(agent.id),
-        )
-    )
-
     message_event_composer: MessageEventComposer
 
     match agent.composition_mode:
@@ -350,22 +345,39 @@ def when_messages_are_emitted(
         ):
             message_event_composer = context.container[CannedResponseGenerator]
 
-    result = context.sync_await(
-        message_event_composer.generate_response(
-            event_emitter=event_buffer,
-            agent=agent,
-            customer=customer,
+    loaded_context = LoadedContext(
+        info=Context(
+            session_id=session.id,
+            agent_id=agent.id,
+        ),
+        logger=context.container[Logger],
+        correlation_id="<main>",
+        agent=agent,
+        customer=customer,
+        session=session,
+        session_event_emitter=EventBuffer(agent),
+        response_event_emitter=EventBuffer(agent),
+        interaction=Interaction(
+            history=context.events,
+            last_known_event_offset=context.events[-1].offset if context.events else -1,
+        ),
+        state=ResponseState(
             context_variables=[],
-            interaction_history=context.events,
-            terms=[],
+            glossary_terms=set(),
             capabilities=[],
+            iterations=[],
             ordinary_guideline_matches=list(context.guideline_matches.values()),
             tool_enabled_guideline_matches={},
             journeys=[],
+            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            tool_events=[],
             tool_insights=ToolInsights(),
-            staged_events=[],
-        )
+            prepared_to_respond=False,
+            message_events=[],
+        ),
     )
+
+    result = context.sync_await(message_event_composer.generate_response(loaded_context))
 
     assert len(result) > 0
     assert all(e is not None for e in result[0].events)

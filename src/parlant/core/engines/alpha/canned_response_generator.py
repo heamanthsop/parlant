@@ -19,7 +19,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime
 from itertools import chain
 from random import shuffle
 import re
@@ -40,6 +39,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
     GuidelineInternalRepresentation,
     internal_representation,
 )
+from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.engines.alpha.message_event_composer import (
     MessageCompositionError,
     MessageEventComposer,
@@ -74,7 +74,18 @@ from parlant.core.loggers import Logger
 from parlant.core.shots import Shot, ShotCollection
 from parlant.core.tools import ToolId
 
-DEFAULT_NO_MATCH_CAN_REP = "Not sure I understand. Could you please say that another way?"
+DEFAULT_NO_MATCH_CANREP = "Not sure I understand. Could you please say that another way?"
+
+
+class NoMatchProvider(ABC):
+    @abstractmethod
+    def get(self, context: LoadedContext) -> CannedResponse: ...
+
+
+class DefaultNoMatchProvider(NoMatchProvider):
+    @override
+    def get(self, context: LoadedContext) -> CannedResponse:
+        return CannedResponse.create_transient(DEFAULT_NO_MATCH_CANREP)
 
 
 class CannedResponseDraftSchema(DefaultBaseModel):
@@ -114,14 +125,6 @@ class _CannedResponseRenderResult:
 
 @dataclass(frozen=True)
 class _CannedResponseSelectionResult:
-    @staticmethod
-    def no_match(draft: Optional[str] = None) -> _CannedResponseSelectionResult:
-        return _CannedResponseSelectionResult(
-            message=DEFAULT_NO_MATCH_CAN_REP,
-            draft=draft or "N/A",
-            canned_responses=[],
-        )
-
     message: str
     draft: str
     canned_responses: list[tuple[CannedResponseId, str]]
@@ -445,6 +448,7 @@ class CannedResponseGenerator(MessageEventComposer):
         field_extractor: CannedResponseFieldExtractor,
         message_generator: MessageGenerator,
         entity_queries: EntityQueries,
+        no_match_provider: NoMatchProvider,
     ) -> None:
         self._logger = logger
         self._correlator = correlator
@@ -459,6 +463,7 @@ class CannedResponseGenerator(MessageEventComposer):
         self._message_generator = message_generator
         self._cached_response_fields: dict[CannedResponseId, set[str]] = {}
         self._entity_queries = entity_queries
+        self._no_match_provider = no_match_provider
 
     async def shots(
         self, composition_mode: CompositionMode
@@ -470,32 +475,23 @@ class CannedResponseGenerator(MessageEventComposer):
     @override
     async def generate_preamble(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
     ) -> Sequence[MessageEventComposition]:
-        context = CannedResponseContext(
-            event_emitter=event_emitter,
+        agent = context.agent
+
+        canrep_context = CannedResponseContext(
+            event_emitter=context.session_event_emitter,
             agent=agent,
-            customer=customer,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            terms=terms,
-            ordinary_guideline_matches=ordinary_guideline_matches,
-            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=journeys,
-            capabilities=capabilities,
-            tool_insights=tool_insights,
-            staged_events=staged_events,
+            customer=context.customer,
+            context_variables=context.state.context_variables,
+            interaction_history=context.interaction.history,
+            terms=list(context.state.glossary_terms),
+            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
+            journeys=context.state.journeys,
+            capabilities=context.state.capabilities,
+            tool_insights=context.state.tool_insights,
+            staged_events=context.state.tool_events,
         )
 
         prompt_builder = PromptBuilder(
@@ -538,7 +534,7 @@ You must generate the preamble message. You must produce a JSON object with a si
                 canrep
                 for canrep in await self._entity_queries.find_canned_responses_for_context(
                     agent_id=agent.id,
-                    journeys=journeys,
+                    journeys=canrep_context.journeys,
                 )
                 if Tag.preamble() in canrep.tags
             ]
@@ -546,7 +542,7 @@ You must generate the preamble message. You must produce a JSON object with a si
             with self._logger.operation("Rendering canned preamble templates"):
                 preamble_choices = [
                     str(r.rendered_text)
-                    for r in await self._render_responses(context, preamble_responses)
+                    for r in await self._render_responses(canrep_context, preamble_responses)
                     if not r.failed
                 ]
 
@@ -595,11 +591,15 @@ You will now be given the current state of the interaction to which you must gen
             },
         )
 
-        prompt_builder.add_interaction_history(interaction_history)
+        prompt_builder.add_interaction_history(canrep_context.interaction_history)
 
-        last_known_event_offset = interaction_history[-1].offset if interaction_history else -1
+        last_known_event_offset = (
+            canrep_context.interaction_history[-1].offset
+            if canrep_context.interaction_history
+            else -1
+        )
 
-        await event_emitter.emit_status_event(
+        await canrep_context.event_emitter.emit_status_event(
             correlation_id=f"{self._correlator.correlation_id}",
             data={
                 "acknowledged_offset": last_known_event_offset,
@@ -623,7 +623,7 @@ You will now be given the current state of the interaction to which you must gen
                 )
                 return []
 
-        emitted_event = await event_emitter.emit_message_event(
+        emitted_event = await canrep_context.event_emitter.emit_message_event(
             correlation_id=f"{self._correlator.correlation_id}",
             data=MessageEventData(
                 message=canrep.content.preamble,
@@ -642,36 +642,14 @@ You will now be given the current state of the interaction to which you must gen
     @override
     async def generate_response(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
             with self._logger.scope("CannedResponseGenerator"):
                 with self._logger.operation("Canned response selection and rendering"):
                     return await self._do_generate_events(
-                        event_emitter=event_emitter,
-                        agent=agent,
-                        customer=customer,
-                        context_variables=context_variables,
-                        interaction_history=interaction_history,
-                        terms=terms,
-                        ordinary_guideline_matches=ordinary_guideline_matches,
-                        journeys=journeys,
-                        capabilities=capabilities,
-                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                        tool_insights=tool_insights,
-                        staged_events=staged_events,
+                        loaded_context=context,
                         latch=latch,
                     )
 
@@ -696,14 +674,7 @@ You will now be given the current state of the interaction to which you must gen
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
                 for tool_call in tool_calls:
                     responses_by_staged_event.extend(
-                        CannedResponse(
-                            id=CannedResponse.TRANSIENT_ID,
-                            value=f.value,
-                            fields=f.fields,
-                            creation_utc=datetime.now(),
-                            tags=[],
-                            signals=[],
-                        )
+                        CannedResponse.create_transient(f.value)
                         for f in tool_call["result"].get("canned_responses", [])
                     )
 
@@ -749,20 +720,22 @@ You will now be given the current state of the interaction to which you must gen
 
     async def _do_generate_events(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        loaded_context: LoadedContext,
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
+        event_emitter = loaded_context.session_event_emitter
+        agent = loaded_context.agent
+        customer = loaded_context.customer
+        context_variables = loaded_context.state.context_variables
+        interaction_history = loaded_context.interaction.history
+        terms = list(loaded_context.state.glossary_terms)
+        ordinary_guideline_matches = loaded_context.state.ordinary_guideline_matches
+        journeys = loaded_context.state.journeys
+        capabilities = loaded_context.state.capabilities
+        tool_enabled_guideline_matches = loaded_context.state.tool_enabled_guideline_matches
+        tool_insights = loaded_context.state.tool_insights
+        staged_events = loaded_context.state.tool_events
+
         if (
             not interaction_history
             and not ordinary_guideline_matches
@@ -801,6 +774,7 @@ You will now be given the current state of the interaction to which you must gen
         for generation_attempt in range(3):
             try:
                 generation_info, result = await self._generate_response(
+                    loaded_context,
                     context,
                     responses,
                     agent.composition_mode,
@@ -1356,6 +1330,7 @@ Output a JSON object with three properties:
 
     async def _generate_response(
         self,
+        loaded_context: LoadedContext,
         context: CannedResponseContext,
         canned_responses: Sequence[CannedResponse],
         composition_mode: CompositionMode,
@@ -1492,11 +1467,15 @@ Output a JSON object with three properties:
                     "Failed to find relevant canned responses. Please review canned response selection prompt and completion."
                 )
 
+                no_match_canrep = self._no_match_provider.get(loaded_context)
+
                 return {
                     "draft": draft_response.info,
                     "selection": selection_response.info,
-                }, _CannedResponseSelectionResult.no_match(
-                    draft=draft_response.content.response_body
+                }, _CannedResponseSelectionResult(
+                    message=no_match_canrep.value,
+                    draft=draft_response.content.response_body,
+                    canned_responses=[(no_match_canrep.id, no_match_canrep.value)],
                 )
             else:
                 # Return the draft message as the response
@@ -1536,10 +1515,16 @@ Output a JSON object with three properties:
                 "Invalid canned response ID choice. Please review canned response selection prompt and completion."
             )
 
+            no_match_canrep = self._no_match_provider.get(loaded_context)
+
             return {
                 "draft": draft_response.info,
                 "selection": selection_response.info,
-            }, _CannedResponseSelectionResult.no_match(draft=draft_response.content.response_body)
+            }, _CannedResponseSelectionResult(
+                message=no_match_canrep.value,
+                draft=draft_response.content.response_body,
+                canned_responses=[(no_match_canrep.id, no_match_canrep.value)],
+            )
 
         return {
             "draft": draft_response.info,

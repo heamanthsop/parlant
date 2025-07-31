@@ -62,6 +62,19 @@ class CannedResponseField:
 
 @dataclass(frozen=True)
 class CannedResponse:
+    @staticmethod
+    def create_transient(
+        value: str,
+    ) -> CannedResponse:
+        return CannedResponse(
+            id=CannedResponse.TRANSIENT_ID,
+            value=value,
+            fields=[],
+            creation_utc=datetime.now(),
+            tags=[],
+            signals=[],
+        )
+
     TRANSIENT_ID = CannedResponseId("<transient>")
     INVALID_ID = CannedResponseId("<invalid>")
 
