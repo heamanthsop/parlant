@@ -6,7 +6,7 @@ import { copy } from '@/lib/utils';
 const DraftBubble = ({draft = ''}) => {
 	return (
 		<div className='group/main flex'>
-            <div className='text-gray-400 relative px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[10px] max-w-[min(560px,100%)]'>
+            <div className='text-gray-400 relative px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[16px] max-w-[min(560px,100%)]'>
                 <Markdown className='leading-[26px]'>
                     {draft}
                 </Markdown>
