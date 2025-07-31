@@ -1517,9 +1517,9 @@ Output a JSON object with three properties:
             )
 
         # Step 5.3: Assuming a high-quality match or a partial match in strict mode
-        canrep_id = CannedResponseId(selection_response.content.chosen_template_id)
+        selected_canrep_id = CannedResponseId(selection_response.content.chosen_template_id)
         rendered_canned_response = next(
-            (value for crid, value in rendered_canreps if crid == crid),
+            (value for crid, value in rendered_canreps if crid == selected_canrep_id),
             None,
         )
 
@@ -1539,7 +1539,7 @@ Output a JSON object with three properties:
         }, _CannedResponseSelectionResult(
             message=rendered_canned_response,
             draft=draft_response.content.response_body,
-            canned_responses=[(canrep_id, rendered_canned_response)],
+            canned_responses=[(selected_canrep_id, rendered_canned_response)],
         )
 
     async def _render_responses(
