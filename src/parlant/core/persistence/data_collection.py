@@ -48,7 +48,7 @@ class DataCollectingSchematicGenerator(SchematicGenerator[T]):
             path = path / f"Session_{session.id}"
 
         if request_id := self._correlator.get("request_id"):
-            path = path / str(request_id)
+            path = path / f"R{request_id}"
 
         path.mkdir(parents=True, exist_ok=True)
 
