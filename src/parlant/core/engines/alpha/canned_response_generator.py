@@ -105,6 +105,13 @@ class CannedResponseGeneratorDraftShot(Shot):
     expected_result: CannedResponseDraftSchema
 
 
+@dataclass
+class _CannedResponseRenderResult:
+    response: CannedResponse
+    failed: bool
+    rendered_text: str | None
+
+
 @dataclass(frozen=True)
 class _CannedResponseSelectionResult:
     @staticmethod
@@ -112,12 +119,12 @@ class _CannedResponseSelectionResult:
         return _CannedResponseSelectionResult(
             message=DEFAULT_NO_MATCH_CAN_REP,
             draft=draft or "N/A",
-            responses=[],
+            canned_responses=[],
         )
 
     message: str
     draft: str
-    responses: list[tuple[CannedResponseId, str]]
+    canned_responses: list[tuple[CannedResponseId, str]]
 
 
 @dataclass
@@ -430,7 +437,7 @@ class CannedResponseGenerator(MessageEventComposer):
         correlator: ContextualCorrelator,
         optimization_policy: OptimizationPolicy,
         canned_response_draft_generator: SchematicGenerator[CannedResponseDraftSchema],
-        canned_response_selection_generator: SchematicGenerator[CannedResponseSelectionSchema],
+        canned_selection_generator: SchematicGenerator[CannedResponseSelectionSchema],
         canned_response_composition_generator: SchematicGenerator[CannedResponseRevisionSchema],
         canned_response_fluid_preamble_generator: SchematicGenerator[CannedResponsePreambleSchema],
         perceived_performance_policy: PerceivedPerformancePolicy,
@@ -443,7 +450,7 @@ class CannedResponseGenerator(MessageEventComposer):
         self._correlator = correlator
         self._optimization_policy = optimization_policy
         self._canrep_draft_generator = canned_response_draft_generator
-        self._canrep_generation_generator = canned_response_selection_generator
+        self._canrep_selection_generator = canned_selection_generator
         self._canrep_composition_generator = canned_response_composition_generator
         self._canrep_fluid_preamble_generator = canned_response_fluid_preamble_generator
         self._canned_response_store = canned_response_store
@@ -528,31 +535,19 @@ You must generate the preamble message. You must produce a JSON object with a si
 """
         else:
             preamble_responses = [
-                u
-                for u in await self._entity_queries.find_canned_responses_for_context(
+                canrep
+                for canrep in await self._entity_queries.find_canned_responses_for_context(
                     agent_id=agent.id,
                     journeys=journeys,
                 )
-                if Tag.preamble() in u.tags
+                if Tag.preamble() in canrep.tags
             ]
 
-            preamble_choices = []
-
-            for u in preamble_responses:
-                try:
-                    rendered_response = await self._render_response(
-                        context=context,
-                        response=u.value,
-                    )
-
-                    preamble_choices.append(rendered_response)
-                except Exception as exc:
-                    self._logger.error(
-                        f"Failed to pre-render preamble response for matching '{u.id}' ('{u.value}')"
-                    )
-                    self._logger.error(
-                        f"Preamble response rendering failed: {traceback.format_exception(exc)}"
-                    )
+            preamble_choices = [
+                str(r.rendered_text)
+                for r in await self._render_responses(context, preamble_responses)
+                if not r.failed
+            ]
 
             if not preamble_choices:
                 return []
@@ -684,12 +679,12 @@ You will now be given the current state of the interaction to which you must gen
         context: CannedResponseContext,
     ) -> list[CannedResponse]:
         stored_responses = [
-            u
-            for u in await self._entity_queries.find_canned_responses_for_context(
+            canrep
+            for canrep in await self._entity_queries.find_canned_responses_for_context(
                 agent_id=context.agent.id,
                 journeys=context.journeys,
             )
-            if Tag.preamble() not in u.tags
+            if Tag.preamble() not in canrep.tags
         ]
 
         # Add responses from staged tool events (transient)
@@ -738,12 +733,16 @@ You will now be given the current state of the interaction to which you must gen
 
         relevant_responses = []
 
-        for u in all_candidates:
-            if u.id not in self._cached_response_fields:
-                self._cached_response_fields[u.id] = _get_response_template_fields(u.value)
+        for canrep in all_candidates:
+            if canrep.id not in self._cached_response_fields:
+                self._cached_response_fields[canrep.id] = _get_response_template_fields(
+                    canrep.value
+                )
 
-            if all(field in all_available_fields for field in self._cached_response_fields[u.id]):
-                relevant_responses.append(u)
+            if all(
+                field in all_available_fields for field in self._cached_response_fields[canrep.id]
+            ):
+                relevant_responses.append(canrep)
 
         return relevant_responses
 
@@ -823,7 +822,7 @@ You will now be given the current state of the interaction to which you must gen
                                 message=m,
                                 participant=Participant(id=agent.id, display_name=agent.name),
                                 draft=result.draft,
-                                canned_responses=result.responses,
+                                canned_responses=result.canned_responses,
                             ),
                         )
 
@@ -1293,7 +1292,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
             formatted_guidelines = ""
 
         formatted_canreps = "\n".join(
-            [f'Template ID: {u[0]} """\n{u[1]}\n"""' for u in canned_responses]
+            [f'Template ID: {canrep[0]} """\n{canrep[1]}\n"""' for canrep in canned_responses]
         )
 
         builder.add_section(
@@ -1407,7 +1406,7 @@ Output a JSON object with three properties:
             }, _CannedResponseSelectionResult(
                 message=draft_response.content.response_body,
                 draft=draft_response.content.response_body,
-                responses=[],
+                canned_responses=[],
             )
 
         await context.event_emitter.emit_status_event(
@@ -1428,25 +1427,21 @@ Output a JSON object with three properties:
             )
 
         # Step 3: Pre-render these templates so that matching works better
-        rendered_canreps: list[tuple[CannedResponseId, str]] = []
-
-        for u in top_relevant_canreps:
-            try:
-                rendered_canreps.append((u.id, await self._render_response(context, u.value)))
-            except Exception as exc:
-                self._logger.error(
-                    f"Failed to pre-render canned response for matching '{u.id}' ('{u.value}')"
-                )
-                self._logger.error(
-                    f"Canned Response rendering failed: {traceback.format_exception(exc)}"
-                )
+        rendered_canreps = [
+            (r.response.id, str(r.rendered_text))
+            for r in await self._render_responses(
+                context=context,
+                responses=top_relevant_canreps,
+            )
+            if not r.failed
+        ]
 
         # Step 4.1: In composited mode, recompose the draft message with the style of the rendered canned responses
         if composition_mode == CompositionMode.CANNED_COMPOSITED:
             recomposition_generation_info, composited_message = await self._recompose(
                 context=context,
                 draft_message=draft_response.content.response_body,
-                reference_messages=[u[1] for u in rendered_canreps],
+                reference_messages=[canrep[1] for canrep in rendered_canreps],
             )
 
             return {
@@ -1455,11 +1450,11 @@ Output a JSON object with three properties:
             }, _CannedResponseSelectionResult(
                 message=composited_message,
                 draft=draft_response.content.response_body,
-                responses=[],
+                canned_responses=[],
             )
 
         # Step 4.2: In non-composited mode, try to match the draft message with one of the rendered canned responses
-        selection_response = await self._canrep_generation_generator.generate(
+        selection_response = await self._canrep_selection_generator.generate(
             prompt=self._build_selection_prompt(
                 context=context,
                 draft_message=draft_response.content.response_body,
@@ -1499,7 +1494,7 @@ Output a JSON object with three properties:
                 }, _CannedResponseSelectionResult(
                     message=draft_response.content.response_body,
                     draft=draft_response.content.response_body,
-                    responses=[],
+                    canned_responses=[],
                 )
 
         # Step 5.2: Assuming a partial match in non-strict mode
@@ -1514,13 +1509,13 @@ Output a JSON object with three properties:
             }, _CannedResponseSelectionResult(
                 message=draft_response.content.response_body,
                 draft=draft_response.content.response_body,
-                responses=[],
+                canned_responses=[],
             )
 
         # Step 5.3: Assuming a high-quality match or a partial match in strict mode
         canrep_id = CannedResponseId(selection_response.content.chosen_template_id)
         rendered_canned_response = next(
-            (value for uid, value in rendered_canreps if uid == canrep_id),
+            (value for crid, value in rendered_canreps if crid == crid),
             None,
         )
 
@@ -1540,26 +1535,58 @@ Output a JSON object with three properties:
         }, _CannedResponseSelectionResult(
             message=rendered_canned_response,
             draft=draft_response.content.response_body,
-            responses=[(canrep_id, rendered_canned_response)],
+            canned_responses=[(canrep_id, rendered_canned_response)],
         )
 
-    async def _render_response(self, context: CannedResponseContext, response: str) -> str:
-        args = {}
+    async def _render_responses(
+        self,
+        context: CannedResponseContext,
+        responses: Sequence[CannedResponse],
+    ) -> Sequence[_CannedResponseRenderResult]:
+        render_tasks = [self._render_response(context, r) for r in responses]
+        return await safe_gather(*render_tasks)
 
-        for field_name in _get_response_template_fields(response):
-            success, value = await self._field_extractor.extract(
-                response,
-                field_name,
-                context,
+    async def _render_response(
+        self,
+        context: CannedResponseContext,
+        response: CannedResponse,
+    ) -> _CannedResponseRenderResult:
+        try:
+            args = {}
+
+            for field_name in _get_response_template_fields(response.value):
+                success, value = await self._field_extractor.extract(
+                    response.value,
+                    field_name,
+                    context,
+                )
+
+                if success:
+                    args[field_name] = value
+                else:
+                    self._logger.error(f"CannedResponse field extraction: missing '{field_name}'")
+                    raise KeyError(f"Missing field '{field_name}' in canned response")
+
+            result = jinja2.Template(response.value).render(**args)
+
+            return _CannedResponseRenderResult(
+                response=response,
+                failed=False,
+                rendered_text=result,
+            )
+        except Exception as exc:
+            self._logger.error(
+                f"Failed to pre-render canned response for matching '{response.id}' ('{response.value}')"
+            )
+            self._logger.error(
+                f"Canned response rendering failed: {traceback.format_exception(exc)}"
             )
 
-            if success:
-                args[field_name] = value
-            else:
-                self._logger.error(f"CannedResponse field extraction: missing '{field_name}'")
-                raise KeyError(f"Missing field '{field_name}' in canned response")
-
-        return jinja2.Template(response).render(**args)
+            return _CannedResponseRenderResult(
+                response=response,
+                failed=True,
+                rendered_text=None,
+            )
 
     async def _recompose(
         self,
