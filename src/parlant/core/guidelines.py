@@ -58,7 +58,14 @@ class Guideline:
     metadata: Mapping[str, JSONSerializable]
 
     def __str__(self) -> str:
-        return f"When {self.content.condition}, then {self.content.action}"
+        if self.content.condition and self.content.action:
+            return f"When {self.content.condition}, then {self.content.action}"
+        elif self.content.condition:
+            return f"Observation: {self.content.condition}"
+        elif self.content.action:
+            return self.content.action
+        else:
+            raise Exception("Invalid guideline content")
 
     def __hash__(self) -> int:
         return hash(self.id)
