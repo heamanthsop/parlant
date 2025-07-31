@@ -56,7 +56,7 @@ const ChatHeader = ({setFilterSessionVal, filterSessionVal}: {setFilterSessionVa
 						</Sheet>
 					</div>
 				</div>
-				<a href='https://parlant.io' target='_blank' className='flex items-center ms-[2px] max-mobile:hidden'>
+				<a href='https://parlant.io' target='_blank' className='flex items-center ms-[4px] -me-[6px] max-mobile:hidden'>
 					<img src='/chat/app-logo.svg' alt='logo' aria-hidden className='self-center h-[30px]' />
 				</a>
 				<div className='flex items-center ps-[12px] flex-1 relative !shadow-main max-mobile:hidden'>
