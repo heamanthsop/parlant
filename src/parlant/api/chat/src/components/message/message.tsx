@@ -13,7 +13,6 @@ interface Props {
 	event: EventInterface;
 	sameCorrelationMessages?: EventInterface[];
 	isContinual: boolean;
-	isSameSourceAsPrevious?: boolean;
 	isRegenerateHidden?: boolean;
 	isFirstMessageInDate?: boolean;
 	flagged?: string;
@@ -62,7 +61,7 @@ const MessageEditing = ({event, resendMessageFn, setIsEditing}: Props) => {
 	);
 };
 
-function Message({event, isFirstMessageInDate, isSameSourceAsPrevious, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged, flaggedChanged, sameCorrelationMessages}: Props): ReactElement {
+function Message({event, isFirstMessageInDate, isContinual, showLogs, showLogsForMessage, resendMessageFn, flagged, flaggedChanged, sameCorrelationMessages}: Props): ReactElement {
 	const [isEditing, setIsEditing] = useState(false);
 	return (
 		<div className={twMerge(isEditing && '[direction:rtl] flex justify-center')}>
