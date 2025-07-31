@@ -237,3 +237,30 @@ Feature: Journeys
         Then no tool calls event is emitted
         And a single message event is emitted
         And the message contains asking the customer for their username, but not for their email or phone number
+
+    Scenario: Disambiguation between two journeys causes neither to immediately activate
+        Given an agent
+        And a journey "Dispute a transaction"
+        And an observational guideline "fraud" when the customer suspects fraudulent activity
+        And an observational guideline "issue" when the customer has an issue with some transaction
+        And the journey "Dispute a transaction" is triggered when "fraud" applies
+        And the journey "Dispute a transaction" is triggered when "issue" applies
+        And a node "mother" to first ask them to verify the name of their mother in "Dispute a transaction" journey
+        And a transition from the root to "mother" in "Dispute a transaction" journey
+        And a journey "Lock card"
+        And an observational guideline "recognize" when the customer does not recognize activity on their card
+        And an observational guideline "fraud2" when the customer suspects fraudulent activity
+        And the journey "Lock card" is triggered when "recognize" applies
+        And the journey "Lock card" is triggered when "fraud2" applies
+        And a node "father" to first ask them to verify the name of their father in "Lock card" journey
+        And a transition from the root to "father" in "Lock card" journey
+        And a disambiguation group head "issue_with_transaction" to activate when the customer has an issue with a transaction but it's not clear what they action they want to take in its regard
+        And a guideline "fraud" is grouped under "issue_with_transaction"
+        And a guideline "issue" is grouped under "issue_with_transaction"
+        And a guideline "recognize" is grouped under "issue_with_transaction"
+        And a guideline "fraud2" is grouped under "issue_with_transaction"
+        And a customer message, "Hi, there's a transaction I don't recognize. I need help."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no mention of mother or father
+
