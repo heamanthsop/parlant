@@ -44,7 +44,7 @@ class GuidelineCheck(DefaultBaseModel):
     requires_disambiguation: bool
 
 
-class DisambiguationGuidelineMatchesSchema(DefaultBaseModel):
+class GenericDisambiguationGuidelineMatchesSchema(DefaultBaseModel):
     tldr: str
     disambiguation_requested: bool
     customer_resolved: Optional[bool] = False
@@ -58,7 +58,7 @@ class DisambiguationGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     disambiguation_condition: GuidelineContent
     disambiguation_targets: Sequence[GuidelineContent]
-    expected_result: DisambiguationGuidelineMatchesSchema
+    expected_result: GenericDisambiguationGuidelineMatchesSchema
 
 
 # TODO: when adding the new clarification guideline, add it with customer dependent flag
@@ -69,7 +69,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         self,
         logger: Logger,
         optimization_policy: OptimizationPolicy,
-        schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema],
         disambiguation_guideline: Guideline,
         disambiguation_targets: Sequence[Guideline],
         context: GuidelineMatchingContext,
@@ -400,7 +400,7 @@ example_1_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_1_expected = DisambiguationGuidelineMatchesSchema(
+example_1_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer claimed to receive the wrong item; may want to either replace it or get a refund.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -448,7 +448,7 @@ example_2_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_2_expected = DisambiguationGuidelineMatchesSchema(
+example_2_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not psychological.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -501,7 +501,7 @@ example_3_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_3_expected = DisambiguationGuidelineMatchesSchema(
+example_3_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer requests an online appointment and mentions needing a prescription, which suggests a medical consultation",
     disambiguation_requested=False,
     is_ambiguous=False,
@@ -546,7 +546,7 @@ example_4_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_4_expected = DisambiguationGuidelineMatchesSchema(
+example_4_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer asks to book an appointment. Online sessions are not available. Since they mention hurting throat, it likely relates to a medical consultation, not a psychologist.",
     disambiguation_requested=False,
     is_ambiguous=False,
@@ -591,7 +591,7 @@ example_5_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_5_expected = DisambiguationGuidelineMatchesSchema(
+example_5_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="Based on latest message, there is a new request which is again ambiguous. Need to clarify whether it's with a doctor or a psychologist, and whether it should be online or in person",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -648,7 +648,7 @@ example_6_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_6_expected = DisambiguationGuidelineMatchesSchema(
+example_6_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer asked to book two appointments. For the first appointment there is an ambiguity between doctor or psychologist, and online or in-person. The second one is clear.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -712,7 +712,7 @@ example_7_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_7_expected = DisambiguationGuidelineMatchesSchema(
+example_7_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer received a wrong item and was asked whether they wanted a replacement or refund. They responded with 'replace', which clearly indicates their choice and resolves the ambiguity.",
     disambiguation_requested=True,
     customer_resolved=True,
@@ -753,7 +753,7 @@ example_8_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_8_expected = DisambiguationGuidelineMatchesSchema(
+example_8_expected = GenericDisambiguationGuidelineMatchesSchema(
     tldr="The customer received a wrong item and clarification was asked. The customer only said that they need to think so ambiguity still apply",
     disambiguation_requested=True,
     customer_resolved=False,

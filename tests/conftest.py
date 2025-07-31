@@ -52,7 +52,7 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
     response_analysis_batch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    DisambiguationGuidelineMatchesSchema,
+    GenericDisambiguationGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
@@ -476,7 +476,7 @@ async def container(
             ToolRunningActionSchema,
             GenericResponseAnalysisSchema,
             AgentIntentionProposerSchema,
-            DisambiguationGuidelineMatchesSchema,
+            GenericDisambiguationGuidelineMatchesSchema,
             JourneyNodeSelectionSchema,
             RelativeActionSchema,
         ):
@@ -720,12 +720,12 @@ def no_cache(container: Container) -> None:
             container[SchematicGenerator[GuidelineConnectionPropositionsSchema]],
         ).use_cache = False
     if isinstance(
-        container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
+        container[SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]],
         CachedSchematicGenerator,
     ):
         cast(
-            CachedSchematicGenerator[DisambiguationGuidelineMatchesSchema],
-            container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
+            CachedSchematicGenerator[GenericDisambiguationGuidelineMatchesSchema],
+            container[SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]],
         ).use_cache = False
     if isinstance(
         container[SchematicGenerator[JourneyNodeSelectionSchema]],

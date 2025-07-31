@@ -31,7 +31,7 @@ from parlant.core.context_variables import (
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    DisambiguationGuidelineMatchesSchema,
+    GenericDisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
@@ -54,7 +54,7 @@ from tests.test_utilities import SyncAwaiter, nlp_test
 class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
-    schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema]
+    schematic_generator: SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]
     logger: Logger
 
 
@@ -67,7 +67,9 @@ def context(
         container,
         sync_await,
         logger=container[Logger],
-        schematic_generator=container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
+        schematic_generator=container[
+            SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]
+        ],
     )
 
 

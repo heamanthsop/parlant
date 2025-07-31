@@ -23,7 +23,7 @@ from parlant.core import async_utils
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    DisambiguationGuidelineMatchesSchema,
+    GenericDisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
@@ -87,7 +87,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             GenericActionableGuidelineMatchesSchema
         ],
         disambiguation_guidelines_schematic_generator: SchematicGenerator[
-            DisambiguationGuidelineMatchesSchema
+            GenericDisambiguationGuidelineMatchesSchema
         ],
         journey_step_selection_schematic_generator: SchematicGenerator[JourneyNodeSelectionSchema],
         report_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],

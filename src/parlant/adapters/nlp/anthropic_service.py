@@ -29,6 +29,9 @@ import os
 
 from parlant.adapters.nlp.common import normalize_json_output
 from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
+from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
+    GenericDisambiguationGuidelineMatchesSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
 )
@@ -214,7 +217,7 @@ class AnthropicService(NLPService):
 
     @override
     async def get_schematic_generator(self, t: type[T]) -> AnthropicAISchematicGenerator[T]:
-        if t == JourneyNodeSelectionSchema:
+        if t == JourneyNodeSelectionSchema or t == GenericDisambiguationGuidelineMatchesSchema:
             return Claude_Opus_4[t](self._logger)  # type: ignore
         return Claude_Sonnet_4[t](self._logger)  # type: ignore
 

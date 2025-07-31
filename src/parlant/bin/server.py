@@ -52,7 +52,7 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
     response_analysis_batch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    DisambiguationGuidelineMatchesSchema,
+    GenericDisambiguationGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
@@ -686,7 +686,7 @@ async def initialize_container(
         CustomerDependentActionSchema,
         ToolRunningActionSchema,
         AgentIntentionProposerSchema,
-        DisambiguationGuidelineMatchesSchema,
+        GenericDisambiguationGuidelineMatchesSchema,
         JourneyNodeSelectionSchema,
         RelativeActionSchema,
     ):
