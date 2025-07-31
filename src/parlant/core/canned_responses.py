@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from itertools import chain
 import json
 from typing import Any, Awaitable, Callable, NewType, Optional, Sequence, cast
+import jinja2
 from typing_extensions import override, TypedDict, Self, Required
 
 from parlant.core import async_utils
@@ -430,6 +431,8 @@ class CannedResponseVectorStore(CannedResponseStore):
         creation_utc: Optional[datetime] = None,
         tags: Optional[Sequence[TagId]] = None,
     ) -> CannedResponse:
+        self._validate_template(value)
+
         async with self._lock.writer_lock:
             creation_utc = creation_utc or datetime.now(timezone.utc)
 
@@ -461,6 +464,12 @@ class CannedResponseVectorStore(CannedResponseStore):
                 )
 
         return canrep
+
+    def _validate_template(self, template: str) -> None:
+        try:
+            jinja2.Environment().parse(template)
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            raise ValueError(f"Invalid Jinja2 template: '{template}': {e}")
 
     @override
     async def read_canned_response(
