@@ -909,8 +909,16 @@ However, in this case, no special behavioral guidelines were provided.
         agent_intention_guidelines = []
 
         for i, p in enumerate(all_matches, start=1):
-            if internal_representation(p.guideline).action:
-                guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
+            internal_rep = internal_representation(p.guideline)
+
+            if internal_rep.action:
+                if internal_rep.condition:
+                    guideline = f"Guideline #{i}) When {guideline_representations[p.guideline.id].condition}, then {guideline_representations[p.guideline.id].action}"
+                else:
+                    guideline = (
+                        f"Guideline #{i}) {guideline_representations[p.guideline.id].action}"
+                    )
+
                 guideline += f"\n    [Priority (1-10): {p.score}; Rationale: {p.rationale}]"
                 if p.guideline.metadata.get("agent_intention_condition"):
                     agent_intention_guidelines.append(guideline)
