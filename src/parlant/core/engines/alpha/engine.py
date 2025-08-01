@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 import asyncio
+import copy
 from collections import OrderedDict, defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -410,7 +411,10 @@ class AlphaEngine(Engine):
                 ordinary_guideline_matches=[],
                 tool_enabled_guideline_matches={},
                 journeys=[],
-                journey_paths=session.agent_states[-1]["journey_paths"]
+                journey_paths={
+                    k: copy.deepcopy(v)
+                    for k, v in session.agent_states[-1]["journey_paths"].items()
+                }
                 if session.agent_states
                 else {},
                 tool_events=[],
@@ -451,7 +455,6 @@ class AlphaEngine(Engine):
             result = await self._run_additional_preparation_iteration(context)
 
         context.state.iterations.append(result.iteration)
-
         context.state.journey_paths = self._list_journey_paths(
             context=context,
             guideline_matches=list(
@@ -1004,9 +1007,7 @@ class AlphaEngine(Engine):
 
         # Step 5: Filter the journeys that are activated by the matched guidelines.
         match_ids = set(map(lambda g: g.guideline.id, matching_result.matches))
-        journeys = self._filter_activated_journeys(
-            context.session, match_ids, sorted_journeys_by_relevance
-        )
+        journeys = self._filter_activated_journeys(context, match_ids, sorted_journeys_by_relevance)
 
         # Step 6: If any of the lower-probability journeys (those originally filtered out)
         # have in fact been activated, run an additional matching pass for the guidelines
@@ -1101,9 +1102,7 @@ class AlphaEngine(Engine):
         # If a journey was already active in a previous iteration, we still retrieve its steps
         # to support cases where multiple steps should be processed in a single engine run.
         match_ids = set(map(lambda g: g.guideline.id, matching_result.matches))
-        activated_journeys = self._filter_activated_journeys(
-            context.session, match_ids, all_journeys
-        )
+        activated_journeys = self._filter_activated_journeys(context, match_ids, all_journeys)
 
         # Step 6: If any of the journeys have been activated,
         # run an additional matching pass for the guidelines
@@ -1158,7 +1157,7 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         guideline_matches: Sequence[GuidelineMatch],
     ) -> dict[JourneyId, list[Optional[GuidelineId]]]:
-        journey_paths = context.state.journey_paths
+        journey_paths = copy.deepcopy(context.state.journey_paths)
 
         new_journey_paths = self._list_journey_paths_from_guideline_matches(
             guideline_matches=guideline_matches,
@@ -1175,7 +1174,7 @@ class AlphaEngine(Engine):
 
     def _filter_activated_journeys(
         self,
-        session: Session,
+        context: LoadedContext,
         match_ids: set[GuidelineId],
         all_journeys: Sequence[Journey],
     ) -> list[Journey]:
@@ -1192,15 +1191,11 @@ class AlphaEngine(Engine):
             j for j in all_journeys if set(j.conditions).intersection(match_ids)
         ]
 
-        last_interaction_active_journeys = (
-            {
-                j_id
-                for j_id in session.agent_states[-1]["journey_paths"]
-                if session.agent_states[-1]["journey_paths"][j_id][-1] is not None
-            }
-            if session.agent_states
-            else set([])
-        )
+        last_interaction_active_journeys = {
+            j_id
+            for j_id in context.state.journey_paths
+            if context.state.journey_paths[j_id][-1] is not None
+        }
 
         return list(
             set(
