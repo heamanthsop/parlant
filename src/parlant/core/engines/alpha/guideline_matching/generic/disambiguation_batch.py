@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -31,11 +32,13 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
 )
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
-from parlant.core.guidelines import Guideline, GuidelineContent
+from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
+from parlant.core.journeys import JourneyId, JourneyStore
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.sessions import Event, EventId, EventKind, EventSource
 from parlant.core.shots import Shot, ShotCollection
+from parlant.core.tags import Tag
 
 
 class GuidelineCheck(DefaultBaseModel):
@@ -44,7 +47,7 @@ class GuidelineCheck(DefaultBaseModel):
     requires_disambiguation: bool
 
 
-class GenericDisambiguationGuidelineMatchesSchema(DefaultBaseModel):
+class DisambiguationGuidelineMatchesSchema(DefaultBaseModel):
     tldr: str
     disambiguation_requested: bool
     customer_resolved: Optional[bool] = False
@@ -58,37 +61,81 @@ class DisambiguationGuidelineMatchingShot(Shot):
     interaction_events: Sequence[Event]
     disambiguation_condition: GuidelineContent
     disambiguation_targets: Sequence[GuidelineContent]
-    expected_result: GenericDisambiguationGuidelineMatchesSchema
+    expected_result: DisambiguationGuidelineMatchesSchema
 
 
-# TODO: when adding the new clarification guideline, add it with customer dependent flag
+@dataclass
+class _Guideline:
+    conditions: list[str]
+    action: str | None
+    ids: list[GuidelineId]
 
 
 class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
     def __init__(
         self,
         logger: Logger,
+        journey_store: JourneyStore,
         optimization_policy: OptimizationPolicy,
-        schematic_generator: SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema],
+        schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema],
         disambiguation_guideline: Guideline,
         disambiguation_targets: Sequence[Guideline],
         context: GuidelineMatchingContext,
     ) -> None:
         self._logger = logger
+        self._journey_store = journey_store
         self._optimization_policy = optimization_policy
         self._schematic_generator = schematic_generator
         self._disambiguation_guideline = disambiguation_guideline
-        self._disambiguation_targets = {g.id: g for g in disambiguation_targets}
+        self._disambiguation_targets = disambiguation_targets
         self._context = context
 
-        self._target_ids = {
-            str(i): id for i, id in enumerate(self._disambiguation_targets.keys(), start=1)
-        }
+    async def _get_disambiguation_targets_guidelines(
+        self,
+        disambiguation_targets: Sequence[Guideline],
+    ) -> dict[str, _Guideline]:
+        journey_to_conditions = defaultdict(list)
+        guidelines_targets = []
+        for g in disambiguation_targets:
+            for t in g.tags:
+                if journey_id := Tag.extract_journey_id(t):
+                    journey_to_conditions[journey_id].append(g)
+                else:
+                    guidelines_targets.append(g)
+                    continue
+            if not g.tags:
+                guidelines_targets.append(g)
+
+        guidelines = {}
+        i = 1
+        for journey_id, conditions in journey_to_conditions.items():
+            journey = await self._journey_store.read_journey(JourneyId(journey_id))
+            guidelines[str(i)] = _Guideline(
+                conditions=[g.content.condition for g in conditions],
+                action=journey.title,
+                ids=[g.id for g in conditions],
+            )
+            i += 1
+        for g in guidelines_targets:
+            guidelines[str(i)] = _Guideline(
+                conditions=[internal_representation(g).condition],
+                action=internal_representation(g).action,
+                ids=[g.id],
+            )
+            i += 1
+        return guidelines
 
     async def process(self) -> GuidelineMatchingBatchResult:
-        with self._logger.operation("GenericDisambiguationGuidelineMatchingBatch"):
-            prompt = self._build_prompt(shots=await self.shots())
+        disambiguation_targets_guidelines = await self._get_disambiguation_targets_guidelines(
+            self._disambiguation_targets
+        )
 
+        prompt = self._build_prompt(
+            shots=await self.shots(),
+            disambiguation_targets_guidelines=disambiguation_targets_guidelines,
+        )
+
+        with self._logger.operation("DisambiguationGuidelineMatchingBatch"):
             generation_attempt_temperatures = (
                 self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
                     hints={"type": self.__class__.__name__}
@@ -110,20 +157,12 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
                     metadata: dict[str, JSONSerializable] = {}
 
                     if inference.content.is_ambiguous:
-                        guidelines: list[str] = [
-                            self._target_ids[g.guideline_id]
-                            for g in inference.content.guidelines or []
-                            if g.requires_disambiguation
-                            # The following is a "temporary" hack to avoid cases where
-                            # we're asked to disambiguate observational guidelines of
-                            # multiple journeys (in which case, they'd have no action).
-                            # We add it here as a temporary fix to allow journeys to
-                            # definitely remain non-activated as long as ambiguity
-                            # between their activating conditions is present.
-                            or not self._disambiguation_targets[
-                                self._target_ids[g.guideline_id]
-                            ].content.action
-                        ]
+                        guidelines: list[str] = []
+                        for g in inference.content.guidelines or []:
+                            if g.requires_disambiguation:
+                                guidelines.extend(
+                                    disambiguation_targets_guidelines[g.guideline_id].ids
+                                )
 
                         disambiguation_data: JSONSerializable = {
                             "targets": guidelines,
@@ -207,7 +246,7 @@ Example {i} - {shot.description}: ###
 """
         if shot.disambiguation_targets:
             formatted_guidelines = "\n".join(
-                f"{i}) Condition {g.condition}. Action: {g.action}"
+                f"{i}) Condition: {g.condition}. Action: {g.action}"
                 for i, g in enumerate(shot.disambiguation_targets, start=1)
             )
             formatted_shot += f"""
@@ -227,18 +266,16 @@ Example {i} - {shot.description}: ###
 
     def _build_prompt(
         self,
+        disambiguation_targets_guidelines: dict[str, _Guideline],
         shots: Sequence[DisambiguationGuidelineMatchingShot],
     ) -> PromptBuilder:
         disambiguation_condition_internal = internal_representation(self._disambiguation_guideline)
-        disambiguation_targets_internal = {
-            g.id: internal_representation(g) for g in self._disambiguation_targets.values()
-        }
 
         disambiguation_targets_text = "\n".join(
-            f"{i}) Condition: {disambiguation_targets_internal[id].condition}. Action: {disambiguation_targets_internal[id].action}"
-            for i, id in self._target_ids.items()
+            f"{id}) Condition: {', '.join(g.conditions) if len(g.conditions) > 1 else g.conditions[0]}. "
+            f"Action: {g.action}"
+            for id, g in disambiguation_targets_guidelines.items()
         )
-
         builder = PromptBuilder(on_build=lambda prompt: self._logger.trace(f"Prompt:\n{prompt}"))
 
         builder.add_section(
@@ -293,7 +330,7 @@ Always prioritize the customer's current request and intent over past ambiguitie
         builder.add_section(
             name="guideline-ambiguity-evaluations-examples",
             template="""
-Examples of Guidelines Ambiguity Evaluations:
+Examples of Guidelines Ambiguity Evaluation:
 -------------------
 {formatted_shots}
 """,
@@ -319,7 +356,6 @@ Examples of Guidelines Ambiguity Evaluations:
 ###
 """,
             props={
-                "disambiguation_targets": self._disambiguation_targets.values(),
                 "disambiguation_targets_text": disambiguation_targets_text,
                 "disambiguation_condition": disambiguation_condition_internal.condition,
             },
@@ -339,13 +375,17 @@ OUTPUT FORMAT
 ```
 """,
             props={
-                "result_structure_text": self._format_of_guideline_check_json_description(),
+                "result_structure_text": self._format_of_guideline_check_json_description(
+                    disambiguation_targets_guidelines
+                ),
             },
         )
 
         return builder
 
-    def _format_of_guideline_check_json_description(self) -> str:
+    def _format_of_guideline_check_json_description(
+        self, disambiguation_targets_guidelines: dict[str, _Guideline]
+    ) -> str:
         result = {
             "tldr": "<str, Briefly state the customer's most recent intent based on their LATEST input, and explain why there is or isn't an ambiguity.>",
             "disambiguation_requested": "<BOOL. Based on the interaction, whether a clarification was asked by the agent. If so, is_ambiguous will be true only if customer has not answered OR customer changed request OR there is a new ambiguity to resolve>",
@@ -357,7 +397,7 @@ OUTPUT FORMAT
                     "tldr": "<str. Brief explanation of is this guideline needs disambiguation>",
                     "requires_disambiguation": "<BOOL>",
                 }
-                for i in self._target_ids.keys()
+                for i in disambiguation_targets_guidelines.keys()
             ],
             "clarification_action": "<include only if is_ambiguous is True. An action of the form ask the user whether they want to...>",
         }
@@ -401,7 +441,7 @@ example_1_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_1_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_1_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer claimed to receive the wrong item; may want to either replace it or get a refund.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -449,7 +489,7 @@ example_2_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_2_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_2_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer asks to book an appointment but didn't specify the type. Since they mention needing a prescription, it likely relates to a medical consultation, not psychological.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -502,7 +542,7 @@ example_3_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_3_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_3_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer requests an online appointment and mentions needing a prescription, which suggests a medical consultation",
     disambiguation_requested=False,
     is_ambiguous=False,
@@ -547,7 +587,7 @@ example_4_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_4_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_4_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer asks to book an appointment. Online sessions are not available. Since they mention hurting throat, it likely relates to a medical consultation, not a psychologist.",
     disambiguation_requested=False,
     is_ambiguous=False,
@@ -592,7 +632,7 @@ example_5_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_5_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_5_expected = DisambiguationGuidelineMatchesSchema(
     tldr="Based on latest message, there is a new request which is again ambiguous. Need to clarify whether it's with a doctor or a psychologist, and whether it should be online or in person",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -649,7 +689,7 @@ example_6_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_6_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_6_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer asked to book two appointments. For the first appointment there is an ambiguity between doctor or psychologist, and online or in-person. The second one is clear.",
     disambiguation_requested=False,
     is_ambiguous=True,
@@ -713,7 +753,7 @@ example_7_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_7_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_7_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer received a wrong item and was asked whether they wanted a replacement or refund. They responded with 'replace', which clearly indicates their choice and resolves the ambiguity.",
     disambiguation_requested=True,
     customer_resolved=True,
@@ -754,7 +794,7 @@ example_8_disambiguation_condition = GuidelineContent(
     action="-",
 )
 
-example_8_expected = GenericDisambiguationGuidelineMatchesSchema(
+example_8_expected = DisambiguationGuidelineMatchesSchema(
     tldr="The customer received a wrong item and clarification was asked. The customer only said that they need to think so ambiguity still apply",
     disambiguation_requested=True,
     customer_resolved=False,
