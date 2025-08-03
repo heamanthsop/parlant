@@ -264,3 +264,28 @@ Feature: Journeys
         Then a single message event is emitted
         And the message contains no mention of mother or father
 
+    Scenario: Disambiguation between two journeys causes neither to immediately activate 2
+        Given an agent
+        And a journey "Dispute a transaction"
+        And an observational guideline "suspect" when the customer suspects a transaction
+        And an observational guideline "dispute" when the customer asked to dispute a transaction
+        And the journey "Dispute a transaction" is triggered by the condition "suspect"
+        And the journey "Dispute a transaction" is triggered by the condition "dispute"
+        And a node "mother" to first ask them to verify the name of their mother in "Dispute a transaction" journey
+        And a transition from the root to "mother" in "Dispute a transaction" journey
+        And a journey "Lock card"
+        And an observational guideline "lost" when the customer suspects the card was stolen or lost
+        And an observational guideline "lock" when the customer asks to lock their card
+        And the journey "Lock card" is triggered by the condition "lost"
+        And the journey "Lock card" is triggered by the condition "lock"
+        And a node "father" to first ask them to verify the name of their father in "Lock card" journey
+        And a transition from the root to "father" in "Lock card" journey
+        And a disambiguation group head "issue_with_transaction" to activate when the customer has an issue with a transaction but it's not clear what they action they want to take in its regard
+        And a guideline "suspect" is grouped under "issue_with_transaction"
+        And a guideline "dispute" is grouped under "issue_with_transaction"
+        And a guideline "lost" is grouped under "issue_with_transaction"
+        And a guideline "lock" is grouped under "issue_with_transaction"
+        And a customer message, "Hi, there's a transaction I don't recognize. I need help."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no mention of mother or father
