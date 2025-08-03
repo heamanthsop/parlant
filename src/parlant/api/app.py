@@ -127,26 +127,19 @@ async def create_api_app(container: Container) -> ASGIApplication:
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         try:
-            token = request.headers.get("authorization")
-            request.state.token = token
+            request.state.token = request.headers.get("Authorization")
             return await call_next(request)
+        except AuthorizationException as e:
+            logger.info(f"Authorization error: {str(e)}")
 
-        except AuthorizationException:
             if request.state.token:
                 return Response(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
             else:
                 return Response(
                     status_code=status.HTTP_404_NOT_FOUND,
                 )
-
-        except Exception as e:
-            logger.error(f"Authorization error: {str(e)}")
-            return Response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content=str(e),
-            )
 
     @api_app.middleware("http")
     async def handle_cancellation(
