@@ -13,10 +13,11 @@
 # limitations under the License.
 
 from enum import Enum
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams, CompositionMode
 from parlant.core.common import DefaultBaseModel
@@ -244,6 +245,7 @@ def _composition_mode_to_composition_mode_dto(
 
 
 def create_router(
+    policy: AuthorizationPolicy,
     agent_store: AgentStore,
     tag_store: TagStore,
 ) -> APIRouter:
@@ -266,6 +268,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_agent(
+        request: Request,
         params: AgentCreationParamsDTO,
     ) -> AgentDTO:
         """
@@ -279,6 +282,11 @@ def create_router(
         - `description` defaults to `None`
         - `max_engine_iterations` defaults to `None` (uses system default)
         """
+        await policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.CREATE_AGENT,
+        )
+
         tags = []
 
         if params.tags:
@@ -319,13 +327,18 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_agents() -> Sequence[AgentDTO]:
+    async def list_agents(request: Request) -> Sequence[AgentDTO]:
         """
         Retrieves a list of all agents in the system.
 
         Returns an empty list if no agents exist.
         Agents are returned in no guaranteed order.
         """
+        await policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.LIST_AGENTS,
+        )
+
         agents = await agent_store.list_agents()
 
         return [
@@ -357,11 +370,17 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_agent(
+        request: Request,
         agent_id: AgentIdPath,
     ) -> AgentDTO:
         """
         Retrieves details of a specific agent by ID.
         """
+        await policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.READ_AGENT,
+        )
+
         agent = await agent_store.read_agent(agent_id=agent_id)
 
         return AgentDTO(
@@ -393,6 +412,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_agent(
+        request: Request,
         agent_id: AgentIdPath,
         params: AgentUpdateParamsDTO,
     ) -> AgentDTO:
@@ -402,6 +422,10 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The agent's ID and creation timestamp cannot be modified.
         """
+        await policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.UPDATE_AGENT,
+        )
 
         def from_dto(dto: AgentUpdateParamsDTO) -> AgentUpdateParams:
             params: AgentUpdateParams = {}
@@ -469,6 +493,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_agent(
+        request: Request,
         agent_id: AgentIdPath,
     ) -> None:
         """
@@ -477,6 +502,11 @@ def create_router(
         Deleting a non-existent agent will return 404.
         No content will be returned from a successful deletion.
         """
+        await policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.DELETE_AGENT,
+        )
+
         await agent_store.read_agent(agent_id=agent_id)
 
         await agent_store.delete_agent(agent_id=agent_id)

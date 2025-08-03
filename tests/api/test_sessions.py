@@ -27,7 +27,6 @@ from parlant.core.common import generate_id
 from parlant.core.engines.alpha.message_generator import MessageSchema
 from parlant.core.canned_responses import CannedResponseStore
 from parlant.core.nlp.service import NLPService
-from parlant.core.tags import Tag
 from parlant.core.tools import ToolResult
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams, CompositionMode
 from parlant.core.async_utils import Timeout
@@ -44,14 +43,11 @@ from parlant.core.sessions import (
 
 from tests.test_utilities import (
     create_agent,
-    create_context_variable,
     create_customer,
     create_guideline,
     create_session,
-    create_term,
     post_message,
     read_reply,
-    set_context_variable_value,
 )
 
 
@@ -851,95 +847,6 @@ async def test_that_delete_events_raises_if_not_first_of_correlation_id(
         response.json()["detail"]
         == "Cannot delete events with offset < min_offset unless they are the first event of their correlation ID"
     )
-
-
-async def test_that_a_message_can_be_inspected(
-    async_client: httpx.AsyncClient,
-    container: Container,
-    agent_id: AgentId,
-) -> None:
-    customer = await create_customer(
-        container=container,
-        name="John Smith",
-    )
-
-    session = await create_session(
-        container=container,
-        agent_id=agent_id,
-        customer_id=customer.id,
-    )
-
-    guideline = await create_guideline(
-        container=container,
-        agent_id=agent_id,
-        condition="a customer mentions cows",
-        action="answer like a cow while mentioning the customer's full name",
-        tool_function=get_cow_uttering,
-    )
-
-    term = await create_term(
-        container=container,
-        agent_id=agent_id,
-        name="Flubba",
-        description="A type of cow",
-        synonyms=["Bobo"],
-    )
-
-    context_variable = await create_context_variable(
-        container=container,
-        name="Customer full name",
-        tags=[Tag.for_agent_id(agent_id)],
-    )
-
-    await set_context_variable_value(
-        container=container,
-        variable_id=context_variable.id,
-        key=session.customer_id,
-        data=customer.name,
-    )
-
-    customer_event = await post_message(
-        container=container,
-        session_id=session.id,
-        message="Bobo!",
-        response_timeout=Timeout(60),
-    )
-
-    reply_event = await read_reply(
-        container=container,
-        session_id=session.id,
-        customer_event_offset=customer_event.offset,
-    )
-
-    trace = (
-        (await async_client.get(f"/sessions/{session.id}/events/{reply_event.id}"))
-        .raise_for_status()
-        .json()["trace"]
-    )
-
-    assert customer.name in cast(MessageEventData, reply_event.data)["message"]
-
-    iterations = trace["preparation_iterations"]
-    assert len(iterations) >= 1
-
-    assert len(iterations[0]["guideline_matches"]) == 1
-    assert iterations[0]["guideline_matches"][0]["guideline_id"] == guideline.id
-    assert iterations[0]["guideline_matches"][0]["condition"] == guideline.content.condition
-    assert iterations[0]["guideline_matches"][0]["action"] == guideline.content.action
-
-    assert len(iterations[0]["tool_calls"]) == 1
-    assert "get_cow_uttering" in iterations[0]["tool_calls"][0]["tool_id"]
-    assert iterations[0]["tool_calls"][0]["result"]["data"] == "moo"
-
-    assert len(iterations[0]["terms"]) == 1
-    assert iterations[0]["terms"][0]["name"] == term.name
-    assert iterations[0]["terms"][0]["description"] == term.description
-    assert iterations[0]["terms"][0]["synonyms"] == term.synonyms
-
-    assert len(iterations[0]["context_variables"]) == 1
-    assert iterations[0]["context_variables"][0]["name"] == context_variable.name
-    assert iterations[0]["context_variables"][0]["key"] == customer.id
-    assert iterations[0]["context_variables"][0]["value"] == customer.name
 
 
 async def test_that_a_message_is_generated_using_the_active_nlp_service(

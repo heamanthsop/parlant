@@ -16,10 +16,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from typing import Annotated, Optional, Sequence, TypeAlias, cast
-from fastapi import APIRouter, HTTPException, Path, status, Query
+from fastapi import APIRouter, HTTPException, Path, Request, status, Query
 from pydantic import Field
 
 from parlant.api import agents, common
+from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
 from parlant.api.common import (
     CoherenceCheckKindDTO,
     ConnectionPropositionKindDTO,
@@ -1417,6 +1418,7 @@ def _guideline_relationship_to_dto(
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     guideline_store: GuidelineStore,
     relationship_store: RelationshipStore,
     service_registry: ServiceRegistry,
@@ -1445,6 +1447,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_guideline(
+        request: Request,
         params: GuidelineCreationParamsDTO,
     ) -> GuidelineDTO:
         """
@@ -1452,6 +1455,10 @@ def create_router(
 
         See the [documentation](https://parlant.io/docs/concepts/customization/guidelines) for more information.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.CREATE_GUIDELINE
+        )
+
         tags = []
         if params.tags:
             for tag_id in params.tags:
@@ -1494,6 +1501,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_guidelines(
+        request: Request,
         tag_id: TagIdQuery = None,
     ) -> Sequence[GuidelineDTO]:
         """
@@ -1503,6 +1511,10 @@ def create_router(
         Guidelines are returned in no guaranteed order.
         Does not include relationships or tool associations.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_GUIDELINES
+        )
+
         if tag_id:
             guidelines = await guideline_store.list_guidelines(
                 tags=[tag_id],
@@ -1536,6 +1548,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_guideline(
+        request: Request,
         guideline_id: GuidelineIdPath,
     ) -> GuidelineWithRelationshipsAndToolAssociationsDTO:
         """
@@ -1544,6 +1557,10 @@ def create_router(
         Returns both direct and indirect relationships between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_GUIDELINE
+        )
+
         try:
             guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
         except Exception:
@@ -1604,6 +1621,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_guideline(
+        request: Request,
         guideline_id: GuidelineIdPath,
         params: GuidelineUpdateParamsDTO,
     ) -> GuidelineWithRelationshipsAndToolAssociationsDTO:
@@ -1621,6 +1639,10 @@ def create_router(
 
         Action with text can not be updated to None.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.UPDATE_GUIDELINE
+        )
+
         _ = await guideline_store.read_guideline(guideline_id=guideline_id)
 
         if params.condition or params.action or params.enabled is not None:
@@ -1763,8 +1785,13 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_guideline(
+        request: Request,
         guideline_id: GuidelineIdPath,
     ) -> None:
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_GUIDELINE
+        )
+
         guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
 
         for r, _ in await _get_relationships(

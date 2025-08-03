@@ -14,9 +14,10 @@
 
 from itertools import chain
 from typing import Optional, Sequence, cast, Annotated, TypeAlias
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
 from parlant.api import common
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import (
     ExampleJson,
     GuidelineDTO,
@@ -209,6 +210,7 @@ async def _entity_id_to_tag(
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     guideline_store: GuidelineStore,
     tag_store: TagStore,
     agent_store: AgentStore,
@@ -339,6 +341,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_relationship(
+        request: Request,
         params: RelationshipCreationParamsDTO,
     ) -> RelationshipDTO:
         """
@@ -347,6 +350,10 @@ def create_router(
         A relationship is a relationship between a guideline and a tag.
         It can be created between a guideline and a tag, or between two guidelines, or between two tags.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.CREATE_RELATIONSHIP
+        )
+
         if params.source_guideline and params.source_tag:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -426,6 +433,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_relationships(
+        request: Request,
         kind: Optional[RelationshipKindQuery] = None,
         indirect: IndirectQuery = True,
         guideline_id: Optional[GuidelineIdQuery] = None,
@@ -437,6 +445,10 @@ def create_router(
 
         Either `guideline_id` or `tag_id` or `tool_id` must be provided.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_RELATIONSHIPS
+        )
+
         if not guideline_id and not tag_id and not tool_id:
             relationships = await relationship_store.list_relationships(
                 kind=_relationship_kind_dto_to_kind(kind) if kind else None,
@@ -503,11 +515,16 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_relationship(
+        request: Request,
         relationship_id: RelationshipIdPath,
     ) -> RelationshipDTO:
         """
         Read a relationship by ID.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_RELATIONSHIP
+        )
+
         relationship = await relationship_store.read_relationship(id=relationship_id)
 
         return await relationship_to_dto(relationship=relationship)
@@ -523,11 +540,16 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_relationship(
+        request: Request,
         relationship_id: RelationshipIdPath,
     ) -> None:
         """
         Delete a relationship by ID.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_RELATIONSHIP
+        )
+
         await relationship_store.delete_relationship(id=relationship_id)
 
     return router

@@ -15,9 +15,10 @@
 from datetime import datetime
 from typing import Annotated, Optional, Sequence, TypeAlias
 import dateutil
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import Field
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.core.common import DefaultBaseModel
 from parlant.core.canned_responses import (
     CannedResponseId,
@@ -270,6 +271,7 @@ TagsQuery: TypeAlias = Annotated[
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     canned_response_store: CannedResponseStore,
     tag_store: TagStore,
 ) -> APIRouter:
@@ -289,8 +291,11 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_canned_response(
+        request: Request,
         params: CannedResponseCreationParamsDTO,
     ) -> CannedResponseDTO:
+        await authorization_policy.ensure(request, AuthorizationPermission.CREATE_CANNED_RESPONSE)
+
         tags = []
 
         if params.tags:
@@ -331,9 +336,12 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_canned_response(
+        request: Request,
         canned_response_id: CannedResponseIdField,
     ) -> CannedResponseDTO:
         """Retrieves details of a specific canned response by ID."""
+        await authorization_policy.ensure(request, AuthorizationPermission.READ_CANNED_RESPONSE)
+
         response = await canned_response_store.read_canned_response(
             canned_response_id=canned_response_id
         )
@@ -359,7 +367,12 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_canned_responses(tags: TagsQuery = []) -> Sequence[CannedResponseDTO]:
+    async def list_canned_responses(
+        request: Request, tags: TagsQuery = []
+    ) -> Sequence[CannedResponseDTO]:
+        """Lists all canned responses, optionally filtered by tags."""
+        await authorization_policy.ensure(request, AuthorizationPermission.LIST_CANNED_RESPONSES)
+
         if tags:
             responses = await canned_response_store.list_canned_responses(tags=tags)
         else:
@@ -396,7 +409,9 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_canned_response(
-        canned_response_id: CannedResponseIdField, params: CannedResponseUpdateParamsDTO
+        request: Request,
+        canned_response_id: CannedResponseIdField,
+        params: CannedResponseUpdateParamsDTO,
     ) -> CannedResponseDTO:
         """
         Updates an existing canned response's attributes.
@@ -405,6 +420,8 @@ def create_router(
         The canned response's ID and creation timestamp cannot be modified.
         Extra metadata and tags can be added or removed independently.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.UPDATE_CANNED_RESPONSE)
+
         if params.fields and not params.value:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -457,7 +474,11 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
-    async def delete_canned_response(canned_response_id: CannedResponseIdField) -> None:
+    async def delete_canned_response(
+        request: Request, canned_response_id: CannedResponseIdField
+    ) -> None:
+        await authorization_policy.ensure(request, AuthorizationPermission.DELETE_CANNED_RESPONSE)
+
         await canned_response_store.delete_canned_response(canned_response_id)
 
     return router

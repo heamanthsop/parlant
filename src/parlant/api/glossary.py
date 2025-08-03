@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 from typing import Annotated, Optional, Sequence, TypeAlias
 from pydantic import Field
 
 from parlant.api import common
+from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
 from parlant.api.common import apigen_config, ExampleJson, apigen_skip_config
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
@@ -536,6 +537,7 @@ TagIdQuery: TypeAlias = Annotated[
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     glossary_store: GlossaryStore,
     agent_store: AgentStore,
     tag_store: TagStore,
@@ -559,6 +561,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create_term"),
     )
     async def create_term(
+        request: Request,
         params: TermCreationParamsDTO,
     ) -> TermDTO:
         """
@@ -570,6 +573,8 @@ def create_router(
         Default behaviors:
         - `synonyms` defaults to an empty list if not provided
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.CREATE_TERM)
+
         tags = []
         if params.tags:
             for tag_id in params.tags:
@@ -611,11 +616,14 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve_term"),
     )
     async def read_term(
+        request: Request,
         term_id: TermIdPath,
     ) -> TermDTO:
         """
         Retrieves details of a specific term by ID.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.READ_TERM)
+
         term = await glossary_store.read_term(term_id=term_id)
 
         return TermDTO(
@@ -639,6 +647,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list_terms"),
     )
     async def list_terms(
+        request: Request,
         tag_id: TagIdQuery = None,
     ) -> Sequence[TermDTO]:
         """
@@ -647,6 +656,8 @@ def create_router(
         Returns an empty list if no terms exist.
         Terms are returned in no guaranteed order.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.LIST_TERMS)
+
         if tag_id:
             terms = await glossary_store.list_terms(tags=[tag_id])
         else:
@@ -682,6 +693,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update_term"),
     )
     async def update_term(
+        request: Request,
         term_id: TermIdPath,
         params: TermUpdateParamsDTO,
     ) -> TermDTO:
@@ -691,6 +703,7 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The term's ID and creation timestamp cannot be modified.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.UPDATE_TERM)
 
         def from_dto(dto: TermUpdateParamsDTO) -> TermUpdateParams:
             params: TermUpdateParams = {}
@@ -752,6 +765,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete_term"),
     )
     async def delete_term(
+        request: Request,
         term_id: TermIdPath,
     ) -> None:
         """
@@ -760,6 +774,8 @@ def create_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.DELETE_TERM)
+
         await glossary_store.delete_term(term_id=term_id)
 
     return router

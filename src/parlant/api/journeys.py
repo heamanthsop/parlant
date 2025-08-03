@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, Path, Query, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
+from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.journeys import JourneyId, JourneyStore, JourneyUpdateParams
@@ -227,6 +228,7 @@ TagIdQuery: TypeAlias = Annotated[
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     journey_store: JourneyStore,
     guideline_store: GuidelineStore,
 ) -> APIRouter:
@@ -249,6 +251,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_journey(
+        request: Request,
         params: JourneyCreationParamsDTO,
     ) -> JourneyDTO:
         """
@@ -257,6 +260,10 @@ def create_router(
         The journey will be initialized with the provided title, description, and conditions.
         A unique identifier will be automatically generated.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.CREATE_JOURNEY
+        )
+
         guidelines = [
             await guideline_store.create_guideline(
                 condition=condition,
@@ -300,11 +307,16 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_journeys(
+        request: Request,
         tag_id: TagIdQuery = None,
     ) -> Sequence[JourneyDTO]:
         """
         Retrieves a list of all journeys in the system.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_JOURNEYS
+        )
+
         if tag_id:
             journeys = await journey_store.list_journeys(
                 tags=[tag_id],
@@ -342,11 +354,16 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_journey(
+        request: Request,
         journey_id: JourneyIdPath,
     ) -> JourneyDTO:
         """
         Retrieves details of a specific journey by ID.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_JOURNEY
+        )
+
         journey = await journey_store.read_journey(journey_id=journey_id)
 
         return JourneyDTO(
@@ -376,6 +393,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_journey(
+        request: Request,
         journey_id: JourneyIdPath,
         params: JourneyUpdateParamsDTO,
     ) -> JourneyDTO:
@@ -384,6 +402,10 @@ def create_router(
 
         Only the provided attributes will be updated; others will remain unchanged.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.UPDATE_JOURNEY
+        )
+
         journey = await journey_store.read_journey(journey_id=journey_id)
 
         if params.conditions:
@@ -464,6 +486,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_journey(
+        request: Request,
         journey_id: JourneyIdPath,
     ) -> None:
         """
@@ -473,6 +496,10 @@ def create_router(
         Deleting a non-existent journey will return 404.
         No content will be returned from a successful deletion.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_JOURNEY
+        )
+
         journey = await journey_store.read_journey(journey_id=journey_id)
 
         await journey_store.delete_journey(journey_id=journey_id)

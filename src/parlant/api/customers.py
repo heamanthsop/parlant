@@ -14,10 +14,11 @@
 
 from datetime import datetime
 import dateutil.parser
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Request, status
 from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, TypeAlias
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import apigen_config, ExampleJson, example_json_content
 from parlant.core.agents import AgentStore, AgentId
 from parlant.core.common import DefaultBaseModel
@@ -216,6 +217,7 @@ class CustomerUpdateParamsDTO(
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     customer_store: CustomerStore,
     tag_store: TagStore,
     agent_store: AgentStore,
@@ -239,6 +241,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_customer(
+        request: Request,
         params: CustomerCreationParamsDTO,
     ) -> CustomerDTO:
         """
@@ -247,6 +250,11 @@ def create_router(
         A customer may be created with as little as a `name`.
         `metadata` key-value pairs and additional `tags` may be attached to a customer.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.CREATE_CUSTOMER,
+        )
+
         tags = []
 
         if params.tags:
@@ -288,6 +296,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_customer(
+        request: Request,
         customer_id: CustomerIdPath,
     ) -> CustomerDTO:
         """
@@ -296,6 +305,11 @@ def create_router(
         Returns a complete customer object including their metadata and tags.
         The customer must exist in the system.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.READ_CUSTOMER,
+        )
+
         customer = await customer_store.read_customer(customer_id=customer_id)
 
         return CustomerDTO(
@@ -318,13 +332,18 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_customers() -> Sequence[CustomerDTO]:
+    async def list_customers(request: Request) -> Sequence[CustomerDTO]:
         """
         Retrieves a list of all customers in the system.
 
         Returns an empty list if no customers exist.
         Customers are returned in no guaranteed order.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.LIST_CUSTOMERS,
+        )
+
         customers = await customer_store.list_customers()
 
         return [
@@ -357,6 +376,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_customer(
+        request: Request,
         customer_id: CustomerIdPath,
         params: CustomerUpdateParamsDTO,
     ) -> CustomerDTO:
@@ -367,6 +387,11 @@ def create_router(
         The customer's ID and creation timestamp cannot be modified.
         Extra metadata and tags can be added or removed independently.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.UPDATE_CUSTOMER,
+        )
+
         if params.name:
             _ = await customer_store.update_customer(
                 customer_id=customer_id,
@@ -416,6 +441,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_customer(
+        request: Request,
         customer_id: CustomerIdPath,
     ) -> None:
         """
@@ -424,6 +450,11 @@ def create_router(
         Deleting a non-existent customer will return 404.
         No content will be returned from a successful deletion.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.DELETE_CUSTOMER,
+        )
+
         await customer_store.delete_customer(customer_id=customer_id)
 
     return router

@@ -14,12 +14,13 @@
 
 from datetime import datetime
 from enum import Enum
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 from itertools import chain
 from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, Set, TypeAlias, cast
 
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import GuidelineIdField, ExampleJson, JSONSerializableDTO, apigen_config
 from parlant.api.glossary import TermSynonymsField, TermIdPath, TermNameField, TermDescriptionField
 from parlant.core.agents import AgentId, AgentStore
@@ -1197,6 +1198,7 @@ def _event_source_to_event_source_dto(source: EventSource) -> EventSourceDTO:
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     logger: Logger,
     application: Application,
     agent_store: AgentStore,
@@ -1224,6 +1226,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_session(
+        request: Request,
         params: SessionCreationParamsDTO,
         allow_greeting: AllowGreetingQuery = False,
     ) -> SessionDTO:
@@ -1233,6 +1236,16 @@ def create_router(
         If no customer_id is provided, a guest customer will be created.
         """
         _ = await agent_store.read_agent(agent_id=params.agent_id)
+
+        if params.customer_id:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_SESSION
+            )
+
+        else:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_GUEST_SESSION
+            )
 
         session = await application.create_customer_session(
             customer_id=params.customer_id or CustomerStore.GUEST_ID,
@@ -1265,9 +1278,13 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_session(
+        request: Request,
         session_id: SessionIdPath,
     ) -> SessionDTO:
         """Retrieves details of a specific session by ID."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_SESSION
+        )
 
         session = await session_store.read_session(session_id=session_id)
 
@@ -1299,6 +1316,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_sessions(
+        request: Request,
         agent_id: Optional[AgentIdQuery] = None,
         customer_id: Optional[CustomerIdQuery] = None,
     ) -> Sequence[SessionDTO]:
@@ -1306,6 +1324,9 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Returns all sessions if no
         filters are provided."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_SESSIONS
+        )
 
         sessions = await session_store.list_sessions(
             agent_id=agent_id,
@@ -1338,11 +1359,15 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_session(
+        request: Request,
         session_id: SessionIdPath,
     ) -> None:
         """Deletes a session and all its associated events.
 
         The operation is idempotent - deleting a non-existent session will return 404."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_SESSION
+        )
 
         await session_store.read_session(session_id)
         await session_store.delete_session(session_id)
@@ -1362,6 +1387,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete_many"),
     )
     async def delete_sessions(
+        request: Request,
         agent_id: Optional[AgentIdQuery] = None,
         customer_id: Optional[CustomerIdQuery] = None,
     ) -> None:
@@ -1369,6 +1395,9 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Will delete all sessions if no
         filters are provided."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_SESSIONS
+        )
 
         sessions = await session_store.list_sessions(
             agent_id=agent_id,
@@ -1391,12 +1420,16 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_session(
+        request: Request,
         session_id: SessionIdPath,
         params: SessionUpdateParamsDTO,
     ) -> SessionDTO:
         """Updates an existing session's attributes.
 
         Only provided attributes will be updated; others remain unchanged."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.UPDATE_SESSION
+        )
 
         async def from_dto(dto: SessionUpdateParamsDTO) -> SessionUpdateParams:
             params: SessionUpdateParams = {}
@@ -1453,6 +1486,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create_event"),
     )
     async def create_event(
+        request: Request,
         session_id: SessionIdPath,
         params: EventCreationParamsDTO,
         moderation: ModerationQuery = Moderation.NONE,
@@ -1468,10 +1502,19 @@ def create_router(
             )
 
         if params.source == EventSourceDTO.CUSTOMER:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_EVENT
+            )
             return await _add_customer_message(session_id, params, moderation)
         elif params.source == EventSourceDTO.AI_AGENT:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
+            )
             return await _add_agent_message(session_id, params)
         elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
+            )
             return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
         else:
             raise HTTPException(
@@ -1639,6 +1682,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list_events"),
     )
     async def list_events(
+        request: Request,
         session_id: SessionIdPath,
         min_offset: Optional[MinOffsetQuery] = None,
         source: Optional[EventSourceDTO] = None,
@@ -1662,6 +1706,10 @@ def create_router(
                 - If no new events arrive before timeout, raises 504 Gateway Timeout
                 - If matching events already exist, returns immediately with those events
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_EVENTS
+        )
+
         kind_list: Sequence[EventKind] = [
             _event_kind_dto_to_event_kind(EventKindDTO(k))
             for k in (kinds.split(",") if kinds else [])
@@ -1717,12 +1765,17 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete_events"),
     )
     async def delete_events(
+        request: Request,
         session_id: SessionIdPath,
         min_offset: MinOffsetQuery,
     ) -> None:
         """Deletes events from a session with offset >= the specified value.
 
         This operation is permanent and cannot be undone."""
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_EVENTS
+        )
+
         session = await session_store.read_session(session_id)
 
         events = await session_store.list_events(
@@ -1765,58 +1818,6 @@ def create_router(
         await session_store.update_session(
             session_id=session_id,
             params={"agent_states": agent_states},
-        )
-
-    @router.get(
-        "/{session_id}/events/{event_id}",
-        operation_id="inspect_event",
-        response_model=EventInspectionResult,
-        responses={
-            status.HTTP_200_OK: {
-                "description": "Event inspection details successfully retrieved",
-                "content": {"application/json": {"example": event_inspection_example}},
-            },
-            status.HTTP_404_NOT_FOUND: {"description": "Session or event not found"},
-            status.HTTP_422_UNPROCESSABLE_ENTITY: {
-                "description": "Validation error in request parameters"
-            },
-        },
-        **apigen_config(group_name=API_GROUP, method_name="inspect_event"),
-    )
-    async def inspect_event(
-        session_id: SessionIdPath,
-        event_id: EventIdPath,
-    ) -> EventInspectionResult:
-        """Retrieves detailed inspection information about an event.
-
-        For AI agent message events, includes information about message generation,
-        tool calls, and preparation iterations."""
-
-        event = await session_store.read_event(session_id, event_id)
-
-        trace: Optional[EventTraceDTO] = None
-
-        if event.kind == EventKind.MESSAGE and event.source == EventSource.AI_AGENT:
-            inspection = await session_store.read_inspection(
-                session_id=session_id,
-                correlation_id=event.correlation_id,
-            )
-
-            trace = EventTraceDTO(
-                tool_calls=await _find_correlated_tool_calls(session_id, event),
-                message_generations=[
-                    message_generation_inspection_to_dto(m) for m in inspection.message_generations
-                ],
-                preparation_iterations=[
-                    preparation_iteration_to_dto(iteration)
-                    for iteration in inspection.preparation_iterations
-                ],
-            )
-
-        return EventInspectionResult(
-            session_id=session_id,
-            event=event_to_dto(event),
-            trace=trace,
         )
 
     async def _find_correlated_tool_calls(

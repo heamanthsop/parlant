@@ -28,6 +28,7 @@ from parlant.adapters.loggers.websocket import WebSocketLogger
 from parlant.adapters.nlp.openai_service import OpenAIService
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.app import create_api_app, ASGIApplication
+from parlant.api.authorization import AuthorizationPolicy, DevelopmentAuthorizationPolicy
 from parlant.core.background_tasks import BackgroundTaskService
 from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
 from parlant.core.common import IdGenerator
@@ -557,6 +558,8 @@ async def container(
         hooks = JournalingEngineHooks()
         container[JournalingEngineHooks] = hooks
         container[EngineHooks] = hooks
+
+        container[AuthorizationPolicy] = Singleton(DevelopmentAuthorizationPolicy)
 
         container[Engine] = Singleton(AlphaEngine)
 

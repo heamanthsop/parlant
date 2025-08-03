@@ -42,6 +42,11 @@ import sys
 import uvicorn
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
+from parlant.api.authorization import (
+    AuthorizationPolicy,
+    DevelopmentAuthorizationPolicy,
+    ProductionAuthorizationPolicy,
+)
 from parlant.core.capabilities import CapabilityStore, CapabilityVectorStore
 from parlant.core.common import IdGenerator
 from parlant.core.engines.alpha import message_generator
@@ -456,6 +461,12 @@ async def setup_container() -> AsyncIterator[Container]:
     c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
     c[EvaluationListener] = Singleton(PollingEvaluationListener)
 
+    c[AuthorizationPolicy] = (
+        Singleton(ProductionAuthorizationPolicy)
+        if os.environ.get("PARLANT_ENV") == "production"
+        else Singleton(DevelopmentAuthorizationPolicy)
+    )
+
     c[Engine] = Singleton(AlphaEngine)
     c[Application] = lambda rc: Application(rc)
 
@@ -856,6 +867,7 @@ def _print_startup_banner() -> None:
 
 
 async def serve_app(
+    container: Container,
     app: ASGIApplication,
     port: int,
 ) -> None:
@@ -872,7 +884,13 @@ async def serve_app(
         LOGGER.info(".-----------------------------------------.")
         LOGGER.info("| Server is ready for some serious action |")
         LOGGER.info("'-----------------------------------------'")
-        LOGGER.info(f"Try the Sandbox UI at http://localhost:{port}")
+        LOGGER.info(f"Server authorization policy: {container[AuthorizationPolicy].name}")
+
+        if isinstance(container[AuthorizationPolicy], DevelopmentAuthorizationPolicy):
+            LOGGER.info(f"Try the Sandbox UI at http://localhost:{port}")
+        else:
+            LOGGER.info(f"Server address: http://localhost:{port}")
+
         await server.serve()
         await asyncio.sleep(0)  # Required to trigger the possible cancellation error
     except (KeyboardInterrupt, asyncio.CancelledError):
@@ -923,6 +941,7 @@ async def start_parlant(params: StartupParameters) -> AsyncIterator[Container]:
         yield container
 
         await serve_app(
+            container,
             app,
             params.port,
         )

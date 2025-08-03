@@ -33,7 +33,7 @@ async def test_that_a_customer_can_be_created(
         "/customers",
         json={
             "name": name,
-            "extra": extra,
+            "metadata": extra,
         },
     )
 
@@ -41,7 +41,7 @@ async def test_that_a_customer_can_be_created(
 
     customer = response.json()
     assert customer["name"] == name
-    assert customer["extra"] == extra
+    assert customer["metadata"] == extra
     assert "id" in customer
     assert "creation_utc" in customer
 
@@ -88,7 +88,7 @@ async def test_that_a_customer_can_be_read(
     data = read_response.json()
     assert data["id"] == customer.id
     assert data["name"] == name
-    assert data["extra"] == extra
+    assert data["metadata"] == extra
     assert dateutil.parser.parse(data["creation_utc"]) == customer.creation_utc
 
 
@@ -118,11 +118,11 @@ async def test_that_all_customers_including_guests_can_be_listed(
 
     assert len(customers) == 3
     assert any(
-        first_name == customer["name"] and first_extra == customer["extra"]
+        first_name == customer["name"] and first_extra == customer["metadata"]
         for customer in customers
     )
     assert any(
-        second_name == customer["name"] and second_extra == customer["extra"]
+        second_name == customer["name"] and second_extra == customer["metadata"]
         for customer in customers
     )
     assert any("Guest" == customer["name"] for customer in customers)
@@ -155,7 +155,7 @@ async def test_that_a_customer_can_be_updated_with_a_new_name(
     )
 
     assert customer_dto["name"] == new_name
-    assert customer_dto["extra"] == extra
+    assert customer_dto["metadata"] == extra
 
 
 async def test_that_a_customer_can_be_deleted(
@@ -227,7 +227,7 @@ async def test_that_a_tag_can_be_removed(
     assert tag.id not in updated_customer.tags
 
 
-async def test_that_extra_can_be_added(
+async def test_that_metadata_can_be_set(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -241,7 +241,7 @@ async def test_that_extra_can_be_added(
     update_response = await async_client.patch(
         f"/customers/{customer.id}",
         json={
-            "extra": {"add": new_extra},
+            "metadata": {"set": new_extra},
         },
     )
     assert update_response.status_code == status.HTTP_200_OK
@@ -250,7 +250,7 @@ async def test_that_extra_can_be_added(
     assert updated_customer.extra.get("department") == "sales"
 
 
-async def test_that_extra_can_be_removed(
+async def test_that_metadata_can_be_unset(
     async_client: httpx.AsyncClient,
     container: Container,
 ) -> None:
@@ -262,7 +262,7 @@ async def test_that_extra_can_be_removed(
     update_response = await async_client.patch(
         f"/customers/{customer.id}",
         json={
-            "extra": {"remove": ["department"]},
+            "metadata": {"unset": ["department"]},
         },
     )
     assert update_response.status_code == status.HTTP_200_OK

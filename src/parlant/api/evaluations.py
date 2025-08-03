@@ -14,10 +14,11 @@
 
 from datetime import datetime
 from typing import Annotated, Optional, Sequence, TypeAlias, cast
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 from pydantic import Field
 
 from parlant.api import common
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import (
     EvaluationStatusDTO,
     GuidelineContentDTO,
@@ -492,6 +493,7 @@ WaitForCompletionQuery: TypeAlias = Annotated[
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     evaluation_service: BehavioralChangeEvaluator,
     evaluation_store: EvaluationStore,
     evaluation_listener: EvaluationListener,
@@ -515,6 +517,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_evaluation(
+        request: Request,
         params: EvaluationCreationParamsDTO,
     ) -> EvaluationDTO:
         """
@@ -522,6 +525,11 @@ def create_router(
 
         Returns immediately with the created evaluation's initial state.
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.CREATE_EVALUATION,
+        )
+
         try:
             evaluation_id = await evaluation_service.create_evaluation_task(
                 payload_descriptors=[
@@ -558,6 +566,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_evaluation(
+        request: Request,
         evaluation_id: EvaluationIdPath,
         wait_for_completion: WaitForCompletionQuery = 60,
     ) -> EvaluationDTO:
@@ -571,6 +580,11 @@ def create_router(
         - Returns final state if evaluation completes within timeout
         - Raises 504 if timeout is reached before completion
         """
+        await authorization_policy.ensure(
+            request=request,
+            permission=AuthorizationPermission.READ_EVALUATION,
+        )
+
         if wait_for_completion > 0:
             if not await evaluation_listener.wait_for_completion(
                 evaluation_id=evaluation_id,

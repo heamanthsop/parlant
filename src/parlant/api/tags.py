@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from typing import Annotated, TypeAlias
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Request, status
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import TagDTO, TagNameField, apigen_config, ExampleJson, tag_example
 from parlant.core.common import DefaultBaseModel
 from parlant.core.tags import TagId, TagStore
@@ -75,6 +76,7 @@ tag_list_example: ExampleJson = [
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     tag_store: TagStore,
 ) -> APIRouter:
     router = APIRouter()
@@ -96,6 +98,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_tag(
+        request: Request,
         params: TagCreationParamsDTO,
     ) -> TagDTO:
         """
@@ -104,6 +107,10 @@ def create_router(
         The tag ID is automatically generated and the creation timestamp is set to the current time.
         Tag names must be unique and follow the kebab-case format.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.CREATE_TAG
+        )
+
         tag = await tag_store.create_tag(
             name=params.name,
         )
@@ -124,6 +131,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_tag(
+        request: Request,
         tag_id: TagIdPath,
     ) -> TagDTO:
         """
@@ -131,6 +139,10 @@ def create_router(
 
         Returns a 404 error if no tag exists with the specified ID.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_TAG
+        )
+
         tag = await tag_store.read_tag(tag_id=tag_id)
 
         return TagDTO(id=tag.id, creation_utc=tag.creation_utc, name=tag.name)
@@ -147,13 +159,17 @@ def create_router(
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_tags() -> list[TagDTO]:
+    async def list_tags(request: Request) -> list[TagDTO]:
         """
         Lists all tags in the system.
 
         Returns an empty list if no tags exist.
         Tags are returned in no particular order.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_TAGS
+        )
+
         tags = await tag_store.list_tags()
 
         return [TagDTO(id=tag.id, creation_utc=tag.creation_utc, name=tag.name) for tag in tags]
@@ -175,6 +191,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_tag(
+        request: Request,
         tag_id: TagIdPath,
         params: TagUpdateParamsDTO,
     ) -> TagDTO:
@@ -184,6 +201,10 @@ def create_router(
         Only the name can be modified,
         The tag's ID and creation timestamp cannot be modified.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.UPDATE_TAG
+        )
+
         tag = await tag_store.update_tag(
             tag_id=tag_id,
             params={"name": params.name},
@@ -202,6 +223,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_tag(
+        request: Request,
         tag_id: TagId,
     ) -> None:
         """
@@ -210,6 +232,10 @@ def create_router(
         This operation cannot be undone. Returns a 404 error if no tag exists with the specified ID.
         Note that deleting a tag does not affect resources that were previously tagged with it.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_TAG
+        )
+
         await tag_store.delete_tag(tag_id=tag_id)
 
     return router

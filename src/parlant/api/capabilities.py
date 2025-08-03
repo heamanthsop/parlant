@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, Path, Query, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
@@ -172,6 +173,7 @@ TagIdQuery: TypeAlias = Annotated[
 
 
 def create_router(
+    authorization_policy: AuthorizationPolicy,
     capability_store: CapabilityStore,
     tag_store: TagStore,
     agent_store: AgentStore,
@@ -196,6 +198,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="create"),
     )
     async def create_capability(
+        request: Request,
         params: CapabilityCreationParamsDTO,
     ) -> CapabilityDTO:
         """
@@ -207,6 +210,8 @@ def create_router(
         Default behaviors:
         - `signals` defaults to an empty list if not provided
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.CREATE_CAPABILITY)
+
         if params.tags:
             for tag_id in params.tags:
                 if agent_id := Tag.extract_agent_id(tag_id):
@@ -244,6 +249,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
     async def list_capabilities(
+        request: Request,
         tag_id: TagIdQuery = None,
     ) -> Sequence[CapabilityDTO]:
         """
@@ -252,6 +258,8 @@ def create_router(
         Returns an empty list if no capabilities exist.
         Capabilities are returned in no guaranteed order.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.LIST_CAPABILITIES)
+
         if tag_id:
             capabilities = await capability_store.list_capabilities(
                 tags=[tag_id],
@@ -286,6 +294,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_capability(
+        request: Request,
         capability_id: CapabilityIdPath,
     ) -> CapabilityDTO:
         """
@@ -293,6 +302,8 @@ def create_router(
 
         Returns the complete capability object.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.READ_CAPABILITY)
+
         capability = await capability_store.read_capability(capability_id=capability_id)
 
         return CapabilityDTO(
@@ -322,6 +333,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="update"),
     )
     async def update_capability(
+        request: Request,
         capability_id: CapabilityIdPath,
         params: CapabilityUpdateParamsDTO,
     ) -> CapabilityDTO:
@@ -331,6 +343,8 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The capability's ID and creation timestamp cannot be modified.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.UPDATE_CAPABILITY)
+
         update_params: CapabilityUpdateParams = {}
         if params.title:
             update_params["title"] = params.title
@@ -388,6 +402,7 @@ def create_router(
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_capability(
+        request: Request,
         capability_id: CapabilityIdPath,
     ) -> None:
         """
@@ -396,6 +411,8 @@ def create_router(
         Deleting a non-existent capability will return 404.
         No content will be returned from a successful deletion.
         """
+        await authorization_policy.ensure(request, AuthorizationPermission.DELETE_CAPABILITY)
+
         await capability_store.delete_capability(capability_id=capability_id)
 
     return router

@@ -14,9 +14,10 @@
 
 from enum import Enum
 from typing import Annotated, Optional, Sequence, TypeAlias, cast
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, Path, Request, status
 from pydantic import Field
 
+from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
 from parlant.api.common import (
     ToolDTO,
     apigen_config,
@@ -281,7 +282,10 @@ ServiceNamePath: TypeAlias = Annotated[
 ]
 
 
-def create_router(service_registry: ServiceRegistry) -> APIRouter:
+def create_router(
+    authorization_policy: AuthorizationPolicy,
+    service_registry: ServiceRegistry,
+) -> APIRouter:
     """
     Creates a router instance for service-related operations.
 
@@ -308,6 +312,7 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         **apigen_config(group_name=API_GROUP, method_name="create_or_update"),
     )
     async def update_service(
+        request: Request,
         name: ServiceNamePath,
         params: ServiceUpdateParamsDTO,
     ) -> ServiceDTO:
@@ -327,6 +332,10 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         - URLs must include http:// or https:// scheme
         - Updates cause brief service interruption while reconnecting
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.UPDATE_SERVICE
+        )
+
         if params.kind == ToolServiceKindDTO.SDK:
             if not params.sdk:
                 raise HTTPException(
@@ -410,6 +419,7 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         **apigen_config(group_name=API_GROUP, method_name="delete"),
     )
     async def delete_service(
+        request: Request,
         name: ServiceNamePath,
     ) -> None:
         """
@@ -421,6 +431,10 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         - Historical data about tool usage is preserved
         - Running operations may fail
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.DELETE_SERVICE
+        )
+
         await service_registry.read_tool_service(name)
 
         await service_registry.delete_service(name)
@@ -439,7 +453,7 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         },
         **apigen_config(group_name=API_GROUP, method_name="list"),
     )
-    async def list_services() -> Sequence[ServiceDTO]:
+    async def list_services(request: Request) -> Sequence[ServiceDTO]:
         """
         Returns basic info about all registered services.
 
@@ -447,6 +461,10 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         Use the retrieve endpoint to get complete information including
         tools for a specific service.
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.LIST_SERVICES
+        )
+
         return [
             ServiceDTO(
                 name=name,
@@ -474,6 +492,7 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         **apigen_config(group_name=API_GROUP, method_name="retrieve"),
     )
     async def read_service(
+        request: Request,
         name: ServiceNamePath,
     ) -> ServiceDTO:
         """
@@ -489,6 +508,10 @@ def create_router(service_registry: ServiceRegistry) -> APIRouter:
         - Parameters marked as required must be provided when using a tool
         - Enum parameters restrict inputs to the listed values
         """
+        await authorization_policy.ensure(
+            request=request, permission=AuthorizationPermission.READ_SERVICE
+        )
+
         service = await service_registry.read_tool_service(name)
 
         return ServiceDTO(
