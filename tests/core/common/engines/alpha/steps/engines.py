@@ -24,6 +24,7 @@ from parlant.core.context_variables import (
     ContextVariableStore,
     ContextVariableValue,
 )
+from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.customers import CustomerId, CustomerStore
 from parlant.core.engines.alpha.engine import AlphaEngine
 from parlant.core.emissions import EmittedEvent
@@ -351,7 +352,7 @@ def when_messages_are_emitted(
             agent_id=agent.id,
         ),
         logger=context.container[Logger],
-        correlation_id="<main>",
+        correlator=context.container[ContextualCorrelator],
         agent=agent,
         customer=customer,
         session=session,
