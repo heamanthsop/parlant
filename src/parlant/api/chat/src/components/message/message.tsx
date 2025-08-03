@@ -67,7 +67,7 @@ function Message({event, isFirstMessageInDate, isContinual, showLogs, showLogsFo
 		<div className={twMerge(isEditing && '[direction:rtl] flex justify-center')}>
 			<div
 				className={twMerge(
-					'flex py-[6px] mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
+					'flex py-[3px] mx-0 mb-1 w-full justify-between animate-fade-in scrollbar',
 					isEditing && 'flex-1 flex justify-start max-w-[1000px] items-end w-[calc(100%-412px)] max-[2100px]:w-[calc(100%-200px)] self-end max-[1700px]:w-[calc(100%-40px)]'
 				)}>
 				<Spacer />
