@@ -14,6 +14,7 @@
 
 import asyncio
 import os
+import traceback
 from typing import Awaitable, Callable, TypeAlias
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
@@ -178,6 +179,16 @@ async def create_api_app(container: Container) -> ASGIApplication:
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
+
+    @api_app.exception_handler(Exception)
+    async def server_error_handler(request: Request, exc: ItemNotFoundError) -> HTTPException:
+        logger.error(str(exc))
+        logger.error(str(traceback.format_exception(exc)))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
 
