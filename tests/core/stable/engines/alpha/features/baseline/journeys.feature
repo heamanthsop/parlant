@@ -289,3 +289,22 @@ Feature: Journeys
         When processing is triggered
         Then a single message event is emitted
         And the message contains no mention of mother or father
+
+    Scenario: Disambiguation between a journey and a guideline causes neither to immediately activate 
+        Given an agent
+        And a journey "Dispute a transaction"
+        And a guideline "dispute" to tell them to reach our website when the customer wants to dispute a transaction
+        And a journey "Lock card"
+        And an observational guideline "lost" when the customer suspects the card was stolen or lost
+        And an observational guideline "lock" when the customer asks to lock their card
+        And the journey "Lock card" is triggered by the condition "lost"
+        And the journey "Lock card" is triggered by the condition "lock"
+        And a node "name" to first ask them to their name in "Lock card" journey
+        And a disambiguation group head "issue_with_transaction" to activate when the customer has an issue with a transaction but it's not clear what they action they want to take in its regard
+        And a guideline "dispute" is grouped under "issue_with_transaction"
+        And a guideline "lost" is grouped under "issue_with_transaction"
+        And a guideline "lock" is grouped under "issue_with_transaction"
+        And a customer message, "Hi, there's a transaction I don't recognize. I need help."
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains no mention of asking their name or tell them to reach the website 
