@@ -120,7 +120,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 						</div>
 					)}
-                    {showDraft && <DraftBubble draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>}
+                    <DraftBubble open={showDraft} draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>
 					<div className='group/main relative'>
 						<div className={twMerge('flex items-center max-w-full', isCustomer && 'flex-row-reverse')}>
 							<div className='max-w-full'>

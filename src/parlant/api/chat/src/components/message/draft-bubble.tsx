@@ -2,10 +2,17 @@ import Markdown from '../markdown/markdown';
 import { twMerge } from 'tailwind-merge';
 import Tooltip from '../ui/custom/tooltip';
 import { copy } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
-const DraftBubble = ({draft = ''}) => {
+const DraftBubble = ({draft = '', open = false}) => {
+    const [wasOpen, setWasOpen] = useState(false);
+
+    useEffect(() => {
+        if (open) setWasOpen(true);
+    }, [open]);
+
 	return (
-		<div className='group/main flex'>
+		<div className={twMerge('group/main flex !origin-top', !open && !wasOpen && 'h-0 opacity-0', open ? 'animate-slide-down' : wasOpen ? 'animate-slide-up' : '')}>
             <div className='text-gray-400 relative px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[16px] max-w-[min(560px,100%)]'>
                 <Markdown className='leading-[26px]'>
                     {draft}
