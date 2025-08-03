@@ -27,6 +27,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
     GuidelineInternalRepresentation,
     internal_representation,
 )
+from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.engines.alpha.message_event_composer import (
     MessageCompositionError,
     MessageEventComposer,
@@ -139,54 +140,32 @@ class MessageGenerator(MessageEventComposer):
     @override
     async def generate_preamble(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
     ) -> Sequence[MessageEventComposition]:
         return []
 
     @override
     async def generate_response(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
             with self._logger.scope("MessageGenerator"):
                 with self._logger.operation("Message generation"):
                     return await self._do_generate_events(
-                        event_emitter=event_emitter,
-                        agent=agent,
-                        customer=customer,
-                        context_variables=context_variables,
-                        interaction_history=interaction_history,
-                        terms=terms,
-                        capabilities=capabilities,
-                        ordinary_guideline_matches=ordinary_guideline_matches,
-                        journeys=journeys,
-                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                        tool_insights=tool_insights,
-                        staged_events=staged_events,
+                        event_emitter=context.session_event_emitter,
+                        agent=context.agent,
+                        customer=context.customer,
+                        context_variables=context.state.context_variables,
+                        interaction_history=context.interaction.history,
+                        terms=list(context.state.glossary_terms),
+                        capabilities=context.state.capabilities,
+                        ordinary_guideline_matches=context.state.ordinary_guideline_matches,
+                        journeys=context.state.journeys,
+                        tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
+                        tool_insights=context.state.tool_insights,
+                        staged_events=context.state.tool_events,
                         latch=latch,
                     )
 

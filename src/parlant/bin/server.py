@@ -57,7 +57,7 @@ from parlant.core.engines.alpha.guideline_matching.generic import (
     response_analysis_batch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    GenericDisambiguationGuidelineMatchesSchema,
+    DisambiguationGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
@@ -116,6 +116,8 @@ from parlant.core.engines.alpha.canned_response_generator import (
     CannedResponseSelectionSchema,
     CannedResponseRevisionSchema,
     CannedResponseGenerator,
+    DefaultNoMatchProvider,
+    NoMatchProvider,
 )
 from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.services.indexing.guideline_agent_intention_proposer import (
@@ -444,6 +446,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
     c[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
+    c[NoMatchProvider] = Singleton(DefaultNoMatchProvider)
     c[MessageGenerator] = Singleton(MessageGenerator)
     c[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
     c[OptimizationPolicy] = Singleton(BasicOptimizationPolicy)
@@ -697,7 +700,7 @@ async def initialize_container(
         CustomerDependentActionSchema,
         ToolRunningActionSchema,
         AgentIntentionProposerSchema,
-        GenericDisambiguationGuidelineMatchesSchema,
+        DisambiguationGuidelineMatchesSchema,
         JourneyNodeSelectionSchema,
         RelativeActionSchema,
     ):

@@ -16,18 +16,9 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Mapping, Optional, Sequence
 
-from parlant.core.agents import Agent
-from parlant.core.capabilities import Capability
 from parlant.core.common import CancellationSuppressionLatch
-from parlant.core.context_variables import ContextVariable, ContextVariableValue
-from parlant.core.customers import Customer
-from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
-from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
-from parlant.core.glossary import Term
-from parlant.core.emissions import EmittedEvent, EventEmitter
-from parlant.core.journeys import Journey
-from parlant.core.sessions import Event
-from parlant.core.tools import ToolId
+from parlant.core.engines.alpha.loaded_context import LoadedContext
+from parlant.core.emissions import EmittedEvent
 from parlant.core.nlp.generation_info import GenerationInfo
 
 
@@ -46,34 +37,12 @@ class MessageEventComposer:
     @abstractmethod
     async def generate_preamble(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
     ) -> Sequence[MessageEventComposition]: ...
 
     @abstractmethod
     async def generate_response(
         self,
-        event_emitter: EventEmitter,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        capabilities: Sequence[Capability],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]: ...

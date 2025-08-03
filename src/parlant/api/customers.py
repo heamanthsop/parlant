@@ -130,7 +130,7 @@ class CustomerCreationParamsDTO(
     tags: Optional[TagIdSequenceField] = None
 
 
-CustomerMetadataRemoveField: TypeAlias = Annotated[
+CustomerMetadataUnsetField: TypeAlias = Annotated[
     Sequence[str],
     Field(
         description="Extra metadata keys to remove",
@@ -153,8 +153,8 @@ class CustomerMetadataUpdateParamsDTO(
 ):
     """Parameters for updating a customer's extra metadata."""
 
-    add: Optional[CustomerMetadataField] = None
-    remove: Optional[CustomerMetadataRemoveField] = None
+    set: Optional[CustomerMetadataField] = None
+    unset: Optional[CustomerMetadataUnsetField] = None
 
 
 CustomerTagUpdateAddField: TypeAlias = Annotated[
@@ -399,10 +399,10 @@ def create_router(
             )
 
         if params.metadata:
-            if params.metadata.add:
-                await customer_store.add_extra(customer_id, params.metadata.add)
-            if params.metadata.remove:
-                await customer_store.remove_extra(customer_id, params.metadata.remove)
+            if params.metadata.set:
+                await customer_store.add_extra(customer_id, params.metadata.set)
+            if params.metadata.unset:
+                await customer_store.remove_extra(customer_id, params.metadata.unset)
 
         if params.tags:
             if params.tags.add:

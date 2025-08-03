@@ -16,6 +16,7 @@ from lagom import Container
 
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.relational_guideline_resolver import RelationalGuidelineResolver
+from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.journeys import JourneyStore
 from parlant.core.relationships import (
     RelationshipEntityKind,
@@ -75,6 +76,64 @@ async def test_that_relational_guideline_resolver_prioritizes_indirectly_between
     assert result == [GuidelineMatch(guideline=g1, score=8, rationale="")]
 
 
+async def test_that_relational_guideline_resolver_prioritizes_between_journey_nodes(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+
+    resolver = container[RelationalGuidelineResolver]
+
+    j1_condition = await guideline_store.create_guideline(
+        condition="Customer is interested in Journey 1"
+    )
+    j2_condition = await guideline_store.create_guideline(
+        condition="Customer is interested in Journey 2"
+    )
+
+    j1 = await journey_store.create_journey(
+        title="Journey 1",
+        description="Description for Journey 1",
+        conditions=[j1_condition.id],
+    )
+
+    j2 = await journey_store.create_journey(
+        title="Journey 2",
+        description="Description for Journey 2",
+        conditions=[j2_condition.id],
+    )
+
+    j1_guidelines = await container[JourneyGuidelineProjection].project_journey_to_guidelines(j1.id)
+    j2_guidelines = await container[JourneyGuidelineProjection].project_journey_to_guidelines(j2.id)
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=Tag.for_journey_id(j1.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        target=RelationshipEntity(
+            id=Tag.for_journey_id(j2.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        kind=RelationshipKind.PRIORITY,
+    )
+
+    assert len(j1_guidelines) == 1
+    assert len(j2_guidelines) == 1
+
+    result = await resolver.resolve(
+        [j1_guidelines[0], j2_guidelines[0]],
+        [
+            GuidelineMatch(guideline=j1_guidelines[0], score=8, rationale=""),
+            GuidelineMatch(guideline=j2_guidelines[0], score=5, rationale=""),
+        ],
+        journeys=[j1, j2],
+    )
+
+    assert result == [GuidelineMatch(guideline=j1_guidelines[0], score=8, rationale="")]
+
+
 async def test_that_relational_guideline_resolver_does_not_ignore_a_deprioritized_guideline_when_its_prioritized_counterpart_is_not_active(
     container: Container,
 ) -> None:
@@ -102,6 +161,67 @@ async def test_that_relational_guideline_resolver_does_not_ignore_a_deprioritize
     ]
 
     result = await resolver.resolve([prioritized_guideline, deprioritized_guideline], matches, [])
+
+    assert result == [GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale="")]
+
+
+async def test_that_relational_guideline_resolver_does_not_ignore_deprioritized_journey_node_when_prioritized_journey_is_not_active(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+    projection = container[JourneyGuidelineProjection]
+    resolver = container[RelationalGuidelineResolver]
+
+    prioritized_condition = await guideline_store.create_guideline(
+        condition="Customer is interested in Journey A"
+    )
+    deprioritized_condition = await guideline_store.create_guideline(
+        condition="Customer is interested in Journey B"
+    )
+
+    prioritized_journey = await journey_store.create_journey(
+        title="Journey A",
+        description="High priority journey",
+        conditions=[prioritized_condition.id],
+    )
+    deprioritized_journey = await journey_store.create_journey(
+        title="Journey B",
+        description="Lower priority journey",
+        conditions=[deprioritized_condition.id],
+    )
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=Tag.for_journey_id(prioritized_journey.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        target=RelationshipEntity(
+            id=Tag.for_journey_id(deprioritized_journey.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        kind=RelationshipKind.PRIORITY,
+    )
+
+    prioritized_guidelines = await projection.project_journey_to_guidelines(prioritized_journey.id)
+    deprioritized_guidelines = await projection.project_journey_to_guidelines(
+        deprioritized_journey.id
+    )
+
+    assert len(prioritized_guidelines) == 1
+    assert len(deprioritized_guidelines) == 1
+
+    deprioritized_guideline = deprioritized_guidelines[0]
+    prioritized_guideline = prioritized_guidelines[0]
+
+    result = await resolver.resolve(
+        [prioritized_guideline, deprioritized_guideline],
+        [
+            GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale=""),
+        ],
+        journeys=[],
+    )
 
     assert result == [GuidelineMatch(guideline=deprioritized_guideline, score=5, rationale="")]
 
@@ -431,6 +551,113 @@ async def test_that_relational_guideline_resolver_filters_out_guidelines_with_un
 
     assert len(result) == 1
     assert result[0].guideline.id == tagged_guideline_1.id
+
+
+async def test_that_relational_guideline_resolver_filters_out_journey_nodes_with_unmet_journey_dependency_with_guideline(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+    projection = container[JourneyGuidelineProjection]
+    resolver = container[RelationalGuidelineResolver]
+
+    source_condition = await guideline_store.create_guideline(
+        condition="Customer has not specified if it's a repeat transaction or a new one",
+        action="Ask them which it is",
+    )
+
+    source_journey = await journey_store.create_journey(
+        title="Clarify Transaction Type",
+        description="Journey for asking if it's repeat or new transaction",
+        conditions=[source_condition.id],
+    )
+
+    guideline = await guideline_store.create_guideline(
+        condition="Customer wants to make a transaction",
+        action="Help them",
+    )
+
+    source_journey_guidelines = await projection.project_journey_to_guidelines(source_journey.id)
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=Tag.for_journey_id(source_journey.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        target=RelationshipEntity(
+            id=guideline.id,
+            kind=RelationshipEntityKind.GUIDELINE,
+        ),
+        kind=RelationshipKind.DEPENDENCY,
+    )
+
+    assert len(source_journey_guidelines) == 1
+
+    result = await resolver.resolve(
+        [source_journey_guidelines[0], guideline],
+        [
+            GuidelineMatch(guideline=source_journey_guidelines[0], score=8, rationale=""),
+        ],
+        journeys=[],
+    )
+
+    assert result == []
+
+
+async def test_that_relational_guideline_resolver_filters_out_journey_nodes_with_unmet_journey_dependencies(
+    container: Container,
+) -> None:
+    relationship_store = container[RelationshipStore]
+    guideline_store = container[GuidelineStore]
+    journey_store = container[JourneyStore]
+    projection = container[JourneyGuidelineProjection]
+    resolver = container[RelationalGuidelineResolver]
+
+    source_condition = await guideline_store.create_guideline(
+        condition="Customer has not specified if it's a repeat transaction or a new one",
+        action="Ask them which it is",
+    )
+
+    source_journey = await journey_store.create_journey(
+        title="Clarify Transaction Type",
+        description="Journey for asking if it's repeat or new transaction",
+        conditions=[source_condition.id],
+    )
+
+    target_journey = await journey_store.create_journey(
+        title="Validate Account",
+        description="Journey for validating account",
+        conditions=[],
+    )
+
+    source_journey_guidelines = await projection.project_journey_to_guidelines(source_journey.id)
+    target_journey_guidelines = await projection.project_journey_to_guidelines(target_journey.id)
+
+    await relationship_store.create_relationship(
+        source=RelationshipEntity(
+            id=Tag.for_journey_id(source_journey.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        target=RelationshipEntity(
+            id=Tag.for_journey_id(target_journey.id),
+            kind=RelationshipEntityKind.TAG,
+        ),
+        kind=RelationshipKind.DEPENDENCY,
+    )
+
+    assert len(source_journey_guidelines) == 1
+    assert len(target_journey_guidelines) == 1
+
+    result = await resolver.resolve(
+        [source_journey_guidelines[0], target_journey_guidelines[0]],
+        [
+            GuidelineMatch(guideline=source_journey_guidelines[0], score=8, rationale=""),
+        ],
+        journeys=[source_journey],
+    )
+
+    assert result == []
 
 
 async def test_that_relational_guideline_resolver_filters_dependent_guidelines_by_journey_tags_when_journeys_are_not_relatively_enabled(

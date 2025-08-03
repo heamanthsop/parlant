@@ -1,7 +1,10 @@
 from collections import defaultdict, deque
 from datetime import datetime, timezone
-from typing import Optional, Sequence, cast
+from typing import Sequence, cast
 from parlant.core.common import JSONSerializable
+from parlant.core.engines.alpha.guideline_matching.generic.common import (
+    format_journey_node_guideline_id,
+)
 from parlant.core.guidelines import Guideline, GuidelineStore, GuidelineContent, GuidelineId
 from parlant.core.journeys import (
     JourneyEdge,
@@ -11,17 +14,6 @@ from parlant.core.journeys import (
     JourneyStore,
     JourneyNodeId,
 )
-
-
-def format_journey_node_guideline_id(
-    journey_id: JourneyId,
-    node_id: JourneyNodeId,
-    edge_id: Optional[JourneyEdgeId] = None,
-) -> GuidelineId:
-    if edge_id:
-        return GuidelineId(f"journey_node:{node_id}:{edge_id}")
-
-    return GuidelineId(f"journey_node:{node_id}")
 
 
 def extract_node_id_from_journey_node_guideline_id(
@@ -104,7 +96,7 @@ class JourneyGuidelineProjection:
             }
 
             return Guideline(
-                id=format_journey_node_guideline_id(journey_id, node.id, edge.id if edge else None),
+                id=format_journey_node_guideline_id(node.id, edge.id if edge else None),
                 content=GuidelineContent(
                     condition=edge.condition if edge and edge.condition else "",
                     action=node.action,
@@ -146,7 +138,7 @@ class JourneyGuidelineProjection:
 
                 add_edge_guideline_metadata(
                     new_guideline.id,
-                    format_journey_node_guideline_id(journey_id, edge.target, edge.id),
+                    format_journey_node_guideline_id(edge.target, edge.id),
                 )
 
             visited.add((node_id, edge_id))

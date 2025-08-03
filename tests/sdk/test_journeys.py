@@ -448,3 +448,95 @@ class Test_that_journey_state_can_be_created_with_internal_action(SDKTest):
             and second_target.metadata["internal_action"]
             and second_target.action != second_target.metadata["internal_action"]
         )
+
+
+class Test_that_journey_can_prioritize_another_journey(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Journey Rel Agent",
+            description="Agent testing journey-to-journey relationship",
+        )
+
+        self.journey_a = await self.agent.create_journey(
+            title="Process Return",
+            conditions=["customer wants to return a product"],
+            description="Handle product returns",
+        )
+
+        self.journey_b = await self.agent.create_journey(
+            title="Offer Exchange",
+            conditions=["customer is unsure about return"],
+            description="Suggest product exchanges",
+        )
+
+        self.relationship = await self.journey_a.prioritize_over(self.journey_b)
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+
+        assert relationship.kind == RelationshipKind.PRIORITY
+        assert relationship.source.id == Tag.for_journey_id(self.journey_a.id)
+        assert relationship.target.id == Tag.for_journey_id(self.journey_b.id)
+
+
+class Test_that_journey_can_depend_on_a_guideline(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Journey Rel Agent",
+            description="Agent testing journey-to-guideline dependency",
+        )
+
+        self.guideline = await self.agent.create_guideline(
+            condition="Customer must confirm identity",
+            action="Ask for last four digits of phone",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Sensitive Account Help",
+            conditions=["customer requests password reset"],
+            description="Assist customer securely",
+        )
+
+        self.relationship = await self.journey.depend_on(self.guideline)
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+
+        assert relationship.kind == RelationshipKind.DEPENDENCY
+        assert relationship.source.id == Tag.for_journey_id(self.journey.id)
+        assert relationship.target.id == self.guideline.id
+
+
+class Test_that_journey_can_depend_on_another_journey(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Journey Rel Agent",
+            description="Agent testing journey-to-journey dependency",
+        )
+
+        self.journey_a = await self.agent.create_journey(
+            title="Verify Identity",
+            conditions=["customer is unknown"],
+            description="Verify the user before proceeding",
+        )
+
+        self.journey_b = await self.agent.create_journey(
+            title="Account Support",
+            conditions=["customer needs account access"],
+            description="Assist with account issues",
+        )
+
+        self.relationship = await self.journey_b.depend_on(self.journey_a)
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+
+        assert relationship.kind == RelationshipKind.DEPENDENCY
+        assert relationship.source.id == Tag.for_journey_id(self.journey_b.id)
+        assert relationship.target.id == Tag.for_journey_id(self.journey_a.id)

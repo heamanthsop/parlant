@@ -796,20 +796,7 @@ class AlphaEngine(Engine):
 
         for event_generation_result in await self._get_message_composer(
             context.agent
-        ).generate_preamble(
-            event_emitter=context.session_event_emitter,
-            agent=context.agent,
-            customer=context.customer,
-            context_variables=context.state.context_variables,
-            interaction_history=context.interaction.history,
-            terms=list(context.state.glossary_terms),
-            capabilities=context.state.capabilities,
-            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
-            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
-            journeys=context.state.journeys,
-            tool_insights=context.state.tool_insights,
-            staged_events=context.state.tool_events,
-        ):
+        ).generate_preamble(context=context):
             generated_messages = True
             context.state.message_events += [e for e in event_generation_result.events if e]
 
@@ -825,18 +812,7 @@ class AlphaEngine(Engine):
         for event_generation_result in await self._get_message_composer(
             context.agent
         ).generate_response(
-            event_emitter=context.session_event_emitter,
-            agent=context.agent,
-            customer=context.customer,
-            context_variables=context.state.context_variables,
-            interaction_history=context.interaction.history,
-            terms=list(context.state.glossary_terms),
-            capabilities=context.state.capabilities,
-            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
-            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
-            journeys=context.state.journeys,
-            tool_insights=context.state.tool_insights,
-            staged_events=context.state.tool_events,
+            context=context,
             latch=latch,
         ):
             context.state.message_events += [e for e in event_generation_result.events if e]

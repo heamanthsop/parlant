@@ -23,7 +23,7 @@ from parlant.core import async_utils
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.engines.alpha.guideline_matching.generic.common import internal_representation
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    GenericDisambiguationGuidelineMatchesSchema,
+    DisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.guideline_actionable_batch import (
@@ -60,7 +60,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.entity_cq import EntityQueries
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId, GuidelineStore
-from parlant.core.journeys import Journey, JourneyId
+from parlant.core.journeys import Journey, JourneyId, JourneyStore
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation import SchematicGenerator
 from parlant.core.relationships import RelationshipKind, RelationshipStore
@@ -72,6 +72,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         logger: Logger,
         optimization_policy: OptimizationPolicy,
         guideline_store: GuidelineStore,
+        journey_store: JourneyStore,
         relationship_store: RelationshipStore,
         entity_queries: EntityQueries,
         observational_guideline_schematic_generator: SchematicGenerator[
@@ -87,16 +88,18 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             GenericActionableGuidelineMatchesSchema
         ],
         disambiguation_guidelines_schematic_generator: SchematicGenerator[
-            GenericDisambiguationGuidelineMatchesSchema
+            DisambiguationGuidelineMatchesSchema
         ],
         journey_step_selection_schematic_generator: SchematicGenerator[JourneyNodeSelectionSchema],
         report_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
     ) -> None:
         self._logger = logger
+
         self._guideline_store = guideline_store
+        self._journey_store = journey_store
+        self._relationship_store = relationship_store
 
         self._optimization_policy = optimization_policy
-        self._relationship_store = relationship_store
         self._entity_queries = entity_queries
 
         self._observational_guideline_schematic_generator = (
@@ -542,6 +545,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
 
         return GenericDisambiguationGuidelineMatchingBatch(
             logger=self._logger,
+            journey_store=self._journey_store,
             optimization_policy=self._optimization_policy,
             schematic_generator=self._disambiguation_guidelines_schematic_generator,
             disambiguation_guideline=disambiguation_guideline,

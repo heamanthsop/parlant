@@ -15,6 +15,7 @@
 import pytest
 from parlant.core.relationships import RelationshipKind, RelationshipStore
 from parlant.core.services.tools.plugins import tool
+from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolResult
 import parlant.sdk as p
 from tests.sdk.utils import Context, SDKTest
@@ -156,3 +157,63 @@ class Test_that_a_reevaluation_relationship_can_be_created(SDKTest):
 
         relationship = await relationship_store.read_relationship(id=self.relationship.id)
         assert relationship.kind == RelationshipKind.REEVALUATION
+
+
+class Test_that_guideline_can_prioritize_over_journey(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Guideline to Journey Agent",
+            description="Agent for guideline to journey priority",
+        )
+
+        self.guideline = await self.agent.create_guideline(
+            condition="Customer asks about shipping",
+            action="Explain standard shipping policy",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Handle Complaints",
+            conditions=["Customer is upset"],
+            description="Resolve the complaint flow",
+        )
+
+        self.relationship = await self.guideline.prioritize_over(self.journey)
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+
+        assert relationship.kind == RelationshipKind.PRIORITY
+        assert relationship.source.id == self.guideline.id
+        assert relationship.target.id == Tag.for_journey_id(self.journey.id)
+
+
+class Test_that_guideline_can_depend_on_journey(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Guideline to Journey Agent",
+            description="Agent for guideline to journey dependency",
+        )
+
+        self.guideline = await self.agent.create_guideline(
+            condition="Customer asks about VIP service",
+            action="Explain the VIP terms",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="VIP Journey",
+            conditions=["Customer is a VIP"],
+            description="Assist the customer in a premium flow",
+        )
+
+        self.relationship = await self.guideline.depend_on(self.journey)
+
+    async def run(self, ctx: Context) -> None:
+        relationship_store = ctx.container[RelationshipStore]
+
+        relationship = await relationship_store.read_relationship(id=self.relationship.id)
+
+        assert relationship.kind == RelationshipKind.DEPENDENCY
+        assert relationship.source.id == self.guideline.id
+        assert relationship.target.id == Tag.for_journey_id(self.journey.id)

@@ -1582,6 +1582,41 @@ def given_a_journey_titled(
 
 @step(
     given,
+    parsers.parse('the journey "{journey_title}" is triggered by the condition "{condition_name}"'),
+)
+def given_the_journey_is_triggered_by_condition_applies(
+    context: ContextOfTest,
+    journey_title: str,
+    condition_name: str,
+) -> Journey:
+    journey_store = context.container[JourneyStore]
+    guideline_store = context.container[GuidelineStore]
+
+    journey = context.journeys[journey_title]
+
+    guideline_condition = context.guidelines[condition_name]
+
+    context.sync_await(
+        journey_store.add_condition(
+            journey_id=journey.id,
+            condition=guideline_condition.id,
+        )
+    )
+
+    context.sync_await(
+        guideline_store.upsert_tag(
+            guideline_id=guideline_condition.id,
+            tag_id=Tag.for_journey_id(journey_id=journey.id),
+        )
+    )
+
+    context.journeys[journey_title] = journey
+
+    return journey
+
+
+@step(
+    given,
     parsers.parse('the journey "{journey_title}" is triggered when {condition}'),
 )
 def given_the_journey_is_triggered_when(

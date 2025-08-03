@@ -14,9 +14,10 @@
 
 from collections import defaultdict
 from itertools import chain
-from typing import Sequence, cast
+from typing import Optional, Sequence, cast
 
-from parlant.core.journeys import Journey
+from parlant.core.common import JSONSerializable
+from parlant.core.journeys import Journey, JourneyId
 from parlant.core.loggers import Logger
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.relationships import (
@@ -39,6 +40,25 @@ class RelationalGuidelineResolver:
         self._guideline_store = guideline_store
         self._logger = logger
 
+    def _extract_journey_id_from_guideline(self, guideline: Guideline) -> Optional[str]:
+        if "journey_node" in guideline.metadata:
+            return cast(
+                JourneyId,
+                cast(dict[str, JSONSerializable], guideline.metadata["journey_node"])["journey_id"],
+            )
+
+        if any(Tag.extract_journey_id(tag_id) for tag_id in guideline.tags):
+            return next(
+                (
+                    Tag.extract_journey_id(tag_id)
+                    for tag_id in guideline.tags
+                    if Tag.extract_journey_id(tag_id)
+                ),
+                None,
+            )
+
+        return None
+
     async def resolve(
         self,
         usable_guidelines: Sequence[Guideline],
@@ -53,7 +73,10 @@ class RelationalGuidelineResolver:
                     matches=matches,
                     journeys=journeys,
                 )
-                result = await self.replace_with_prioritized(result)
+                result = await self.replace_with_prioritized(
+                    result,
+                    journeys=journeys,
+                )
 
                 return list(
                     chain(
@@ -68,6 +91,7 @@ class RelationalGuidelineResolver:
     async def replace_with_prioritized(
         self,
         matches: Sequence[GuidelineMatch],
+        journeys: Sequence[Journey],
     ) -> Sequence[GuidelineMatch]:
         # Some guidelines have priority relationships that dictate activation.
         #
@@ -89,6 +113,15 @@ class RelationalGuidelineResolver:
                     target_id=match.guideline.id,
                 )
             )
+
+            if journey_id := self._extract_journey_id_from_guideline(match.guideline):
+                priority_relationships.extend(
+                    await self._relationship_store.list_relationships(
+                        kind=RelationshipKind.PRIORITY,
+                        indirect=True,
+                        target_id=Tag.for_journey_id(journey_id),
+                    )
+                )
 
             if not priority_relationships:
                 result.append(match)
@@ -113,6 +146,8 @@ class RelationalGuidelineResolver:
                 elif prioritized_entity.kind == RelationshipEntityKind.TAG:
                     # In case source is a tag, we need to find all guidelines
                     # that are associated with this tag.
+                    # If the tag is a journey tag and the journey is active,
+                    # than match deprioritized.
                     #
                     # We then need to check if any of those guidelines have a priority relationship
                     #
@@ -154,18 +189,29 @@ class RelationalGuidelineResolver:
                         if g.id not in match_guideline_ids
                     )
 
+                    if journey_id := Tag.extract_journey_id(cast(TagId, prioritized_entity.id)):
+                        if any(journey.id == journey_id for journey in journeys):
+                            deprioritized = True
+                            prioritized_journey_id = journey_id
+                            break
+
             iterated_guidelines.add(match.guideline.id)
 
             if not deprioritized:
                 result.append(match)
             else:
-                prioritized_guideline = next(
-                    m.guideline for m in matches if m.guideline.id == prioritized_guideline_id
-                )
+                if prioritized_guideline_id:
+                    prioritized_guideline = next(
+                        m.guideline for m in matches if m.guideline.id == prioritized_guideline_id
+                    )
 
-                self._logger.info(
-                    f"Skipped: Guideline {match.guideline.id} ({match.guideline.content.action}) deactivated due to contextual prioritization by {prioritized_guideline_id} ({prioritized_guideline.content.action})"
-                )
+                    self._logger.info(
+                        f"Skipped: Guideline {match.guideline.id} ({match.guideline.content.action}) deactivated due to contextual prioritization by {prioritized_guideline_id} ({prioritized_guideline.content.action})"
+                    )
+                elif prioritized_journey_id:
+                    self._logger.info(
+                        f"Skipped: Guideline {match.guideline.id} ({match.guideline.content.action}) deactivated due to contextual prioritization by journey {prioritized_journey_id}"
+                    )
 
         return result
 
@@ -295,6 +341,15 @@ class RelationalGuidelineResolver:
                     source_id=match.guideline.id,
                 )
             )
+
+            if journey_id := self._extract_journey_id_from_guideline(match.guideline):
+                dependencies.extend(
+                    await self._relationship_store.list_relationships(
+                        kind=RelationshipKind.DEPENDENCY,
+                        indirect=True,
+                        source_id=Tag.for_journey_id(journey_id),
+                    )
+                )
 
             if not dependencies:
                 result.append(match)

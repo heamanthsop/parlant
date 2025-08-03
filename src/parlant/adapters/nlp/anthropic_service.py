@@ -31,7 +31,7 @@ from parlant.adapters.nlp.common import normalize_json_output
 from parlant.adapters.nlp.hugging_face import JinaAIEmbedder
 from parlant.core.engines.alpha.canned_response_generator import CannedResponseSelectionSchema
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    GenericDisambiguationGuidelineMatchesSchema,
+    DisambiguationGuidelineMatchesSchema,
 )
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
@@ -220,7 +220,7 @@ class AnthropicService(NLPService):
     async def get_schematic_generator(self, t: type[T]) -> AnthropicAISchematicGenerator[T]:
         if (
             t == JourneyNodeSelectionSchema
-            or t == GenericDisambiguationGuidelineMatchesSchema
+            or t == DisambiguationGuidelineMatchesSchema
             or t == CannedResponseSelectionSchema
         ):
             return Claude_Opus_4[t](self._logger)  # type: ignore

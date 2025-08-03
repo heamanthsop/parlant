@@ -31,7 +31,7 @@ from parlant.core.context_variables import (
 from parlant.core.customers import Customer
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    GenericDisambiguationGuidelineMatchesSchema,
+    DisambiguationGuidelineMatchesSchema,
     GenericDisambiguationGuidelineMatchingBatch,
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
@@ -39,6 +39,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
 )
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.evaluations import GuidelinePayload, PayloadOperation
+from parlant.core.journeys import JourneyStore
 from parlant.core.glossary import Term, TermId
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
 from parlant.core.loggers import Logger
@@ -54,7 +55,7 @@ from tests.test_utilities import SyncAwaiter, nlp_test
 class ContextOfTest:
     container: Container
     sync_await: SyncAwaiter
-    schematic_generator: SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]
+    schematic_generator: SchematicGenerator[DisambiguationGuidelineMatchesSchema]
     logger: Logger
 
 
@@ -67,9 +68,7 @@ def context(
         container,
         sync_await,
         logger=container[Logger],
-        schematic_generator=container[
-            SchematicGenerator[GenericDisambiguationGuidelineMatchesSchema]
-        ],
+        schematic_generator=container[SchematicGenerator[DisambiguationGuidelineMatchesSchema]],
     )
 
 
@@ -317,6 +316,7 @@ async def base_test_that_ambiguity_detected_with_relevant_guidelines(
 
     disambiguation_resolver = GenericDisambiguationGuidelineMatchingBatch(
         logger=context.logger,
+        journey_store=context.container[JourneyStore],
         optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.schematic_generator,
         disambiguation_guideline=guideline_head,

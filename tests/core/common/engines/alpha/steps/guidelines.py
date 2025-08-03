@@ -84,6 +84,29 @@ def given_a_guideline_to_when(
 
 
 @step(
+    given, parsers.parse('an observational guideline "{guideline_name}" when {a_condition_holds}')
+)
+def given_an_observational_guideline_to(
+    context: ContextOfTest,
+    guideline_name: str,
+    a_condition_holds: str,
+) -> None:
+    guideline_store = context.container[GuidelineStore]
+
+    metadata = get_guideline_properties(context, a_condition_holds, None)
+
+    guideline = context.sync_await(
+        guideline_store.create_guideline(
+            condition=a_condition_holds,
+            action=None,
+            metadata=metadata,
+        )
+    )
+
+    context.guidelines[guideline_name] = guideline
+
+
+@step(
     given,
     parsers.parse('a previously applied guideline "{guideline_name}"'),
 )
