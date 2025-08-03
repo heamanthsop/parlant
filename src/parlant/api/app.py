@@ -39,7 +39,6 @@ from parlant.api import customers
 from parlant.api import logs
 from parlant.api import canned_responses
 from parlant.api.authorization import (
-    AuthorizationException,
     AuthorizationPolicy,
     AuthorizationPermission,
 )
@@ -120,26 +119,6 @@ async def create_api_app(container: Container) -> ASGIApplication:
     application = container[Application]
 
     api_app = FastAPI()
-
-    @api_app.middleware("http")
-    async def handle_authorization(
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        try:
-            request.state.token = request.headers.get("Authorization")
-            return await call_next(request)
-        except AuthorizationException as e:
-            logger.info(f"Authorization error: {str(e)}")
-
-            if request.state.token:
-                return Response(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                )
-            else:
-                return Response(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                )
 
     @api_app.middleware("http")
     async def handle_cancellation(
