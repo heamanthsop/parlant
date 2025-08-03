@@ -1949,13 +1949,13 @@ class Server:
         self._container: Container
 
         self._guideline_evaluations: dict[
-            GuidelineId, Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]
+            GuidelineId, asyncio.Task[_CachedEvaluator.GuidelineEvaluation]
         ] = {}
         self._node_evaluations: dict[
-            JourneyStateId, Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]
+            JourneyStateId, asyncio.Task[_CachedEvaluator.GuidelineEvaluation]
         ] = {}
         self._journey_evaluations: dict[
-            JourneyId, Coroutine[Any, Any, _CachedEvaluator.JourneyEvaluation]
+            JourneyId, asyncio.Task[_CachedEvaluator.JourneyEvaluation]
         ] = {}
 
         self._creation_progress: Progress | None = Progress(
@@ -2011,10 +2011,12 @@ class Server:
         guideline_content: GuidelineContent,
         tool_ids: Sequence[ToolId],
     ) -> None:
-        evaluation = self._evaluator.evaluate_guideline(
-            guideline_id,
-            guideline_content,
-            tool_ids,
+        evaluation = asyncio.create_task(
+            self._evaluator.evaluate_guideline(
+                guideline_id,
+                guideline_content,
+                tool_ids,
+            )
         )
 
         self._guideline_evaluations[guideline_id] = evaluation
@@ -2025,10 +2027,12 @@ class Server:
         guideline_content: GuidelineContent,
         tools: Sequence[ToolId],
     ) -> None:
-        evaluation = self._evaluator.evaluate_state(
-            state_id,
-            guideline_content,
-            tools,
+        evaluation = asyncio.create_task(
+            self._evaluator.evaluate_state(
+                state_id,
+                guideline_content,
+                tools,
+            )
         )
 
         self._node_evaluations[state_id] = evaluation
@@ -2037,7 +2041,7 @@ class Server:
         self,
         journey: Journey,
     ) -> None:
-        evaluation = self._evaluator.evaluate_journey(journey)
+        evaluation = asyncio.create_task(self._evaluator.evaluate_journey(journey))
 
         self._journey_evaluations[journey.id] = evaluation
 
@@ -2069,8 +2073,8 @@ class Server:
         }
 
         def create_evaluation_task(
-            evaluation: Coroutine[
-                Any, Any, _CachedEvaluator.GuidelineEvaluation | _CachedEvaluator.JourneyEvaluation
+            evaluation: asyncio.Task[
+                _CachedEvaluator.GuidelineEvaluation | _CachedEvaluator.JourneyEvaluation
             ],
             entity_type: Literal["guideline", "node", "journey"],
             entity_id: GuidelineId | JourneyStateId | JourneyId,
