@@ -164,7 +164,7 @@ class CapabilityTagAssociationDocument(TypedDict, total=False):
 
 
 class CapabilityVectorStore(CapabilityStore):
-    VERSION = Version.from_string("0.1.0")
+    VERSION = Version.from_string("0.2.0")
 
     def __init__(
         self,
