@@ -47,11 +47,11 @@ class DataCollectingSchematicGenerator(SchematicGenerator[T]):
             session = cast(Session, self._correlator.get("session"))
             path = path / f"Session_{session.id}"
 
-        if iteration := self._correlator.get("engine_iteration"):
-            path = path / f"Iteration_{iteration}"
-
         if request_id := self._correlator.get("request_id"):
             path = path / f"R{request_id}"
+
+        if iteration := self._correlator.get("engine_iteration"):
+            path = path / f"Iteration_{iteration}"
 
         path.mkdir(parents=True, exist_ok=True)
 
