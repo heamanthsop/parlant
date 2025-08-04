@@ -261,7 +261,10 @@ const SessionView = (): ReactElement => {
 						{/* <SessoinViewHeader /> */}
 						{/* <div className={twMerge('h-[21px] border-t-0 bg-white')}></div> */}
 						<div className={twMerge('flex flex-col rounded-es-[16px] rounded-ee-[16px] items-center bg-white mx-auto w-full flex-1 overflow-hidden')}>
-							<div className='messages [scroll-snap-type:y_mandatory] fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden' aria-live='polite' role='log' aria-label='Chat messages'>
+							<div className={twJoin('messages fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden',
+									// '[scroll-snap-type:y_mandatory]'
+								)} 
+								aria-live='polite' role='log' aria-label='Chat messages'>
 								{ErrorTemplate && <ErrorTemplate />}
 								{visibleMessages.map((event, i) => (
 									<React.Fragment key={(event.correlation_id || 0) + `${i}`}>
@@ -276,7 +279,7 @@ const SessionView = (): ReactElement => {
 												isRegenerateHidden={!!isMissingAgent}
 												event={event}
 												sameCorrelationMessages={visibleMessages.filter((e) => e.correlation_id === event.correlation_id)}
-												isContinual={event.correlation_id === visibleMessages[i - 1]?.correlation_id}
+												isContinual={event.correlation_id === visibleMessages[i - 1]?.correlation_id || (event.source === 'customer' && visibleMessages[i - 1]?.source === 'customer')}
 												regenerateMessageFn={regenerateMessageDialog(i)}
 												resendMessageFn={resendMessageDialog(i)}
 												showLogsForMessage={showLogsForMessage}
@@ -286,10 +289,13 @@ const SessionView = (): ReactElement => {
 									</React.Fragment>
 								))}
 								{(showTyping || showThinking) && (
-									<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
+									<div ref={lastMessageRef} className='flex snap-end max-w-[min(1020px,100%)] w-[1020px] self-center'>
 										<div className='bubblesWrapper snap-end' aria-hidden="true">
 											<div className='bubbles' />
 										</div>
+										<p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>
+											{showTyping ? 'Typing...' : 'Thinking...'}
+										</p>
 									</div>
 								)}
 							</div>
@@ -335,9 +341,6 @@ const SessionView = (): ReactElement => {
 										rows={1}
 										className='box-shadow-none placeholder:text-[#282828] resize-none border-none h-full rounded-none min-h-[unset] p-0 whitespace-nowrap no-scrollbar font-inter font-light text-[16px] leading-[100%] bg-white'
 									/>
-									<p className={twMerge('absolute invisible left-[0.25em] -bottom-[28px] font-normal text-[#A9AFB7] text-[14px] font-inter', (showTyping || showThinking) && 'visible')}>
-										{showTyping ? 'Typing...' : 'Thinking...'}
-									</p>
 									<Button variant='ghost' data-testid='submit-button' className='max-w-[60px] rounded-full hover:bg-white' ref={submitButtonRef} disabled={!message?.trim() || !agent?.id} onClick={() => postMessage(message)}>
 										<img src='icons/send.svg' alt='Send' height={19.64} width={21.52} className='h-10' />
 									</Button>

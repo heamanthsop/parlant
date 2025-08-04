@@ -73,16 +73,16 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 			<div className={twMerge(isCustomer ? 'justify-end' : 'justify-start', 'flex-1 flex max-w-[min(1000px,100%)] items-end w-[calc(100%-412px)]  max-[1440px]:w-[calc(100%-160px)] max-[900px]:w-[calc(100%-40px)]')}>
 				<div className='relative max-w-[80%]'>
 					{(!isContinual || isFirstMessageInDate) && (
-						<div className={twJoin('flex justify-between items-center mb-[12px] mt-[46px] max-w-[min(560px,100%)]', isCustomer && 'justify-self-end', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
-							<div className={twJoin('flex gap-[8px] items-center', isCustomer && 'flex-row-reverse')}>
+						<div className={twJoin('flex items-center mb-[12px] mt-[46px] max-w-[min(560px,100%)]', isCustomer && 'justify-self-end', isFirstMessageInDate && 'mt-[0]', isCustomer && 'flex-row-reverse')}>
+							<div className={twJoin('flex items-center contents', isCustomer && 'flex-row-reverse')}>
 								<div
-									className='size-[26px] flex rounded-[6.5px] select-none items-center justify-center font-semibold'
+									className={twMerge('size-[26px] min-h-[26px] min-w-[26px] flex rounded-[6.5px] select-none items-center justify-center font-semibold', isCustomer ? 'ms-[8px]' : 'me-[8px]')}
 									style={{color: isCustomer ? 'white' : colorPallete.text, background: isCustomer ? colorPallete.iconBackground : colorPallete?.background}}>
 									{(isCustomer ? customerName?.[0] : agent?.name?.[0])?.toUpperCase()}
 								</div>
-								<div className='font-medium text-[14px] text-[#282828] truncate max-w-[140px]'>{formattedName}</div>
+								<div className='font-medium text-[14px] text-[#282828] truncate'>{formattedName}</div>
 							</div>
-							<div className='flex items-center'>
+							<div className='flex items-center flex-1 justify-end'>
 								{!isCustomer && sameCorrelationMessages?.some((e: EventInterface) => e.data?.draft) && (
 									<div className="flex items-center me-[6px] pe-[6px] border-e border-[#EBECF0]">
 										<Tooltip value={showDraft ? 'Hide Draft' : 'Show Draft'} side='top'>
@@ -120,7 +120,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 						</div>
 					)}
-                    {showDraft && <DraftBubble draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>}
+                    <DraftBubble open={showDraft} draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>
 					<div className='group/main relative'>
 						<div className={twMerge('flex items-center max-w-full', isCustomer && 'flex-row-reverse')}>
 							<div className='max-w-full'>
