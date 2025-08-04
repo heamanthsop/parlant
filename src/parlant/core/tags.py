@@ -76,6 +76,17 @@ class Tag:
 
         return str(tag_id.split(":")[1])
 
+    @staticmethod
+    def for_guideline_id(guideline_id: str) -> TagId:
+        return TagId(f"guideline:{guideline_id}")
+
+    @staticmethod
+    def extract_guideline_id(tag_id: TagId) -> Optional[str]:
+        if not tag_id.startswith("guideline:"):
+            return None
+
+        return str(tag_id.split(":")[1])
+
 
 class TagUpdateParams(TypedDict, total=False):
     name: str

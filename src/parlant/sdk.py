@@ -905,6 +905,7 @@ class InitialJourneyState(JourneyState):
         *,
         condition: str | None = None,
         state: TState,
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -913,6 +914,7 @@ class InitialJourneyState(JourneyState):
         *,
         condition: str | None = None,
         chat_state: str,
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -941,6 +943,7 @@ class InitialJourneyState(JourneyState):
         tool_instruction: str | None = None,
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
@@ -1206,6 +1209,7 @@ class Journey:
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> Guideline:
         """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
 
@@ -1222,6 +1226,14 @@ class Journey:
             condition=condition,
             action=action,
         )
+
+        if canned_responses:
+            tag_id = _Tag.for_guideline_id(guideline.id)
+            for canrep in canned_responses:
+                await self._container[CannedResponseStore].upsert_tag(
+                    canned_response_id=canrep.id,
+                    tag_id=tag_id,
+                )
 
         self._server._add_guideline_evaluation(
             guideline.id,
@@ -1637,6 +1649,7 @@ class Agent:
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> Guideline:
         """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
         self._server._advance_creation_progress()
@@ -1653,6 +1666,14 @@ class Agent:
             action=action,
             tags=[_Tag.for_agent_id(self.id)],
         )
+
+        if canned_responses:
+            tag_id = _Tag.for_guideline_id(guideline.id)
+            for canrep in canned_responses:
+                await self._container[CannedResponseStore].upsert_tag(
+                    canned_response_id=canrep.id,
+                    tag_id=tag_id,
+                )
 
         self._server._add_guideline_evaluation(
             guideline.id,
@@ -1679,10 +1700,11 @@ class Agent:
     async def create_observation(
         self,
         condition: str,
+        canned_responses: Sequence[CannedResponse] = [],
     ) -> Guideline:
         """A shorthand for creating an observational guideline with the specified condition."""
 
-        return await self.create_guideline(condition=condition)
+        return await self.create_guideline(condition=condition, canned_responses=canned_responses)
 
     async def attach_tool(
         self,
