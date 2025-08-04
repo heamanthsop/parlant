@@ -53,6 +53,13 @@ class JourneyNodeKind(Enum):
     NA = "NA"
 
 
+class StepCompletionStatus(Enum):
+    COMPLETED = "completed"
+    NEEDS_CUSTOMER_INPUT = "needs_customer_input"
+    NEEDS_AGENT_ACTION = "needs_agent_action"
+    NEEDS_TOOL_CALL = "needs_tool_call"
+
+
 @dataclass
 class _JourneyEdge:
     target_guideline: Guideline | None
@@ -74,7 +81,7 @@ class _JourneyNode:  # Refactor after node type is implemented
 
 class JourneyNodeAdvancement(DefaultBaseModel):
     id: str
-    completed: bool
+    completed: StepCompletionStatus
     follow_ups: Optional[list[str]] = None
 
 
@@ -732,27 +739,29 @@ Check if the customer has changed a previous decision that requires returning to
   - The advancement should begin from the backtracking target step and continue following the normal advancement rules until you reach a step that cannot be completed
 
 ## 3: Current Step Completion
-Evaluate whether the last executed step is complete.
-- For steps with CUSTOMER_DEPENDENT flag: step is complete if the customer has provided the information that the step was seeking. If the step asks for specific information and the customer has provided that information (even in a previous message), the step can be considered completed and advanced through.
+Evaluate whether the last executed step is complete:
+- For CUSTOMER_DEPENDENT steps: Customer has provided the required information (either after being asked or proactively in earlier messages. If so, set completed to 'completed'.
+ If not, set completed to 'needs_customer_input' and do not advance past this step. 
+- For REQUIRES AGENT ACTION steps: The agent has performed the required communication or action. If so, set completed to 'completed'. If not, set completed to 'needs_agent_action' 
+and do not advance past this step. 
+- For REQUIRES_TOOL_CALLS steps: The step requires a tool call that has been executed. If so, set completed to 'completed'. If not, set completed to 'needs_tool_call' and do not 
+advance past this step. 
 - If the last step is incomplete, set next_step to the current step ID (repeat the step) and document this in the step_advancement array.
 
 ## 4: Journey Advancement
 Starting from the last executed step, advance through subsequent steps, documenting each step's completion status in the step_advancement array.
+Only advance to the next step if the current step is marked as completed.
 At each completed step, carefully evaluate the follow-up steps from the 'transitions' section, and advance only to the step whose condition is satisfied.
-Base advancement decisions strictly on these transitions and their conditions—never jump to a step whose condition was not met, even if you believe it should logically be executed next.
+Base advancement decisions strictly on these transitions and their conditions — never jump to a step whose condition was not met, even if you believe it should logically be executed next.
 Pleasing the customer is not a valid reason to violate the transitions - always traverse to the next step according to its conditions.
+
+Document your advancement path in step_advancement as a list of step advancement objects, starting with the last_step and ending with the next step to execute. Each step must be a legal 
+follow-up of the previous step, and you can only advance if the previous step was completed.
 
 Continue advancing until you encounter:
 - A step requiring a tool call (REQUIRES_TOOL_CALLS flag)
-- A step where you lack necessary information to proceed
-- A step requiring you to communicate something new to the customer, beyond asking them for information
-
-For each step in the advancement path:
-- If the step can be completed based on available information, mark completed: true
-- If the step cannot be completed (missing information, requires tool calls, etc.), mark completed: false
-- Only advance to the next step if the current step is marked as completed
-
-Document your advancement path in step_advancement as a list of step advancement objects, starting with the last_step and ending with the next step to execute. Each step must be a legal follow-up of the previous step, and you can only advance if the previous step was completed.
+- A step where you lack necessary information to proceed 
+- A step requiring you to communicate something new to the customer, beyond asking them for information (REQUIRES AGENT ACTION flag)
 
 **Special handling for journey exits**:
 - "None" is a valid step ID that means "exit the journey"
@@ -832,7 +841,7 @@ OUTPUT FORMAT
   "step_advancement": [
     {{
         "id": "<str, id of the step. First one should be either {last_node} or backtracking_target_step if it exists>",
-        "completed": <bool, whether this step was completed>,
+        "completed": <str, either 'completed' or 'needs_customer_input' or 'needs_agent_action' or 'needs_tool_call'>,
         "follow_ups": "<list[str], ids of legal follow ups for this step. Omit if completed is false>"
     }},
     ... <additional step advancements, as necessary>
@@ -957,8 +966,10 @@ example_1_expected = JourneyNodeSelectionSchema(
     requires_backtracking=False,
     rationale="The last step was completed. Customer asks about visas, which is unrelated to exploring cities, so step 4 should be activated",
     step_advancement=[
-        JourneyNodeAdvancement(id="1", completed=True, follow_ups=["2", "3", "4"]),
-        JourneyNodeAdvancement(id="4", completed=False),
+        JourneyNodeAdvancement(
+            id="1", completed=StepCompletionStatus.COMPLETED, follow_ups=["2", "3", "4"]
+        ),
+        JourneyNodeAdvancement(id="4", completed=StepCompletionStatus.NEEDS_AGENT_ACTION),
     ],
     next_step="4",
 )
@@ -1236,10 +1247,12 @@ example_2_expected = JourneyNodeSelectionSchema(
     rationale="The customer provided a pick up location in NYC, a destination and a pick up time, allowing me to fast-forward through steps 2, 3, 5. I must stop at the next step, 6, because it requires tool calling.",
     requires_backtracking=False,
     step_advancement=[
-        JourneyNodeAdvancement(id="2", completed=True, follow_ups=["3", "4"]),
-        JourneyNodeAdvancement(id="3", completed=True, follow_ups=["5"]),
-        JourneyNodeAdvancement(id="5", completed=True, follow_ups=["6"]),
-        JourneyNodeAdvancement(id="6", completed=False),
+        JourneyNodeAdvancement(
+            id="2", completed=StepCompletionStatus.COMPLETED, follow_ups=["3", "4"]
+        ),
+        JourneyNodeAdvancement(id="3", completed=StepCompletionStatus.COMPLETED, follow_ups=["5"]),
+        JourneyNodeAdvancement(id="5", completed=StepCompletionStatus.COMPLETED, follow_ups=["6"]),
+        JourneyNodeAdvancement(id="6", completed=StepCompletionStatus.NEEDS_TOOL_CALL),
     ],
     next_step="6",
 )
@@ -1262,10 +1275,12 @@ example_3_expected = JourneyNodeSelectionSchema(
     rationale="The customer provided a pick up location in NYC and a destination, allowing us to fast-forward through steps 1, 2 and 3. Step 5 requires asking for a pick up time, which the customer has yet to provide. We must therefore activate step 5.",
     requires_backtracking=False,
     step_advancement=[
-        JourneyNodeAdvancement(id="1", completed=True, follow_ups=["3"]),
-        JourneyNodeAdvancement(id="2", completed=True, follow_ups=["3", "4"]),
-        JourneyNodeAdvancement(id="3", completed=True, follow_ups=["5"]),
-        JourneyNodeAdvancement(id="5", completed=False),
+        JourneyNodeAdvancement(id="1", completed=StepCompletionStatus.COMPLETED, follow_ups=["3"]),
+        JourneyNodeAdvancement(
+            id="2", completed=StepCompletionStatus.COMPLETED, follow_ups=["3", "4"]
+        ),
+        JourneyNodeAdvancement(id="3", completed=StepCompletionStatus.COMPLETED, follow_ups=["5"]),
+        JourneyNodeAdvancement(id="5", completed=StepCompletionStatus.NEEDS_CUSTOMER_INPUT),
     ],
     next_step="5",
 )
@@ -1352,10 +1367,20 @@ example_4_expected = JourneyNodeSelectionSchema(
     rationale="The customer is changing their pickup location decision that was made in step 2. The relevant follow up is step 3, since the new requested location is within NYC.",
     backtracking_target_step="2",
     step_advancement=[
-        JourneyNodeAdvancement(id="2", completed=True, follow_ups=["3", "4"]),
-        JourneyNodeAdvancement(id="3", completed=True, follow_ups=["5"]),
-        JourneyNodeAdvancement(id="5", completed=True, follow_ups=["6"]),
-        JourneyNodeAdvancement(id="6", completed=False),
+        JourneyNodeAdvancement(
+            id="2", completed=StepCompletionStatus.COMPLETED, follow_ups=["3", "4"]
+        ),
+        JourneyNodeAdvancement(
+            id="3",
+            completed=StepCompletionStatus.COMPLETED,
+            follow_ups=["5"],
+        ),
+        JourneyNodeAdvancement(
+            id="5",
+            completed=StepCompletionStatus.COMPLETED,
+            follow_ups=["6"],
+        ),
+        JourneyNodeAdvancement(id="6", completed=StepCompletionStatus.NEEDS_TOOL_CALL),
     ],
     next_step="6",
 )
@@ -1373,7 +1398,7 @@ example_5_events = [
     ),
     _make_event(
         "23",
-        EventSource.AI_AGENT,
+        EventSource.CUSTOMER,
         "Oh really? I always thought it was Sydney",
     ),
 ]
@@ -1383,8 +1408,8 @@ example_5_expected = JourneyNodeSelectionSchema(
     rationale="Customer was told about capitals. Now we need to advance to the following step and ask for money",
     requires_backtracking=False,
     step_advancement=[
-        JourneyNodeAdvancement(id="1", completed=True, follow_ups=["2"]),
-        JourneyNodeAdvancement(id="2", completed=False),
+        JourneyNodeAdvancement(id="1", completed=StepCompletionStatus.COMPLETED, follow_ups=["2"]),
+        JourneyNodeAdvancement(id="2", completed=StepCompletionStatus.NEEDS_CUSTOMER_INPUT),
     ],
     next_step="2",
 )
@@ -1632,12 +1657,18 @@ example_6_expected = JourneyNodeSelectionSchema(
     rationale="The customer changed their loan type decision after providing all information. The journey backtracks to the loan type step (2), then fast-forwards through the business loan path using the provided information, and eventually exits the journey.",
     backtracking_target_step="2",
     step_advancement=[
-        JourneyNodeAdvancement(id="2", completed=True, follow_ups=["3", "4"]),
-        JourneyNodeAdvancement(id="4", completed=True, follow_ups=["6"]),
-        JourneyNodeAdvancement(id="6", completed=True, follow_ups=["8", "None"]),
         JourneyNodeAdvancement(
-            id="None",
-            completed=False,
+            id="2", completed=StepCompletionStatus.COMPLETED, follow_ups=["3", "4"]
+        ),
+        JourneyNodeAdvancement(
+            id="4",
+            completed=StepCompletionStatus.COMPLETED,
+            follow_ups=["6"],
+        ),
+        JourneyNodeAdvancement(
+            id="6",
+            completed=StepCompletionStatus.COMPLETED,
+            follow_ups=["8", "None"],
         ),
     ],
     next_step="None",
@@ -1698,12 +1729,16 @@ example_7_expected = JourneyNodeSelectionSchema(
     requires_backtracking=False,
     rationale="The customer wants a loan for their restaurant, making it a business loan. We can proceed through steps 4 and 6, since the customer already specified their desired loan amount and the collateral for the loan. This brings us to step 8, which was not completed yet.",
     step_advancement=[
-        JourneyNodeAdvancement(id="2", completed=True, follow_ups=["3", "4"]),
-        JourneyNodeAdvancement(id="4", completed=True, follow_ups=["6"]),
-        JourneyNodeAdvancement(id="6", completed=True, follow_ups=["8", "None"]),
+        JourneyNodeAdvancement(
+            id="2", completed=StepCompletionStatus.COMPLETED, follow_ups=["3", "4"]
+        ),
+        JourneyNodeAdvancement(id="4", completed=StepCompletionStatus.COMPLETED, follow_ups=["6"]),
+        JourneyNodeAdvancement(
+            id="6", completed=StepCompletionStatus.COMPLETED, follow_ups=["8", "None"]
+        ),
         JourneyNodeAdvancement(
             id="8",
-            completed=False,
+            completed=StepCompletionStatus.NEEDS_CUSTOMER_INPUT,
         ),
     ],
     next_step="8",
