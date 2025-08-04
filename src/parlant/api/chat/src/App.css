@@ -89,23 +89,23 @@ img {
 @keyframes animate-slide-down {
     from {
         max-height: 0;
-        opacity: 0;
+        /* opacity: 0; */
     }
     to {
         max-height: 300px;
 		min-height: fit-content;
-        opacity: 1;
+        /* opacity: 1; */
     }
 }
 
 @keyframes animate-slide-up {
 	from {
-		opacity: 1;
+		/* opacity: 1; */
 		max-height: 150px;
 	}
     to {
         max-height: 0;
-        opacity: 0;
+        /* opacity: 0; */
     }
 }
 
