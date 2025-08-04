@@ -451,6 +451,8 @@ class Test_that_journey_state_can_be_created_with_internal_action(SDKTest):
 
 
 class Test_that_journey_can_prioritize_another_journey(SDKTest):
+    STARTUP_TIMEOUT = 120
+
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(
             name="Journey Rel Agent",

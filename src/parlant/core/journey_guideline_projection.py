@@ -56,11 +56,9 @@ class JourneyGuidelineProjection:
         for edge in edges_objs:
             node_edges[edge.source].append(edge)
 
-        visited: set[tuple[JourneyNodeId, JourneyEdgeId | None]] = set()
-
         def make_guideline(
-            node: JourneyNode,
             edge: JourneyEdge | None,
+            node: JourneyNode,
         ) -> Guideline:
             if node.id not in node_indexes:
                 nonlocal index
@@ -121,26 +119,28 @@ class JourneyGuidelineProjection:
                 )
             )
 
-        queue: deque[tuple[JourneyNodeId, JourneyEdgeId | None]] = deque()
-        queue.append((journey.root_id, None))
+        queue: deque[tuple[JourneyEdgeId | None, JourneyNodeId]] = deque()
+        queue.append((None, journey.root_id))
+
+        visited: set[tuple[JourneyEdgeId | None, JourneyNodeId]] = set()
 
         while queue:
-            node_id, edge_id = queue.popleft()
-            new_guideline = make_guideline(nodes[node_id], edges[edge_id] if edge_id else None)
+            edge_id, node_id = queue.popleft()
+            new_guideline = make_guideline(edges[edge_id] if edge_id else None, nodes[node_id])
 
             guidelines[new_guideline.id] = new_guideline
 
             for edge in node_edges[node_id]:
-                if (edge.target, edge.id) in visited:
+                if (edge.id, edge.target) in visited:
                     continue
 
-                queue.append((edge.target, edge.id))
+                queue.append((edge.id, edge.target))
 
                 add_edge_guideline_metadata(
                     new_guideline.id,
                     format_journey_node_guideline_id(edge.target, edge.id),
                 )
 
-            visited.add((node_id, edge_id))
+            visited.add((edge.id, node_id))
 
         return list(guidelines.values())
