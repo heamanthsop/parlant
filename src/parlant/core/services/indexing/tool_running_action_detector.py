@@ -251,8 +251,7 @@ Expected output (JSON):
             prompt=prompt,
             hints={"temperature": temperature},
         )
-        with open("output_tool_running", "a") as f:
-            f.write(response.content.model_dump_json(indent=2))
+
         return response.content
 
     def _format_shots(
