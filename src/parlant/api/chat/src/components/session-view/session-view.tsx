@@ -21,7 +21,7 @@ import DateHeader from './date-header/date-header';
 import {getIndexedItemsFromIndexedDB, isSameDay} from '@/lib/utils';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
 import {ShieldEllipsis} from 'lucide-react';
-import { soundDoubleBlip } from '@/utils/sounds';
+import {soundDoubleBlip} from '@/utils/sounds';
 
 const SessionView = (): ReactElement => {
 	const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -180,13 +180,12 @@ const SessionView = (): ReactElement => {
 
 	const getSessionFlaggedItems = async () => {
 		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
-		const asMap = (flaggedItems as {correlationId: string, flagValue: string; sessionId: string}[]).reduce((acc, item) => {
+		const asMap = (flaggedItems as {correlationId: string; flagValue: string; sessionId: string}[]).reduce((acc, item) => {
 			acc[item.correlationId] = item.flagValue;
 			return acc;
 		}, {} as Record<string, string>);
 		setFlaggedItems(asMap);
 	};
-
 
 	useEffect(() => {
 		getSessionFlaggedItems();
@@ -261,10 +260,14 @@ const SessionView = (): ReactElement => {
 						{/* <SessoinViewHeader /> */}
 						{/* <div className={twMerge('h-[21px] border-t-0 bg-white')}></div> */}
 						<div className={twMerge('flex flex-col rounded-es-[16px] rounded-ee-[16px] items-center bg-white mx-auto w-full flex-1 overflow-hidden')}>
-							<div className={twJoin('messages fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden',
+							<div
+								className={twJoin(
+									'messages fixed-scroll flex-1 flex flex-col w-full pb-4 overflow-x-hidden'
 									// '[scroll-snap-type:y_mandatory]'
-								)} 
-								aria-live='polite' role='log' aria-label='Chat messages'>
+								)}
+								aria-live='polite'
+								role='log'
+								aria-label='Chat messages'>
 								{ErrorTemplate && <ErrorTemplate />}
 								{visibleMessages.map((event, i) => (
 									<React.Fragment key={(event.correlation_id || 0) + `${i}`}>
@@ -272,7 +275,7 @@ const SessionView = (): ReactElement => {
 										<div ref={lastMessageRef} className='flex snap-end flex-col max-w-[min(1020px,100%)] w-[1020px] self-center'>
 											<Message
 												flaggedChanged={() => {
-													setRefreshFlag(val => !val);
+													setRefreshFlag((val) => !val);
 												}}
 												flagged={flaggedItems[event.correlation_id]}
 												isFirstMessageInDate={!isSameDay(messages[i - 1]?.creation_utc, event.creation_utc)}
@@ -290,12 +293,10 @@ const SessionView = (): ReactElement => {
 								))}
 								{(showTyping || showThinking) && (
 									<div ref={lastMessageRef} className='flex snap-end max-w-[min(1020px,100%)] w-[1020px] self-center'>
-										<div className='bubblesWrapper snap-end' aria-hidden="true">
+										<div className='bubblesWrapper snap-end' aria-hidden='true'>
 											<div className='bubbles' />
 										</div>
-										<p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>
-											{showTyping ? 'Typing...' : 'Thinking...'}
-										</p>
+										<p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>{showTyping ? 'Typing...' : 'Thinking...'}</p>
 									</div>
 								)}
 							</div>
@@ -364,7 +365,7 @@ const SessionView = (): ReactElement => {
 						{showLogsForMessage && (
 							<MessageDetails
 								flaggedChanged={() => {
-									setRefreshFlag(val => !val);
+									setRefreshFlag((val) => !val);
 								}}
 								event={showLogsForMessage}
 								regenerateMessageFn={showLogsForMessage?.index ? regenerateMessageDialog(showLogsForMessage.index) : undefined}
