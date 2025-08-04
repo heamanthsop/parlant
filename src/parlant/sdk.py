@@ -1949,13 +1949,16 @@ class Server:
         self._container: Container
 
         self._guideline_evaluations: dict[
-            GuidelineId, Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]
+            GuidelineId,
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]]],
         ] = {}
         self._node_evaluations: dict[
-            JourneyStateId, Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]
+            JourneyStateId,
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]]],
         ] = {}
         self._journey_evaluations: dict[
-            JourneyId, Coroutine[Any, Any, _CachedEvaluator.JourneyEvaluation]
+            JourneyId,
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.JourneyEvaluation]]],
         ] = {}
 
         self._creation_progress: Progress | None = Progress(
@@ -2011,13 +2014,10 @@ class Server:
         guideline_content: GuidelineContent,
         tool_ids: Sequence[ToolId],
     ) -> None:
-        evaluation = self._evaluator.evaluate_guideline(
-            guideline_id,
-            guideline_content,
-            tool_ids,
+        self._guideline_evaluations[guideline_id] = (
+            (guideline_id, guideline_content, tool_ids),
+            self._evaluator.evaluate_guideline,
         )
-
-        self._guideline_evaluations[guideline_id] = evaluation
 
     def _add_state_evaluation(
         self,
@@ -2025,21 +2025,16 @@ class Server:
         guideline_content: GuidelineContent,
         tools: Sequence[ToolId],
     ) -> None:
-        evaluation = self._evaluator.evaluate_state(
-            state_id,
-            guideline_content,
-            tools,
+        self._node_evaluations[state_id] = (
+            (state_id, guideline_content, tools),
+            self._evaluator.evaluate_state,
         )
-
-        self._node_evaluations[state_id] = evaluation
 
     def _add_journey_evaluation(
         self,
         journey: Journey,
     ) -> None:
-        evaluation = self._evaluator.evaluate_journey(journey)
-
-        self._journey_evaluations[journey.id] = evaluation
+        self._journey_evaluations[journey.id] = ((journey,), self._evaluator.evaluate_journey)
 
     async def _render_guideline(self, guideline_id: GuidelineId) -> str:
         guideline = await self._container[GuidelineStore].read_guideline(guideline_id)
@@ -2103,14 +2098,14 @@ class Server:
             ]
         ] = []
 
-        for guideline_id, evaluation_func in self._guideline_evaluations.items():
-            tasks.append((create_evaluation_task(evaluation_func, "guideline", guideline_id)))
+        for guideline_id, (args, func) in self._guideline_evaluations.items():
+            tasks.append((create_evaluation_task(func(*args), "guideline", guideline_id)))
 
-        for node_id, evaluation_func in self._node_evaluations.items():
-            tasks.append((create_evaluation_task(evaluation_func, "node", node_id)))
+        for node_id, (args, func) in self._node_evaluations.items():
+            tasks.append((create_evaluation_task(func(*args), "node", node_id)))
 
-        for journey_id, journey_evaluation_func in self._journey_evaluations.items():
-            tasks.append((create_evaluation_task(journey_evaluation_func, "journey", journey_id)))
+        for journey_id, (args, journey_func) in self._journey_evaluations.items():
+            tasks.append((create_evaluation_task(journey_func(*args), "journey", journey_id)))
 
         if self.log_level == LogLevel.TRACE:
             evaluation_results = await async_utils.safe_gather(*tasks)
