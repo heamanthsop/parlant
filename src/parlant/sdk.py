@@ -2002,7 +2002,9 @@ class Server:
         self._creation_progress.__exit__(None, None, None)
         self._creation_progress = None
 
-        await self._process_evaluations()
+        with self._container[ContextualCorrelator].properties({"scope": "Evaluations"}):
+            await self._process_evaluations()
+
         await self._setup_retrievers()
         await self._startup_context_manager.__aexit__(exc_type, exc_value, tb)
         await self._exit_stack.aclose()

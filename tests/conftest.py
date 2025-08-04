@@ -240,7 +240,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def correlator(request: pytest.FixtureRequest) -> Iterator[ContextualCorrelator]:
     correlator = ContextualCorrelator()
 
-    with correlator.properties({"scenario_id": request.node.name}):
+    with correlator.properties({"scope": request.node.name}):
         yield correlator
 
 

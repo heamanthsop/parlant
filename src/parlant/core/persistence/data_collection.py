@@ -40,12 +40,15 @@ class DataCollectingSchematicGenerator(SchematicGenerator[T]):
 
         path = self._base_path
 
-        if scenario_id := self._correlator.get("scenario_id"):
-            path = path / scenario_id
+        if scope := self._correlator.get("scope"):
+            path = path / scope
 
         if self._correlator.get("session"):
             session = cast(Session, self._correlator.get("session"))
             path = path / f"Session_{session.id}"
+
+        if iteration := self._correlator.get("engine_iteration"):
+            path = path / f"Iteration_{iteration}"
 
         if request_id := self._correlator.get("request_id"):
             path = path / f"R{request_id}"

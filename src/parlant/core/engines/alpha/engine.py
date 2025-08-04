@@ -446,42 +446,43 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         preamble_task: asyncio.Task[bool],
     ) -> _PreparationIterationResult:
-        if len(context.state.iterations) == 0:
-            # This is the first iteration, so we need to run the initial preparation iteration.
-            result = await self._run_initial_preparation_iteration(context, preamble_task)
+        with self._correlator.properties({"engine_iteration": context.state.iterations}):
+            if len(context.state.iterations) == 0:
+                # This is the first iteration, so we need to run the initial preparation iteration.
+                result = await self._run_initial_preparation_iteration(context, preamble_task)
 
-        else:
-            # This is an additional iteration, so we run the additional preparation iteration.
-            result = await self._run_additional_preparation_iteration(context)
+            else:
+                # This is an additional iteration, so we run the additional preparation iteration.
+                result = await self._run_additional_preparation_iteration(context)
 
-        context.state.iterations.append(result.iteration)
-        context.state.journey_paths = self._list_journey_paths(
-            context=context,
-            guideline_matches=list(
-                chain(
-                    context.state.ordinary_guideline_matches,
-                    context.state.tool_enabled_guideline_matches,
-                )
-            ),
-        )
-
-        # If there's no new information to consider (which would have come from
-        # the tools), then we can consider ourselves prepared to respond.
-        if result.inspection and len(result.inspection.tool_calls) == 0:
-            context.state.prepared_to_respond = True
-
-        # Alternatively, we we've reached the max number of iterations,
-        # we should just go ahead and respond anyway, despite possibly
-        # needing more data for a fully accurate response.
-        #
-        # This is a trade-off that can be controlled by adjusting the max.
-        elif len(context.state.iterations) == context.agent.max_engine_iterations:
-            self._logger.warning(
-                f"Reached max tool call iterations ({context.agent.max_engine_iterations})"
+            context.state.iterations.append(result.iteration)
+            context.state.journey_paths = self._list_journey_paths(
+                context=context,
+                guideline_matches=list(
+                    chain(
+                        context.state.ordinary_guideline_matches,
+                        context.state.tool_enabled_guideline_matches,
+                    )
+                ),
             )
-            context.state.prepared_to_respond = True
 
-        return result
+            # If there's no new information to consider (which would have come from
+            # the tools), then we can consider ourselves prepared to respond.
+            if result.inspection and len(result.inspection.tool_calls) == 0:
+                context.state.prepared_to_respond = True
+
+            # Alternatively, we we've reached the max number of iterations,
+            # we should just go ahead and respond anyway, despite possibly
+            # needing more data for a fully accurate response.
+            #
+            # This is a trade-off that can be controlled by adjusting the max.
+            elif len(context.state.iterations) == context.agent.max_engine_iterations:
+                self._logger.warning(
+                    f"Reached max tool call iterations ({context.agent.max_engine_iterations})"
+                )
+                context.state.prepared_to_respond = True
+
+            return result
 
     async def _run_initial_preparation_iteration(
         self,
