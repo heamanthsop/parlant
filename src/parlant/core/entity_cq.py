@@ -28,7 +28,10 @@ from parlant.core.context_variables import (
     ContextVariableValue,
 )
 from parlant.core.customers import Customer, CustomerId, CustomerStore
-from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
+from parlant.core.journey_guideline_projection import (
+    JourneyGuidelineProjection,
+    extract_node_id_from_journey_node_guideline_id,
+)
 from parlant.core.guidelines import (
     Guideline,
     GuidelineId,
@@ -362,6 +365,23 @@ class EntityQueries:
         )
 
         return list(all_canreps)
+
+    async def find_canned_responses_for_guidelines(
+        self,
+        guidelines: Sequence[GuidelineId],
+    ) -> Sequence[CannedResponse]:
+        tags = []
+
+        for id in guidelines:
+            if id.startswith("journey_node:"):
+                tags.append(
+                    Tag.for_journey_node_id(extract_node_id_from_journey_node_guideline_id(id))
+                )
+
+            else:
+                tags.append(Tag.for_guideline_id(id))
+
+        return await self._canned_response_store.list_canned_responses(tags=tags)
 
     async def find_guidelines_that_need_reevaluation(
         self,

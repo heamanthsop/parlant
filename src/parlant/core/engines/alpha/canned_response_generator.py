@@ -26,7 +26,7 @@ import jinja2
 import jinja2.meta
 import json
 import traceback
-from typing import Any, Mapping, Optional, Sequence, cast
+from typing import Any, Iterable, Mapping, Optional, Sequence, cast
 from typing_extensions import override
 
 from parlant.core.async_utils import safe_gather
@@ -146,7 +146,7 @@ class CannedResponseContext:
     staged_events: Sequence[EmittedEvent]
 
     @property
-    def guidelines(self) -> Sequence[GuidelineMatch]:
+    def guideline_matches(self) -> Sequence[GuidelineMatch]:
         return [*self.ordinary_guideline_matches, *self.tool_enabled_guideline_matches.keys()]
 
 
@@ -1262,11 +1262,11 @@ Produce a valid JSON object according to the following spec. Use the values prov
             )
         )
 
-        if context.guidelines:
+        if context.guideline_matches:
             formatted_guidelines = "In choosing the template, there are 2 cases. 1) There is a single, clear match. 2) There are multiple candidates for a match. In the second care, you may also find that there are multiple templates that overlap with the draft message in different ways. In those cases, you will have to decide which part (which overlap) you prioritize. When doing so, your prioritization for choosing between different overlapping templates should try to maximize adherence to the following behavioral guidelines: ###\n"
 
             for match in [
-                g for g in context.guidelines if internal_representation(g.guideline).action
+                g for g in context.guideline_matches if internal_representation(g.guideline).action
             ]:
                 formatted_guidelines += f"\n- When {guideline_representations[match.guideline.id].condition}, then {guideline_representations[match.guideline.id].action}."
 
@@ -1319,7 +1319,9 @@ Output a JSON object with three properties:
                 "canned_responses": canned_responses,
                 "formatted_canned_responses": formatted_canreps,
                 "guidelines": [
-                    g for g in context.guidelines if internal_representation(g.guideline).action
+                    g
+                    for g in context.guideline_matches
+                    if internal_representation(g.guideline).action
                 ],
                 "formatted_guidelines": formatted_guidelines,
                 "composition_mode": context.agent.composition_mode,
@@ -1404,10 +1406,18 @@ Output a JSON object with three properties:
 
         # Step 2: Select the most relevant canned response templates based on the draft message
         with self._logger.operation("Retrieving top relevant canned response templates"):
-            top_relevant_canreps = await self._canned_response_store.find_relevant_canned_responses(
-                query=draft_response.content.response_body,
-                available_canned_responses=canned_responses,
-                max_count=30,
+            relevant_canreps = set(
+                await self._canned_response_store.find_relevant_canned_responses(
+                    query=draft_response.content.response_body,
+                    available_canned_responses=canned_responses,
+                    max_count=30,
+                )
+            )
+
+            relevant_canreps.update(
+                await self._entity_queries.find_canned_responses_for_guidelines(
+                    guidelines=[m.guideline.id for m in context.guideline_matches]
+                )
             )
 
         # Step 3: Pre-render these templates so that matching works better
@@ -1416,7 +1426,7 @@ Output a JSON object with three properties:
                 (r.response.id, str(r.rendered_text))
                 for r in await self._render_responses(
                     context=context,
-                    responses=top_relevant_canreps,
+                    responses=relevant_canreps,
                 )
                 if not r.failed
             ]
@@ -1538,7 +1548,7 @@ Output a JSON object with three properties:
     async def _render_responses(
         self,
         context: CannedResponseContext,
-        responses: Sequence[CannedResponse],
+        responses: Iterable[CannedResponse],
     ) -> Sequence[_CannedResponseRenderResult]:
         render_tasks = [self._render_response(context, r) for r in responses]
         return await safe_gather(*render_tasks)

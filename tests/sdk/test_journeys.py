@@ -20,6 +20,7 @@ from parlant.core.relationships import RelationshipKind, RelationshipStore
 from parlant.core.services.tools.plugins import tool
 from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolId, ToolResult
+from parlant.core.canned_responses import CannedResponseStore
 from tests.sdk.utils import Context, SDKTest
 from tests.test_utilities import nlp_test
 
@@ -542,3 +543,116 @@ class Test_that_journey_can_depend_on_another_journey(SDKTest):
         assert relationship.kind == RelationshipKind.DEPENDENCY
         assert relationship.source.id == Tag.for_journey_id(self.journey_b.id)
         assert relationship.target.id == Tag.for_journey_id(self.journey_a.id)
+
+
+class Test_that_journey_guideline_can_be_created_with_canned_responses(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Journey Canned Response Agent",
+            description="Agent for testing journey guideline canned response associations",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Customer Support Journey",
+            conditions=["Customer needs assistance"],
+            description="Handle customer support requests",
+        )
+
+        self.canrep1 = await self.journey.create_canned_response(
+            template="I understand your concern about {issue}."
+        )
+        self.canrep2 = await self.journey.create_canned_response(
+            template="Let me help you resolve {problem}."
+        )
+
+        self.guideline = await self.journey.create_guideline(
+            condition="Customer describes an issue",
+            action="Acknowledge and offer help",
+            canned_responses=[self.canrep1, self.canrep2],
+        )
+
+    async def run(self, ctx: Context) -> None:
+        canrep_store = ctx.container[CannedResponseStore]
+
+        updated_canrep1 = await canrep_store.read_canned_response(self.canrep1)
+        updated_canrep2 = await canrep_store.read_canned_response(self.canrep2)
+
+        assert Tag.for_guideline_id(self.guideline.id) in updated_canrep1.tags
+        assert Tag.for_guideline_id(self.guideline.id) in updated_canrep2.tags
+
+
+class Test_that_journey_guideline_with_tools_can_have_canned_responses(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Journey Tool Agent",
+            description="Agent for testing journey guideline with tools and canned responses",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Tool-assisted Journey",
+            conditions=["Customer needs technical help"],
+            description="Provide technical assistance with tools",
+        )
+
+        @tool
+        def diagnostic_tool(context: ToolContext) -> ToolResult:
+            return ToolResult(data={"status": "running"})
+
+        self.canrep = await self.journey.create_canned_response(
+            template="I've run a diagnostic and found {result}."
+        )
+
+        self.guideline = await self.journey.create_guideline(
+            condition="Customer reports system issue",
+            action="Run diagnostic and report findings",
+            tools=[diagnostic_tool],
+            canned_responses=[self.canrep],
+        )
+
+    async def run(self, ctx: Context) -> None:
+        canrep_store = ctx.container[CannedResponseStore]
+
+        updated_canrep = await canrep_store.read_canned_response(self.canrep)
+
+        assert Tag.for_guideline_id(self.guideline.id) in updated_canrep.tags
+
+
+class Test_that_journey_state_can_have_its_own_canned_responses(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Dummy Agent",
+            description="Just a dummy test agent",
+            composition_mode=p.CompositionMode.STRICT,
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Customer Greeting Journey",
+            conditions=["Customer arrives"],
+            description="Greet customers with personalized responses",
+        )
+
+        self.canrep1 = await server.create_canned_response(template="How can I assist you?")
+        self.canrep2 = await server.create_canned_response(template="Welcome to our store!")
+
+        self.initial_transition = await self.journey.initial_state.transition_to(
+            chat_state="Greet the customer to our store (Welcome to our store!)",
+            canned_responses=[self.canrep1],
+        )
+
+        self.second_transition = await self.initial_transition.target.transition_to(
+            chat_state="Ask how they can be helped",
+            canned_responses=[self.canrep2],
+        )
+
+    async def run(self, ctx: Context) -> None:
+        canrep_store = ctx.container[CannedResponseStore]
+
+        stored_canrep1 = await canrep_store.read_canned_response(self.canrep1)
+        stored_canrep2 = await canrep_store.read_canned_response(self.canrep2)
+
+        assert Tag.for_journey_node_id(self.initial_transition.target.id) in stored_canrep1.tags
+        assert Tag.for_journey_node_id(self.second_transition.target.id) in stored_canrep2.tags
+
+        response = await ctx.send_and_receive("Hello", recipient=self.agent)
+
+        assert response == "How can I assist you?"

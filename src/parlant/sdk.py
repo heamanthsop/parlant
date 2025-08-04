@@ -826,6 +826,7 @@ class JourneyState:
         action: str | None = None,
         tools: Sequence[ToolEntry] = [],
         fork: bool = False,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[JourneyState]:
         if not self._journey:
             raise SDKError("EndState cannot be connected to any other states.")
@@ -881,6 +882,11 @@ class JourneyState:
         if actual_state:
             cast(list[JourneyState], self._journey.states).append(actual_state)
 
+            for id in canned_responses:
+                await self._journey._container[CannedResponseStore].upsert_tag(
+                    canned_response_id=id, tag_id=_Tag.for_journey_node_id(actual_state.id)
+                )
+
         cast(list[JourneyTransition[JourneyState]], self._journey.transitions).append(transition)
 
         return transition
@@ -905,7 +911,7 @@ class InitialJourneyState(JourneyState):
         *,
         condition: str | None = None,
         state: TState,
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -914,7 +920,7 @@ class InitialJourneyState(JourneyState):
         *,
         condition: str | None = None,
         chat_state: str,
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -943,13 +949,14 @@ class InitialJourneyState(JourneyState):
         tool_instruction: str | None = None,
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
             state=state,
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
+            canned_responses=canned_responses,
         )
 
 
@@ -962,6 +969,7 @@ class ToolJourneyState(JourneyState):
         *,
         condition: str | None = None,
         state: TState,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -970,6 +978,7 @@ class ToolJourneyState(JourneyState):
         *,
         condition: str | None = None,
         chat_state: str,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     async def transition_to(
@@ -978,11 +987,13 @@ class ToolJourneyState(JourneyState):
         condition: str | None = None,
         chat_state: str | None = None,
         state: TState | None = None,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
             state=state,
             action=chat_state,
+            canned_responses=canned_responses,
         )
 
     async def fork(self) -> JourneyTransition[ForkJourneyState]:
@@ -998,6 +1009,7 @@ class ChatJourneyState(JourneyState):
         *,
         condition: str | None = None,
         state: TState,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -1006,6 +1018,7 @@ class ChatJourneyState(JourneyState):
         *,
         condition: str | None = None,
         chat_state: str,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -1034,12 +1047,14 @@ class ChatJourneyState(JourneyState):
         tool_instruction: str | None = None,
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
             state=state,
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
+            canned_responses=canned_responses,
         )
 
     async def fork(self) -> JourneyTransition[ForkJourneyState]:
@@ -1055,6 +1070,7 @@ class ForkJourneyState(JourneyState):
         *,
         condition: str,
         state: TState,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -1063,6 +1079,7 @@ class ForkJourneyState(JourneyState):
         *,
         condition: str,
         chat_state: str,
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -1091,12 +1108,14 @@ class ForkJourneyState(JourneyState):
         tool_instruction: str | None = None,
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
             state=state,
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
+            canned_responses=canned_responses,
         )
 
 
@@ -1209,7 +1228,7 @@ class Journey:
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> Guideline:
         """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
 
@@ -1229,9 +1248,9 @@ class Journey:
 
         if canned_responses:
             tag_id = _Tag.for_guideline_id(guideline.id)
-            for canrep in canned_responses:
+            for id in canned_responses:
                 await self._container[CannedResponseStore].upsert_tag(
-                    canned_response_id=canrep.id,
+                    canned_response_id=id,
                     tag_id=tag_id,
                 )
 
@@ -1649,7 +1668,7 @@ class Agent:
         action: str | None = None,
         tools: Iterable[ToolEntry] = [],
         metadata: dict[str, JSONSerializable] = {},
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> Guideline:
         """Creates a guideline with the specified condition and action, as well as (optionally) tools to achieve its task."""
         self._server._advance_creation_progress()
@@ -1669,9 +1688,9 @@ class Agent:
 
         if canned_responses:
             tag_id = _Tag.for_guideline_id(guideline.id)
-            for canrep in canned_responses:
+            for id in canned_responses:
                 await self._container[CannedResponseStore].upsert_tag(
-                    canned_response_id=canrep.id,
+                    canned_response_id=id,
                     tag_id=tag_id,
                 )
 
@@ -1700,7 +1719,7 @@ class Agent:
     async def create_observation(
         self,
         condition: str,
-        canned_responses: Sequence[CannedResponse] = [],
+        canned_responses: Sequence[CannedResponseId] = [],
     ) -> Guideline:
         """A shorthand for creating an observational guideline with the specified condition."""
 
@@ -2651,6 +2670,25 @@ class Server:
         self._add_journey_evaluation(journey)
 
         return journey
+
+    async def create_canned_response(
+        self,
+        template: str,
+        tags: list[TagId] = [],
+        signals: list[str] = [],
+    ) -> CannedResponseId:
+        """Creates a canned response with the specified template, tags, and signals."""
+
+        self._advance_creation_progress()
+
+        canrep = await self._container[CannedResponseStore].create_canned_response(
+            value=template,
+            tags=tags,
+            fields=[],
+            signals=signals,
+        )
+
+        return canrep.id
 
     def _get_startup_params(self) -> StartupParameters:
         async def override_stores_with_transient_versions(c: Callable[[], Container]) -> None:

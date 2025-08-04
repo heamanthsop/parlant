@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+import traceback
 from typing import Any, Iterable, Optional, OrderedDict, Sequence, cast
 
 from parlant.core import async_utils
@@ -1079,7 +1080,7 @@ class BehavioralChangeEvaluator:
                 evaluation_id=evaluation.id,
                 params={
                     "status": EvaluationStatus.FAILED,
-                    "error": str(exc),
+                    "error": str(exc) + str(traceback.format_exception(exc)),
                 },
             )
 

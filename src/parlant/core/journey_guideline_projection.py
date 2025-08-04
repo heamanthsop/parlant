@@ -141,6 +141,6 @@ class JourneyGuidelineProjection:
                     format_journey_node_guideline_id(edge.target, edge.id),
                 )
 
-            visited.add((edge.id, node_id))
+            visited.add((edge_id, node_id))
 
         return list(guidelines.values())

@@ -17,6 +17,7 @@ from parlant.core.relationships import RelationshipKind, RelationshipStore
 from parlant.core.services.tools.plugins import tool
 from parlant.core.tags import Tag
 from parlant.core.tools import ToolContext, ToolResult
+from parlant.core.canned_responses import CannedResponseStore
 import parlant.sdk as p
 from tests.sdk.utils import Context, SDKTest
 
@@ -217,3 +218,59 @@ class Test_that_guideline_can_depend_on_journey(SDKTest):
         assert relationship.kind == RelationshipKind.DEPENDENCY
         assert relationship.source.id == self.guideline.id
         assert relationship.target.id == Tag.for_journey_id(self.journey.id)
+
+
+class Test_that_agent_guideline_can_be_created_with_canned_responses(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Canned Response Agent",
+            description="Agent for testing canned response associations",
+        )
+
+        self.canrep1 = await self.agent.create_canned_response(
+            template="Thank you for your inquiry about {topic}."
+        )
+        self.canrep2 = await self.agent.create_canned_response(
+            template="I'll be happy to help you with {request}."
+        )
+
+        self.guideline = await self.agent.create_guideline(
+            condition="Customer asks for help",
+            action="Provide assistance",
+            canned_responses=[self.canrep1, self.canrep2],
+        )
+
+    async def run(self, ctx: Context) -> None:
+        canrep_store = ctx.container[CannedResponseStore]
+
+        guideline_tag = Tag.for_guideline_id(self.guideline.id)
+
+        updated_canrep1 = await canrep_store.read_canned_response(self.canrep1)
+        updated_canrep2 = await canrep_store.read_canned_response(self.canrep2)
+
+        assert guideline_tag in updated_canrep1.tags
+        assert guideline_tag in updated_canrep2.tags
+
+
+class Test_that_agent_observation_can_be_created_with_canned_responses(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Observation Agent",
+            description="Agent for testing observation with canned responses",
+        )
+
+        self.canrep = await self.agent.create_canned_response(
+            template="I notice you seem {emotion}."
+        )
+
+        self.observation = await self.agent.create_observation(
+            condition="Customer appears frustrated",
+            canned_responses=[self.canrep],
+        )
+
+    async def run(self, ctx: Context) -> None:
+        canrep_store = ctx.container[CannedResponseStore]
+
+        updated_canrep = await canrep_store.read_canned_response(self.canrep)
+
+        assert Tag.for_guideline_id(self.observation.id) in updated_canrep.tags
