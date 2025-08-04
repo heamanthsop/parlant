@@ -446,7 +446,7 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         preamble_task: asyncio.Task[bool],
     ) -> _PreparationIterationResult:
-        with self._correlator.properties({"engine_iteration": context.state.iterations}):
+        with self._correlator.properties({"engine_iteration": len(context.state.iterations) + 1}):
             if len(context.state.iterations) == 0:
                 # This is the first iteration, so we need to run the initial preparation iteration.
                 result = await self._run_initial_preparation_iteration(context, preamble_task)
