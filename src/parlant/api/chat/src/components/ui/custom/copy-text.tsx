@@ -1,6 +1,6 @@
 import {ReactNode} from 'react';
 import {toast} from 'sonner';
-import {twJoin} from 'tailwind-merge';
+import {twMerge} from 'tailwind-merge';
 import {spaceClick} from '@/utils/methods';
 import {fallbackCopyText} from '@/lib/utils';
 
@@ -30,7 +30,7 @@ export default function CopyText({text, textToCopy, preText, className, element}
 	};
 
 	return (
-		<div className={twJoin('group flex gap-[6px] items-center cursor-pointer text-[#A9A9A9] text-[15px] font-light', className)} onKeyDown={spaceClick} onClick={copyClicked}>
+		<div className={twMerge('group flex gap-[6px] items-center cursor-pointer text-[#A9A9A9] text-[15px] font-light', className)} onKeyDown={spaceClick} onClick={copyClicked}>
 			<div className='flex items-center gap-[6px]'>
 				{preText && <span className='font-semibold'>{preText}</span>}
 				<span className='group-hover:text-[#656565]'>{text}</span>
