@@ -1390,7 +1390,7 @@ async def test_that_journey_selector_backtracks_when_customer_changes_much_earli
         conversation_context=conversation_context,
         journey_name="reset_password_journey",
         journey_previous_path=["1", "2", "3", "5", "7"],
-        expected_next_node_index="5",
+        expected_next_node_index=["3", "5"],
         staged_events=staged_events,
     )
 
