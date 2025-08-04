@@ -35,7 +35,7 @@ export default function CopyText({text, textToCopy, preText, className, element}
 				{preText && <span className='font-semibold'>{preText}</span>}
 				<span className='group-hover:text-[#656565]'>{text}</span>
 			</div>
-			<div className='hidden group-hover:block group-hover:text-[#656565]' role='button' tabIndex={0}>
+			<div className='copy-icon hidden group-hover:block group-hover:text-[#656565]' role='button' tabIndex={0}>
 				<img src='icons/copy.svg' alt='' />
 			</div>
 		</div>

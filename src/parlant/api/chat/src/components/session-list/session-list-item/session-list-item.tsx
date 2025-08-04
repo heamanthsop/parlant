@@ -229,7 +229,7 @@ export default function SessionListItem({session, isSelected, refetch, editingTi
 		<Tooltip
 			value={
 				<div className='font-light text-[#a9a9a9] flex items-center'>
-					<CopyText preText='Session ID:' textToCopy={session.id} text={session.id} className='!text-[#a9a9a9] hover:text-[#151515] !text-[13px] ms-[4px] [&_img]:opacity-60' />
+					<CopyText preText='Session ID:' textToCopy={session.id} text={session.id} className='!text-[#a9a9a9] hover:text-[#151515] !text-[13px] ms-[4px] [&_img]:opacity-60 [&_.copy-icon]:!block' />
 				</div>
 			}
 			side='right'>
