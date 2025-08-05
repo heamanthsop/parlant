@@ -168,6 +168,7 @@ async def create_api_app(container: Container) -> ASGIApplication:
             with logger.operation(
                 f"HTTP Request: {request.method} {request.url.path}",
                 level=LogLevel.TRACE,
+                create_scope=False,
             ):
                 return await call_next(request)
 

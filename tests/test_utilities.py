@@ -173,6 +173,7 @@ class _TestLogger(Logger):
         name: str,
         props: dict[str, Any] = {},
         level: LogLevel = LogLevel.INFO,
+        create_scope: bool = True,
     ) -> Iterator[None]:
         yield
 

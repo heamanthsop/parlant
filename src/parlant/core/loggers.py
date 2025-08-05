@@ -152,6 +152,7 @@ class Logger(ABC):
         name: str,
         props: dict[str, Any] = {},
         level: LogLevel = LogLevel.DEBUG,
+        create_scope: bool = True,
     ) -> Iterator[None]:
         """Create a new timed logging operation with a name and properties."""
         ...
@@ -251,6 +252,7 @@ class CorrelationalLogger(Logger):
         name: str,
         props: dict[str, Any] = {},
         level: LogLevel = LogLevel.DEBUG,
+        create_scope: bool = True,
     ) -> Iterator[None]:
         log_func = {
             LogLevel.TRACE: self.trace,
@@ -268,7 +270,10 @@ class CorrelationalLogger(Logger):
             else:
                 self.trace(f"{name} started")
 
-            with self.scope(name):
+            if create_scope:
+                with self.scope(name):
+                    yield
+            else:
                 yield
 
             t_end = time.time()
@@ -395,8 +400,12 @@ class CompositeLogger(Logger):
         name: str,
         props: dict[str, Any] = {},
         level: LogLevel = LogLevel.DEBUG,
+        create_scope: bool = True,
     ) -> Iterator[None]:
         with ExitStack() as stack:
-            for context in [logger.operation(name, props, level) for logger in self._loggers]:
+            for context in [
+                logger.operation(name, props, level, create_scope=create_scope)
+                for logger in self._loggers
+            ]:
                 stack.enter_context(context)
             yield

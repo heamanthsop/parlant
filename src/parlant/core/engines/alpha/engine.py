@@ -166,7 +166,9 @@ class AlphaEngine(Engine):
 
         try:
             with self._logger.operation(
-                f"Processing context for session {context.session_id}", level=LogLevel.INFO
+                f"Processing context for session {context.session_id}",
+                level=LogLevel.INFO,
+                create_scope=False,
             ):
                 await self._do_process(loaded_context)
             return True
@@ -204,7 +206,9 @@ class AlphaEngine(Engine):
         )
 
         try:
-            with self._logger.operation(f"Uttering in session {context.session_id}"):
+            with self._logger.operation(
+                f"Uttering in session {context.session_id}", create_scope=False
+            ):
                 await self._do_utter(loaded_context, requests)
             return True
         except asyncio.CancelledError:
@@ -1406,10 +1410,6 @@ class AlphaEngine(Engine):
                 [j.conditions for j in activated_journeys if j.conditions]
             )
 
-            self._logger.operation(
-                "Second-pass: matching guidelines dependent on activated low-priority journeys"
-            )
-
             additional_matching_guidelines = [
                 g
                 for id, g in all_stored_guidelines.items()
@@ -1439,10 +1439,6 @@ class AlphaEngine(Engine):
         )
 
         if related_guidelines:
-            self._logger.operation(
-                "Second-pass: matching guidelines dependent on activated journeys"
-            )
-
             additional_matching_guidelines = [
                 g for id, g in all_stored_guidelines.items() if id in related_guidelines
             ]
