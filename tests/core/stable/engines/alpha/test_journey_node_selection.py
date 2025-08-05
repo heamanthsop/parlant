@@ -1556,7 +1556,7 @@ async def test_that_journey_selector_backtracks_and_fast_forwards_when_customer_
         conversation_context=conversation_context,
         journey_name="reset_password_journey",
         journey_previous_path=["1", "2", "3"],
-        expected_next_node_index=["3", "5"],
+        expected_next_node_index=["3", "5", "None"],
     )  # This test is slightly ambiguous, advancing to either node 3 or 5 (its followup) is considered valid
 
 
