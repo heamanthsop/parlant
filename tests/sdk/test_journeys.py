@@ -375,7 +375,7 @@ class Test_that_journey_is_reevaluated_after_tool_call(SDKTest):
 
         relationships = await relationship_store.list_relationships(
             kind=RelationshipKind.REEVALUATION,
-            target_id=Tag.for_journey_node_id(
+            source_id=Tag.for_journey_node_id(
                 self.transition_check_balance.target.id,
             ),
         )
@@ -383,11 +383,12 @@ class Test_that_journey_is_reevaluated_after_tool_call(SDKTest):
         assert relationships
         assert len(relationships) == 1
         assert relationships[0].kind == RelationshipKind.REEVALUATION
-        assert relationships[0].source.id == ToolId(
-            service_name=p.INTEGRATED_TOOL_SERVICE_NAME, tool_name="check_balance"
-        )
-        assert relationships[0].target.id == Tag.for_journey_node_id(
+        assert relationships[0].source.id == Tag.for_journey_node_id(
             self.transition_check_balance.target.id,
+        )
+
+        assert relationships[0].target.id == ToolId(
+            service_name=p.INTEGRATED_TOOL_SERVICE_NAME, tool_name="check_balance"
         )
 
 

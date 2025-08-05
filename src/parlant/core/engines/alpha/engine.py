@@ -105,7 +105,7 @@ class _PreparationIterationResolution(Enum):
 
 @dataclass
 class _PreparationIterationResult:
-    iteration: IterationState
+    state: IterationState
     resolution: _PreparationIterationResolution
     inspection: PreparationIteration | None = field(default=None)
 
@@ -460,7 +460,7 @@ class AlphaEngine(Engine):
                 # This is an additional iteration, so we run the additional preparation iteration.
                 result = await self._run_additional_preparation_iteration(context)
 
-            context.state.iterations.append(result.iteration)
+            context.state.iterations.append(result.state)
             context.state.journey_paths = self._list_journey_paths(
                 context=context,
                 guideline_matches=list(
@@ -473,7 +473,7 @@ class AlphaEngine(Engine):
 
             # If there's no new information to consider (which would have come from
             # the tools), then we can consider ourselves prepared to respond.
-            if result.inspection and len(result.inspection.tool_calls) == 0:
+            if await self._check_if_prepared(context, result):
                 context.state.prepared_to_respond = True
 
             # Alternatively, we we've reached the max number of iterations,
@@ -488,6 +488,28 @@ class AlphaEngine(Engine):
                 context.state.prepared_to_respond = True
 
             return result
+
+    async def _check_if_prepared(
+        self,
+        context: LoadedContext,
+        result: _PreparationIterationResult,
+    ) -> bool:
+        # If there's no new information to consider (which would have come from
+        # the tools), then we can consider ourselves prepared to respond.
+        def check_if_journey_node_with_tool_is_matched() -> bool:
+            for m in context.state.tool_enabled_guideline_matches:
+                if m.guideline.metadata.get("journey_node"):
+                    return True
+            return False
+
+        if (
+            result.inspection
+            and len(result.inspection.tool_calls) > 0
+            or check_if_journey_node_with_tool_is_matched()
+        ):
+            return False
+
+        return True
 
     async def _run_initial_preparation_iteration(
         self,
@@ -511,7 +533,7 @@ class AlphaEngine(Engine):
             # Bail out on the rest of the processing, as the preamble
             # hook decided we should not proceed with processing.
             return _PreparationIterationResult(
-                iteration=IterationState(
+                state=IterationState(
                     matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                     resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
                     tool_insights=ToolInsights(),
@@ -560,7 +582,7 @@ class AlphaEngine(Engine):
 
         # Return structured inspection information, useful for later troubleshooting.
         return _PreparationIterationResult(
-            iteration=IterationState(
+            state=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
                 tool_insights=tool_insights,
@@ -673,7 +695,7 @@ class AlphaEngine(Engine):
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
         return _PreparationIterationResult(
-            iteration=IterationState(
+            state=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
                 tool_insights=tool_insights,

@@ -226,9 +226,12 @@ class ToolCaller:
             t_end = time.time()
 
             # Aggregate insights from all batch results (e.g., missing data across batches)
+            aggregated_evaluations: list[tuple[ToolId, ToolCallEvaluation]] = []
             aggregated_missing_data: list[MissingToolData] = []
             aggregated_invalid_data: list[InvalidToolData] = []
             for result in batch_results:
+                if result.insights and result.insights.evaluations:
+                    aggregated_evaluations.extend(result.insights.evaluations)
                 if result.insights and result.insights.missing_data:
                     aggregated_missing_data.extend(result.insights.missing_data)
                 if result.insights and result.insights.invalid_data:
@@ -240,7 +243,9 @@ class ToolCaller:
                 batch_generations=[result.generation_info for result in batch_results],
                 batches=[result.tool_calls for result in batch_results],
                 insights=ToolInsights(
-                    missing_data=aggregated_missing_data, invalid_data=aggregated_invalid_data
+                    evaluations=aggregated_evaluations,
+                    missing_data=aggregated_missing_data,
+                    invalid_data=aggregated_invalid_data,
                 ),
             )
 
