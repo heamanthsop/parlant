@@ -2159,7 +2159,6 @@ class Server:
                 "[progress.description]{task.description}",
                 BarColumn(),
                 TaskProgressColumn(style="bold blue"),
-                "{task.completed}/{task.total}",
                 TimeElapsedColumn(),
             )
 
@@ -2167,7 +2166,6 @@ class Server:
                 "[progress.description]{task.description}",
                 BarColumn(),
                 TaskProgressColumn(style="bold blue"),
-                "{task.completed}/{task.total}",
                 TimeElapsedColumn(),
                 transient=True,
             )
