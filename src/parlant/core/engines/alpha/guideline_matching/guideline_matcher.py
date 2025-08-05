@@ -241,7 +241,7 @@ class GuidelineMatcher:
                 ]
             )
 
-            with self._logger.operation("Processing guideline matching batches"):
+            with self._logger.operation("Processing batches", create_scope=False):
                 batch_tasks = [
                     self._process_guideline_matching_batch_with_retry(batch)
                     for strategy_batches in batches

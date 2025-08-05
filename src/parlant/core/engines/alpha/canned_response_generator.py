@@ -539,7 +539,7 @@ You must generate the preamble message. You must produce a JSON object with a si
                 if Tag.preamble() in canrep.tags
             ]
 
-            with self._logger.operation("Rendering canned preamble templates"):
+            with self._logger.operation("Rendering canned preamble templates", create_scope=False):
                 preamble_choices = [
                     str(r.rendered_text)
                     for r in await self._render_responses(canrep_context, preamble_responses)
@@ -647,7 +647,9 @@ You will now be given the current state of the interaction to which you must gen
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
             with self._logger.scope("CannedResponseGenerator"):
-                with self._logger.operation("Canned response selection and rendering"):
+                with self._logger.operation(
+                    "Canned response selection and rendering", create_scope=False
+                ):
                     return await self._do_generate_events(
                         loaded_context=context,
                         latch=latch,
@@ -1405,7 +1407,9 @@ Output a JSON object with three properties:
         )
 
         # Step 2: Select the most relevant canned response templates based on the draft message
-        with self._logger.operation("Retrieving top relevant canned response templates"):
+        with self._logger.operation(
+            "Retrieving top relevant canned response templates", create_scope=False
+        ):
             relevant_canreps = set(
                 await self._canned_response_store.find_relevant_canned_responses(
                     query=draft_response.content.response_body,
@@ -1421,7 +1425,7 @@ Output a JSON object with three properties:
             )
 
         # Step 3: Pre-render these templates so that matching works better
-        with self._logger.operation("Rendering canned response templates"):
+        with self._logger.operation("Rendering canned response templates", create_scope=False):
             rendered_canreps = [
                 (r.response.id, str(r.rendered_text))
                 for r in await self._render_responses(
@@ -1433,7 +1437,9 @@ Output a JSON object with three properties:
 
         # Step 4.1: In composited mode, recompose the draft message with the style of the rendered canned responses
         if composition_mode == CompositionMode.CANNED_COMPOSITED:
-            with self._logger.operation("Recomposing draft using canned responses"):
+            with self._logger.operation(
+                "Recomposing draft using canned responses", create_scope=False
+            ):
                 recomposition_generation_info, composited_message = await self._recompose(
                     context=context,
                     draft_message=draft_response.content.response_body,
@@ -1450,7 +1456,7 @@ Output a JSON object with three properties:
                 )
 
         # Step 4.2: In non-composited mode, try to match the draft message with one of the rendered canned responses
-        with self._logger.operation("Selecting canned response"):
+        with self._logger.operation("Selecting canned response", create_scope=False):
             selection_response = await self._canrep_selection_generator.generate(
                 prompt=self._build_selection_prompt(
                     context=context,

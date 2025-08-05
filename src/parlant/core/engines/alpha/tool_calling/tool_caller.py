@@ -189,7 +189,7 @@ class ToolCaller:
 
                     tools[(tool_id, tool)].append(guideline_match)
 
-            with self._logger.operation("Creating batches"):
+            with self._logger.operation("Creating batches", create_scope=False):
                 batches = await self.batcher.create_batches(
                     tools=tools,
                     context=ToolCallContext(
@@ -205,7 +205,7 @@ class ToolCaller:
                     ),
                 )
 
-            with self._logger.operation("Processing batches"):
+            with self._logger.operation("Processing batches", create_scope=False):
                 batch_tasks = [batch.process() for batch in batches]
                 batch_results = await async_utils.safe_gather(*batch_tasks)
 
@@ -297,7 +297,7 @@ class ToolCaller:
         tool_calls: Sequence[ToolCall],
     ) -> Sequence[ToolCallResult]:
         with self._logger.scope("ToolCaller"):
-            with self._logger.operation("Execution"):
+            with self._logger.operation("Execution", create_scope=False):
                 tool_results = await async_utils.safe_gather(
                     *(
                         self._run_tool(
