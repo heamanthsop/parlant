@@ -33,6 +33,8 @@ from parlant.core.sessions import Event, EventKind
 from parlant.core.shots import Shot, ShotCollection
 from dataclasses import dataclass
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    ToolCallEvaluation,
+    InvalidToolData,
     MissingToolData,
     ToolCall,
     ToolCallBatch,
@@ -107,7 +109,9 @@ class OverlappingToolsBatch(ToolCallBatch):
             (
                 generation_info,
                 inference_output,
+                evaluations,
                 missing_data,
+                invalid_data,
             ) = await self._infer_calls_for_overlapping_tools(
                 agent=self._context.agent,
                 context_variables=self._context.context_variables,
@@ -121,7 +125,11 @@ class OverlappingToolsBatch(ToolCallBatch):
             return ToolCallBatchResult(
                 generation_info=generation_info,
                 tool_calls=inference_output,
-                insights=ToolInsights(missing_data=missing_data),
+                insights=ToolInsights(
+                    evaluations=evaluations,
+                    missing_data=missing_data,
+                    invalid_data=invalid_data,
+                ),
             )
 
     async def _infer_calls_for_overlapping_tools(
@@ -134,7 +142,13 @@ class OverlappingToolsBatch(ToolCallBatch):
         journeys: Sequence[Journey],
         overlapping_tools_batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
         staged_events: Sequence[EmittedEvent],
-    ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData]]:
+    ) -> tuple[
+        GenerationInfo,
+        list[ToolCall],
+        list[tuple[ToolId, ToolCallEvaluation]],
+        list[MissingToolData],
+        list[InvalidToolData],
+    ]:
         inference_prompt = self._build_tool_call_inference_prompt(
             agent,
             context_variables,
@@ -162,11 +176,16 @@ class OverlappingToolsBatch(ToolCallBatch):
                 )
 
                 # Evaluate the tool calls
-                tool_calls, missing_data = await self._evaluate_tool_calls_parameters(
+                (
+                    tool_calls,
+                    evaluations,
+                    missing_data,
+                    invalid_data,
+                ) = await self._evaluate_tool_calls_parameters(
                     inference_output, overlapping_tools_batch
                 )
 
-                return generation_info, tool_calls, missing_data
+                return generation_info, tool_calls, evaluations, missing_data, invalid_data
 
             except Exception as exc:
                 self._logger.warning(
@@ -191,9 +210,16 @@ class OverlappingToolsBatch(ToolCallBatch):
         self,
         inference_output: Sequence[OverlappingToolsBatchToolEvaluation],
         overlapping_tools_batch: Sequence[tuple[ToolId, Tool, Sequence[GuidelineMatch]]],
-    ) -> tuple[list[ToolCall], list[MissingToolData]]:
+    ) -> tuple[
+        list[ToolCall],
+        list[tuple[ToolId, ToolCallEvaluation]],
+        list[MissingToolData],
+        list[InvalidToolData],
+    ]:
         tool_calls = []
+        evaluations: list[tuple[ToolId, ToolCallEvaluation]] = []  # FIXME: handle evaluations
         missing_data = []
+        invalid_data: list[InvalidToolData] = []  # FIXME: handle invalid data
 
         for tool_inference in inference_output:
             tool_name = tool_inference.name
@@ -267,7 +293,7 @@ class OverlappingToolsBatch(ToolCallBatch):
                             f"Inference::Completion::Skipped: {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                         )
 
-        return tool_calls, missing_data
+        return tool_calls, evaluations, missing_data, invalid_data
 
     async def shots(self) -> Sequence[OverlappingToolsBatchShot]:
         return await shot_collection.list()

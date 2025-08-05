@@ -294,11 +294,12 @@ class AlphaEngine(Engine):
                 return
 
             # Filter missing and invalid tool parameters jointly
-            problematic_data = await self._filter_problematic_tool_parameters(
+            problematic_data = await self._filter_problematic_tool_parameters_based_on_precedence(
                 list(context.state.tool_insights.missing_data)
                 + list(context.state.tool_insights.invalid_data)
             )
             context.state.tool_insights = ToolInsights(
+                evaluations=context.state.tool_insights.evaluations,
                 missing_data=[p for p in problematic_data if isinstance(p, MissingToolData)],
                 invalid_data=[p for p in problematic_data if isinstance(p, InvalidToolData)],
             )
@@ -513,6 +514,7 @@ class AlphaEngine(Engine):
                 iteration=IterationState(
                     matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                     resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                    tool_insights=ToolInsights(),
                     executed_tools=[],
                 ),
                 resolution=_PreparationIterationResolution.BAIL,
@@ -561,6 +563,7 @@ class AlphaEngine(Engine):
             iteration=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                tool_insights=tool_insights,
                 executed_tools=[
                     ToolId.from_string(tool_call["tool_id"])
                     for tool_event in new_tool_events
@@ -673,6 +676,7 @@ class AlphaEngine(Engine):
             iteration=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                tool_insights=tool_insights,
                 executed_tools=[
                     ToolId.from_string(tool_call["tool_id"])
                     for tool_event in new_tool_events
@@ -1068,7 +1072,7 @@ class AlphaEngine(Engine):
             await self._entity_queries.find_guidelines_that_need_reevaluation(
                 all_stored_guidelines,
                 context.state.journeys,
-                tool_call_ids=context.state.iterations[-1].executed_tools,
+                tool_insights=context.state.iterations[-1].tool_insights,
             )
         )
 
@@ -1635,7 +1639,7 @@ class AlphaEngine(Engine):
             key=key,
         )
 
-    async def _filter_problematic_tool_parameters(
+    async def _filter_problematic_tool_parameters_based_on_precedence(
         self, problematic_parameters: Sequence[ProblematicToolData]
     ) -> Sequence[ProblematicToolData]:
         precedence_values = [

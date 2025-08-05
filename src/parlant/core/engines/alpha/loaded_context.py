@@ -49,6 +49,7 @@ class IterationState:
 
     matched_guidelines: list[GuidelineMatch]
     resolved_guidelines: list[GuidelineMatch]
+    tool_insights: ToolInsights
     executed_tools: list[ToolId]
 
 

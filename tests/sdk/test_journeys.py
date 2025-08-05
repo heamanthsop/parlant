@@ -625,3 +625,56 @@ class Test_that_journey_state_can_have_its_own_canned_responses(SDKTest):
         response = await ctx.send_and_receive("Hello", recipient=self.agent)
 
         assert response == "How can I assist you?"
+
+
+class Test_that_a_journey_is_reevaluated_after_a_skipped_tool_call(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        @tool
+        def get_customer_date_of_birth(context: ToolContext) -> ToolResult:
+            return ToolResult(data={"date_of_birth": "January 1, 2000"})
+
+        self.agent = await server.create_agent(
+            name="Dummy agent",
+            description="Dummy agent for testing journeys",
+        )
+
+        # We're first gonna run this guideline so as to get the tool event
+        # into the context.
+        await self.agent.create_guideline(
+            condition="The customer greets you",
+            action="Tell them their date of birth",
+            tools=[get_customer_date_of_birth],
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Handle Thirsty Customer",
+            conditions=["Customer is thirsty"],
+            description="Help a thirsty customer with a refreshing drink",
+        )
+
+        # Then we'll want to see that the journey reaches the chat state even though
+        # the tool call is skipped (its previous result was already in context).
+        self.t1 = await self.journey.initial_state.transition_to(
+            tool_state=get_customer_date_of_birth,
+        )
+        self.t2 = await self.t1.target.transition_to(
+            chat_state="Offer the customer a Pepsi",
+        )
+
+    async def run(self, ctx: Context) -> None:
+        first_response = await ctx.send_and_receive(
+            "Hello", recipient=self.agent, reuse_session=True
+        )
+
+        print(first_response)
+
+        assert await nlp_test(first_response, "It mentions the date January 1st, 2000")
+
+        second_response = await ctx.send_and_receive(
+            "I'm really thirsty", recipient=self.agent, reuse_session=True
+        )
+
+        assert await nlp_test(second_response, "It offers a Pepsi")
+        # Make sure the guideline was not re-applied
+        assert await nlp_test(second_response, "It does not mention one million dollars")
+        print(second_response)

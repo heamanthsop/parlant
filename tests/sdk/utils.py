@@ -41,22 +41,31 @@ class Context:
     server: p.Server
     client: Client
     container: p.Container
+    _session_id: str | None = None
 
-    async def send_and_receive(self, customer_message: str, recipient: p.Agent) -> str:
-        session = await self.client.sessions.create(
-            agent_id=recipient.id,
-            allow_greeting=False,
-        )
+    async def send_and_receive(
+        self,
+        customer_message: str,
+        recipient: p.Agent,
+        reuse_session: bool = False,
+    ) -> str:
+        if (not self._session_id) or (not reuse_session):
+            self._session_id = (
+                await self.client.sessions.create(
+                    agent_id=recipient.id,
+                    allow_greeting=False,
+                )
+            ).id
 
         event = await self.client.sessions.create_event(
-            session_id=session.id,
+            session_id=self._session_id,
             kind="message",
             source="customer",
             message=customer_message,
         )
 
         agent_messages = await self.client.sessions.list_events(
-            session_id=session.id,
+            session_id=self._session_id,
             min_offset=event.offset,
             source="ai_agent",
             kinds="message",

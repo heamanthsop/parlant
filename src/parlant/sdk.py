@@ -721,12 +721,12 @@ class Guideline:
         """Creates a reevaluation relationship with a tool."""
         relationship = await self._container[RelationshipStore].create_relationship(
             source=RelationshipEntity(
-                id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=tool.tool.name),
-                kind=RelationshipEntityKind.TOOL,
-            ),
-            target=RelationshipEntity(
                 id=self.id,
                 kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            target=RelationshipEntity(
+                id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=tool.tool.name),
+                kind=RelationshipEntityKind.TOOL,
             ),
             kind=RelationshipKind.REEVALUATION,
         )
@@ -845,12 +845,12 @@ class JourneyState:
             [
                 await self._journey._container[RelationshipStore].create_relationship(
                     source=RelationshipEntity(
-                        id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
-                        kind=RelationshipEntityKind.TOOL,
-                    ),
-                    target=RelationshipEntity(
                         id=_Tag.for_journey_node_id(actual_state.id),
                         kind=RelationshipEntityKind.TAG,
+                    ),
+                    target=RelationshipEntity(
+                        id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
+                        kind=RelationshipEntityKind.TOOL,
                     ),
                     kind=RelationshipKind.REEVALUATION,
                 )
@@ -2076,7 +2076,7 @@ class Server:
         guideline = await self._container[GuidelineStore].read_guideline(guideline_id)
 
         return f"When {guideline.content.condition}" + (
-            f", then {guideline.content.action }" if guideline.content.action else ""
+            f", then {guideline.content.action}" if guideline.content.action else ""
         )
 
     async def _render_state(self, state_id: JourneyStateId) -> str:

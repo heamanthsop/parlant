@@ -199,12 +199,12 @@ def given_the_journey_called(
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
-                    id=ToolId("local", tool.name),
-                    kind=RelationshipEntityKind.TOOL,
-                ),
-                target=RelationshipEntity(
                     id=Tag.for_journey_node_id(node4.id),
                     kind=RelationshipEntityKind.TAG,
+                ),
+                target=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
                 ),
                 kind=RelationshipKind.REEVALUATION,
             )
@@ -427,12 +427,12 @@ def given_the_journey_called(
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
-                    id=ToolId("local", tool.name),
-                    kind=RelationshipEntityKind.TOOL,
-                ),
-                target=RelationshipEntity(
                     id=Tag.for_journey_node_id(node5.id),
                     kind=RelationshipEntityKind.TAG,
+                ),
+                target=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
                 ),
                 kind=RelationshipKind.REEVALUATION,
             )
@@ -1405,12 +1405,12 @@ def given_the_journey_called(
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
-                    id=ToolId("local", tool.name),
-                    kind=RelationshipEntityKind.TOOL,
-                ),
-                target=RelationshipEntity(
                     id=Tag.for_journey_node_id(node4.id),
                     kind=RelationshipEntityKind.TAG,
+                ),
+                target=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
                 ),
                 kind=RelationshipKind.REEVALUATION,
             )
@@ -1445,12 +1445,12 @@ def given_the_journey_called(
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
-                    id=ToolId("local", tool.name),
-                    kind=RelationshipEntityKind.TOOL,
-                ),
-                target=RelationshipEntity(
                     id=Tag.for_journey_node_id(node5.id),
                     kind=RelationshipEntityKind.TAG,
+                ),
+                target=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
                 ),
                 kind=RelationshipKind.REEVALUATION,
             )
@@ -1752,12 +1752,12 @@ def given_the_node_is_tool_running_only(
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
-                    id=tool_id,
-                    kind=RelationshipEntityKind.TOOL,
-                ),
-                target=RelationshipEntity(
                     id=Tag.for_journey_node_id(node.id),
                     kind=RelationshipEntityKind.TAG,
+                ),
+                target=RelationshipEntity(
+                    id=tool_id,
+                    kind=RelationshipEntityKind.TOOL,
                 ),
                 kind=RelationshipKind.REEVALUATION,
             )

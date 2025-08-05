@@ -15,6 +15,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, asdict, field
+from enum import Enum
 import json
 import time
 import traceback
@@ -89,8 +90,21 @@ class InvalidToolData(ProblematicToolData):
     invalid_value: str
 
 
+class ToolCallEvaluation(Enum):
+    NEEDS_TO_RUN = "success"
+    """Indicates that the tool call was executed successfully."""
+
+    DATA_ALREADY_IN_CONTEXT = "data_already_in_context"
+    """Indicates that the tool call was skipped, e.g., because the data was already in context."""
+
+    CANNOT_RUN = "cannot_run"
+    """Indicates that the tool call could not be executed, e.g., due to missing or invalid parameters."""
+
+
 @dataclass(frozen=True)
 class ToolInsights:
+    # TODO: Refactor evaluations so that missing and invalid data are part of each evaluation
+    evaluations: Sequence[tuple[ToolId, ToolCallEvaluation]] = field(default_factory=list)
     missing_data: Sequence[MissingToolData] = field(default_factory=list)
     invalid_data: Sequence[InvalidToolData] = field(default_factory=list)
 
