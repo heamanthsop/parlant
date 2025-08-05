@@ -422,7 +422,7 @@ class EntityQueries:
                 (
                     g
                     for gid, g in available_guidelines.items()
-                    if gid.startswith(relationship.target.id)
+                    if gid.startswith(relationship.source.id)
                 ),
                 None,
             )
