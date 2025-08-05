@@ -672,12 +672,12 @@ def given_an_reevaluation_between_guideline_and_a_tool(
     context.sync_await(
         store.create_relationship(
             source=RelationshipEntity(
-                id=ToolId(service_name="local", tool_name=tool_name),
-                kind=RelationshipEntityKind.TOOL,
-            ),
-            target=RelationshipEntity(
                 id=context.guidelines[guideline_name].id,
                 kind=RelationshipEntityKind.GUIDELINE,
+            ),
+            target=RelationshipEntity(
+                id=ToolId(service_name="local", tool_name=tool_name),
+                kind=RelationshipEntityKind.TOOL,
             ),
             kind=RelationshipKind.DEPENDENCY,
         )

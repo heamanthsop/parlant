@@ -29,6 +29,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_match import Guidel
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder, SectionStatus
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    ToolCallEvaluation,
     MissingToolData,
     InvalidToolData,
     ToolCall,
@@ -124,6 +125,7 @@ class SingleToolBatch(ToolCallBatch):
         (
             generation_info,
             inference_output,
+            execution_status,
             missing_data,
             invalid_data,
         ) = await self._infer_calls_for_single_tool(
@@ -141,7 +143,11 @@ class SingleToolBatch(ToolCallBatch):
         return ToolCallBatchResult(
             generation_info=generation_info,
             tool_calls=inference_output,
-            insights=ToolInsights(missing_data=missing_data, invalid_data=invalid_data),
+            insights=ToolInsights(
+                evaluations=execution_status,
+                missing_data=missing_data,
+                invalid_data=invalid_data,
+            ),
         )
 
     async def _validate_argument_value(
@@ -169,7 +175,13 @@ class SingleToolBatch(ToolCallBatch):
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
         reference_tools: Sequence[tuple[ToolId, Tool]],
         staged_events: Sequence[EmittedEvent],
-    ) -> tuple[GenerationInfo, list[ToolCall], list[MissingToolData], list[InvalidToolData]]:
+    ) -> tuple[
+        GenerationInfo,
+        list[ToolCall],
+        list[tuple[ToolId, ToolCallEvaluation]],
+        list[MissingToolData],
+        list[InvalidToolData],
+    ]:
         inference_prompt = self._build_tool_call_inference_prompt(
             agent,
             context_variables,
@@ -201,11 +213,14 @@ class SingleToolBatch(ToolCallBatch):
                     )
 
                     # Evaluate the tool calls
-                    tool_calls, missing_data, invalid_data = await self._evaluate_tool_calls(
-                        inference_output, candidate_descriptor
-                    )
+                    (
+                        tool_calls,
+                        evaluations,
+                        missing_data,
+                        invalid_data,
+                    ) = await self._evaluate_tool_calls(inference_output, candidate_descriptor)
 
-                    return generation_info, tool_calls, missing_data, invalid_data
+                    return generation_info, tool_calls, evaluations, missing_data, invalid_data
 
                 except Exception as exc:
                     self._logger.warning(
@@ -220,8 +235,14 @@ class SingleToolBatch(ToolCallBatch):
         self,
         inference_output: Sequence[SingleToolBatchToolCallEvaluation],
         candidate_descriptor: tuple[ToolId, Tool, Sequence[GuidelineMatch]],
-    ) -> tuple[list[ToolCall], list[MissingToolData], list[InvalidToolData]]:
+    ) -> tuple[
+        list[ToolCall],
+        list[tuple[ToolId, ToolCallEvaluation]],
+        list[MissingToolData],
+        list[InvalidToolData],
+    ]:
         tool_calls = []
+        evaluations = []
         missing_data = []
         invalid_data = []
         tool_id, tool, _ = candidate_descriptor
@@ -229,6 +250,7 @@ class SingleToolBatch(ToolCallBatch):
         for tc in inference_output:
             # First - check validity of all parameters with provided values
             all_values_valid = True
+
             for evaluation in tc.argument_evaluations or []:
                 descriptor, options = tool.parameters[evaluation.parameter_name]
 
@@ -248,6 +270,8 @@ class SingleToolBatch(ToolCallBatch):
                                 choices=descriptor.get("enum", None),
                             )
                         )
+
+                        evaluations.append((tool_id, ToolCallEvaluation.CANNOT_RUN))
 
             if (
                 tc.is_applicable
@@ -284,6 +308,8 @@ class SingleToolBatch(ToolCallBatch):
                                 arguments=arguments,
                             )
                         )
+
+                        evaluations.append((tool_id, ToolCallEvaluation.NEEDS_TO_RUN))
                 else:
                     for evaluation in tc.argument_evaluations or []:
                         if evaluation.parameter_name not in tool.parameters:
@@ -299,11 +325,12 @@ class SingleToolBatch(ToolCallBatch):
                             and not evaluation.is_optional
                             and not tool_options.hidden
                         ):
-                            disp = tool_options.display_name or evaluation.parameter_name
-                            if disp not in [p.parameter for p in invalid_data]:
+                            display_name = tool_options.display_name or evaluation.parameter_name
+
+                            if display_name not in [p.parameter for p in invalid_data]:
                                 missing_data.append(
                                     MissingToolData(
-                                        parameter=disp,
+                                        parameter=display_name,
                                         significance=tool_options.significance,
                                         description=tool_descriptor.get("description"),
                                         precedence=tool_options.precedence,
@@ -311,8 +338,10 @@ class SingleToolBatch(ToolCallBatch):
                                     )
                                 )
 
+                                evaluations.append((tool_id, ToolCallEvaluation.CANNOT_RUN))
+
                     self._logger.debug(
-                        f"Inference::Completion::Skipped: Missing arguments for {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
+                        f"Inference::Completion::Rejected: Missing arguments for {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                     )
 
             else:
@@ -320,7 +349,9 @@ class SingleToolBatch(ToolCallBatch):
                     f"Inference::Completion::Skipped: {tool_id.to_string()}\n{tc.model_dump_json(indent=2)}"
                 )
 
-        return tool_calls, missing_data, invalid_data
+                evaluations.append((tool_id, ToolCallEvaluation.DATA_ALREADY_IN_CONTEXT))
+
+        return tool_calls, evaluations, missing_data, invalid_data
 
     def _get_shot_collection_for_tools(
         self, shots: Sequence[SingleToolBatchShot], has_reference_tools: bool

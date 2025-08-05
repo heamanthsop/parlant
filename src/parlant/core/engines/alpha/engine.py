@@ -105,7 +105,7 @@ class _PreparationIterationResolution(Enum):
 
 @dataclass
 class _PreparationIterationResult:
-    iteration: IterationState
+    state: IterationState
     resolution: _PreparationIterationResolution
     inspection: PreparationIteration | None = field(default=None)
 
@@ -294,11 +294,12 @@ class AlphaEngine(Engine):
                 return
 
             # Filter missing and invalid tool parameters jointly
-            problematic_data = await self._filter_problematic_tool_parameters(
+            problematic_data = await self._filter_problematic_tool_parameters_based_on_precedence(
                 list(context.state.tool_insights.missing_data)
                 + list(context.state.tool_insights.invalid_data)
             )
             context.state.tool_insights = ToolInsights(
+                evaluations=context.state.tool_insights.evaluations,
                 missing_data=[p for p in problematic_data if isinstance(p, MissingToolData)],
                 invalid_data=[p for p in problematic_data if isinstance(p, InvalidToolData)],
             )
@@ -459,7 +460,7 @@ class AlphaEngine(Engine):
                 # This is an additional iteration, so we run the additional preparation iteration.
                 result = await self._run_additional_preparation_iteration(context)
 
-            context.state.iterations.append(result.iteration)
+            context.state.iterations.append(result.state)
             context.state.journey_paths = self._list_journey_paths(
                 context=context,
                 guideline_matches=list(
@@ -472,7 +473,7 @@ class AlphaEngine(Engine):
 
             # If there's no new information to consider (which would have come from
             # the tools), then we can consider ourselves prepared to respond.
-            if result.inspection and len(result.inspection.tool_calls) == 0:
+            if await self._check_if_prepared(context, result):
                 context.state.prepared_to_respond = True
 
             # Alternatively, we we've reached the max number of iterations,
@@ -487,6 +488,28 @@ class AlphaEngine(Engine):
                 context.state.prepared_to_respond = True
 
             return result
+
+    async def _check_if_prepared(
+        self,
+        context: LoadedContext,
+        result: _PreparationIterationResult,
+    ) -> bool:
+        # If there's no new information to consider (which would have come from
+        # the tools), then we can consider ourselves prepared to respond.
+        def check_if_journey_node_with_tool_is_matched() -> bool:
+            for m in context.state.tool_enabled_guideline_matches:
+                if m.guideline.metadata.get("journey_node"):
+                    return True
+            return False
+
+        if (
+            result.inspection
+            and len(result.inspection.tool_calls) > 0
+            or check_if_journey_node_with_tool_is_matched()
+        ):
+            return False
+
+        return True
 
     async def _run_initial_preparation_iteration(
         self,
@@ -510,9 +533,10 @@ class AlphaEngine(Engine):
             # Bail out on the rest of the processing, as the preamble
             # hook decided we should not proceed with processing.
             return _PreparationIterationResult(
-                iteration=IterationState(
+                state=IterationState(
                     matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                     resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                    tool_insights=ToolInsights(),
                     executed_tools=[],
                 ),
                 resolution=_PreparationIterationResolution.BAIL,
@@ -558,9 +582,10 @@ class AlphaEngine(Engine):
 
         # Return structured inspection information, useful for later troubleshooting.
         return _PreparationIterationResult(
-            iteration=IterationState(
+            state=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                tool_insights=tool_insights,
                 executed_tools=[
                     ToolId.from_string(tool_call["tool_id"])
                     for tool_event in new_tool_events
@@ -670,9 +695,10 @@ class AlphaEngine(Engine):
         context.state.glossary_terms.update(await self._load_glossary_terms(context))
 
         return _PreparationIterationResult(
-            iteration=IterationState(
+            state=IterationState(
                 matched_guidelines=guideline_and_journey_matching_result.matches_guidelines,
                 resolved_guidelines=guideline_and_journey_matching_result.resolved_guidelines,
+                tool_insights=tool_insights,
                 executed_tools=[
                     ToolId.from_string(tool_call["tool_id"])
                     for tool_event in new_tool_events
@@ -1068,7 +1094,7 @@ class AlphaEngine(Engine):
             await self._entity_queries.find_guidelines_that_need_reevaluation(
                 all_stored_guidelines,
                 context.state.journeys,
-                tool_call_ids=context.state.iterations[-1].executed_tools,
+                tool_insights=context.state.iterations[-1].tool_insights,
             )
         )
 
@@ -1635,7 +1661,7 @@ class AlphaEngine(Engine):
             key=key,
         )
 
-    async def _filter_problematic_tool_parameters(
+    async def _filter_problematic_tool_parameters_based_on_precedence(
         self, problematic_parameters: Sequence[ProblematicToolData]
     ) -> Sequence[ProblematicToolData]:
         precedence_values = [
