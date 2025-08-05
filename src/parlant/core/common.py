@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+import base64
 from collections import defaultdict
 from enum import Enum
 import asyncio
@@ -156,15 +157,18 @@ class IdGenerator:
         self._unique_checksums: dict[str, int] = defaultdict(int)
 
     def _generate_deterministic_id(self, unique_str: str, size: int = 10) -> str:
-        str_bytes = unique_str.encode("utf-8")
-        string_hash = sum(ord(c) * (j + 1) for j, c in enumerate(unique_str))
+        h = hashlib.md5(unique_str.encode("utf-8")).digest()
+        b64 = base64.urlsafe_b64encode(h).decode()
+        id = "".join([c for c in b64 if c in id_generation_alphabet])[:size]
 
-        id_chars = []
-        for i in range(size):
-            byte = str_bytes[(i + string_hash) % len(str_bytes)]
-            id_chars.append(id_generation_alphabet[byte % len(id_generation_alphabet)])
+        if len(id) < size:
+            raise ValueError(
+                f"Generated ID '{id}' is shorter than expected size {size}. "
+                "This may indicate an issue with the input string or the ID generation logic. "
+                "Please open an issue at https://github.com/emcie-co/parlant"
+            )
 
-        return "".join(id_chars)
+        return id
 
     def generate(self, content_checksum: str) -> UniqueId:
         self._unique_checksums[content_checksum] += 1
