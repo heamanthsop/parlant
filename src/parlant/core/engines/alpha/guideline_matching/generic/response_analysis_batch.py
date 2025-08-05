@@ -102,7 +102,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
         guideline_batches = list(chunked(all_guidelines, self._batch_size))
 
         with self._logger.operation(
-            f"Analyzing response given {len(all_guidelines)} guidelines "
+            f"{len(all_guidelines)} guidelines "
             f"in {len(guideline_batches)} batches (batch size={self._batch_size})"
         ):
             batch_tasks = [
@@ -150,9 +150,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
         guidelines = {str(i): g for i, g in enumerate(batch_guidelines, start=1)}
 
-        with self._logger.operation(
-            f"Running response analysis batch of {len(guidelines)} guidelines"
-        ):
+        with self._logger.operation(f"Batch of {len(guidelines)} guidelines"):
             prompt = self._build_prompt(
                 shots=await self.shots(),
                 guidelines=guidelines,
@@ -177,9 +175,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
                     for check in inference.content.checks:
                         if check.guideline_applied:
-                            self._logger.debug(
-                                f"Completion::Applied:\n{check.model_dump_json(indent=2)}"
-                            )
+                            self._logger.debug(f"Applied:\n{check.model_dump_json(indent=2)}")
                             analyzed_guidelines.append(
                                 AnalyzedGuideline(
                                     guideline=guidelines[check.guideline_id],
@@ -187,9 +183,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
                                 )
                             )
                         else:
-                            self._logger.debug(
-                                f"Completion::NotApplied:\n{check.model_dump_json(indent=2)}"
-                            )
+                            self._logger.debug(f"Not applied:\n{check.model_dump_json(indent=2)}")
                             analyzed_guidelines.append(
                                 AnalyzedGuideline(
                                     guideline=guidelines[GuidelineId(check.guideline_id)],
@@ -204,7 +198,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
 
                 except Exception as exc:
                     self._logger.warning(
-                        f"Response analysis attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                        f"Attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
                     )
 
                     last_generation_exception = exc

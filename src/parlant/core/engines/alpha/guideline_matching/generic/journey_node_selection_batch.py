@@ -440,7 +440,7 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
             )
         )
 
-        with self._logger.operation(f"JourneyNodeSelectionBatch: {self._examined_journey.title}"):
+        with self._logger.operation(self._examined_journey.title):
             prompt = self._build_prompt(journey_conditions, shots=await self.shots())
 
             generation_attempt_temperatures = (
@@ -504,7 +504,7 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
                     )
                 except Exception as exc:
                     self._logger.warning(
-                        f"JourneyStepSelectionBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                        f"Attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
                     )
 
                     last_generation_exception = exc

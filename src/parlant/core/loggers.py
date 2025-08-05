@@ -268,7 +268,8 @@ class CorrelationalLogger(Logger):
             else:
                 self.trace(f"{name} started")
 
-            yield
+            with self.scope(name):
+                yield
 
             t_end = time.time()
 

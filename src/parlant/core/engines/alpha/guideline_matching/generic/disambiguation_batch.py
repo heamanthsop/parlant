@@ -90,7 +90,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         self._disambiguation_targets = disambiguation_targets
         self._context = context
 
-    async def _get_disambiguation_targets_guidelines(
+    async def _get_disambiguation_targets(
         self,
         disambiguation_targets: Sequence[Guideline],
     ) -> dict[str, _Guideline]:
@@ -126,16 +126,16 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
         return guidelines
 
     async def process(self) -> GuidelineMatchingBatchResult:
-        disambiguation_targets_guidelines = await self._get_disambiguation_targets_guidelines(
+        disambiguation_targets_guidelines = await self._get_disambiguation_targets(
             self._disambiguation_targets
         )
 
-        prompt = self._build_prompt(
-            shots=await self.shots(),
-            disambiguation_targets_guidelines=disambiguation_targets_guidelines,
-        )
+        with self._logger.operation(str(self._disambiguation_guideline)):
+            prompt = self._build_prompt(
+                shots=await self.shots(),
+                disambiguation_targets_guidelines=disambiguation_targets_guidelines,
+            )
 
-        with self._logger.operation("DisambiguationGuidelineMatchingBatch"):
             generation_attempt_temperatures = (
                 self._optimization_policy.get_guideline_matching_batch_retry_temperatures(
                     hints={"type": self.__class__.__name__}
@@ -179,7 +179,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
                         GuidelineMatch(
                             guideline=self._disambiguation_guideline,
                             score=10 if inference.content.is_ambiguous else 1,
-                            rationale=f'''Disambiguation matcher rationale: "{inference.content.tldr}"''',
+                            rationale=f'''Disambiguation rationale: "{inference.content.tldr}"''',
                             metadata=metadata,
                         )
                     ]
@@ -191,7 +191,7 @@ class GenericDisambiguationGuidelineMatchingBatch(GuidelineMatchingBatch):
 
                 except Exception as exc:
                     self._logger.warning(
-                        f"DisambiguationGuidelineMatchingBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                        f"Attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
                     )
 
                     last_generation_exception = exc

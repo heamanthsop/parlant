@@ -92,9 +92,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
 
     @override
     async def process(self) -> GuidelineMatchingBatchResult:
-        with self._logger.operation(
-            f"PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch: {len(self._guidelines)} guidelines"
-        ):
+        with self._logger.operation(f"Batch of {len(self._guidelines)} guidelines"):
             prompt = self._build_prompt(shots=await self.shots())
 
             try:
@@ -125,9 +123,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
 
                     for match in inference.content.checks:
                         if match.should_apply:
-                            self._logger.debug(
-                                f"Completion::Activated:\n{match.model_dump_json(indent=2)}"
-                            )
+                            self._logger.debug(f"Activated:\n{match.model_dump_json(indent=2)}")
 
                             matches.append(
                                 GuidelineMatch(
@@ -137,9 +133,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
                                 )
                             )
                         else:
-                            self._logger.debug(
-                                f"Completion::Skipped:\n{match.model_dump_json(indent=2)}"
-                            )
+                            self._logger.debug(f"Skipped:\n{match.model_dump_json(indent=2)}")
 
                     return GuidelineMatchingBatchResult(
                         matches=matches,
@@ -148,7 +142,7 @@ class GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch(
 
             except Exception as exc:
                 self._logger.warning(
-                    f"PreviouslyAppliedActionableCustomerDependentGuidelineMatchingBatch attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
+                    f"Attempt {generation_attempt} failed: {traceback.format_exception(exc)}"
                 )
 
                 last_generation_exception = exc
