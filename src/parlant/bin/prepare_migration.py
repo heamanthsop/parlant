@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import asyncio
-from contextlib import AsyncExitStack, suppress
+from contextlib import AsyncExitStack
 from datetime import datetime, timezone
 import importlib
 import json
@@ -21,7 +21,6 @@ import os
 import shutil
 from typing import Any, cast, Callable, Awaitable, Optional
 import chromadb
-from chromadb.api.types import IncludeEnum
 from lagom import Container
 from typing_extensions import NoReturn
 from pathlib import Path
@@ -223,23 +222,24 @@ async def get_component_versions() -> list[tuple[str, str]]:
             embedding_cache_provider=NullEmbeddingCache,
         )
     )
-    with suppress(chromadb.errors.InvalidCollectionException):
-        if chroma_db.chroma_client.get_collection("glossary_unembedded"):
-            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+    existing_collections = chroma_db._collections
 
-            versions.append(
-                (
-                    "glossary",
-                    chroma_db_metadata.get(
-                        VectorDocumentStoreMigrationHelper.get_store_version_key(
-                            GlossaryVectorStore.__name__
-                        ),
-                        chroma_db_metadata.get(
-                            "version", "0.1.0"
-                        ),  # Back off to the old version key method if not found
+    if "glossary_unembedded" in existing_collections:
+        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
+        versions.append(
+            (
+                "glossary",
+                chroma_db_metadata.get(
+                    VectorDocumentStoreMigrationHelper.get_store_version_key(
+                        GlossaryVectorStore.__name__
                     ),
-                )
+                    chroma_db_metadata.get(
+                        "version", "0.1.0"
+                    ),  # Back off to the old version key method if not found
+                ),
             )
+        )
 
     utterances_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "utterances.json",
@@ -248,21 +248,20 @@ async def get_component_versions() -> list[tuple[str, str]]:
     if utterances_version:
         versions.append(("utterances", utterances_version))
 
-    with suppress(chromadb.errors.InvalidCollectionException):
-        if chroma_db.chroma_client.get_collection("utterances_unembedded"):
-            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+    if "utterances_unembedded" in existing_collections:
+        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
 
-            versions.append(
-                (
-                    "utterances",
-                    chroma_db_metadata.get(
-                        VectorDocumentStoreMigrationHelper.get_store_version_key(
-                            "UtteranceVectorStore"
-                        ),
-                        "0.4.0",  # In case not exists, set to the last version of utterances
+        versions.append(
+            (
+                "utterances",
+                chroma_db_metadata.get(
+                    VectorDocumentStoreMigrationHelper.get_store_version_key(
+                        "UtteranceVectorStore"
                     ),
-                )
+                    "0.4.0",  # In case not exists, set to the last version of utterances
+                ),
             )
+        )
 
     journeys_version = _get_version_from_json_file(
         PARLANT_HOME_DIR / "journeys.json",
@@ -271,41 +270,39 @@ async def get_component_versions() -> list[tuple[str, str]]:
     if journeys_version:
         versions.append(("journeys", journeys_version))
 
-    with suppress(chromadb.errors.InvalidCollectionException):
-        if chroma_db.chroma_client.get_collection("journeys_unembedded"):
-            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+    if "journeys_unembedded" in existing_collections:
+        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
 
-            versions.append(
-                (
-                    "journeys",
-                    chroma_db_metadata.get(
-                        VectorDocumentStoreMigrationHelper.get_store_version_key(
-                            JourneyVectorStore.__name__
-                        ),
-                        chroma_db_metadata.get(
-                            "version", "0.1.0"
-                        ),  # Back off to the old version key method if not found
+        versions.append(
+            (
+                "journeys",
+                chroma_db_metadata.get(
+                    VectorDocumentStoreMigrationHelper.get_store_version_key(
+                        JourneyVectorStore.__name__
                     ),
-                )
-            )
-
-    with suppress(chromadb.errors.InvalidCollectionException):
-        if chroma_db.chroma_client.get_collection("capabilities_unembedded"):
-            chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
-
-            versions.append(
-                (
-                    "capabilities",
                     chroma_db_metadata.get(
-                        VectorDocumentStoreMigrationHelper.get_store_version_key(
-                            CapabilityVectorStore.__name__
-                        ),
-                        chroma_db_metadata.get(
-                            "version", "0.1.0"
-                        ),  # Back off to the old version key method if not found
-                    ),
-                )
+                        "version", "0.1.0"
+                    ),  # Back off to the old version key method if not found
+                ),
             )
+        )
+
+    if "capabilities_unembedded" in existing_collections:
+        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
+
+        versions.append(
+            (
+                "capabilities",
+                chroma_db_metadata.get(
+                    VectorDocumentStoreMigrationHelper.get_store_version_key(
+                        CapabilityVectorStore.__name__
+                    ),
+                    chroma_db_metadata.get(
+                        "version", "0.1.0"
+                    ),  # Back off to the old version key method if not found
+                ),
+            )
+        )
 
     return versions
 
@@ -380,7 +377,7 @@ async def migrate_glossary_with_metadata() -> None:
 
         try:
             old_collection = db.chroma_client.get_collection("glossary")
-        except chromadb.errors.InvalidCollectionException:
+        except Exception:
             rich.print("[yellow]Glossary collection not found, skipping...")
             return
 
@@ -397,9 +394,7 @@ async def migrate_glossary_with_metadata() -> None:
                 old_collection.metadata["embedder_type_path"],
             )
 
-            all_items = old_collection.get(
-                include=[IncludeEnum.documents, IncludeEnum.embeddings, IncludeEnum.metadatas]
-            )
+            all_items = old_collection.get(include=["documents", "embeddings", "metadatas"])
             rich.print(f"[green]Found {len(all_items['ids'])} items to migrate")
 
             chroma_unembedded_collection = next(

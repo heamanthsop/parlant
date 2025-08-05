@@ -154,7 +154,7 @@ class ChromaDatabase(VectorDatabase):
         if docs := collection.get()["metadatas"]:
             for doc in docs:
                 if doc["id"] not in unembedded_docs_by_id:
-                    collection.delete(where={"id": doc["id"]})
+                    collection.delete(where={"id": cast(str, doc["id"])})
                 else:
                     if doc["checksum"] != unembedded_docs_by_id[doc["id"]]["checksum"]:
                         embeddings = list(

@@ -20,7 +20,6 @@ import numpy as np
 from typing_extensions import Required
 from lagom import Container
 from pytest import fixture, raises
-from chromadb.api.types import IncludeEnum
 
 from parlant.adapters.nlp.openai_service import OpenAITextEmbedding3Large
 from parlant.adapters.db.transient import TransientDocumentDatabase
@@ -667,7 +666,7 @@ async def test_that_documents_are_indexed_when_changing_embedder_type(
             allow_migration=True,
         ) as store:
             docs = chroma_db.chroma_client.get_collection(name="glossary_NoOpEmbedder").get(
-                include=[IncludeEnum.embeddings, IncludeEnum.metadatas]
+                include=["embeddings", "metadatas"]
             )
 
             assert docs["metadatas"]

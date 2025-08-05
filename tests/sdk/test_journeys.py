@@ -514,37 +514,6 @@ class Test_that_journey_can_depend_on_a_guideline(SDKTest):
         assert relationship.target.id == self.guideline.id
 
 
-class Test_that_journey_can_depend_on_another_journey(SDKTest):
-    async def setup(self, server: p.Server) -> None:
-        self.agent = await server.create_agent(
-            name="Journey Rel Agent",
-            description="Agent testing journey-to-journey dependency",
-        )
-
-        self.journey_a = await self.agent.create_journey(
-            title="Verify Identity",
-            conditions=["customer is unknown"],
-            description="Verify the user before proceeding",
-        )
-
-        self.journey_b = await self.agent.create_journey(
-            title="Account Support",
-            conditions=["customer needs account access"],
-            description="Assist with account issues",
-        )
-
-        self.relationship = await self.journey_b.depend_on(self.journey_a)
-
-    async def run(self, ctx: Context) -> None:
-        relationship_store = ctx.container[RelationshipStore]
-
-        relationship = await relationship_store.read_relationship(id=self.relationship.id)
-
-        assert relationship.kind == RelationshipKind.DEPENDENCY
-        assert relationship.source.id == Tag.for_journey_id(self.journey_b.id)
-        assert relationship.target.id == Tag.for_journey_id(self.journey_a.id)
-
-
 class Test_that_journey_guideline_can_be_created_with_canned_responses(SDKTest):
     async def setup(self, server: p.Server) -> None:
         self.agent = await server.create_agent(

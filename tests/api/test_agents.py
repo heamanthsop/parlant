@@ -68,7 +68,7 @@ async def test_that_an_agent_can_be_created_without_max_engine_iterations(
     agent = response.json()
 
     assert agent["name"] == "test-agent"
-    assert agent["max_engine_iterations"] == 1
+    assert agent["max_engine_iterations"] == 3  # Default value
 
 
 async def test_that_an_agent_can_be_created_with_max_engine_iterations(
@@ -108,7 +108,7 @@ async def test_that_an_agent_can_be_created_with_specific_composition_mode(
 ) -> None:
     response = await async_client.post(
         "/agents",
-        json={"name": "test-agent", "composition_mode": "strict_canned_response"},
+        json={"name": "test-agent", "composition_mode": "strict_canned"},
     )
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -116,7 +116,7 @@ async def test_that_an_agent_can_be_created_with_specific_composition_mode(
     agent = response.json()
 
     assert agent["name"] == "test-agent"
-    assert agent["composition_mode"] == "strict_canned_response"
+    assert agent["composition_mode"] == "strict_canned"
 
 
 async def test_that_an_agent_can_be_created_with_tags(
@@ -206,9 +206,9 @@ async def test_that_an_agent_can_be_read(
 @mark.parametrize(
     "update_payload, expected_name, expected_description, expected_iterations, expected_composition",
     [
-        ({"name": "New Name"}, "New Name", None, 1, "fluid"),
-        ({"description": None}, "test-agent", None, 1, "fluid"),
-        ({"description": "You are a test agent"}, "test-agent", "You are a test agent", 1, "fluid"),
+        ({"name": "New Name"}, "New Name", None, 3, "fluid"),
+        ({"description": None}, "test-agent", None, 3, "fluid"),
+        ({"description": "You are a test agent"}, "test-agent", "You are a test agent", 3, "fluid"),
         (
             {"description": "Changed desc", "max_engine_iterations": 2},
             "test-agent",
@@ -218,11 +218,11 @@ async def test_that_an_agent_can_be_read(
         ),
         ({"max_engine_iterations": 5}, "test-agent", None, 5, "fluid"),
         (
-            {"composition_mode": "strict_canned_response"},
+            {"composition_mode": "strict_canned"},
             "test-agent",
             None,
-            1,
-            "strict_canned_response",
+            3,
+            "strict_canned",
         ),
     ],
 )

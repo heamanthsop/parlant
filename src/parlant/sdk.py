@@ -1366,21 +1366,14 @@ class Journey:
 
     async def depend_on(
         self,
-        target: Guideline | Journey,
+        target: Guideline,
     ) -> Relationship:
-        """Creates a dependency relationship with a journey or guideline."""
-        if isinstance(target, Guideline):
-            return await self._create_relationship(
-                target=target,
-                kind=RelationshipKind.DEPENDENCY,
-                direction="source",
-            )
-        else:
-            return await self._create_relationship(
-                target=target,
-                kind=RelationshipKind.DEPENDENCY,
-                direction="source",
-            )
+        """Creates a dependency relationship with a guideline."""
+        return await self._create_relationship(
+            target=target,
+            kind=RelationshipKind.DEPENDENCY,
+            direction="source",
+        )
 
     async def _create_relationship(
         self,
