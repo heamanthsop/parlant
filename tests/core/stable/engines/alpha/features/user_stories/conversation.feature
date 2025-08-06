@@ -153,3 +153,4 @@ Feature: Conversation
         Then a single message event is emitted
         And the message contains the option to book the SNAKE roller coaster
         And the message contains the option to book the TURTLE roller coaster
+

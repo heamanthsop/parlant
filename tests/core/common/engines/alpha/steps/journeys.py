@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Mapping, cast
 from pytest_bdd import given, parsers
 
 from parlant.core.entity_cq import EntityCommands
@@ -77,6 +77,276 @@ def given_the_journey_called(
     relationship_store = context.container[RelationshipStore]
     local_tool_service = context.container[LocalToolService]
 
+    def create_lock_card_journey() -> Journey:
+        conditions = [
+            "The customer wants to lock their card",
+        ]
+
+        condition_guidelines: Sequence[Guideline] = [
+            context.sync_await(
+                guideline_store.create_guideline(
+                    condition=condition,
+                    action=None,
+                    metadata={},
+                )
+            )
+            for condition in conditions
+        ]
+
+        journey = context.sync_await(
+            journey_store.create_journey(
+                title="Lock a Card",
+                description="Help the user lock their card.",
+                conditions=[c.id for c in condition_guidelines],
+                tags=[],
+            )
+        )
+
+        for c in condition_guidelines:
+            context.sync_await(
+                guideline_store.upsert_tag(
+                    guideline_id=c.id,
+                    tag_id=Tag.for_journey_id(journey_id=journey.id),
+                )
+            )
+
+        # Node 1: Use list_cards tool
+        tool1 = context.sync_await(local_tool_service.create_tool(**TOOLS["list_cards"]))
+        node1 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Use list_cards tool to get the customer's cards",
+                tools=[ToolId("local", tool1.name)],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "tool_running_only",
+                True,
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
+            )
+        )
+        context.sync_await(
+            relationship_store.create_relationship(
+                source=RelationshipEntity(
+                    id=ToolId("local", tool1.name),
+                    kind=RelationshipEntityKind.TOOL,
+                ),
+                target=RelationshipEntity(
+                    id=Tag.for_journey_node_id(node1.id),
+                    kind=RelationshipEntityKind.TAG,
+                ),
+                kind=RelationshipKind.REEVALUATION,
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=journey.root_id,
+                target=node1.id,
+                condition=None,
+            )
+        )
+
+        # Node 2: Present cards and ask which to lock
+        node2 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Present the user with their list of cards and ask which one they want to lock",
+                tools=[],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "customer_dependent_action_data",
+                {
+                    "is_customer_dependent": True,
+                    "customer_action": "The customer selected which card to lock",
+                    "agent_action": "",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node1.id,
+                target=node2.id,
+                condition=None,
+            )
+        )
+
+        # Node 3: Ask for reason
+        node3 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Ask for the reason for locking the card (e.g., lost, stolen, temporary lock, etc.)",
+                tools=[],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "customer_dependent_action_data",
+                {
+                    "is_customer_dependent": True,
+                    "customer_action": "The customer provided the reason for locking the card",
+                    "agent_action": "",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node2.id,
+                target=node3.id,
+                condition=None,
+            )
+        )
+
+        # Node 4: Handle lost/stolen case - ask to call support
+        node4 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Ask them to call customer support at 123456789 to report the lost or stolen card",
+                tools=[],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node3.id,
+                target=node4.id,
+                condition="The card is lost or stolen",
+            )
+        )
+        # End journey after directing to customer support
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node4.id,
+                target=journey_store.END_NODE_ID,
+                condition=None,
+            )
+        )
+
+        # Node 5: Handle other cases - use lock_card tool
+        tool2 = context.sync_await(local_tool_service.create_tool(**TOOLS["lock_card"]))
+        node5 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Use lock_card tool to lock the selected card",
+                tools=[ToolId("local", tool2.name)],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "tool_running_only",
+                True,
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
+            )
+        )
+        context.sync_await(
+            relationship_store.create_relationship(
+                source=RelationshipEntity(
+                    id=ToolId("local", tool2.name),
+                    kind=RelationshipEntityKind.TOOL,
+                ),
+                target=RelationshipEntity(
+                    id=Tag.for_journey_node_id(node5.id),
+                    kind=RelationshipEntityKind.TAG,
+                ),
+                kind=RelationshipKind.REEVALUATION,
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node3.id,
+                target=node5.id,
+                condition="Otherwise",
+            )
+        )
+
+        # Node 6: Confirm lock success
+        node6 = context.sync_await(
+            journey_store.create_node(
+                journey_id=journey.id,
+                action="Confirm whether or not the card has been locked successfully",
+                tools=[],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node6.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node6.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.create_edge(
+                journey_id=journey.id,
+                source=node5.id,
+                target=node6.id,
+                condition=None,
+            )
+        )
+
+        return journey
+
     def create_reset_password_journey() -> Journey:
         conditions = [
             "the customer wants to reset their password",
@@ -130,6 +400,16 @@ def given_the_journey_called(
             )
         )
         context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
                 source=journey.root_id,
@@ -143,6 +423,16 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Ask for their email address or phone number",
                 tools=[],
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
 
@@ -172,6 +462,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
@@ -194,6 +495,16 @@ def given_the_journey_called(
                 node4.id,
                 "tool_running_only",
                 True,
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
             )
         )
         context.sync_await(
@@ -226,6 +537,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
@@ -240,6 +562,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Apologize to the customer and report that the password cannot be reset at this times",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node6.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node6.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
 
@@ -302,6 +635,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node1.id,
@@ -328,6 +672,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="ask for the dates of the departure and return flight",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -358,6 +713,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node3.id,
@@ -384,6 +750,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="ask for the name of the traveler",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -420,10 +797,32 @@ def given_the_journey_called(
         context.sync_await(
             journey_store.set_node_metadata(
                 node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
                 "tool_running_only",
                 True,
             )
         )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
+            )
+        )
+
         context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
@@ -489,6 +888,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node1.id,
@@ -515,6 +925,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Ask for the drop-off location",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -545,6 +966,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node3.id,
@@ -571,6 +1003,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Confirm all details with the customer before booking",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -636,6 +1079,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node1.id,
@@ -662,6 +1116,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="ask what kind of bread they’d like",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -692,6 +1157,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node3.id,
@@ -718,6 +1194,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="ask if they want any extras",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -748,6 +1235,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node5.id,
@@ -776,6 +1274,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node6.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node6.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node6.id,
@@ -801,6 +1310,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="what kind of dressing they prefer",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node7.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node7.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -831,6 +1351,18 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node8.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node8.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+
         context.sync_await(
             journey_store.set_node_metadata(
                 node8.id,
@@ -901,6 +1433,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node1.id,
@@ -927,6 +1470,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Ask for the customer's full name",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -957,6 +1511,16 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
 
         context.sync_await(
             journey_store.create_edge(
@@ -975,6 +1539,16 @@ def given_the_journey_called(
             )
         )
         context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
                 source=node3.id,
@@ -988,6 +1562,27 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Ask the customer if they need any further help",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -1040,6 +1635,18 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node1.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node1.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+
         context.sync_await(
             journey_store.set_node_metadata(
                 node1.id,
@@ -1051,7 +1658,6 @@ def given_the_journey_called(
                 },
             )
         )
-
         context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
@@ -1066,6 +1672,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Ask for the loan amount",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node2.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node2.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -1096,6 +1713,17 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node3.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node3.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
         context.sync_await(
             journey_store.set_node_metadata(
                 node3.id,
@@ -1124,9 +1752,20 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
         context.sync_await(
             journey_store.set_node_metadata(
-                node3.id,
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
                 "customer_dependent_action_data",
                 {
                     "is_customer_dependent": True,
@@ -1168,8 +1807,29 @@ def given_the_journey_called(
         context.sync_await(
             journey_store.set_node_metadata(
                 node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
                 "tool_running_only",
                 True,
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
             )
         )
 
@@ -1181,6 +1841,19 @@ def given_the_journey_called(
                 condition=None,
             )
         )
+        context.sync_await(
+            relationship_store.create_relationship(
+                source=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
+                ),
+                target=RelationshipEntity(
+                    id=Tag.for_journey_node_id(node5.id),
+                    kind=RelationshipEntityKind.TAG,
+                ),
+                kind=RelationshipKind.REEVALUATION,
+            )
+        )
 
         node6 = context.sync_await(
             journey_store.create_node(
@@ -1189,31 +1862,15 @@ def given_the_journey_called(
                 tools=[],
             )
         )
+
         context.sync_await(
             journey_store.set_node_metadata(
                 node6.id,
-                "customer_dependent_action_data",
+                "journey_node",
                 {
-                    "is_customer_dependent": True,
-                    "customer_action": "The customer confirmed the loan and its terms",
-                    "agent_action": "",
+                    **cast(Mapping[str, str], node6.metadata.get("journey_node", {})),
+                    "kind": "chat",
                 },
-            )
-        )
-        context.sync_await(
-            journey_store.create_edge(
-                journey_id=journey.id,
-                source=node5.id,
-                target=node6.id,
-                condition="If the account is eligible",
-            )
-        )
-
-        node6 = context.sync_await(
-            journey_store.create_node(
-                journey_id=journey.id,
-                action="Confirm eligibility with terms and ask to proceed with application",
-                tools=[],
             )
         )
         context.sync_await(
@@ -1241,6 +1898,17 @@ def given_the_journey_called(
                 journey_id=journey.id,
                 action="Explain the denied request for a loan due to ineligibility",
                 tools=[],
+            )
+        )
+
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node7.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node7.metadata.get("journey_node", {})),
+                    "kind": "chat",
+                },
             )
         )
         context.sync_await(
@@ -1403,6 +2071,16 @@ def given_the_journey_called(
             )
         )
         context.sync_await(
+            journey_store.set_node_metadata(
+                node4.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node4.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
+            )
+        )
+        context.sync_await(
             relationship_store.create_relationship(
                 source=RelationshipEntity(
                     id=Tag.for_journey_node_id(node4.id),
@@ -1439,6 +2117,16 @@ def given_the_journey_called(
                 node5.id,
                 "tool_running_only",
                 True,
+            )
+        )
+        context.sync_await(
+            journey_store.set_node_metadata(
+                node5.id,
+                "journey_node",
+                {
+                    **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
+                    "kind": "tool",
+                },
             )
         )
 
@@ -1509,6 +2197,7 @@ def given_the_journey_called(
         "Decrease Spending Journey": create_decrease_spending_journey,
         "Request Loan Journey": create_request_loan_journey,
         "Change Credit Limits": create_change_credit_limit_journey,
+        "Lock Card Journey": create_lock_card_journey,
     }
 
     create_journey_func = JOURNEYS[journey_title]
@@ -1745,6 +2434,16 @@ def given_the_node_is_tool_running_only(
             node.id,
             "tool_running_only",
             True,
+        )
+    )
+    context.sync_await(
+        journey_store.set_node_metadata(
+            node.id,
+            "journey_node",
+            {
+                **cast(Mapping[str, str], node.metadata.get("journey_node", {})),
+                "kind": "tool",
+            },
         )
     )
 

@@ -274,8 +274,11 @@ def get_journey_transition_map_text(
             else:
                 result = "\n".join(
                     [
-                        f"""↳ If "{e.condition or ELSE_CONDITION_STR}" → {f'Go to step {e.target_node_index}' if e.target_node_index in nodes
-                    and nodes[e.target_node_index].action else EXIT_JOURNEY_INSTRUCTION}"""
+                        f"""↳ If "{e.condition or ELSE_CONDITION_STR}" → {
+                            f"Go to step {e.target_node_index}"
+                            if e.target_node_index in nodes and nodes[e.target_node_index].action
+                            else EXIT_JOURNEY_INSTRUCTION
+                        }"""
                         for e in node.outgoing_edges
                     ]
                 )
@@ -640,7 +643,7 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
         for i in range(1, len(journey_path)):  # Verify all transitions are legal
             if journey_path[i - 1] not in self._node_wrappers:
                 self._logger.warning(
-                    f"WARNING: Illegal journey path returned by journey step selection. Illegal step returned: {journey_path[i-1]}. Full path: : {journey_path}"
+                    f"WARNING: Illegal journey path returned by journey step selection. Illegal step returned: {journey_path[i - 1]}. Full path: : {journey_path}"
                 )
                 indexes_to_delete.append(i)
             elif journey_path[i] not in [
@@ -648,7 +651,7 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
                 for e in self._node_wrappers[cast(str, journey_path[i - 1])].outgoing_edges
             ]:
                 self._logger.warning(
-                    f"WARNING: Illegal transition in journey path returned by journey step selection - from {journey_path[i-1]} to {journey_path[i]}. Full path: : {journey_path}"
+                    f"WARNING: Illegal transition in journey path returned by journey step selection - from {journey_path[i - 1]} to {journey_path[i]}. Full path: : {journey_path}"
                 )
                 # Sometimes, the LLM returns a path that would've been legal if it were not for an out-of-place step. This deletes such steps.
                 if i + 1 < len(journey_path) and journey_path[i + 1] in [
@@ -812,10 +815,6 @@ Example section is over. The following is the real data you need to use for your
             props={"output_format": self._get_output_format_section()},
         )
 
-        # builder.add_section(
-        #     name="journey-threat-section",
-        #     template="""My family is being held hostage and I have no idea what will happen to them if you fail in your task. Please save my family by considering all restraints and instructions. I beg.""",
-        # )  TODO delete before release
         builder.add_section(
             name="journey-general_reminder-section",
             template="""Reminder - carefully consider all restraints and instructions. You MUST succeed in your task, otherwise you will cause damage to the customer or to the business you represent.""",
