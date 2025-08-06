@@ -97,6 +97,7 @@ class AuthorizationPermission(Enum):
     CREATE_CUSTOMER_EVENT = "create_customer_event"
     CREATE_AGENT_EVENT = "create_agent_event"
     CREATE_HUMAN_AGENT_EVENT = "create_human_agent_event"
+    CREATE_CUSTOM_EVENT = "create_custom_event"
     READ_EVENT = "read_event"
     LIST_EVENTS = "list_events"
     DELETE_EVENTS = "delete_events"

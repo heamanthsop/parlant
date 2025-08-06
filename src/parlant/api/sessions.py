@@ -269,6 +269,7 @@ class EventCreationParamsDTO(
     kind: EventKindDTO
     source: EventSourceDTO
     message: Optional[SessionEventCreationParamsMessageField] = None
+    data: Optional[JSONSerializableDTO] = None
     actions: Optional[list[CannedResponseRequestDTO]] = None
 
 
@@ -1495,31 +1496,39 @@ def create_router(
 
         Currently supports creating message events from customer and human agent sources."""
 
-        if params.kind != EventKindDTO.MESSAGE:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Only message events can currently be added manually",
+        if params.kind == EventKindDTO.MESSAGE:
+            if params.source == EventSourceDTO.CUSTOMER:
+                await authorization_policy.ensure(
+                    request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_EVENT
+                )
+                return await _add_customer_message(session_id, params, moderation)
+            elif params.source == EventSourceDTO.AI_AGENT:
+                await authorization_policy.ensure(
+                    request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
+                )
+                return await _add_agent_message(session_id, params)
+            elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
+                await authorization_policy.ensure(
+                    request=request, permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
+                )
+                return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail='Only "customer" and "human_agent_on_behalf_of_ai_agent" sources are supported for direct posting.',
+                )
+
+        elif params.kind == EventKindDTO.CUSTOM:
+            await authorization_policy.ensure(
+                request=request, permission=AuthorizationPermission.CREATE_CUSTOM_EVENT
             )
 
-        if params.source == EventSourceDTO.CUSTOMER:
-            await authorization_policy.ensure(
-                request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_EVENT
-            )
-            return await _add_customer_message(session_id, params, moderation)
-        elif params.source == EventSourceDTO.AI_AGENT:
-            await authorization_policy.ensure(
-                request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
-            )
-            return await _add_agent_message(session_id, params)
-        elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
-            await authorization_policy.ensure(
-                request=request, permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
-            )
-            return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
+            return await _add_custom_event(session_id, params)
+
         else:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail='Only "customer" and "human_agent_on_behalf_of_ai_agent" sources are supported for direct posting.',
+                detail="Only message and custom events can currently be added manually",
             )
 
     async def _add_customer_message(
@@ -1646,6 +1655,35 @@ def create_router(
             kind=_event_kind_dto_to_event_kind(params.kind),
             data=message_data,
             source=EventSource.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT,
+            trigger_processing=False,
+        )
+
+        return EventDTO(
+            id=event.id,
+            source=_event_source_to_event_source_dto(event.source),
+            kind=_event_kind_to_event_kind_dto(event.kind),
+            offset=event.offset,
+            creation_utc=event.creation_utc,
+            correlation_id=event.correlation_id,
+            data=cast(JSONSerializableDTO, event.data),
+            deleted=event.deleted,
+        )
+
+    async def _add_custom_event(
+        session_id: SessionIdPath,
+        params: EventCreationParamsDTO,
+    ) -> EventDTO:
+        if not params.data:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Missing 'data' field for custom event",
+            )
+
+        event = await application.post_event(
+            session_id=session_id,
+            kind=_event_kind_dto_to_event_kind(params.kind),
+            data=params.data,
+            source=_event_source_dto_to_event_source(params.source),
             trigger_processing=False,
         )
 

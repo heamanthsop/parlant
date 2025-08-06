@@ -15,7 +15,7 @@
 import asyncio
 import os
 import time
-from typing import Any, cast
+from typing import Any
 import dateutil
 from fastapi import status
 import httpx
@@ -24,9 +24,7 @@ from pytest import fixture, mark
 from datetime import datetime, timezone
 
 from parlant.core.common import generate_id
-from parlant.core.engines.alpha.message_generator import MessageSchema
 from parlant.core.canned_responses import CannedResponseStore
-from parlant.core.nlp.service import NLPService
 from parlant.core.tools import ToolResult
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams, CompositionMode
 from parlant.core.async_utils import Timeout
@@ -35,7 +33,6 @@ from parlant.core.sessions import (
     AgentState,
     EventKind,
     EventSource,
-    MessageEventData,
     SessionId,
     SessionListener,
     SessionStore,
@@ -47,7 +44,6 @@ from tests.test_utilities import (
     create_guideline,
     create_session,
     post_message,
-    read_reply,
 )
 
 
@@ -849,68 +845,6 @@ async def test_that_delete_events_raises_if_not_first_of_correlation_id(
     )
 
 
-async def test_that_a_message_is_generated_using_the_active_nlp_service(
-    async_client: httpx.AsyncClient,
-    container: Container,
-    agent_id: AgentId,
-) -> None:
-    nlp_service = container[NLPService]
-
-    customer = await create_customer(
-        container=container,
-        name="John Smith",
-    )
-
-    session = await create_session(
-        container=container,
-        agent_id=agent_id,
-        customer_id=customer.id,
-    )
-
-    _ = await create_guideline(
-        container=container,
-        agent_id=agent_id,
-        condition="a customer asks what the cow says",
-        action="answer 'Woof Woof'",
-    )
-
-    customer_event = await post_message(
-        container=container,
-        session_id=session.id,
-        message="What does the cow say?!",
-        response_timeout=Timeout(60),
-    )
-
-    reply_event = await read_reply(
-        container=container,
-        session_id=session.id,
-        customer_event_offset=customer_event.offset,
-    )
-
-    inspection_data = (
-        (await async_client.get(f"/sessions/{session.id}/events/{reply_event.id}"))
-        .raise_for_status()
-        .json()["trace"]
-    )
-
-    assert "Woof Woof" in cast(MessageEventData, reply_event.data)["message"]
-
-    message_generation_inspections = inspection_data["message_generations"]
-    assert len(message_generation_inspections) >= 1
-
-    message_generation = message_generation_inspections[0]["generations"]["message_generation"]
-
-    assert message_generation["schema_name"] == "MessageSchema"
-
-    schematic_generator = await nlp_service.get_schematic_generator(MessageSchema)
-    assert message_generation["model"] == schematic_generator.id
-
-    assert message_generation["usage"]["input_tokens"] > 0
-
-    assert "Woof Woof" in message_generation_inspections[0]["messages"][0]
-    assert message_generation["usage"]["output_tokens"] >= 2
-
-
 async def test_that_an_agent_message_can_be_regenerated(
     async_client: httpx.AsyncClient,
     container: Container,
@@ -1155,3 +1089,71 @@ async def test_that_agent_state_is_deleted_when_deleting_events(
     session = await session_store.read_session(session_id)
 
     assert len(session.agent_states) == 1
+
+
+async def test_that_a_custom_event_can_be_read(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    session_id: SessionId,
+) -> None:
+    custom_event_data = {
+        "account_balance": "999",
+        "currency": "dollars",
+    }
+
+    session_events = [
+        make_event_params(
+            EventSource.CUSTOMER,
+            data=custom_event_data,
+            kind=EventKind.CUSTOM,
+        ),
+    ]
+
+    await populate_session_id(container, session_id, session_events)
+
+    data = (await async_client.get(f"/sessions/{session_id}/events")).raise_for_status().json()
+
+    assert len(data) == 1
+    event = data[0]
+    assert event["kind"] == EventKind.CUSTOM.value
+    assert event["source"] == EventSource.CUSTOMER.value
+    assert event["data"] == custom_event_data
+
+
+async def test_that_a_custom_event_can_be_created(
+    async_client: httpx.AsyncClient,
+    container: Container,
+    session_id: SessionId,
+) -> None:
+    session_store = container[SessionStore]
+
+    custom_event_data = {
+        "account_balance": "999",
+        "currency": "dollars",
+    }
+
+    response = await async_client.post(
+        f"/sessions/{session_id}/events",
+        json={
+            "kind": EventKind.CUSTOM.value,
+            "source": EventSource.CUSTOMER.value,
+            "data": custom_event_data,
+        },
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    event = response.json()
+
+    assert event["kind"] == EventKind.CUSTOM.value
+    assert event["source"] == EventSource.CUSTOMER.value
+    assert event["data"] == custom_event_data
+
+    events = await session_store.list_events(
+        session_id=session_id,
+        kinds=[EventKind.CUSTOM],
+    )
+
+    assert len(events) == 1
+    assert events[0].kind == EventKind.CUSTOM
+    assert events[0].source == EventSource.CUSTOMER
+    assert events[0].data == custom_event_data
