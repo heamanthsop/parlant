@@ -1810,7 +1810,7 @@ def given_the_journey_called(
                 "journey_node",
                 {
                     **cast(Mapping[str, str], node5.metadata.get("journey_node", {})),
-                    "kind": "chat",
+                    "kind": "tool",
                 },
             )
         )
@@ -1839,6 +1839,19 @@ def given_the_journey_called(
                 source=node4.id,
                 target=node5.id,
                 condition=None,
+            )
+        )
+        context.sync_await(
+            relationship_store.create_relationship(
+                source=RelationshipEntity(
+                    id=ToolId("local", tool.name),
+                    kind=RelationshipEntityKind.TOOL,
+                ),
+                target=RelationshipEntity(
+                    id=Tag.for_journey_node_id(node5.id),
+                    kind=RelationshipEntityKind.TAG,
+                ),
+                kind=RelationshipKind.REEVALUATION,
             )
         )
 
@@ -1871,15 +1884,6 @@ def given_the_journey_called(
                 },
             )
         )
-        context.sync_await(
-            journey_store.create_edge(
-                journey_id=journey.id,
-                source=node5.id,
-                target=node6.id,
-                condition="If the account is eligible",
-            )
-        )
-
         context.sync_await(
             journey_store.create_edge(
                 journey_id=journey.id,
