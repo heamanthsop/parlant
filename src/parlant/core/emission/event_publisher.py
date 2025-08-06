@@ -105,6 +105,23 @@ class EventPublisher(EventEmitter):
 
         return event
 
+    @override
+    async def emit_custom_event(
+        self,
+        correlation_id: str,
+        data: JSONSerializable,
+    ) -> EmittedEvent:
+        event = EmittedEvent(
+            source=EventSource.AI_AGENT,
+            kind=EventKind.CUSTOM,
+            correlation_id=correlation_id,
+            data=data,
+        )
+
+        await self._publish_event(event)
+
+        return event
+
     async def _publish_event(
         self,
         event: EmittedEvent,

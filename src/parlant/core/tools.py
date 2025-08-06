@@ -96,6 +96,7 @@ class ToolContext:
                 Awaitable[None],
             ]
         ] = None,
+        emit_custom: Optional[Callable[[JSONSerializable], Awaitable[None]]] = None,
         plugin_data: Mapping[str, Any] = {},
         # this plugin data is used to pass data that is required by the plugin and doesn't go through the LLM evaluation
     ) -> None:
@@ -105,6 +106,7 @@ class ToolContext:
         self.plugin_data = plugin_data
         self._emit_message = emit_message
         self._emit_status = emit_status
+        self._emit_custom = emit_custom
 
     async def emit_message(self, message: str) -> None:
         """Directly emit a message to the session."""
@@ -121,6 +123,12 @@ class ToolContext:
 
         assert self._emit_status
         await self._emit_status(status, data)
+
+    async def emit_custom(self, data: JSONSerializable) -> None:
+        """Directly emit a custom event to the session."""
+
+        assert self._emit_custom
+        await self._emit_custom(data)
 
 
 class ControlOptions(TypedDict, total=False):

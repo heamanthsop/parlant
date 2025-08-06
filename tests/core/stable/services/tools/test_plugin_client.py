@@ -262,6 +262,7 @@ async def test_that_a_plugin_tool_can_emit_events(
         await context.emit_status("typing", {"tool": "my_tool"})
         await context.emit_message("Hello, cherry-pie!")
         await context.emit_message("How are you?")
+        await context.emit_custom({"Custom": "Event"})
         return ToolResult({"number": 123})
 
     buffers = SessionBuffers(container[AgentStore])
@@ -279,7 +280,7 @@ async def test_that_a_plugin_tool_can_emit_events(
 
             emitted_events = buffers.for_session[SessionId(tool_context.session_id)].events
 
-            assert len(emitted_events) == 3
+            assert len(emitted_events) == 4
 
             assert emitted_events[0].kind == EventKind.STATUS
             assert emitted_events[0].data == {"status": "typing", "data": {"tool": "my_tool"}}
@@ -295,6 +296,9 @@ async def test_that_a_plugin_tool_can_emit_events(
                 "message": "How are you?",
                 "participant": {"id": agent.id, "display_name": agent.name},
             }
+
+            assert emitted_events[3].kind == EventKind.CUSTOM
+            assert emitted_events[3].data == {"Custom": "Event"}
 
             assert result.data == {"number": 123}
 

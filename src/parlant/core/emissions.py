@@ -67,6 +67,15 @@ class EventEmitter(ABC):
         """Emit a tool event with the given correlation ID and data."""
         ...
 
+    @abstractmethod
+    async def emit_custom_event(
+        self,
+        correlation_id: str,
+        data: JSONSerializable,
+    ) -> EmittedEvent:
+        """Emit a custom event with the given correlation ID and data."""
+        ...
+
 
 class EventEmitterFactory(ABC):
     """An interface for creating event emitters."""

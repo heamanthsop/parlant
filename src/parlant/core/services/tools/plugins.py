@@ -684,12 +684,18 @@ class PluginServer:
                     chunks.append(json.dumps({"status": status, "data": data}))
                 chunks_received.release()
 
+            async def emit_custom(data: JSONSerializable) -> None:
+                async with lock:
+                    chunks.append(json.dumps({"custom": data}))
+                chunks_received.release()
+
             context = ToolContext(
                 agent_id=request.agent_id,
                 session_id=request.session_id,
                 customer_id=request.customer_id,
                 emit_message=emit_message,
                 emit_status=emit_status,
+                emit_custom=emit_custom,
                 plugin_data=self.plugin_data,
             )
 
@@ -917,6 +923,11 @@ class PluginClient(ToolService):
                         await event_emitter.emit_message_event(
                             correlation_id=self._correlator.correlation_id,
                             data=str(chunk_dict["message"]),
+                        )
+                    elif "custom" in chunk_dict:
+                        await event_emitter.emit_custom_event(
+                            correlation_id=self._correlator.correlation_id,
+                            data=chunk_dict["custom"],
                         )
                     elif "error" in chunk_dict:
                         raise ToolExecutionError(

@@ -98,6 +98,23 @@ class EventBuffer(EventEmitter):
 
         return event
 
+    @override
+    async def emit_custom_event(
+        self,
+        correlation_id: str,
+        data: JSONSerializable,
+    ) -> EmittedEvent:
+        event = EmittedEvent(
+            source=EventSource.AI_AGENT,
+            kind=EventKind.CUSTOM,
+            correlation_id=correlation_id,
+            data=data,
+        )
+
+        self.events.append(event)
+
+        return event
+
 
 class EventBufferFactory(EventEmitterFactory):
     def __init__(self, agent_store: AgentStore) -> None:
