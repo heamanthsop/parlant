@@ -744,11 +744,11 @@ Check if the customer has changed a previous decision that requires returning to
 ## 3: Current Step Completion
 Evaluate whether the last executed step is complete:
 - For CUSTOMER_DEPENDENT steps: Customer has provided the required information (either after being asked or proactively in earlier messages. If so, set completed to 'completed'.
- If not, set completed to 'needs_customer_input' and do not advance past this step. 
-- For REQUIRES AGENT ACTION steps: The agent has performed the required communication or action. If so, set completed to 'completed'. If not, set completed to 'needs_agent_action' 
-and do not advance past this step. 
-- For REQUIRES_TOOL_CALLS steps: The step requires a tool call that has been executed. If so, set completed to 'completed'. If not, set completed to 'needs_tool_call' and do not 
-advance past this step. 
+ If not, set completed to 'needs_customer_input' and do not advance past this step.
+- For REQUIRES AGENT ACTION steps: The agent has performed the required communication or action. If so, set completed to 'completed'. If not, set completed to 'needs_agent_action'
+and do not advance past this step.
+- For REQUIRES_TOOL_CALLS steps: The step requires a tool call that has been executed. If so, set completed to 'completed'. If not, set completed to 'needs_tool_call' and do not
+advance past this step.
 - If the last step is incomplete, set next_step to the current step ID (repeat the step) and document this in the step_advancement array.
 
 ## 4: Journey Advancement
@@ -758,12 +758,12 @@ At each completed step, carefully evaluate the follow-up steps from the 'transit
 Base advancement decisions strictly on these transitions and their conditions — never jump to a step whose condition was not met, even if you believe it should logically be executed next.
 Pleasing the customer is not a valid reason to violate the transitions - always traverse to the next step according to its conditions.
 
-Document your advancement path in step_advancement as a list of step advancement objects, starting with the last_step and ending with the next step to execute. Each step must be a legal 
+Document your advancement path in step_advancement as a list of step advancement objects, starting with the last_step and ending with the next step to execute. Each step must be a legal
 follow-up of the previous step, and you can only advance if the previous step was completed.
 
 Continue advancing until you encounter:
 - A step requiring a tool call (REQUIRES_TOOL_CALLS flag)
-- A step where you lack necessary information to proceed 
+- A step where you lack necessary information to proceed
 - A step requiring you to communicate something new to the customer, beyond asking them for information (REQUIRES AGENT ACTION flag)
 
 **Special handling for journey exits**:
@@ -841,7 +841,7 @@ OUTPUT FORMAT
     {{
         "id": "<str, id of the step. First one should be either {last_node} or backtracking_target_step if it exists>",
         "completed": <str, either 'completed' or 'needs_customer_input' or 'needs_agent_action' or 'needs_tool_call'>,
-        "follow_ups": "<list[str], ids of legal follow ups for this step. Omit if completed is false>"
+        "follow_ups": "<list[str], ids of legal follow ups for this step. Omit if completed is not 'completed'>"
     }},
     ... <additional step advancements, as necessary>
   ],
