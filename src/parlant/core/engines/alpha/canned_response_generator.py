@@ -82,7 +82,7 @@ class NoMatchProvider(ABC):
     def get(self, context: LoadedContext) -> CannedResponse: ...
 
 
-class DefaultNoMatchProvider(NoMatchProvider):
+class BasicNoMatchProvider(NoMatchProvider):
     @override
     def get(self, context: LoadedContext) -> CannedResponse:
         return CannedResponse.create_transient(DEFAULT_NO_MATCH_CANREP)

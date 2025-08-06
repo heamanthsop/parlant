@@ -162,6 +162,10 @@ from parlant.core.journeys import (
 )
 from parlant.core.loggers import LogLevel, Logger
 from parlant.core.nlp.service import NLPService
+from parlant.core.engines.alpha.canned_response_generator import (
+    NoMatchProvider,
+    BasicNoMatchProvider,
+)
 from parlant.core.engines.alpha.optimization_policy import (
     OptimizationPolicy,
     BasicOptimizationPolicy,
@@ -2947,6 +2951,8 @@ __all__ = [
     "PerceivedPerformancePolicy",
     "BasicPerceivedPerformancePolicy",
     "NullPerceivedPerformancePolicy",
+    "NoMatchProvider",
+    "BasicNoMatchProvider",
     "PluginServer",
     "RelationshipEntity",
     "RelationshipEntityId",
