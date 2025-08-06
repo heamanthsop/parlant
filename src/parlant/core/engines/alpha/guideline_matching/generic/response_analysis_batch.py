@@ -37,7 +37,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     ResponseAnalysisBatch,
     ResponseAnalysisBatchError,
     ResponseAnalysisBatchResult,
-    ReportAnalysisContext,
+    ResponseAnalysisContext,
 )
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.engines.alpha.prompt_builder import BuiltInSection, PromptBuilder
@@ -82,7 +82,7 @@ class GenericResponseAnalysisBatch(ResponseAnalysisBatch):
         logger: Logger,
         optimization_policy: OptimizationPolicy,
         schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
-        context: ReportAnalysisContext,
+        context: ResponseAnalysisContext,
         guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
         self._logger = logger

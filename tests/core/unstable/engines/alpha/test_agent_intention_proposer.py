@@ -32,7 +32,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_bat
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
-    ReportAnalysisContext,
+    ResponseAnalysisContext,
 )
 from parlant.core.engines.alpha.loaded_context import Interaction, LoadedContext, ResponseState
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
@@ -273,7 +273,7 @@ def analyze_response_and_update_session(
         logger=context.container[Logger],
         optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
-        context=ReportAnalysisContext(
+        context=ResponseAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,

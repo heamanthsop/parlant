@@ -94,6 +94,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.observational_batch i
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatcher,
     GuidelineMatchingStrategyResolver,
+    ResponseAnalysisBatch,
 )
 from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.optimization_policy import (
@@ -409,6 +410,40 @@ async def load_modules(
                 await shutdown_module()
 
 
+def _define_singleton(container: Container, interface: type, implementation: type) -> None:
+    try:
+        container[implementation] = Singleton(implementation)
+
+        if interface != implementation:
+            container[interface] = lambda c: c[implementation]
+    except BaseException:
+        rich.print(
+            rich.text.Text(
+                f"Error adding {implementation} as implementation for {interface}",
+                style="bold red",
+            )
+        )
+        raise
+
+
+def _define_singleton_value(container: Container, interface: type, implementation: Any) -> None:
+    implementation_type = getattr(implementation, "__orig_class__", type(implementation))
+
+    try:
+        container[implementation_type] = implementation
+
+        if interface != implementation_type:
+            container[interface] = lambda c: c[implementation_type]
+    except BaseException:
+        rich.print(
+            rich.text.Text(
+                f"Error adding {implementation_type} instance as implementation for {interface}",
+                style="bold red",
+            )
+        )
+        raise
+
+
 @asynccontextmanager
 async def setup_container() -> AsyncIterator[Container]:
     c = Container()
@@ -419,58 +454,104 @@ async def setup_container() -> AsyncIterator[Container]:
     c[WebSocketLogger] = web_socket_logger
     c[Logger] = CompositeLogger([LOGGER, web_socket_logger])
 
-    c[IdGenerator] = Singleton(IdGenerator)
+    _define_singleton(c, IdGenerator, IdGenerator)
 
-    c[ShotCollection[GenericResponseAnalysisShot]] = response_analysis_batch.shot_collection
-    c[ShotCollection[GenericPreviouslyAppliedActionableGuidelineGuidelineMatchingShot]] = (
-        guideline_previously_applied_actionable_batch.shot_collection
+    _define_singleton_value(
+        c, ShotCollection[GenericResponseAnalysisShot], response_analysis_batch.shot_collection
     )
-    c[ShotCollection[GenericActionableGuidelineGuidelineMatchingShot]] = (
-        guideline_actionable_batch.shot_collection
+    _define_singleton_value(
+        c,
+        ShotCollection[GenericPreviouslyAppliedActionableGuidelineGuidelineMatchingShot],
+        guideline_previously_applied_actionable_batch.shot_collection,
     )
-    c[ShotCollection[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot]] = (
-        guideline_previously_applied_actionable_customer_dependent_batch.shot_collection
+    _define_singleton_value(
+        c,
+        ShotCollection[GenericActionableGuidelineGuidelineMatchingShot],
+        guideline_actionable_batch.shot_collection,
     )
-    c[ShotCollection[GenericObservationalGuidelineMatchingShot]] = (
-        observational_batch.shot_collection
+    _define_singleton_value(
+        c,
+        ShotCollection[GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatchingShot],
+        guideline_previously_applied_actionable_customer_dependent_batch.shot_collection,
     )
-    c[ShotCollection[SingleToolBatchShot]] = single_tool_batch.shot_collection
-    c[ShotCollection[MessageGeneratorShot]] = message_generator.shot_collection
-
-    c[EngineHooks] = EngineHooks()
-    c[EventEmitterFactory] = Singleton(EventPublisherFactory)
-
-    c[EntityQueries] = Singleton(EntityQueries)
-    c[EntityCommands] = Singleton(EntityCommands)
-
-    c[ToolEventGenerator] = Singleton(ToolEventGenerator)
-    c[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
-    c[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
-    c[NoMatchResponseProvider] = Singleton(BasicNoMatchResponseProvider)
-    c[MessageGenerator] = Singleton(MessageGenerator)
-    c[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
-    c[OptimizationPolicy] = Singleton(BasicOptimizationPolicy)
-
-    c[GuidelineConnectionProposer] = Singleton(GuidelineConnectionProposer)
-    c[CoherenceChecker] = Singleton(CoherenceChecker)
-    c[GuidelineActionProposer] = Singleton(GuidelineActionProposer)
-    c[GuidelineContinuousProposer] = Singleton(GuidelineContinuousProposer)
-    c[CustomerDependentActionDetector] = Singleton(CustomerDependentActionDetector)
-    c[ToolRunningActionDetector] = ToolRunningActionDetector
-
-    c[JourneyGuidelineProjection] = Singleton(JourneyGuidelineProjection)
-
-    c[LegacyBehavioralChangeEvaluator] = Singleton(LegacyBehavioralChangeEvaluator)
-    c[BehavioralChangeEvaluator] = Singleton(BehavioralChangeEvaluator)
-    c[EvaluationListener] = Singleton(PollingEvaluationListener)
-
-    c[AuthorizationPolicy] = (
-        Singleton(ProductionAuthorizationPolicy)
-        if os.environ.get("PARLANT_ENV") == "production"
-        else Singleton(DevelopmentAuthorizationPolicy)
+    _define_singleton_value(
+        c,
+        ShotCollection[GenericObservationalGuidelineMatchingShot],
+        observational_batch.shot_collection,
+    )
+    _define_singleton_value(
+        c, ShotCollection[SingleToolBatchShot], single_tool_batch.shot_collection
+    )
+    _define_singleton_value(
+        c, ShotCollection[MessageGeneratorShot], message_generator.shot_collection
     )
 
-    c[Engine] = Singleton(AlphaEngine)
+    _define_singleton_value(c, EngineHooks, EngineHooks())
+
+    _define_singleton(c, EventEmitterFactory, EventPublisherFactory)
+
+    _define_singleton(c, EntityQueries, EntityQueries)
+    _define_singleton(c, EntityCommands, EntityCommands)
+
+    _define_singleton(c, ToolEventGenerator, ToolEventGenerator)
+    _define_singleton(c, CannedResponseFieldExtractor, CannedResponseFieldExtractor)
+    _define_singleton(c, CannedResponseGenerator, CannedResponseGenerator)
+    _define_singleton(c, NoMatchResponseProvider, BasicNoMatchResponseProvider)
+    _define_singleton(c, MessageGenerator, MessageGenerator)
+    _define_singleton(c, PerceivedPerformancePolicy, BasicPerceivedPerformancePolicy)
+    _define_singleton(c, OptimizationPolicy, BasicOptimizationPolicy)
+
+    _define_singleton(c, GuidelineConnectionProposer, GuidelineConnectionProposer)
+    _define_singleton(c, CoherenceChecker, CoherenceChecker)
+    _define_singleton(c, GuidelineActionProposer, GuidelineActionProposer)
+    _define_singleton(c, GuidelineContinuousProposer, GuidelineContinuousProposer)
+    _define_singleton(c, CustomerDependentActionDetector, CustomerDependentActionDetector)
+    _define_singleton(c, ToolRunningActionDetector, ToolRunningActionDetector)
+
+    _define_singleton(c, JourneyGuidelineProjection, JourneyGuidelineProjection)
+
+    _define_singleton(c, LegacyBehavioralChangeEvaluator, LegacyBehavioralChangeEvaluator)
+    _define_singleton(c, BehavioralChangeEvaluator, BehavioralChangeEvaluator)
+    _define_singleton(c, EvaluationListener, PollingEvaluationListener)
+
+    _define_singleton(c, ResponseAnalysisBatch, GenericResponseAnalysisBatch)
+    _define_singleton(c, ObservationalGuidelineMatching, ObservationalGuidelineMatching)
+    _define_singleton(
+        c,
+        GenericPreviouslyAppliedActionableGuidelineMatching,
+        GenericPreviouslyAppliedActionableGuidelineMatching,
+    )
+    _define_singleton(c, GenericActionableGuidelineMatching, GenericActionableGuidelineMatching)
+    _define_singleton(
+        c,
+        GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching,
+        GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching,
+    )
+
+    _define_singleton(
+        c, GuidelineMatchingStrategyResolver, GenericGuidelineMatchingStrategyResolver
+    )
+
+    _define_singleton(c, GuidelineMatcher, GuidelineMatcher)
+
+    _define_singleton(c, ToolCallBatcher, DefaultToolCallBatcher)
+    _define_singleton(c, ToolCaller, ToolCaller)
+
+    _define_singleton(c, RelationalGuidelineResolver, RelationalGuidelineResolver)
+
+    _define_singleton(
+        c,
+        AuthorizationPolicy,
+        (
+            ProductionAuthorizationPolicy
+            if os.environ.get("PARLANT_ENV") == "production"
+            else DevelopmentAuthorizationPolicy
+        ),
+    )
+
+    _define_singleton(c, Engine, AlphaEngine)
+
+    # The application object requires the actual container
     c[Application] = lambda rc: Application(rc)
 
     yield c
@@ -484,7 +565,10 @@ async def initialize_container(
 ) -> None:
     def try_define(t: type, value: object) -> None:
         if t not in c.defined_types:
-            c[t] = value
+            if isinstance(value, type):
+                _define_singleton(c, t, value)
+            else:
+                _define_singleton_value(c, t, value)
 
     async def try_define_func(
         t: type,
@@ -494,12 +578,11 @@ async def initialize_container(
             c[t] = await value_func()
 
     async def try_define_document_store(
-        id_generator: IdGenerator,
-        store_type: type,
-        store_doc_type: type,
+        store_interface: type,
+        store_implementation: type,
         filename: str,
     ) -> None:
-        if store_type not in c.defined_types:
+        if store_interface not in c.defined_types:
             db = await EXIT_STACK.enter_async_context(
                 JSONFileDocumentDatabase(
                     c[Logger],
@@ -507,7 +590,7 @@ async def initialize_container(
                 )
             )
 
-            sig = inspect.signature(store_doc_type)
+            sig = inspect.signature(store_implementation)
             params = list(sig.parameters.keys())
 
             # Remove 'self' from parameters list
@@ -516,23 +599,26 @@ async def initialize_container(
 
             # Build arguments based on what the constructor accepts
             args: list[Any] = []
+
             if "id_generator" in params:
-                args.append(id_generator)
+                args.append(c[IdGenerator])
 
             args.extend([db, migrate])
 
-            c[store_type] = await EXIT_STACK.enter_async_context(store_doc_type(*args))
+            c[store_implementation] = await EXIT_STACK.enter_async_context(
+                store_implementation(*args)
+            )
+            c[store_interface] = lambda _c: c[store_implementation]
 
     async def try_define_vector_store(
-        store_type: type,
-        store_class: type,
+        store_interface: type,
+        store_implementation: type,
         vector_db_factory: Callable[[], Awaitable[VectorDatabase]],
         document_db_filename: str,
         embedder_type_provider: Callable[[], Awaitable[type[Embedder]]],
         embedder_factory: EmbedderFactory,
-        id_generator: IdGenerator,
     ) -> None:
-        if store_type not in c.defined_types:
+        if store_interface not in c.defined_types:
             vector_db = await vector_db_factory()
             document_db = await EXIT_STACK.enter_async_context(
                 JSONFileDocumentDatabase(
@@ -540,15 +626,16 @@ async def initialize_container(
                     PARLANT_HOME_DIR / document_db_filename,
                 )
             )
-            c[store_type] = await EXIT_STACK.enter_async_context(
-                store_class(
-                    id_generator=id_generator,
+            c[store_implementation] = await EXIT_STACK.enter_async_context(
+                store_implementation(
+                    id_generator=c[IdGenerator],
                     vector_db=vector_db,
                     document_db=document_db,
                     embedder_type_provider=embedder_type_provider,
                     embedder_factory=embedder_factory,
                 )
             )
+            c[store_interface] = lambda _c: c[store_implementation]
 
     await EXIT_STACK.enter_async_context(c[BackgroundTaskService])
 
@@ -594,7 +681,7 @@ async def initialize_container(
             (RelationshipStore, RelationshipDocumentStore, "relationships.json"),
             (SessionStore, SessionDocumentStore, "sessions.json"),
         ]:
-            await try_define_document_store(c[IdGenerator], interface, implementation, filename)
+            await try_define_document_store(interface, implementation, filename)
 
         async def make_service_document_registry() -> ServiceRegistry:
             db = await EXIT_STACK.enter_async_context(
@@ -653,20 +740,19 @@ async def initialize_container(
         async def get_embedder_type() -> type[Embedder]:
             return type(await nlp_service_instance.get_embedder())
 
-        for store_type, store_class, document_db_filename in [
+        for store_interface, store_implementation, document_db_filename in [
             (GlossaryStore, GlossaryVectorStore, "glossary_tags.json"),
             (CannedResponseStore, CannedResponseVectorStore, "canned_responses.json"),
             (JourneyStore, JourneyVectorStore, "journey_associations.json"),
             (CapabilityStore, CapabilityVectorStore, "capabilities.json"),
         ]:
             await try_define_vector_store(
-                store_type,
-                store_class,
+                store_interface,
+                store_implementation,
                 lambda: get_shared_chroma_db(),
                 document_db_filename,
                 get_embedder_type,
                 embedder_factory,
-                c[IdGenerator],
             )
 
     except MigrationRequired as e:
@@ -716,51 +802,6 @@ async def initialize_container(
             SchematicGenerator[schema],  # type: ignore
             generator,
         )
-
-    try_define(
-        GenericResponseAnalysisBatch,
-        Singleton(GenericResponseAnalysisBatch),
-    )
-
-    try_define(
-        ObservationalGuidelineMatching,
-        Singleton(ObservationalGuidelineMatching),
-    )
-
-    try_define(
-        GenericPreviouslyAppliedActionableGuidelineMatching,
-        Singleton(GenericPreviouslyAppliedActionableGuidelineMatching),
-    )
-
-    try_define(
-        GenericActionableGuidelineMatching,
-        Singleton(GenericActionableGuidelineMatching),
-    )
-
-    try_define(
-        GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching,
-        Singleton(GenericPreviouslyAppliedActionableCustomerDependentGuidelineMatching),
-    )
-
-    try_define(
-        GenericGuidelineMatchingStrategyResolver,
-        Singleton(GenericGuidelineMatchingStrategyResolver),
-    )
-
-    try_define(
-        GuidelineMatchingStrategyResolver,
-        lambda container: container[GenericGuidelineMatchingStrategyResolver],
-    )
-
-    try_define(GuidelineMatcher, Singleton(GuidelineMatcher))
-
-    try_define(DefaultToolCallBatcher, Singleton(DefaultToolCallBatcher))
-
-    try_define(ToolCallBatcher, lambda c: c[DefaultToolCallBatcher])
-
-    try_define(ToolCaller, Singleton(ToolCaller))
-
-    try_define(RelationalGuidelineResolver, Singleton(RelationalGuidelineResolver))
 
 
 async def recover_server_tasks(
@@ -866,7 +907,7 @@ def _print_startup_banner() -> None:
     ascii_logo = "\n".join([f"  {line}" for line in ascii_logo.splitlines()])
     ascii_logo = f"\n{ascii_logo}\n"
 
-    rich.print(rich.text.Text(ascii_logo, style=f"bold {'#0e8766'}"))
+    rich.print(rich.text.Text(ascii_logo, style="bold #0e8766"))
 
 
 async def serve_app(

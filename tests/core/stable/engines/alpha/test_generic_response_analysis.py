@@ -29,7 +29,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.response_analysis_bat
 )
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
-    ReportAnalysisContext,
+    ResponseAnalysisContext,
 )
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.guidelines import Guideline, GuidelineContent, GuidelineId
@@ -227,7 +227,7 @@ async def base_test_that_correct_guidelines_are_detected_as_previously_applied(
         logger=context.container[Logger],
         optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
-        context=ReportAnalysisContext(
+        context=ResponseAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,

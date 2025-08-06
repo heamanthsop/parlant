@@ -5,7 +5,7 @@ __all__ = [
     "GuidelineMatchingContext",
     "ResponseAnalysisBatch",
     "ResponseAnalysisBatchResult",
-    "ReportAnalysisContext",
+    "ResponseAnalysisContext",
     "GuidelineMatchingStrategy",
     "GuidelineMatchingStrategyResolver",
 ]
@@ -77,7 +77,7 @@ class GuidelineMatchingContext:
 
 
 @dataclass(frozen=True)
-class ReportAnalysisContext:
+class ResponseAnalysisContext:
     agent: Agent
     session: Session
     customer: Customer
@@ -139,10 +139,10 @@ class GuidelineMatchingStrategy(ABC):
     ) -> Sequence[GuidelineMatchingBatch]: ...
 
     @abstractmethod
-    async def create_report_analysis_batches(
+    async def create_response_analysis_batches(
         self,
         guideline_matches: Sequence[GuidelineMatch],
-        context: ReportAnalysisContext,
+        context: ResponseAnalysisContext,
     ) -> Sequence[ResponseAnalysisBatch]: ...
 
     @abstractmethod
@@ -188,7 +188,7 @@ class GuidelineMatcher:
             )
         ]
     )
-    async def _process_report_analysis_batch_with_retry(
+    async def _process_response_analysis_batch_with_retry(
         self, batch: ResponseAnalysisBatch
     ) -> ResponseAnalysisBatchResult:
         with self._logger.scope(batch.__class__.__name__):
@@ -299,9 +299,9 @@ class GuidelineMatcher:
 
             batches = await async_utils.safe_gather(
                 *[
-                    strategy.create_report_analysis_batches(
+                    strategy.create_response_analysis_batches(
                         guideline_matches,
-                        context=ReportAnalysisContext(
+                        context=ResponseAnalysisContext(
                             agent,
                             session,
                             customer,
@@ -317,7 +317,7 @@ class GuidelineMatcher:
 
             with self._logger.operation("Processing response analysis batches"):
                 batch_tasks = [
-                    self._process_report_analysis_batch_with_retry(batch)
+                    self._process_response_analysis_batch_with_retry(batch)
                     for strategy_batches in batches
                     for batch in strategy_batches
                 ]

@@ -55,7 +55,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingBatch,
     GuidelineMatchingStrategy,
     GuidelineMatchingContext,
-    ReportAnalysisContext,
+    ResponseAnalysisContext,
 )
 from parlant.core.engines.alpha.optimization_policy import OptimizationPolicy
 from parlant.core.entity_cq import EntityQueries
@@ -91,7 +91,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             DisambiguationGuidelineMatchesSchema
         ],
         journey_step_selection_schematic_generator: SchematicGenerator[JourneyNodeSelectionSchema],
-        report_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
+        response_analysis_schematic_generator: SchematicGenerator[GenericResponseAnalysisSchema],
     ) -> None:
         self._logger = logger
 
@@ -118,7 +118,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         self._journey_step_selection_schematic_generator = (
             journey_step_selection_schematic_generator
         )
-        self._report_analysis_schematic_generator = report_analysis_schematic_generator
+        self._response_analysis_schematic_generator = response_analysis_schematic_generator
 
     @override
     async def create_matching_batches(
@@ -211,10 +211,10 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
         return guideline_batches
 
     @override
-    async def create_report_analysis_batches(
+    async def create_response_analysis_batches(
         self,
         guideline_matches: Sequence[GuidelineMatch],
-        context: ReportAnalysisContext,
+        context: ResponseAnalysisContext,
     ) -> Sequence[GenericResponseAnalysisBatch]:
         if not guideline_matches:
             return []
@@ -223,7 +223,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
             GenericResponseAnalysisBatch(
                 logger=self._logger,
                 optimization_policy=self._optimization_policy,
-                schematic_generator=self._report_analysis_schematic_generator,
+                schematic_generator=self._response_analysis_schematic_generator,
                 context=context,
                 guideline_matches=guideline_matches,
             )

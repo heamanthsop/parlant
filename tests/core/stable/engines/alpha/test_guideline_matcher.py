@@ -49,7 +49,7 @@ from parlant.core.engines.alpha.guideline_matching.guideline_matcher import (
     GuidelineMatchingContext,
     ResponseAnalysisBatch,
     ResponseAnalysisBatchResult,
-    ReportAnalysisContext,
+    ResponseAnalysisContext,
     GuidelineMatchingStrategy,
     GuidelineMatchingStrategyResolver,
 )
@@ -614,7 +614,7 @@ async def analyze_response_and_update_session(
         logger=context.container[Logger],
         optimization_policy=context.container[OptimizationPolicy],
         schematic_generator=context.container[SchematicGenerator[GenericResponseAnalysisSchema]],
-        context=ReportAnalysisContext(
+        context=ResponseAnalysisContext(
             agent=agent,
             session=session,
             customer=customer,
@@ -1549,10 +1549,10 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
             ]
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
 
@@ -1573,10 +1573,10 @@ async def test_that_guideline_matching_strategies_can_be_overridden(
             return [SkipAllGuidelineBatch(guidelines=guidelines)]
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
 
@@ -1642,10 +1642,10 @@ async def test_that_strategy_for_specific_guideline_can_be_overridden_in_default
             return [ActivateEveryGuidelineBatch(guidelines=guidelines)]
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return []
 
@@ -2675,10 +2675,10 @@ async def test_that_response_analysis_strategy_can_be_overridden(
             return []
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return [ActivateResponseAnalysisBatch(guideline_matches)]
 
@@ -2811,10 +2811,10 @@ async def test_that_batch_processing_retries_on_key_error(
             ]
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return [
                 FailingResponseAnalysisBatch(
@@ -2897,10 +2897,10 @@ async def test_that_batch_processing_fails_after_max_retries(
             return [AlwaysFailingBatch(guidelines=guidelines)]
 
         @override
-        async def create_report_analysis_batches(
+        async def create_response_analysis_batches(
             self,
             guideline_matches: Sequence[GuidelineMatch],
-            context: ReportAnalysisContext,
+            context: ResponseAnalysisContext,
         ) -> Sequence[ResponseAnalysisBatch]:
             return [AlwaysFailingResponseAnalysisBatch(guideline_matches=guideline_matches)]
 
