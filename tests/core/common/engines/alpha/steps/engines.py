@@ -44,7 +44,7 @@ from parlant.core.engines.alpha.canned_response_generator import (
 )
 from parlant.core.engines.alpha.message_event_composer import MessageEventComposer
 from parlant.core.engines.alpha.tool_calling.tool_caller import ToolInsights
-from parlant.core.engines.types import Context, CannedResponseReason, CannedResponseRequest
+from parlant.core.engines.types import Context, UtteranceRationale, UtteranceRequest
 from parlant.core.emission.event_buffer import EventBuffer
 from parlant.core.entity_cq import EntityCommands, EntityQueries
 from parlant.core.glossary import Term
@@ -83,12 +83,12 @@ def given_a_faulty_message_production_mechanism(
 )
 def given_a_follow_up_canned_response_request(
     context: ContextOfTest, action: str, do_something: str
-) -> CannedResponseRequest:
-    canned_response_request = CannedResponseRequest(
+) -> UtteranceRequest:
+    canned_response_request = UtteranceRequest(
         action=action,
-        reason={
-            "follow up with the customer": CannedResponseReason.FOLLOW_UP,
-            "buy time": CannedResponseReason.BUY_TIME,
+        rationale={
+            "follow up with the customer": UtteranceRationale.FOLLOW_UP,
+            "buy time": UtteranceRationale.BUY_TIME,
         }[do_something],
     )
 

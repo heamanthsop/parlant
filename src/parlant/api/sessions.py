@@ -28,7 +28,7 @@ from parlant.core.application import Application
 from parlant.core.async_utils import Timeout
 from parlant.core.common import DefaultBaseModel
 from parlant.core.customers import CustomerId, CustomerStore
-from parlant.core.engines.types import CannedResponseReason, CannedResponseRequest
+from parlant.core.engines.types import UtteranceRationale, UtteranceRequest
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.nlp.moderation import ModerationService
@@ -233,7 +233,7 @@ SessionEventCreationParamsMessageField: TypeAlias = Annotated[
     ),
 ]
 
-SessionEventCreationParamsActionField: TypeAlias = Annotated[
+AgentMessageGuidelineActionField: TypeAlias = Annotated[
     str,
     Field(
         description='A single action that explains what to say; i.e. "Tell the customer that you are thinking and will be right back with an answer."',
@@ -248,16 +248,17 @@ event_creation_params_example: ExampleJson = {
 }
 
 
-class CannedResponseReasonDTO(Enum):
-    """Defines the reason for the action"""
+class AgentMessageGuidelineRationaleDTO(Enum):
+    """Defines the rationale for the guideline"""
 
+    UNSPECIFIED = "unspecified"
     BUY_TIME = "buy_time"
     FOLLOW_UP = "follow_up"
 
 
-class CannedResponseRequestDTO(DefaultBaseModel):
-    action: SessionEventCreationParamsActionField
-    reason: CannedResponseReasonDTO
+class AgentMessageGuidelineDTO(DefaultBaseModel):
+    action: AgentMessageGuidelineActionField
+    rationale: AgentMessageGuidelineRationaleDTO
 
 
 class EventCreationParamsDTO(
@@ -270,7 +271,7 @@ class EventCreationParamsDTO(
     source: EventSourceDTO
     message: Optional[SessionEventCreationParamsMessageField] = None
     data: Optional[JSONSerializableDTO] = None
-    actions: Optional[list[CannedResponseRequestDTO]] = None
+    guidelines: Optional[list[AgentMessageGuidelineDTO]] = None
 
 
 EventIdPath: TypeAlias = Annotated[
@@ -1135,15 +1136,19 @@ def _get_jailbreak_moderation_service(logger: Logger) -> ModerationService:
     return LakeraGuard(logger)
 
 
-def canned_response_request_dto_to_canned_response_request(
-    utter: CannedResponseRequestDTO,
-) -> CannedResponseRequest:
-    reason_dto_to_reason = {
-        CannedResponseReasonDTO.BUY_TIME: CannedResponseReason.BUY_TIME,
-        CannedResponseReasonDTO.FOLLOW_UP: CannedResponseReason.FOLLOW_UP,
+def agent_message_guideline_dto_to_utterance_request(
+    guideline: AgentMessageGuidelineDTO,
+) -> UtteranceRequest:
+    rationale_to_reason = {
+        AgentMessageGuidelineRationaleDTO.UNSPECIFIED: UtteranceRationale.UNSPECIFIED,
+        AgentMessageGuidelineRationaleDTO.BUY_TIME: UtteranceRationale.BUY_TIME,
+        AgentMessageGuidelineRationaleDTO.FOLLOW_UP: UtteranceRationale.FOLLOW_UP,
     }
 
-    return CannedResponseRequest(action=utter.action, reason=reason_dto_to_reason[utter.reason])
+    return UtteranceRequest(
+        action=guideline.action,
+        rationale=rationale_to_reason[guideline.rationale],
+    )
 
 
 def _event_kind_dto_to_event_kind(dto: EventKindDTO) -> EventKind:
@@ -1597,11 +1602,11 @@ def create_router(
 
         session = await session_store.read_session(session_id)
 
-        if params.actions:
-            actions = [
-                canned_response_request_dto_to_canned_response_request(a) for a in params.actions
+        if params.guidelines:
+            requests = [
+                agent_message_guideline_dto_to_utterance_request(a) for a in params.guidelines
             ]
-            correlation_id = await application.utter(session, actions)
+            correlation_id = await application.utter(session, requests)
             event, *_ = await session_store.list_events(
                 session_id=session_id,
                 correlation_id=correlation_id,

@@ -87,7 +87,7 @@ from parlant.core.engines.alpha.tool_event_generator import (
     ToolPreexecutionState,
 )
 from parlant.core.engines.alpha.utils import context_variables_to_json
-from parlant.core.engines.types import Context, Engine, CannedResponseReason, CannedResponseRequest
+from parlant.core.engines.types import Context, Engine, UtteranceRationale, UtteranceRequest
 from parlant.core.emissions import EventEmitter, EmittedEvent
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.loggers import LogLevel, Logger
@@ -192,9 +192,9 @@ class AlphaEngine(Engine):
         self,
         context: Context,
         event_emitter: EventEmitter,
-        requests: Sequence[CannedResponseRequest],
+        requests: Sequence[UtteranceRequest],
     ) -> bool:
-        """Produces a new message into a session, guided by specific canned response requests"""
+        """Produces a new message into a session, guided by specific utterance requests"""
 
         # Load the full relevant information from storage.
         loaded_context = await self._load_context(
@@ -349,20 +349,20 @@ class AlphaEngine(Engine):
     async def _do_utter(
         self,
         context: LoadedContext,
-        requests: Sequence[CannedResponseRequest],
+        requests: Sequence[UtteranceRequest],
     ) -> None:
         try:
             await self._initialize_response_state(context)
 
-            # Only use the specified canned response requests as guidelines here.
+            # Only use the specified utterance requests as guidelines here.
             context.state.ordinary_guideline_matches.extend(
-                # Canned response requests are reduced to guidelines, to take advantage
+                # Utterance requests are reduced to guidelines, to take advantage
                 # of the engine's ability to consistently adhere to guidelines.
-                await self._canned_response_requests_to_guideline_matches(requests)
+                await self._utterance_requests_to_guideline_matches(requests)
             )
 
             # Money time: communicate with the customer given the
-            # specified canned response requests.
+            # specified utterance requests.
             with CancellationSuppressionLatch() as latch:
                 message_generation_inspections = await self._generate_messages(context, latch)
 
@@ -1608,25 +1608,21 @@ class AlphaEngine(Engine):
 
         return result, tool_events, result.insights
 
-    async def _canned_response_requests_to_guideline_matches(
+    async def _utterance_requests_to_guideline_matches(
         self,
-        requests: Sequence[CannedResponseRequest],
+        requests: Sequence[UtteranceRequest],
     ) -> Sequence[GuidelineMatch]:
-        # Canned response requests are reduced to guidelines, to take advantage
+        # Utterance requests are reduced to guidelines, to take advantage
         # of the engine's ability to consistently adhere to guidelines.
 
-        def canned_response_to_match(
+        def utterance_request_to_match(
             i: int,
-            canned_response: CannedResponseRequest,
+            utterance_request: UtteranceRequest,
         ) -> GuidelineMatch:
             rationales = {
-                CannedResponseReason.BUY_TIME: "An external module has determined that this response is necessary, and you must adhere to it.",
-                CannedResponseReason.FOLLOW_UP: "An external module has determined that this response is necessary, and you must adhere to it.",
-            }
-
-            conditions = {
-                CannedResponseReason.BUY_TIME: "-- RIGHT NOW!",
-                CannedResponseReason.FOLLOW_UP: "-- RIGHT NOW!",
+                UtteranceRationale.UNSPECIFIED: "An external module has determined that this response is necessary, and you must adhere to it.",
+                UtteranceRationale.BUY_TIME: "You must buy time while you're working on a task in the background.",
+                UtteranceRationale.FOLLOW_UP: "You need to follow up with the customer.",
             }
 
             return GuidelineMatch(
@@ -1634,18 +1630,20 @@ class AlphaEngine(Engine):
                     id=GuidelineId(f"<canrep-request-{i}>"),
                     creation_utc=datetime.now(timezone.utc),
                     content=GuidelineContent(
-                        condition=conditions[canned_response.reason],
-                        action=canned_response.action,
+                        condition="",  # FIXME: Change this to None when we support `str | None` conditions
+                        action=utterance_request.action,
                     ),
                     enabled=True,
                     tags=[],
                     metadata={},
                 ),
-                rationale=rationales[canned_response.reason],
+                rationale=rationales[utterance_request.rationale],
                 score=10,
             )
 
-        return [canned_response_to_match(i, request) for i, request in enumerate(requests, start=1)]
+        return [
+            utterance_request_to_match(i, request) for i, request in enumerate(requests, start=1)
+        ]
 
     async def _load_context_variable_value(
         self,

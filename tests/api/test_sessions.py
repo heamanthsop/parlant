@@ -913,7 +913,7 @@ async def test_that_an_agent_message_can_be_regenerated(
     assert "cold" in events[0]["data"]["message"].lower()
 
 
-async def test_that_an_agent_message_can_be_generated_from_canrep_requests(
+async def test_that_an_agent_message_can_be_generated_on_demand(
     async_client: httpx.AsyncClient,
     session_id: SessionId,
 ) -> None:
@@ -924,10 +924,10 @@ async def test_that_an_agent_message_can_be_generated_from_canrep_requests(
                 json={
                     "kind": "message",
                     "source": "ai_agent",
-                    "actions": [
+                    "guidelines": [
                         {
-                            "action": "Tell the user that you're thinking and will be right back with an answer",
-                            "reason": "buy_time",
+                            "action": "Tell the user you'll be back in a minute, and in the meantime offer them a Pepsi",
+                            "rationale": "buy_time",
                         }
                     ],
                 },
@@ -953,7 +953,7 @@ async def test_that_an_agent_message_can_be_generated_from_canrep_requests(
 
     assert len(events) == 1
     assert events[0]["id"] == event["id"]
-    assert "thinking" in events[0]["data"]["message"].lower()
+    assert "pepsi" in events[0]["data"]["message"].lower()
 
 
 async def test_that_an_event_with_canned_responses_can_be_generated(
