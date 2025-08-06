@@ -258,7 +258,7 @@ class AgentMessageGuidelineRationaleDTO(Enum):
 
 class AgentMessageGuidelineDTO(DefaultBaseModel):
     action: AgentMessageGuidelineActionField
-    rationale: AgentMessageGuidelineRationaleDTO
+    rationale: AgentMessageGuidelineRationaleDTO = AgentMessageGuidelineRationaleDTO.UNSPECIFIED
 
 
 class EventCreationParamsDTO(
