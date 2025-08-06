@@ -7,7 +7,7 @@ import {ClassNameValue, twMerge} from 'tailwind-merge';
 import {X} from 'lucide-react';
 import {getDistanceToRight} from '@/utils/methods';
 import Tooltip from '../ui/custom/tooltip';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import {Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue} from '../ui/select';
 
 export type Type = 'GuidelineMatcher' | 'MessageEventComposer' | 'ToolCaller';
 export type Level = 'CRITICAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG' | 'TRACE';
@@ -234,7 +234,7 @@ const LogFilters = ({
 			<div className='wrapper relative flex items-center h-[30px]' ref={wrapperRef}>
 				<div>
 					<div onClick={changeMenuOpen} role='button' className={twMerge('flex group bg-white rounded-[6px] items-center gap-[6px] max-h-[30px] h-[30px] w-[73px] min-w-max pe-[8px]', dropdownOpen && 'bg-white border-transparent')}>
-						<img src='icons/filters.svg' className='[stroke-width:2px] size-[16px]' />
+						<img src='icons/funnel.svg' className='[stroke-width:2px] size-[16px]' />
 						<p className='text-[14px] group-hover:underline font-medium select-none'>Edit Filters</p>
 					</div>
 				</div>
@@ -252,13 +252,15 @@ const LogFilters = ({
 					<div className='flex gap-[6px] items-center px-[14px]'>
 						<p className='text-[14px] font-normal'>Level:</p>
 						<Select value={level} onValueChange={(value) => setLevel(value as Level)}>
-							<SelectTrigger className="!ring-0 !ring-offset-0 h-[30px] m-auto my-[5px] capitalize border">
-								<SelectValue placeholder={level?.toLowerCase()}/>
+							<SelectTrigger className='!ring-0 !ring-offset-0 h-[30px] m-auto my-[5px] capitalize border'>
+								<SelectValue placeholder={level?.toLowerCase()} />
 							</SelectTrigger>
 							<SelectContent className='z-[999999]'>
 								<SelectGroup>
 									{ALL_LEVELS.toReversed().map((level) => (
-										<SelectItem key={level} value={level} className='capitalize'>{level?.toLowerCase()}</SelectItem>
+										<SelectItem key={level} value={level} className='capitalize'>
+											{level?.toLowerCase()}
+										</SelectItem>
 									))}
 								</SelectGroup>
 							</SelectContent>
