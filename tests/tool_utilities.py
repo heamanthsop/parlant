@@ -248,6 +248,17 @@ def calculate_salary(
     return ToolResult({"salary": 100})
 
 
+def calculate_expected_salary(
+    name: Employees,
+    manager: Employees,
+    director: Employees,
+    friend: Employees,
+    mistress: Employees,
+    cleaner: Employees,
+) -> ToolResult:
+    return ToolResult({"salary": 100})
+
+
 async def get_electronic_products_by_type(
     product_type: ElectronicProductType,
 ) -> ToolResult:
