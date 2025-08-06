@@ -653,7 +653,13 @@ class AlphaEngine(Engine):
             await self._load_additional_matched_guidelines_and_journeys(context)
         )
 
-        # FIXME: We need to think about a use case journey that was ACTIVE and became INACTIVE
+        # FIXME: There might be cases where a journey got ACTIVATED, and then, during
+        # an additional iteration actually became INACTIVE. In those cases, we wouldn't
+        # actually want to perform the additional processing (matching, etc.) on it.
+        # Yet, currently, we keep it active and we do do that.
+        # I don't expect that this behavior causes actual issues beyond the occasional
+        # added costs (and perhaps latency) in this type of edge case, but still it's not ideal
+        # - Dorzo
         context.state.journeys += guideline_and_journey_matching_result.journeys
 
         # Matched guidelines may use glossary terms, so we need to ground our
