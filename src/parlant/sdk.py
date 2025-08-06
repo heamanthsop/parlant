@@ -1947,7 +1947,7 @@ class Server:
         migrate: Whether to allow database migrations on startup (if needed).
         configure_hooks: A callable to configure engine hooks.
         configure_container: A callable to configure the dependency injection container.
-        initialize: A callable to perform additional initialization after the container is set up.
+        initialize_container: A callable to perform additional initialization after the container is set up.
     """
 
     def __init__(
