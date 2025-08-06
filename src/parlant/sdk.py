@@ -1962,7 +1962,7 @@ class Server:
         migrate: bool = False,
         configure_hooks: Callable[[EngineHooks], Awaitable[EngineHooks]] | None = None,
         configure_container: Callable[[Container], Awaitable[Container]] | None = None,
-        initialize: Callable[[Container], Awaitable[None]] | None = None,
+        initialize_container: Callable[[Container], Awaitable[None]] | None = None,
     ) -> None:
         self.port = port
         self.tool_service_port = tool_service_port
@@ -1976,7 +1976,7 @@ class Server:
         self._customer_store = customer_store
         self._configure_hooks = configure_hooks
         self._configure_container = configure_container
-        self._initialize = initialize
+        self._initialize = initialize_container
         self._retrievers: dict[
             AgentId,
             dict[str, Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]]],
