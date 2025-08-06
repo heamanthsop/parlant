@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
+from enum import Enum
 import json
 import traceback
 from typing import Any, Optional, Sequence
@@ -47,6 +49,12 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
 from parlant.core.tools import Tool, ToolId, ToolParameterDescriptor, ToolParameterOptions
 
 
+class ValidationStatus(Enum):
+    VALID = "valid"
+    INVALID = "invalid"
+    MISSING = "missing"
+
+
 class OverlappingToolsBatchArgumentEvaluation(DefaultBaseModel):
     parameter_name: str
     acceptable_source_for_this_argument_according_to_its_tool_definition: str
@@ -55,7 +63,7 @@ class OverlappingToolsBatchArgumentEvaluation(DefaultBaseModel):
     evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided: str
     is_optional: Optional[bool] = False
     has_default_value_if_not_provided_by_acceptable_source: Optional[bool] = None
-    is_missing: bool
+    valid_invalid_or_missing: ValidationStatus
     value_as_string: Optional[str] = None
 
 
@@ -206,6 +214,20 @@ class OverlappingToolsBatch(ToolCallBatch):
                 return tool_id, tool
         return None
 
+    async def _validate_argument_value(
+        self,
+        parameter: tuple[ToolParameterDescriptor, ToolParameterOptions],
+        value: str,
+    ) -> bool:
+        """Currently validate only parameters with enum values"""
+        descriptor = parameter[0]
+        if "enum" in descriptor:
+            if descriptor["type"] == "string":
+                return value in descriptor["enum"]
+            if descriptor["type"] == "array":
+                return all(v in descriptor["enum"] for v in ast.literal_eval(value))
+        return True
+
     async def _evaluate_tool_calls_parameters(
         self,
         inference_output: Sequence[OverlappingToolsBatchToolEvaluation],
@@ -219,11 +241,12 @@ class OverlappingToolsBatch(ToolCallBatch):
         tool_calls = []
         evaluations: list[tuple[ToolId, ToolCallEvaluation]] = []  # FIXME: handle evaluations
         missing_data = []
-        invalid_data: list[InvalidToolData] = []  # FIXME: handle invalid data
+        invalid_data = []
 
         for tool_inference in inference_output:
             tool_name = tool_inference.name
             result = self._get_tool_descriptor(tool_name, overlapping_tools_batch)
+            # First - check validity of all parameters with provided values
             if (
                 result
                 and tool_inference.is_applicable
@@ -232,9 +255,32 @@ class OverlappingToolsBatch(ToolCallBatch):
             ):
                 tool_id, tool = result
                 for tc in tool_inference.calls:
+                    all_values_valid = True
+                    for evaluation in tc.argument_evaluations or []:
+                        tool_id, tool = result
+                        descriptor, options = tool.parameters[evaluation.parameter_name]
+
+                        if evaluation.value_as_string and not await self._validate_argument_value(
+                            tool.parameters[evaluation.parameter_name],
+                            evaluation.value_as_string,
+                        ):
+                            all_values_valid = False
+                            if not options.hidden:
+                                invalid_data.append(
+                                    InvalidToolData(
+                                        parameter=options.display_name or evaluation.parameter_name,
+                                        invalid_value=evaluation.value_as_string,
+                                        significance=options.significance,
+                                        description=descriptor.get("description"),
+                                        precedence=options.precedence,
+                                        choices=descriptor.get("enum", None),
+                                    )
+                                )
+
+                for tc in tool_inference.calls:
                     if not tc.same_call_is_already_staged:
                         if all(
-                            not evaluation.is_missing
+                            not evaluation.valid_invalid_or_missing == ValidationStatus.MISSING
                             for evaluation in tc.argument_evaluations or []
                             if evaluation.parameter_name in tool.required
                         ):
@@ -246,21 +292,24 @@ class OverlappingToolsBatch(ToolCallBatch):
 
                             if tool.parameters:  # We check this because sometimes LLMs hallucinate placeholders for no-param tools
                                 for evaluation in tc.argument_evaluations or []:
-                                    if evaluation.is_missing:
+                                    if (
+                                        evaluation.valid_invalid_or_missing
+                                        == ValidationStatus.MISSING
+                                    ):
                                         continue
 
                                     # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
                                     arguments[evaluation.parameter_name] = (
                                         evaluation.value_as_string
                                     )
-
-                            tool_calls.append(
-                                ToolCall(
-                                    id=ToolCallId(generate_id()),
-                                    tool_id=tool_id,
-                                    arguments=arguments,
+                            if all_values_valid:
+                                tool_calls.append(
+                                    ToolCall(
+                                        id=ToolCallId(generate_id()),
+                                        tool_id=tool_id,
+                                        arguments=arguments,
+                                    )
                                 )
-                            )
                         else:
                             for evaluation in tc.argument_evaluations or []:
                                 if evaluation.parameter_name not in tool.parameters:
@@ -274,7 +323,7 @@ class OverlappingToolsBatch(ToolCallBatch):
                                 ]
 
                                 if (
-                                    evaluation.is_missing
+                                    evaluation.valid_invalid_or_missing == ValidationStatus.MISSING
                                     and not evaluation.is_optional
                                     and not tool_options.hidden
                                 ):
@@ -504,7 +553,7 @@ Given these tools, your output should adhere to the following format:
                             "evaluate_was_it_already_provided_and_should_it_be_provided_again": "<BRIEFLY EVALUATE IF THE PARAMETER VALUE WAS PROVIDED AND SHOULD BE PROVIDED AGAIN>",
                             "evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided": "<BRIEFLY EVALUATE IF IT'S A PROBLEM TO GUESS THE VALUE>",
                             "is_optional": <BOOL>,
-                            "is_missing": <BOOL>,
+                            "valid_invalid_or_missing" : "<STR: EITHER 'missing', 'invalid' OR 'valid' DEPENDING IF THE VALUE IS MISSING, PROVIDED BUT NOT FOUND IN ENUM LIST, OR PROVIDED AND FOUND IN ENUM LIST (OR DOESN'T HAVE ENUM LIST)>"
                             "value_as_string": "<PARAMETER VALUE>"
                         }},
                         ...
@@ -710,7 +759,7 @@ example_1_shot = OverlappingToolsBatchShot(
                                 evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific model",
                                 evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                                 evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
-                                is_missing=False,
+                                valid_invalid_or_missing=ValidationStatus.VALID,
                                 is_optional=False,
                                 value_as_string="Harley-Davidson Street Glide",
                             )
@@ -752,7 +801,7 @@ example_2_shot = OverlappingToolsBatchShot(
                                 evaluate_is_it_provided_by_an_acceptable_source="Yes, the user asked about the temperature outside, which implies a general outdoor location (e.g., 'outside')",
                                 evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific location",
                                 evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide information on some random place, but I don't need to guess here since the customer provided it",
-                                is_missing=False,
+                                valid_invalid_or_missing=ValidationStatus.VALID,
                                 is_optional=False,
                                 value_as_string="outside",
                             )
@@ -781,7 +830,7 @@ example_2_shot = OverlappingToolsBatchShot(
                                 evaluate_is_it_provided_by_an_acceptable_source="Yes; the customer asked about a specific location",
                                 evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific location",
                                 evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random room, but I don't need to guess here since the customer provided it",
-                                is_missing=False,
+                                valid_invalid_or_missing=ValidationStatus.VALID,
                                 is_optional=False,
                                 value_as_string="living room",
                             )
