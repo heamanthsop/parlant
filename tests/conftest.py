@@ -102,8 +102,8 @@ from parlant.core.engines.alpha.canned_response_generator import (
     CannedResponseGenerator,
     CannedResponseSelectionSchema,
     CannedResponseRevisionSchema,
-    BasicNoMatchProvider,
-    NoMatchProvider,
+    BasicNoMatchResponseProvider,
+    NoMatchResponseProvider,
 )
 from parlant.core.evaluations import (
     EvaluationListener,
@@ -551,7 +551,7 @@ async def container(
         container[ToolCaller] = Singleton(ToolCaller)
         container[RelationalGuidelineResolver] = Singleton(RelationalGuidelineResolver)
         container[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
-        container[NoMatchProvider] = Singleton(BasicNoMatchProvider)
+        container[NoMatchResponseProvider] = Singleton(BasicNoMatchResponseProvider)
         container[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
         container[MessageGenerator] = Singleton(MessageGenerator)
         container[ToolEventGenerator] = Singleton(ToolEventGenerator)

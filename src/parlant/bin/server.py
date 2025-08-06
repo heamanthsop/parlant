@@ -116,8 +116,8 @@ from parlant.core.engines.alpha.canned_response_generator import (
     CannedResponseSelectionSchema,
     CannedResponseRevisionSchema,
     CannedResponseGenerator,
-    BasicNoMatchProvider,
-    NoMatchProvider,
+    BasicNoMatchResponseProvider,
+    NoMatchResponseProvider,
 )
 from parlant.core.journey_guideline_projection import JourneyGuidelineProjection
 from parlant.core.services.indexing.guideline_agent_intention_proposer import (
@@ -446,7 +446,7 @@ async def setup_container() -> AsyncIterator[Container]:
     c[ToolEventGenerator] = Singleton(ToolEventGenerator)
     c[CannedResponseFieldExtractor] = Singleton(CannedResponseFieldExtractor)
     c[CannedResponseGenerator] = Singleton(CannedResponseGenerator)
-    c[NoMatchProvider] = Singleton(BasicNoMatchProvider)
+    c[NoMatchResponseProvider] = Singleton(BasicNoMatchResponseProvider)
     c[MessageGenerator] = Singleton(MessageGenerator)
     c[PerceivedPerformancePolicy] = Singleton(BasicPerceivedPerformancePolicy)
     c[OptimizationPolicy] = Singleton(BasicOptimizationPolicy)

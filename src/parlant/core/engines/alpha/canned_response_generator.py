@@ -77,15 +77,21 @@ from parlant.core.tools import ToolId
 DEFAULT_NO_MATCH_CANREP = "Not sure I understand. Could you please say that another way?"
 
 
-class NoMatchProvider(ABC):
+class NoMatchResponseProvider(ABC):
+    async def get_response(self, context: LoadedContext) -> CannedResponse:
+        return CannedResponse.create_transient(await self.get_response_template(context))
+
     @abstractmethod
-    def get(self, context: LoadedContext) -> CannedResponse: ...
+    async def get_response_template(self, context: LoadedContext) -> str: ...
 
 
-class BasicNoMatchProvider(NoMatchProvider):
+class BasicNoMatchResponseProvider(NoMatchResponseProvider):
+    def __init__(self) -> None:
+        self.template = DEFAULT_NO_MATCH_CANREP
+
     @override
-    def get(self, context: LoadedContext) -> CannedResponse:
-        return CannedResponse.create_transient(DEFAULT_NO_MATCH_CANREP)
+    async def get_response_template(self, context: LoadedContext) -> str:
+        return self.template
 
 
 class CannedResponseDraftSchema(DefaultBaseModel):
@@ -448,7 +454,7 @@ class CannedResponseGenerator(MessageEventComposer):
         field_extractor: CannedResponseFieldExtractor,
         message_generator: MessageGenerator,
         entity_queries: EntityQueries,
-        no_match_provider: NoMatchProvider,
+        no_match_provider: NoMatchResponseProvider,
     ) -> None:
         self._logger = logger
         self._correlator = correlator
@@ -1483,7 +1489,7 @@ Output a JSON object with three properties:
                     "Failed to find relevant canned responses. Please review canned response selection prompt and completion."
                 )
 
-                no_match_canrep = self._no_match_provider.get(loaded_context)
+                no_match_canrep = await self._no_match_provider.get_response(loaded_context)
 
                 return {
                     "draft": draft_response.info,
@@ -1531,7 +1537,7 @@ Output a JSON object with three properties:
                 "Invalid canned response ID choice. Please review canned response selection prompt and completion."
             )
 
-            no_match_canrep = self._no_match_provider.get(loaded_context)
+            no_match_canrep = await self._no_match_provider.get_response(loaded_context)
 
             return {
                 "draft": draft_response.info,
