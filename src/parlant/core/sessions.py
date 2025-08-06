@@ -255,10 +255,11 @@ LifeSpan: TypeAlias = Literal["response", "session"]
 """The lifespan of a tool result, either 'response' for just the current response or 'session' for the entire session."""
 
 
-class AgentState(TypedDict):
+@dataclass(frozen=True)
+class AgentState:
     correlation_id: str
-    applied_guideline_ids: list[GuidelineId]
-    journey_paths: dict[JourneyId, list[Optional[GuidelineId]]]
+    applied_guideline_ids: Sequence[GuidelineId]
+    journey_paths: Mapping[JourneyId, Sequence[Optional[GuidelineId]]]
 
 
 @dataclass(frozen=True)
@@ -381,6 +382,12 @@ class _SessionDocument_v0_4_0(TypedDict, total=False):
     consumption_offsets: Mapping[ConsumerId, int]
 
 
+class _AgentStateDocument(TypedDict):
+    correlation_id: str
+    applied_guideline_ids: Sequence[GuidelineId]
+    journey_paths: Mapping[JourneyId, Sequence[Optional[GuidelineId]]]
+
+
 class _SessionDocument_v0_5_0(TypedDict, total=False):
     id: ObjectId
     version: Version.String
@@ -390,7 +397,7 @@ class _SessionDocument_v0_5_0(TypedDict, total=False):
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
-    agent_state: AgentState
+    agent_state: _AgentStateDocument
 
 
 class _SessionDocument(TypedDict, total=False):
@@ -402,7 +409,7 @@ class _SessionDocument(TypedDict, total=False):
     mode: SessionMode
     title: Optional[str]
     consumption_offsets: Mapping[ConsumerId, int]
-    agent_states: Sequence[AgentState]
+    agent_states: Sequence[_AgentStateDocument]
 
 
 class _EventDocument(TypedDict, total=False):
@@ -583,7 +590,7 @@ class SessionDocumentStore(SessionStore):
                 mode=doc["mode"],
                 title=doc["title"],
                 consumption_offsets=doc["consumption_offsets"],
-                agent_state=AgentState(
+                agent_state=_AgentStateDocument(
                     applied_guideline_ids=[],
                     journey_paths={},
                     correlation_id="N/A",
@@ -848,6 +855,31 @@ class SessionDocumentStore(SessionStore):
     ) -> None:
         pass
 
+    def _serialize_session_update_params(self, params: SessionUpdateParams) -> _SessionDocument:
+        doc_params: _SessionDocument = {}
+
+        if "customer_id" in params:
+            doc_params["customer_id"] = params["customer_id"]
+        if "agent_id" in params:
+            doc_params["agent_id"] = params["agent_id"]
+        if "mode" in params:
+            doc_params["mode"] = params["mode"]
+        if "title" in params:
+            doc_params["title"] = params["title"]
+        if "consumption_offsets" in params:
+            doc_params["consumption_offsets"] = params["consumption_offsets"]
+        if "agent_states" in params:
+            doc_params["agent_states"] = [
+                _AgentStateDocument(
+                    correlation_id=s.correlation_id,
+                    applied_guideline_ids=s.applied_guideline_ids,
+                    journey_paths=s.journey_paths,
+                )
+                for s in params["agent_states"]
+            ]
+
+        return doc_params
+
     def _serialize_session(
         self,
         session: Session,
@@ -861,7 +893,14 @@ class SessionDocumentStore(SessionStore):
             mode=session.mode,
             title=session.title if session.title else None,
             consumption_offsets=session.consumption_offsets,
-            agent_states=session.agent_states,
+            agent_states=[
+                _AgentStateDocument(
+                    correlation_id=s.correlation_id,
+                    applied_guideline_ids=s.applied_guideline_ids,
+                    journey_paths=s.journey_paths,
+                )
+                for s in session.agent_states
+            ],
         )
 
     def _deserialize_session(
@@ -876,7 +915,14 @@ class SessionDocumentStore(SessionStore):
             mode=session_document["mode"],
             title=session_document["title"],
             consumption_offsets=session_document["consumption_offsets"],
-            agent_states=session_document["agent_states"],
+            agent_states=[
+                AgentState(
+                    correlation_id=s["correlation_id"],
+                    applied_guideline_ids=s["applied_guideline_ids"],
+                    journey_paths=s["journey_paths"],
+                )
+                for s in session_document["agent_states"]
+            ],
         )
 
     def _serialize_event(
@@ -1095,7 +1141,7 @@ class SessionDocumentStore(SessionStore):
 
             result = await self._session_collection.update_one(
                 filters={"id": {"$eq": session_id}},
-                params=cast(_SessionDocument, params),
+                params=self._serialize_session_update_params(params),
             )
 
         assert result.updated_document
@@ -1181,7 +1227,7 @@ class SessionDocumentStore(SessionStore):
         async with self._lock.writer_lock:
             result = await self._event_collection.update_one(
                 filters={"id": {"$eq": event_id}},
-                params=cast(_EventDocument, {"deleted": True}),
+                params={"deleted": True},
             )
 
         if result.matched_count == 0:

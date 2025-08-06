@@ -654,7 +654,9 @@ async def base_test_that_correct_node_is_selected(
             capabilities=capabilities,
             staged_events=staged_events,
             active_journeys=[],
-            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            journey_paths={k: list(v) for k, v in session.agent_states[-1].journey_paths.items()}
+            if session.agent_states
+            else {},
         ),
     )
     result = await journey_node_selector.process()

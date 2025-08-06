@@ -160,7 +160,7 @@ class GenericGuidelineMatchingStrategy(GuidelineMatchingStrategy):
                 else:
                     if (
                         context.session.agent_states
-                        and g.id in context.session.agent_states[-1]["applied_guideline_ids"]
+                        and g.id in context.session.agent_states[-1].applied_guideline_ids
                     ):
                         data = g.metadata.get("customer_dependent_action_data", False)
                         if isinstance(data, Mapping) and data.get("is_customer_dependent", False):

@@ -119,7 +119,7 @@ def given_a_previously_applied_guideline(
 
     applied_guideline_ids = [context.guidelines[guideline_name].id]
     applied_guideline_ids.extend(
-        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+        session.agent_states[-1].applied_guideline_ids if session.agent_states else []
     )
 
     context.sync_await(

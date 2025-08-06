@@ -225,7 +225,7 @@ def when_detection_and_processing_are_triggered(
         for g in context.guideline_matches.values()
         if (
             not session.agent_states
-            or g.guideline.id not in session.agent_states[-1]["applied_guideline_ids"]
+            or g.guideline.id not in session.agent_states[-1].applied_guideline_ids
         )
         and not g.guideline.metadata.get("continuous", False)
     ]
@@ -257,7 +257,7 @@ def when_detection_and_processing_are_triggered(
     ]
 
     applied_guideline_ids.extend(
-        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+        session.agent_states[-1].applied_guideline_ids if session.agent_states else []
     )
 
     context.sync_await(
@@ -370,7 +370,9 @@ def when_messages_are_emitted(
             ordinary_guideline_matches=list(context.guideline_matches.values()),
             tool_enabled_guideline_matches={},
             journeys=[],
-            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            journey_paths={k: list(v) for k, v in session.agent_states[-1].journey_paths.items()}
+            if session.agent_states
+            else {},
             tool_events=[],
             tool_insights=ToolInsights(),
             prepared_to_respond=False,

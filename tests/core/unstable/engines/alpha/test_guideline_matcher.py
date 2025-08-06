@@ -315,7 +315,9 @@ async def match_guidelines(
             ordinary_guideline_matches=[],
             tool_enabled_guideline_matches={},
             journeys=[],
-            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            journey_paths={k: list(v) for k, v in session.agent_states[-1].journey_paths.items()}
+            if session.agent_states
+            else {},
             tool_events=list(staged_events),
             tool_insights=ToolInsights(),
             prepared_to_respond=False,
@@ -435,7 +437,7 @@ async def update_previously_applied_guidelines(
 ) -> None:
     session = await context.container[SessionStore].read_session(session_id)
     applied_guideline_ids.extend(
-        session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+        session.agent_states[-1].applied_guideline_ids if session.agent_states else []
     )
 
     await context.container[EntityCommands].update_session(
@@ -473,10 +475,7 @@ async def analyze_response_and_update_session(
             score=10,
         )
         for g in previously_matched_guidelines
-        if (
-            not session.agent_states
-            or g.id not in session.agent_states[-1]["applied_guideline_ids"]
-        )
+        if (not session.agent_states or g.id not in session.agent_states[-1].applied_guideline_ids)
         and not g.metadata.get("continuous", False)
     ]
 

@@ -1810,7 +1810,7 @@ def create_router(
         state_index_offset = next(
             i
             for i, s in enumerate(session.agent_states, start=0)
-            if s["correlation_id"].startswith(event_at_min_offset.correlation_id)
+            if s.correlation_id.startswith(event_at_min_offset.correlation_id)
         )
 
         agent_states = session.agent_states[:state_index_offset]

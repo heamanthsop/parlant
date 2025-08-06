@@ -173,7 +173,9 @@ async def base_test_that_correct_guidelines_are_matched(
         capabilities=capabilities,
         staged_events=staged_events,
         active_journeys=relevant_journeys,
-        journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+        journey_paths={k: list(v) for k, v in session.agent_states[-1].journey_paths.items()}
+        if session.agent_states
+        else {},
     )
 
     guideline_previously_applied_matcher = (

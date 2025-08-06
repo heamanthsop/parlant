@@ -351,7 +351,9 @@ async def base_test_that_guideline_with_proposed_action_matched(
             ordinary_guideline_matches=[],
             tool_enabled_guideline_matches={},
             journeys=[],
-            journey_paths=session.agent_states[-1]["journey_paths"] if session.agent_states else {},
+            journey_paths={k: list(v) for k, v in session.agent_states[-1].journey_paths.items()}
+            if session.agent_states
+            else {},
             tool_events=[],
             tool_insights=ToolInsights(),
             prepared_to_respond=False,

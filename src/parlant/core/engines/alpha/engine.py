@@ -417,8 +417,7 @@ class AlphaEngine(Engine):
                 tool_enabled_guideline_matches={},
                 journeys=[],
                 journey_paths={
-                    k: copy.deepcopy(v)
-                    for k, v in session.agent_states[-1]["journey_paths"].items()
+                    k: list(v) for k, v in session.agent_states[-1].journey_paths.items()
                 }
                 if session.agent_states
                 else {},
@@ -1005,7 +1004,7 @@ class AlphaEngine(Engine):
             relevant_guidelines,
             high_prob_journeys,
         ) = await self._prune_low_prob_guidelines_and_all_graph(
-            context.session,
+            context,
             relevant_journeys=sorted_journeys_by_relevance,
             all_stored_guidelines=all_stored_guidelines,
             top_k=top_k,
@@ -1341,7 +1340,7 @@ class AlphaEngine(Engine):
 
     async def _prune_low_prob_guidelines_and_all_graph(
         self,
-        session: Session,
+        context: LoadedContext,
         relevant_journeys: Sequence[Journey],
         all_stored_guidelines: dict[GuidelineId, Guideline],
         top_k: int,
@@ -1372,12 +1371,8 @@ class AlphaEngine(Engine):
         # The result is a focused set of high-probability guidelines that balances
         # journey continuity with current contextual relevance :)
         previous_interaction_active_journeys = (
-            [
-                id
-                for id, path in session.agent_states[-1]["journey_paths"].items()
-                if path and path[-1]
-            ]
-            if session.agent_states
+            [id for id, path in context.state.journey_paths.items() if path and path[-1]]
+            if context.state.journey_paths
             else []
         )
 
@@ -1690,7 +1685,7 @@ class AlphaEngine(Engine):
         guideline_matches: Sequence[GuidelineMatch],
     ) -> None:
         applied_guideline_ids = (
-            session.agent_states[-1]["applied_guideline_ids"] if session.agent_states else []
+            list(session.agent_states[-1].applied_guideline_ids) if session.agent_states else []
         )
 
         matches_to_analyze = [
