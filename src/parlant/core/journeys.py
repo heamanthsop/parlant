@@ -1127,7 +1127,7 @@ class JourneyVectorStore(JourneyStore):
         ]
 
     @override
-    async def set_node_metadata(  # TODO go over usages in BDD journeys
+    async def set_node_metadata(
         self,
         node_id: JourneyNodeId,
         key: str,
