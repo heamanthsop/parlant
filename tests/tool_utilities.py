@@ -554,3 +554,41 @@ async def get_credit_limit(username: str) -> ToolResult:
             "result": f"Current credit limit for {username} is ${current_limit:,.2f}.",
         }
     )
+
+
+def list_cards() -> ToolResult:
+    """List all cards associated with the customer's account"""
+    return ToolResult(
+        [
+            {
+                "card_id": 1,
+                "card_name": "Chase Freedom",
+                "card_number": "**** **** **** 1234",
+                "card_type": "credit",
+            },
+            {
+                "card_id": 2,
+                "card_name": "Chase Sapphire",
+                "card_number": "**** **** **** 5678",
+                "card_type": "credit",
+            },
+        ]
+    )
+
+
+def lock_card(card_number: str, reason: str) -> ToolResult:
+    """Lock a specific card for security reasons"""
+    if reason.lower() in ["lost", "stolen"]:
+        return ToolResult(
+            {
+                "result": "failure",
+                "message": f"For lost or stolen cards ending in {card_number}, please call customer support at 123456789",
+            }
+        )
+    else:
+        return ToolResult(
+            {
+                "result": "success",
+                "message": f"Card ending in {card_number} has been successfully locked for reason: {reason}",
+            }
+        )

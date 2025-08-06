@@ -573,6 +573,8 @@ However, note that you may choose to have multiple entries in 'tool_calls_for_ca
                 ),
             },
         )
+        with open("single tool call prompt.txt", "w") as f:
+            f.write(builder.build())
         return builder
 
     def _format_tool_calls_for_candidate_tool_json_description(
@@ -795,6 +797,8 @@ Guidelines:
             hints={"temperature": temperature},
         )
         self._logger.trace(f"Inference::Completion:\n{inference.content.model_dump_json(indent=2)}")
+        with open("single tool call inference.txt", "w") as f:
+            f.write(inference.content.model_dump_json(indent=2))
 
         return inference.info, inference.content.tool_calls_for_candidate_tool
 

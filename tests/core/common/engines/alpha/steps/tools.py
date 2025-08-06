@@ -859,6 +859,29 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "required": ["username"],
     },
+    "list_cards": {
+        "name": "list_cards",
+        "description": "List all cards associated with the customer's account",
+        "module_path": "tests.tool_utilities",
+        "parameters": {},
+        "required": [],
+    },
+    "lock_card": {
+        "name": "lock_card",
+        "description": "Lock a specific card for security reasons",
+        "module_path": "tests.tool_utilities",
+        "parameters": {
+            "card_number": {
+                "type": "string",
+                "description": "The card number (last 4 digits) to lock",
+            },
+            "reason": {
+                "type": "string",
+                "description": "The reason for locking the card",
+            },
+        },
+        "required": ["card_number", "reason"],
+    },
 }
 
 

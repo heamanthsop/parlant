@@ -308,3 +308,25 @@ Feature: Journeys
         When processing is triggered
         Then a single message event is emitted
         And the message contains no mention of asking their name or tell them to reach the website 
+
+    Scenario: The journey advances correctly when pruning is needed
+        Given an agent named "Chase Digital Assistant" Whose job is to assist with bank customers
+        And a customer named "Guest"
+        And an empty session
+        And the journey called "Lock Card Journey"
+        And a customer message, "what do i do if i lost my card."
+        And an agent message, "Got it."
+        And an agent message, "There's a number of ways I can help you with that. Would you like to dispute a transaction, lock your card, or replace it?"
+        And a customer message, "lock it"
+        And an agent message, "On it."
+        And a tool event with data, {"tool_calls": [{"tool_id": "built-in:list_user_cards", "arguments": {}, "result": {"data": [{"card_id": 1, "card_name": "Chase Freedom", "card_number": "**** **** **** 1234", "card_type": "credit"}, {"card_id": 2, "card_name": "Chase Sapphire", "card_number": "**** **** **** 5678", "card_type": "credit"}]}}]}
+        And an agent message, "Here are your cards: \n- Chase Freedom, **** **** **** 1234\n- Chase Sapphire, **** **** **** 5678."
+        And an agent message, "Which one would you like to lock?"
+        And a customer message, "1234"
+        And an agent message, "Got it."
+        And an agent message, "Could you please provide the reason for locking the card?"
+        And a customer message, "i am traveling"
+        And a journey path "[2, 3, 4]" for the journey "Lock Card Journey"
+        When processing is triggered
+        Then a single message event is emitted
+        And the message contains that the card was locked
