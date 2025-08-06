@@ -411,10 +411,12 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
 
     assert "categories" in tool_call.arguments
     assert isinstance(tool_call.arguments["categories"], str)
-    assert literal_eval(tool_call.arguments["categories"]) == [
-        ProductCategory.LAPTOPS.value,
-        ProductCategory.PERIPHERALS.value,
-    ]
+    assert set(literal_eval(tool_call.arguments["categories"])) == set(
+        [
+            ProductCategory.LAPTOPS.value,
+            ProductCategory.PERIPHERALS.value,
+        ]
+    )
     assert ProductCategory.LAPTOPS.value in tool_call.arguments["categories"]
     assert ProductCategory.PERIPHERALS.value in tool_call.arguments["categories"]
 

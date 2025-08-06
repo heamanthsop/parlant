@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from enum import Enum
 from itertools import chain
 import ast
 import json
@@ -51,6 +52,12 @@ from parlant.core.shots import Shot, ShotCollection
 from parlant.core.tools import Tool, ToolId, ToolParameterDescriptor, ToolParameterOptions
 
 
+class ValidationStatus(Enum):
+    VALID = "valid"
+    INVALID = "invalid"
+    MISSING = "missing"
+
+
 class SingleToolBatchArgumentEvaluation(DefaultBaseModel):
     parameter_name: str
     acceptable_source_for_this_argument_according_to_its_tool_definition: str
@@ -59,7 +66,7 @@ class SingleToolBatchArgumentEvaluation(DefaultBaseModel):
     evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided: str
     is_optional: Optional[bool] = False
     has_default_value_if_not_provided_by_acceptable_source: Optional[bool] = None
-    valid_invalid_or_missing: str
+    valid_invalid_or_missing: ValidationStatus
     value_as_string: Optional[str] = None
 
 
@@ -282,7 +289,7 @@ class SingleToolBatch(ToolCallBatch):
                 )
             ):
                 if all(
-                    not evaluation.valid_invalid_or_missing == "missing"
+                    not evaluation.valid_invalid_or_missing == ValidationStatus.MISSING
                     for evaluation in tc.argument_evaluations or []
                     if evaluation.parameter_name in tool.required
                 ):
@@ -294,7 +301,7 @@ class SingleToolBatch(ToolCallBatch):
 
                     if tool.parameters:  # We check this because sometimes LLMs hallucinate placeholders for no-param tools
                         for evaluation in tc.argument_evaluations or []:
-                            if evaluation.valid_invalid_or_missing == "missing":
+                            if evaluation.valid_invalid_or_missing == ValidationStatus.MISSING:
                                 continue
 
                             # Note that if LLM provided 'None' for a required parameter with a default - it will get 'None' as value
@@ -321,7 +328,7 @@ class SingleToolBatch(ToolCallBatch):
                         tool_descriptor, tool_options = tool.parameters[evaluation.parameter_name]
 
                         if (
-                            evaluation.valid_invalid_or_missing == "missing"
+                            evaluation.valid_invalid_or_missing == ValidationStatus.MISSING
                             and not evaluation.is_optional
                             and not tool_options.hidden
                         ):
@@ -823,7 +830,7 @@ example_1_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="No need to provide it again as the customer's ID is unique and doesn't change",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since I have it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="12345",
                     )
                 ],
@@ -890,7 +897,7 @@ example_3_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="New York",
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -900,7 +907,7 @@ example_3_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be extremely problematic, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Newark",
                     ),
                 ],
@@ -944,7 +951,7 @@ example_4_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Margherita",
                     ),
                 ],
@@ -969,7 +976,7 @@ example_4_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer already specifically provided it",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Deep Dish",
                     ),
                 ],
@@ -1010,7 +1017,7 @@ example_5_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Harley-Davidson Street Glide",
                     )
                 ],
@@ -1058,7 +1065,7 @@ example_6_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific model",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random model, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Harley-Davidson Street Glide",
                     )
                 ],
@@ -1103,7 +1110,7 @@ example_7_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer asked about a specific location",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random room, but I don't need to guess here since the customer provided it",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="living room",
                     )
                 ],
@@ -1150,7 +1157,7 @@ example_8_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer mentioned specific requirements, which is enough for me to construct a query",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It would be absurd to provide unsolicited information on some random product, but I don't need to guess here since the customer provided their requirements",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="gaming laptop, RTX 3080, 16GB RAM",
                     )
                 ],
@@ -1195,7 +1202,7 @@ example_9_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="The customer hasn't specified it yet",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to just guess when the customer would be available for an appointment",
                         is_optional=False,
-                        valid_invalid_or_missing="missing",
+                        valid_invalid_or_missing=ValidationStatus.MISSING,
                         value_as_string=None,
                     )
                 ],
@@ -1232,7 +1239,7 @@ example_10_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="It was provided in customer's message and should not be provided again.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing product names can result in incorrect availability checks.",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string='["laptop", "mouse"]',
                     )
                 ],
@@ -1269,7 +1276,7 @@ example_11_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, using an incorrect or placeholder name could result in booking errors.",
                         is_optional=False,
-                        valid_invalid_or_missing="missing",
+                        valid_invalid_or_missing=ValidationStatus.MISSING,
                         value_as_string=None,
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -1279,7 +1286,7 @@ example_11_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the origin can result in incorrect flight details.",
                         is_optional=False,
-                        valid_invalid_or_missing="missing",
+                        valid_invalid_or_missing=ValidationStatus.MISSING,
                         value_as_string=None,
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -1289,7 +1296,7 @@ example_11_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, it was included in the customer's message and should not be asked again.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing the destination could lead to incorrect booking",
                         is_optional=False,
-                        valid_invalid_or_missing="valid",
+                        valid_invalid_or_missing=ValidationStatus.VALID,
                         value_as_string="Bangkok",
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -1299,7 +1306,7 @@ example_11_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, guessing a date could lead to incorrect or undesired bookings.",
                         is_optional=False,
-                        valid_invalid_or_missing="missing",
+                        valid_invalid_or_missing=ValidationStatus.MISSING,
                         value_as_string=None,
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -1309,7 +1316,7 @@ example_11_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="It has not been provided.",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="Yes, assuming a return date can misrepresent the customer's intent",
                         is_optional=False,
-                        valid_invalid_or_missing="missing",
+                        valid_invalid_or_missing=ValidationStatus.MISSING,
                         value_as_string=None,
                     ),
                 ],
@@ -1347,7 +1354,7 @@ example_12_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, the customer has explicitly provided an origin, so it should be extracted and filled into the matching output field even if not a valid enum value",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to guess the origin the customer wants to fly from",
                         is_optional=False,
-                        valid_invalid_or_missing="invalid",
+                        valid_invalid_or_missing=ValidationStatus.INVALID,
                         value_as_string="Tel-Aviv",
                     ),
                     SingleToolBatchArgumentEvaluation(
@@ -1357,7 +1364,7 @@ example_12_shot = SingleToolBatchShot(
                         evaluate_was_it_already_provided_and_should_it_be_provided_again="Yes, the customer has explicitly provided a destination, so it should be extracted and filled into the matching output field even if not a valid enum value",
                         evaluate_is_it_potentially_problematic_to_guess_what_the_value_is_if_it_isnt_provided="It is very problematic to guess the destination the customer wants to fly to",
                         is_optional=False,
-                        valid_invalid_or_missing="invalid",
+                        valid_invalid_or_missing=ValidationStatus.INVALID,
                         value_as_string="Singapore",
                     ),
                 ],

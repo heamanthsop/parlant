@@ -433,6 +433,32 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "required": ["name", "manager", "director", "cleaner"],
     },
+    "calculate_expected_salary": {
+        "name": "calculate_expected_salary",
+        "description": "Calculate the expected salary of an employee according to their features",
+        "module_path": "tests.tool_utilities",
+        "parameters": {
+            "name": {
+                "type": "string",
+                "enum": ["John", "Shone", "David"],
+            },
+            "Residence": (
+                {
+                    "type": "string",
+                    "enum": [" City Center", "Suburban", "Kibbutz"],
+                },
+                ToolParameterOptions(hidden=True),
+            ),
+            "Car": (
+                {
+                    "type": "string",
+                    "enum": ["Toyota", "Tesla", "Ford"],
+                },
+                ToolParameterOptions(hidden=True),
+            ),
+        },
+        "required": ["name", "manager", "director", "cleaner"],
+    },
     "get_products_by_type": {
         "name": "get_products_by_type",
         "description": "Get all products that match the specified product type ",
