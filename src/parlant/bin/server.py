@@ -816,8 +816,9 @@ async def recover_server_tasks(
 
 async def check_required_schema_migrations() -> None:
     from parlant.bin.prepare_migration import detect_required_migrations
+    from parlant.adapters.vector_db.chroma import ChromaDatabase
 
-    if await detect_required_migrations():
+    if await detect_required_migrations(JSONFileDocumentDatabase, ChromaDatabase):
         die(
             "You're running a particularly old version of Parlant.\n"
             "To upgrade your existing data to the new schema version, please run\n"

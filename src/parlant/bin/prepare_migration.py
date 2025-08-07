@@ -12,6 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Migration Script Refactoring Status:
+
+This script has been partially refactored to support generic DocumentDatabase and VectorDatabase types.
+
+COMPLETED:
+- Function signatures updated to accept database types
+- get_component_versions() refactored with type checking
+- Migration registry system updated to pass database types
+- main() function updated to pass concrete types
+
+TODO for full database abstraction:
+1. All migration functions (migrate_*) still need to be updated to:
+   - Accept database type parameters
+   - Add type checking for supported implementations
+   - Replace hardcoded JSONFileDocumentDatabase/ChromaDatabase instantiations
+
+2. Database-specific code that needs abstraction:
+   - ChromaDatabase._collections attribute access
+   - ChromaDatabase constructor arguments (embedder_factory, etc.)
+   - ChromaDatabase.chroma_client operations (get_collection, list_collections, etc.)
+   - JSONFileDocumentDatabase file path operations
+   - Vector database metadata format and access patterns
+
+3. Migration functions requiring updates:
+   - migrate_agents_0_1_0_to_0_2_0
+   - migrate_guidelines_0_1_0_to_0_3_0
+   - migrate_context_variables_0_1_0_to_0_2_0
+   - migrate_glossary_0_1_0_to_0_2_0
+   - migrate_utterances_0_1_0_to_0_2_0
+   - migrate_journeys_0_1_0_to_0_2_0
+   - migrate_evaluations_0_1_0_to_0_2_0
+   - migrate_guideline_relationships_0_1_0_to_0_2_0
+   - migrate_relationships_0_2_0_to_0_3_0
+   - migrate_journeys_0_2_0_to_0_3_0
+   - migrate_canned_responses_0_2_0_to_0_4_0
+   - migrate_capabilities_0_1_0_to_0_2_0
+
+Currently only JSONFileDocumentDatabase and ChromaDatabase are supported.
+Other implementations will raise NotImplementedError.
+"""
+
 import asyncio
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
@@ -60,6 +102,7 @@ from parlant.core.glossary import (
     TermTagAssociationDocument,
     TermId,
 )
+from parlant.core.persistence.vector_database import VectorDatabase
 from parlant.core.persistence.vector_database_helper import VectorDocumentStoreMigrationHelper
 from parlant.core.journeys import (
     JourneyConditionAssociationDocument,
@@ -134,12 +177,14 @@ class VersionCheckpoint:
         return f"{self.component}: {self.from_version} -> {self.to_version}"
 
 
-MigrationFunction = Callable[[], Awaitable[None]]
+MigrationFunction = Callable[[type[DocumentDatabase], type[VectorDatabase]], Awaitable[None]]
 migration_registry: dict[tuple[str, str, str], MigrationFunction] = {}
 
 
 def register_migration(
-    component: str, from_version: str, to_version: str
+    component: str,
+    from_version: str,
+    to_version: str,
 ) -> Callable[[MigrationFunction], MigrationFunction]:
     """Decorator to register migration functions"""
 
@@ -150,98 +195,118 @@ def register_migration(
     return decorator
 
 
-async def get_component_versions() -> list[tuple[str, str]]:
+async def get_component_versions(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> list[tuple[str, str]]:
     """Get current versions of all components"""
     versions = []
 
-    def _get_version_from_json_file(
+    def _get_version_from_document_database(
         file_path: Path,
         collection_name: str,
     ) -> Optional[str]:
-        if not file_path.exists():
+        if document_database_type == JSONFileDocumentDatabase:
+            if not file_path.exists():
+                return None
+
+            with open(file_path, "r") as f:
+                raw_data = json.load(f)
+                if "metadata" in raw_data:
+                    return cast(str, raw_data["metadata"][0]["version"])
+                else:
+                    items = raw_data.get(collection_name)
+                    if items and len(items) > 0:
+                        return cast(str, items[0]["version"])
             return None
+        else:
+            raise NotImplementedError(
+                f"Version retrieval not supported for document database type: {document_database_type.__name__}. "
+                f"Currently only JSONFileDocumentDatabase is supported."
+            )
 
-        with open(file_path, "r") as f:
-            raw_data = json.load(f)
-            if "metadata" in raw_data:
-                return cast(str, raw_data["metadata"][0]["version"])
-            else:
-                items = raw_data.get(collection_name)
-                if items and len(items) > 0:
-                    return cast(str, items[0]["version"])
-        return None
+    async def _get_version_from_vector_database() -> tuple[Any, dict[str, Any]]:
+        if vector_database_type == ChromaDatabase:
+            embedder_factory = EmbedderFactory(Container())
+            vector_db = await EXIT_STACK.enter_async_context(
+                ChromaDatabase(
+                    LOGGER,
+                    PARLANT_HOME_DIR,
+                    embedder_factory,
+                    embedding_cache_provider=NullEmbeddingCache,
+                )
+            )
 
-    agents_version = _get_version_from_json_file(
+            vector_db_metadata = cast(dict[str, Any], await vector_db.read_metadata())
+            return vector_db, vector_db_metadata
+        else:
+            raise NotImplementedError(
+                f"Version retrieval not supported for vector database type: {vector_database_type.__name__}. "
+                f"Currently only ChromaDatabase is supported."
+            )
+
+    agents_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "agents.json",
         "agents",
     )
     if agents_version:
         versions.append(("agents", agents_version))
 
-    guidelines_version = _get_version_from_json_file(
+    guidelines_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "guidelines.json",
         "guidelines",
     )
     if guidelines_version:
         versions.append(("guidelines", guidelines_version))
 
-    context_vars_version = _get_version_from_json_file(
+    context_vars_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "context_variables.json",
         "context_variables",
     )
     if context_vars_version:
         versions.append(("context_variables", context_vars_version))
 
-    evaluations_version = _get_version_from_json_file(
+    evaluations_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "evaluations.json",
         "evaluations",
     )
     if evaluations_version:
         versions.append(("evaluations", evaluations_version))
 
-    guideline_connections_version = _get_version_from_json_file(
+    guideline_connections_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "guideline_connections.json",
         "guideline_connections",
     )
     if guideline_connections_version:
         versions.append(("guideline_connections", guideline_connections_version))
 
-    guideline_relationships_version = _get_version_from_json_file(
+    guideline_relationships_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "guideline_relationships.json",
         "guideline_relationships",
     )
     if guideline_relationships_version:
         versions.append(("guideline_relationships", guideline_relationships_version))
 
-    embedder_factory = EmbedderFactory(Container())
-    chroma_db = await EXIT_STACK.enter_async_context(
-        ChromaDatabase(
-            LOGGER,
-            PARLANT_HOME_DIR,
-            embedder_factory,
-            embedding_cache_provider=NullEmbeddingCache,
-        )
-    )
-    existing_collections = chroma_db._collections
+    vector_db, vector_db_metadata = await _get_version_from_vector_database()
+    # TODO: Refactor - _collections is ChromaDatabase specific attribute
+    existing_collections = vector_db._collections
 
     if "glossary_unembedded" in existing_collections:
-        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
-
         versions.append(
             (
                 "glossary",
-                chroma_db_metadata.get(
+                vector_db_metadata.get(
                     VectorDocumentStoreMigrationHelper.get_store_version_key(
                         GlossaryVectorStore.__name__
                     ),
-                    chroma_db_metadata.get(
+                    vector_db_metadata.get(
                         "version", "0.1.0"
                     ),  # Back off to the old version key method if not found
                 ),
             )
         )
 
-    utterances_version = _get_version_from_json_file(
+    utterances_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "utterances.json",
         "utterances",
     )
@@ -249,12 +314,10 @@ async def get_component_versions() -> list[tuple[str, str]]:
         versions.append(("utterances", utterances_version))
 
     if "utterances_unembedded" in existing_collections:
-        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
-
         versions.append(
             (
                 "utterances",
-                chroma_db_metadata.get(
+                vector_db_metadata.get(
                     VectorDocumentStoreMigrationHelper.get_store_version_key(
                         "UtteranceVectorStore"
                     ),
@@ -263,7 +326,7 @@ async def get_component_versions() -> list[tuple[str, str]]:
             )
         )
 
-    journeys_version = _get_version_from_json_file(
+    journeys_version = _get_version_from_document_database(
         PARLANT_HOME_DIR / "journeys.json",
         "journeys",
     )
@@ -271,16 +334,14 @@ async def get_component_versions() -> list[tuple[str, str]]:
         versions.append(("journeys", journeys_version))
 
     if "journeys_unembedded" in existing_collections:
-        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
-
         versions.append(
             (
                 "journeys",
-                chroma_db_metadata.get(
+                vector_db_metadata.get(
                     VectorDocumentStoreMigrationHelper.get_store_version_key(
                         JourneyVectorStore.__name__
                     ),
-                    chroma_db_metadata.get(
+                    vector_db_metadata.get(
                         "version", "0.1.0"
                     ),  # Back off to the old version key method if not found
                 ),
@@ -288,16 +349,14 @@ async def get_component_versions() -> list[tuple[str, str]]:
         )
 
     if "capabilities_unembedded" in existing_collections:
-        chroma_db_metadata = cast(dict[str, Any], await chroma_db.read_metadata())
-
         versions.append(
             (
                 "capabilities",
-                chroma_db_metadata.get(
+                vector_db_metadata.get(
                     VectorDocumentStoreMigrationHelper.get_store_version_key(
                         CapabilityVectorStore.__name__
                     ),
-                    chroma_db_metadata.get(
+                    vector_db_metadata.get(
                         "version", "0.1.0"
                     ),  # Back off to the old version key method if not found
                 ),
@@ -467,7 +526,10 @@ async def migrate_glossary_with_metadata() -> None:
 
 
 @register_migration("agents", "0.1.0", "0.2.0")
-async def migrate_agents_0_1_0_to_0_2_0() -> None:
+async def migrate_agents_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for agents 0.1.0 -> 0.2.0")
 
     agents_db = await EXIT_STACK.enter_async_context(
@@ -538,7 +600,10 @@ async def migrate_agents_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("guidelines", "0.1.0", "0.3.0")
-async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
+async def migrate_guidelines_0_1_0_to_0_3_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     async def _association_document_loader(
         doc: BaseDocument,
     ) -> Optional[GuidelineTagAssociationDocument]:
@@ -603,7 +668,10 @@ async def migrate_guidelines_0_1_0_to_0_3_0() -> None:
 
 
 @register_migration("context_variables", "0.1.0", "0.2.0")
-async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
+async def migrate_context_variables_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     async def _association_document_loader(
         doc: BaseDocument,
     ) -> Optional[ContextVariableTagAssociationDocument]:
@@ -660,7 +728,16 @@ async def migrate_context_variables_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("agents", "0.2.0", "0.3.0")
-async def migrate_agents_0_2_0_to_0_3_0() -> None:
+async def migrate_agents_0_2_0_to_0_3_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
+    if document_database_type != JSONFileDocumentDatabase:
+        raise NotImplementedError(
+            f"Migration not supported for document database type: {document_database_type.__name__}. "
+            f"Currently only JSONFileDocumentDatabase is supported."
+        )
+
     agent_db = await EXIT_STACK.enter_async_context(
         JSONFileDocumentDatabase(LOGGER, PARLANT_HOME_DIR / "agents.json")
     )
@@ -692,7 +769,10 @@ async def migrate_agents_0_2_0_to_0_3_0() -> None:
 
 
 @register_migration("glossary", "0.1.0", "0.2.0")
-async def migrate_glossary_0_1_0_to_0_2_0() -> None:
+async def migrate_glossary_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for glossary 0.1.0 -> 0.2.0")
 
     async def _association_document_loader(
@@ -779,7 +859,10 @@ async def migrate_glossary_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("utterances", "0.1.0", "0.2.0")
-async def migrate_utterances_0_1_0_to_0_2_0() -> None:
+async def migrate_utterances_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for utterances 0.1.0 -> 0.2.0")
 
     async def _association_document_loader(
@@ -891,7 +974,10 @@ async def migrate_utterances_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("journeys", "0.1.0", "0.2.0")
-async def migrate_journeys_0_1_0_to_0_2_0() -> None:
+async def migrate_journeys_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for journeys 0.1.0 -> 0.2.0")
 
     async def _tag_association_document_loader(
@@ -1031,7 +1117,10 @@ async def migrate_journeys_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("evaluations", "0.1.0", "0.2.0")
-async def migrate_evaluations_0_1_0_to_0_2_0() -> None:
+async def migrate_evaluations_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     async def _association_document_loader(
         doc: BaseDocument,
     ) -> Optional[EvaluationTagAssociationDocument]:
@@ -1120,7 +1209,10 @@ async def migrate_evaluations_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("guideline_connections", "0.1.0", "0.2.0")
-async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
+async def migrate_guideline_relationships_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for guideline relationships 0.1.0 -> 0.2.0")
 
     guideline_relationships_db = await EXIT_STACK.enter_async_context(
@@ -1187,7 +1279,10 @@ async def migrate_guideline_relationships_0_1_0_to_0_2_0() -> None:
 
 
 @register_migration("guideline_relationships", "0.2.0", "0.3.0")
-async def migrate_relationships_0_2_0_to_0_3_0() -> None:
+async def migrate_relationships_0_2_0_to_0_3_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for relationships 0.2.0 -> 0.3.0")
 
     relationships_db = await EXIT_STACK.enter_async_context(
@@ -1260,7 +1355,10 @@ async def migrate_relationships_0_2_0_to_0_3_0() -> None:
 
 
 @register_migration("journeys", "0.2.0", "0.3.0")
-async def migrate_journeys_0_2_0_to_0_3_0() -> None:
+async def migrate_journeys_0_2_0_to_0_3_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for journeys 0.2.0 -> 0.3.0")
 
     async def _journey_loader(
@@ -1436,7 +1534,10 @@ async def migrate_journeys_0_2_0_to_0_3_0() -> None:
 
 
 @register_migration("utterances", "0.2.0", "0.4.0")
-async def migrate_canned_responses_0_2_0_to_0_4_0() -> None:
+async def migrate_canned_responses_0_2_0_to_0_4_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for canned responses 0.2.0 -> 0.4.0")
 
     async def _old_association_document_loader(
@@ -1622,7 +1723,10 @@ async def migrate_canned_responses_0_2_0_to_0_4_0() -> None:
 
 
 @register_migration("capabilities", "0.1.0", "0.2.0")
-async def migrate_capabilities_0_1_0_to_0_2_0() -> None:
+async def migrate_capabilities_0_1_0_to_0_2_0(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
     rich.print("[green]Starting migration for capabilities 0.1.0 -> 0.2.0")
 
     async def _vector_document_loader(
@@ -1793,8 +1897,11 @@ async def upgrade_document_database_metadata(
         )
 
 
-async def detect_required_migrations() -> list[tuple[str, str, str]]:
-    component_versions = await get_component_versions()
+async def detect_required_migrations(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> list[tuple[str, str, str]]:
+    component_versions = await get_component_versions(document_database_type, vector_database_type)
     required_migrations = []
 
     for component, current_version in component_versions:
@@ -1815,8 +1922,13 @@ async def detect_required_migrations() -> list[tuple[str, str, str]]:
     return required_migrations
 
 
-async def migrate() -> None:
-    required_migrations = await detect_required_migrations()
+async def migrate(
+    document_database_type: type[DocumentDatabase],
+    vector_database_type: type[VectorDatabase],
+) -> None:
+    required_migrations = await detect_required_migrations(
+        document_database_type, vector_database_type
+    )
     if not required_migrations:
         rich.print("[yellow]No migrations required.")
         return
@@ -1836,10 +1948,12 @@ async def migrate() -> None:
             migration_func = migration_registry[migration_key]
 
             rich.print(f"[green]Running migration: {component} {from_version} -> {to_version}")
-            await migration_func()
+            await migration_func(document_database_type, vector_database_type)
             applied_migrations.add(migration_key)
 
-        new_required_migrations = await detect_required_migrations()
+        new_required_migrations = await detect_required_migrations(
+            document_database_type, vector_database_type
+        )
         required_migrations = [m for m in new_required_migrations if m not in applied_migrations]
 
         if not required_migrations:
@@ -1858,7 +1972,7 @@ def die(message: str) -> NoReturn:
 
 def main() -> None:
     try:
-        asyncio.run(migrate())
+        asyncio.run(migrate(JSONFileDocumentDatabase, ChromaDatabase))
     except Exception as e:
         die(str(e))
 
