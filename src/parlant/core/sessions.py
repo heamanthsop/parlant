@@ -602,7 +602,7 @@ class SessionDocumentStore(SessionStore):
 
             return _SessionDocument(
                 id=doc["id"],
-                version=Version.String("0.5.0"),
+                version=Version.String("0.6.0"),
                 creation_utc=doc["creation_utc"],
                 customer_id=doc["customer_id"],
                 agent_id=doc["agent_id"],
@@ -626,6 +626,7 @@ class SessionDocumentStore(SessionStore):
     async def _event_document_loader(self, doc: BaseDocument) -> Optional[_EventDocument]:
         async def v0_1_0_to_v0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_EventDocument, doc)
+
             return _EventDocument(
                 id=doc["id"],
                 version=Version.String("0.5.0"),
@@ -650,10 +651,10 @@ class SessionDocumentStore(SessionStore):
                     MessageEventData(
                         message=doc_data["message"],
                         participant=doc_data["participant"],
-                        flagged=doc_data["flagged"],
-                        tags=doc_data["tags"],
-                        draft=doc_data["draft"],
-                        canned_responses=doc_data["utterances"],
+                        flagged=doc_data.get("flagged", False),
+                        tags=doc_data.get("tags", []),
+                        draft=doc_data.get("draft", ""),
+                        canned_responses=doc_data.get("utterances", []),
                     ),
                 )
 
@@ -671,8 +672,8 @@ class SessionDocumentStore(SessionStore):
                                     data=tc["result"]["data"],
                                     metadata=tc["result"]["metadata"],
                                     control=tc["result"]["control"],
-                                    canned_responses=tc["result"]["utterances"],
-                                    canned_response_fields=tc["result"]["utterance_fields"],
+                                    canned_responses=tc["result"].get("utterances", []),
+                                    canned_response_fields=tc["result"].get("utterance_fields", {}),
                                 ),
                             )
                             for tc in t_data["tool_calls"]
@@ -702,12 +703,14 @@ class SessionDocumentStore(SessionStore):
                 "0.2.0": v0_1_0_to_v0_5_0,
                 "0.3.0": v0_1_0_to_v0_5_0,
                 "0.4.0": v0_1_0_to_v0_5_0,
+                "0.5.0": v0_5_0_to_v0_6_0,
             },
         ).migrate(doc)
 
     async def _inspection_document_loader(self, doc: BaseDocument) -> Optional[_InspectionDocument]:
         async def v0_1_0_to_v0_2_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_InspectionDocument_v0_1_0, doc)
+
             return _InspectionDocument_v0_2_0(
                 id=doc["id"],
                 version=Version.String("0.2.0"),
@@ -802,11 +805,11 @@ class SessionDocumentStore(SessionStore):
                 preparation_iterations=doc["preparation_iterations"],
             )
 
-        async def v0_4_0_to_v0_5_0(doc: BaseDocument) -> Optional[BaseDocument]:
+        async def v0_4_0_to_v0_6_0(doc: BaseDocument) -> Optional[BaseDocument]:
             doc = cast(_InspectionDocument, doc)
             return _InspectionDocument(
                 id=doc["id"],
-                version=Version.String("0.5.0"),
+                version=Version.String("0.6.0"),
                 session_id=doc["session_id"],
                 correlation_id=doc["correlation_id"],
                 message_generations=doc["message_generations"],
@@ -819,7 +822,7 @@ class SessionDocumentStore(SessionStore):
                 "0.1.0": v0_1_0_to_v0_2_0,
                 "0.2.0": v0_2_0_to_v0_3_0,
                 "0.3.0": v0_3_0_to_v0_4_0,
-                "0.4.0": v0_4_0_to_v0_5_0,
+                "0.4.0": v0_4_0_to_v0_6_0,
             },
         ).migrate(doc)
 
