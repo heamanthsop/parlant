@@ -2982,6 +2982,7 @@ __all__ = [
     "SessionMode",
     "SessionStatus",
     "StatusEventData",
+    "T",
     "Tag",
     "TagId",
     "Term",
