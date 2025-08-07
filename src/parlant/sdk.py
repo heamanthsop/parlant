@@ -84,6 +84,7 @@ from parlant.core.customers import (
     CustomerStore,
 )
 from parlant.core.emissions import EmittedEvent, EventEmitterFactory
+from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.engines.alpha.hooks import EngineHook, EngineHookResult, EngineHooks
 from parlant.core.engines.alpha.loaded_context import LoadedContext, Interaction, InteractionMessage
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore, TermId
@@ -162,6 +163,12 @@ from parlant.core.journeys import (
 )
 from parlant.core.loggers import LogLevel, Logger
 from parlant.core.nlp.service import NLPService
+from parlant.core.nlp.moderation import (
+    ModerationCheck,
+    ModerationService,
+    ModerationTag,
+    NoModeration,
+)
 from parlant.core.engines.alpha.canned_response_generator import (
     NoMatchResponseProvider,
     BasicNoMatchResponseProvider,
@@ -2945,8 +2952,13 @@ __all__ = [
     "LogLevel",
     "Logger",
     "MessageEventData",
+    "ModerationCheck",
+    "ModerationService",
+    "ModerationTag",
+    "NoModeration",
     "NLPService",
     "OptimizationPolicy",
+    "PromptBuilder",
     "BasicOptimizationPolicy",
     "PerceivedPerformancePolicy",
     "BasicPerceivedPerformancePolicy",
