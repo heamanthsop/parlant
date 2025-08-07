@@ -46,8 +46,7 @@ class Embedder(ABC):
         self,
         texts: list[str],
         hints: Mapping[str, Any] = {},
-    ) -> EmbeddingResult:
-        pass
+    ) -> EmbeddingResult: ...
 
     @property
     @abstractmethod
