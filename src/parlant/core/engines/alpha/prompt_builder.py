@@ -63,7 +63,7 @@ class SectionStatus(Enum):
 
 
 @dataclass(frozen=True)
-class Section:
+class PromptSection:
     template: str
     props: dict[str, Any]
     status: Optional[SectionStatus]
@@ -71,7 +71,7 @@ class Section:
 
 class PromptBuilder:
     def __init__(self, on_build: Optional[Callable[[str], None]] = None) -> None:
-        self.sections: dict[str | BuiltInSection, Section] = {}
+        self.sections: dict[str | BuiltInSection, PromptSection] = {}
 
         self._on_build = on_build
         self._cached_results: set[str] = set()
@@ -103,7 +103,7 @@ class PromptBuilder:
         if name in self.sections:
             raise ValueError(f"Section '{name}' was already added")
 
-        self.sections[name] = Section(
+        self.sections[name] = PromptSection(
             template=template,
             props=props,
             status=status,
@@ -114,7 +114,7 @@ class PromptBuilder:
     def edit_section(
         self,
         name: str | BuiltInSection,
-        editor_func: Callable[[Section], Section],
+        editor_func: Callable[[PromptSection], PromptSection],
     ) -> PromptBuilder:
         if name in self.sections:
             self.sections[name] = editor_func(self.sections[name])

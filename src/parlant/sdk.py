@@ -84,7 +84,7 @@ from parlant.core.customers import (
     CustomerStore,
 )
 from parlant.core.emissions import EmittedEvent, EventEmitterFactory
-from parlant.core.engines.alpha.prompt_builder import PromptBuilder
+from parlant.core.engines.alpha.prompt_builder import PromptBuilder, PromptSection
 from parlant.core.engines.alpha.hooks import EngineHook, EngineHookResult, EngineHooks
 from parlant.core.engines.alpha.loaded_context import LoadedContext, Interaction, InteractionMessage
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore, TermId
@@ -2961,6 +2961,7 @@ __all__ = [
     "NLPService",
     "OptimizationPolicy",
     "PromptBuilder",
+    "PromptSection",
     "BasicOptimizationPolicy",
     "PerceivedPerformancePolicy",
     "BasicPerceivedPerformancePolicy",

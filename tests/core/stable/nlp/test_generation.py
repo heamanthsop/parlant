@@ -24,7 +24,7 @@ from parlant.core.common import DefaultBaseModel
 from parlant.core.engines.alpha.prompt_builder import (
     BuiltInSection,
     PromptBuilder,
-    Section,
+    PromptSection,
     SectionStatus,
 )
 from parlant.core.loggers import Logger
@@ -309,8 +309,8 @@ async def test_that_prompt_builder_edits_are_reflected_in_generation() -> None:
         def tokenizer(self) -> EstimatingTokenizer:
             return ZeroEstimatingTokenizer()
 
-        def _build_agent_identity(self, section: Section) -> Section:
-            new_section = Section(
+        def _build_agent_identity(self, section: PromptSection) -> PromptSection:
+            new_section = PromptSection(
                 template="You are NOT {name}",
                 props=section.props,
                 status=section.status,
