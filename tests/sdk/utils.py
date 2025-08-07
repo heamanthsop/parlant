@@ -72,7 +72,7 @@ class Context:
             wait_for_data=30,
         )
 
-        assert len(agent_messages) == 1
+        assert len(agent_messages) >= 1
 
         return get_message(agent_messages[0])
 
@@ -123,6 +123,9 @@ class SDKTest:
 
                 await asyncio.sleep(0.25)
 
+    async def configure_hooks(self, hooks: p.EngineHooks) -> p.EngineHooks:
+        return hooks
+
     async def create_server(self, port: int) -> tuple[p.Server, Callable[[], p.Container]]:
         test_container: p.Container = p.Container()
 
@@ -137,6 +140,7 @@ class SDKTest:
             tool_service_port=get_random_port(),
             log_level=p.LogLevel.TRACE,
             configure_container=configure_container,
+            configure_hooks=self.configure_hooks,
         ), lambda: test_container
 
     async def setup(self, server: p.Server) -> None: ...

@@ -123,10 +123,11 @@ class JournalingEngineHooks(EngineHooks):
         self,
         hooks: Sequence[EngineHook],
         context: LoadedContext,
+        payload: Any,
         exc: Optional[Exception] = None,
     ) -> bool:
         self.latest_context_per_correlation_id[context.correlator.correlation_id] = context
-        return await super().call_hooks(hooks, context, exc)
+        return await super().call_hooks(hooks, context, payload, exc)
 
 
 class _TestLogger(Logger):

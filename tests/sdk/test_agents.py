@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
 from parlant.core.capabilities import CapabilityStore
 from parlant.core.guideline_tool_associations import GuidelineToolAssociationStore
 from parlant.core.guidelines import GuidelineStore
@@ -202,3 +203,32 @@ class Test_that_an_agent_can_be_found_using_tool_context(SDKTest):
         )
 
         assert await nlp_test(answer, "It says that spatio is the name of a mouse.")
+
+
+class Test_that_the_output_of_an_agent_can_be_intercepted(SDKTest):
+    # This test shows that you can intercept the agent's generated message before
+    # it reaches the customer. This can be extremely important for last-minute validations.
+
+    async def configure_hooks(self, hooks: p.EngineHooks) -> p.EngineHooks:
+        async def intercept_message(
+            ctx: p.LoadedContext, payload: Any, exc: Exception | None
+        ) -> p.EngineHookResult:
+            _ = payload  # Here is where validations would run (payload is the generated message)
+
+            await ctx.session_event_emitter.emit_message_event(
+                correlation_id=ctx.correlator.correlation_id,
+                data="Bananas! More bananas!",
+            )
+
+            # Reject the generated message
+            return p.EngineHookResult.BAIL
+
+        hooks.on_message_generated.append(intercept_message)
+        return hooks
+
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(name="Dummy Agent", description="")
+
+    async def run(self, ctx: Context) -> None:
+        answer = await ctx.send_and_receive(customer_message="Hello", recipient=self.agent)
+        assert answer == "Bananas! More bananas!"

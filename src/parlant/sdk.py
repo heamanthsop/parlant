@@ -2299,6 +2299,7 @@ class Server:
 
             async def on_message_acknowledged(
                 ctx: LoadedContext,
+                payload: Any,
                 exc: Optional[Exception],
             ) -> EngineHookResult:
                 # First do some garbage collection if needed.
@@ -2354,6 +2355,7 @@ class Server:
 
             async def on_generating_messages(
                 ctx: LoadedContext,
+                payload: Any,
                 exc: Optional[Exception],
             ) -> EngineHookResult:
                 if timeout_and_task := tasks_for_this_retriever.pop(

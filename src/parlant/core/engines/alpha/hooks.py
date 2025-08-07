@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Awaitable, Callable, Optional, Sequence, TypeAlias
+from typing import Any, Awaitable, Callable, Optional, Sequence, TypeAlias
 
 from parlant.core.engines.alpha.loaded_context import LoadedContext
 
@@ -34,7 +34,9 @@ class EngineHookResult(Enum):
     """
 
 
-EngineHook: TypeAlias = Callable[[LoadedContext, Optional[Exception]], Awaitable[EngineHookResult]]
+EngineHook: TypeAlias = Callable[
+    [LoadedContext, Any, Optional[Exception]], Awaitable[EngineHookResult]
+]
 """A callable that takes a LoadedContext and an optional Exception, and returns an EngineHookResult."""
 
 
@@ -52,8 +54,11 @@ class EngineHooks:
     on_generating_preamble: list[EngineHook] = field(default_factory=list)
     """Called just before generating the preamble message"""
 
-    on_generated_preamble: list[EngineHook] = field(default_factory=list)
-    """Called right after generating the preamble message"""
+    on_preamble_generated: list[EngineHook] = field(default_factory=list)
+    """Called right after a preamble was generated (but not yet emitted)"""
+
+    on_preamble_emitted: list[EngineHook] = field(default_factory=list)
+    """Called right after a preamble message was emitted into the session"""
 
     on_preparing: list[EngineHook] = field(default_factory=list)
     """Called just before beginning the preparation iterations"""
@@ -67,47 +72,60 @@ class EngineHooks:
     on_generating_messages: list[EngineHook] = field(default_factory=list)
     """Called just before generating messages"""
 
-    on_generated_messages: list[EngineHook] = field(default_factory=list)
-    """Called right after generating messages"""
+    on_message_generated: list[EngineHook] = field(default_factory=list)
+    """Called right after a message was generated (but not yet emitted)"""
+
+    on_message_emitted: list[EngineHook] = field(default_factory=list)
+    """Called right after a single message was emitted into the session"""
+
+    on_messages_emitted: list[EngineHook] = field(default_factory=list)
+    """Called right after all messages were emitted into the session"""
 
     async def call_on_error(self, context: LoadedContext, exception: Exception) -> bool:
-        return await self.call_hooks(self.on_error, context, exception)
+        return await self.call_hooks(self.on_error, context, None, exception)
 
     async def call_on_acknowledging(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_acknowledging, context)
+        return await self.call_hooks(self.on_acknowledging, context, None)
 
     async def call_on_acknowledged(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_acknowledged, context)
+        return await self.call_hooks(self.on_acknowledged, context, None)
 
     async def call_on_preparing(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_preparing, context)
+        return await self.call_hooks(self.on_preparing, context, None)
 
     async def call_on_preparation_iteration_start(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_preparation_iteration_start, context)
+        return await self.call_hooks(self.on_preparation_iteration_start, context, None)
 
     async def call_on_preparation_iteration_end(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_preparation_iteration_end, context)
+        return await self.call_hooks(self.on_preparation_iteration_end, context, None)
 
     async def call_on_generating_preamble(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_generating_preamble, context)
+        return await self.call_hooks(self.on_generating_preamble, context, None)
 
-    async def call_on_generated_preamble(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_generated_preamble, context)
+    async def call_on_preamble_generated(self, context: LoadedContext, payload: str) -> bool:
+        return await self.call_hooks(self.on_preamble_generated, context, payload)
+
+    async def call_on_preamble_emitted(self, context: LoadedContext) -> bool:
+        return await self.call_hooks(self.on_preamble_emitted, context, None)
 
     async def call_on_generating_messages(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_generating_messages, context)
+        return await self.call_hooks(self.on_generating_messages, context, None)
 
-    async def call_on_generated_messages(self, context: LoadedContext) -> bool:
-        return await self.call_hooks(self.on_generated_messages, context)
+    async def call_on_message_generated(self, context: LoadedContext, payload: str) -> bool:
+        return await self.call_hooks(self.on_message_generated, context, payload)
+
+    async def call_on_messages_emitted(self, context: LoadedContext) -> bool:
+        return await self.call_hooks(self.on_messages_emitted, context, None)
 
     async def call_hooks(
         self,
         hooks: Sequence[EngineHook],
         context: LoadedContext,
+        payload: Any,
         exc: Optional[Exception] = None,
     ) -> bool:
         for callable in hooks:
-            match await callable(context, exc):
+            match await callable(context, payload, exc):
                 case EngineHookResult.CALL_NEXT:
                     continue
                 case EngineHookResult.RESOLVE:

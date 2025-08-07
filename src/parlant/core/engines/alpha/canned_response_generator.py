@@ -39,6 +39,7 @@ from parlant.core.engines.alpha.guideline_matching.generic.common import (
     GuidelineInternalRepresentation,
     internal_representation,
 )
+from parlant.core.engines.alpha.hooks import EngineHooks
 from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.engines.alpha.message_event_composer import (
     MessageCompositionError,
@@ -444,6 +445,7 @@ class CannedResponseGenerator(MessageEventComposer):
         self,
         logger: Logger,
         correlator: ContextualCorrelator,
+        hooks: EngineHooks,
         optimization_policy: OptimizationPolicy,
         canned_response_draft_generator: SchematicGenerator[CannedResponseDraftSchema],
         canned_selection_generator: SchematicGenerator[CannedResponseSelectionSchema],
@@ -458,6 +460,7 @@ class CannedResponseGenerator(MessageEventComposer):
     ) -> None:
         self._logger = logger
         self._correlator = correlator
+        self._hooks = hooks
         self._optimization_policy = optimization_policy
         self._canrep_draft_generator = canned_response_draft_generator
         self._canrep_selection_generator = canned_selection_generator
@@ -631,21 +634,26 @@ You will now be given the current state of the interaction to which you must gen
                 )
                 return []
 
-        emitted_event = await canrep_context.event_emitter.emit_message_event(
-            correlation_id=f"{self._correlator.correlation_id}",
-            data=MessageEventData(
-                message=canrep.content.preamble,
-                participant=Participant(id=agent.id, display_name=agent.name),
-                tags=[Tag.preamble()],
-            ),
-        )
+        if await self._hooks.call_on_preamble_generated(context, payload=canrep.content.preamble):
+            # If we're in, the hook did not bail out.
 
-        return [
-            MessageEventComposition(
-                generation_info={"message": canrep.info},
-                events=[emitted_event],
+            emitted_event = await canrep_context.event_emitter.emit_message_event(
+                correlation_id=f"{self._correlator.correlation_id}",
+                data=MessageEventData(
+                    message=canrep.content.preamble,
+                    participant=Participant(id=agent.id, display_name=agent.name),
+                    tags=[Tag.preamble()],
+                ),
             )
-        ]
+
+            return [
+                MessageEventComposition(
+                    generation_info={"message": canrep.info},
+                    events=[emitted_event],
+                )
+            ]
+
+        return []
 
     @override
     async def generate_response(
@@ -799,17 +807,20 @@ You will now be given the current state of the interaction to which you must gen
                     while sub_messages:
                         m = sub_messages.pop(0)
 
-                        event = await event_emitter.emit_message_event(
-                            correlation_id=self._correlator.correlation_id,
-                            data=MessageEventData(
-                                message=m,
-                                participant=Participant(id=agent.id, display_name=agent.name),
-                                draft=result.draft,
-                                canned_responses=result.canned_responses,
-                            ),
-                        )
+                        if await self._hooks.call_on_message_generated(loaded_context, payload=m):
+                            # If we're in, the hook did not bail out.
 
-                        events.append(event)
+                            event = await event_emitter.emit_message_event(
+                                correlation_id=self._correlator.correlation_id,
+                                data=MessageEventData(
+                                    message=m,
+                                    participant=Participant(id=agent.id, display_name=agent.name),
+                                    draft=result.draft,
+                                    canned_responses=result.canned_responses,
+                                ),
+                            )
+
+                            events.append(event)
 
                         await context.event_emitter.emit_status_event(
                             correlation_id=self._correlator.correlation_id,

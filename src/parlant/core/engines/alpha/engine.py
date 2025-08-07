@@ -330,7 +330,7 @@ class AlphaEngine(Engine):
                     ),
                 )
 
-                await self._hooks.call_on_generated_messages(context)
+                await self._hooks.call_on_messages_emitted(context)
 
         except asyncio.CancelledError:
             # Task was cancelled. This usually happens for 1 of 2 reasons:
@@ -807,7 +807,7 @@ class AlphaEngine(Engine):
 
                 await self._emit_ready_event(context)
 
-                if not await self._hooks.call_on_generated_preamble(context):
+                if not await self._hooks.call_on_preamble_emitted(context):
                     return False
             else:
                 pass  # No preamble message is needed
