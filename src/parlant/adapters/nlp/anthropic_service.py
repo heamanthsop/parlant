@@ -198,10 +198,10 @@ class Claude_Sonnet_4(AnthropicAISchematicGenerator[T]):
         return 200 * 1024
 
 
-class Claude_Opus_4(AnthropicAISchematicGenerator[T]):
+class Claude_Opus_4_1(AnthropicAISchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
-            model_name="claude-opus-4-20250514",
+            model_name="claude-opus-4-1-20250805",
             logger=logger,
         )
 
@@ -223,7 +223,7 @@ class AnthropicService(NLPService):
             or t == DisambiguationGuidelineMatchesSchema
             or t == CannedResponseSelectionSchema
         ):
-            return Claude_Opus_4[t](self._logger)  # type: ignore
+            return Claude_Opus_4_1[t](self._logger)  # type: ignore
         return Claude_Sonnet_4[t](self._logger)  # type: ignore
 
     @override
