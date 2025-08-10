@@ -59,7 +59,7 @@ class GoogleEstimatingTokenizer(EstimatingTokenizer):
 
 
 class GeminiSchematicGenerator(SchematicGenerator[T]):
-    supported_hints = ["temperature", "thinking_budget"]
+    supported_hints = ["temperature", "thinking_config"]
 
     def __init__(
         self,
@@ -253,7 +253,7 @@ class Gemini_2_5_Flash(GeminiSchematicGenerator[T]):
     ) -> SchematicGenerationResult[T]:
         return await super().generate(
             prompt,
-            {"thinking_budget": 0, **hints},
+            {"thinking_config": {"thinking_budget": 0}, **hints},
         )
 
     @property
