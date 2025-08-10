@@ -486,6 +486,15 @@ class CannedResponseGenerator(MessageEventComposer):
         self,
         context: LoadedContext,
     ) -> Sequence[MessageEventComposition]:
+        with self._logger.scope("MessageEventComposer"):
+            with self._logger.scope("CannedResponseGenerator"):
+                with self._logger.operation("Preamble generation", create_scope=False):
+                    return await self._do_generate_preamble(context)
+
+    async def _do_generate_preamble(
+        self,
+        context: LoadedContext,
+    ) -> Sequence[MessageEventComposition]:
         agent = context.agent
 
         canrep_context = CannedResponseContext(
@@ -663,7 +672,7 @@ You will now be given the current state of the interaction to which you must gen
     ) -> Sequence[MessageEventComposition]:
         with self._logger.scope("MessageEventComposer"):
             with self._logger.scope("CannedResponseGenerator"):
-                with self._logger.operation("Canned response generation", create_scope=False):
+                with self._logger.operation("Response generation", create_scope=False):
                     return await self._do_generate_events(
                         loaded_context=context,
                         latch=latch,
