@@ -140,6 +140,9 @@ class AnthropicAISchematicGenerator(SchematicGenerator[T]):
 
         t_end = time.time()
 
+        if response.usage:
+            self._logger.trace(response.usage.model_dump_json(indent=2))
+
         raw_content = response.content[0].text
 
         try:
