@@ -131,7 +131,6 @@ from parlant.core.sessions import (
     ToolResult as _SessionToolResult,
 )
 from parlant.core.canned_responses import (
-    CannedResponse,
     CannedResponseVectorStore,
     CannedResponseId,
     CannedResponseStore,
@@ -2400,15 +2399,7 @@ class Server:
                                             metadata=retriever_result.metadata,
                                             control={"lifespan": "response"},
                                             canned_responses=[
-                                                CannedResponse(
-                                                    id=CannedResponse.TRANSIENT_ID,
-                                                    creation_utc=datetime.now(timezone.utc),
-                                                    value=u,
-                                                    fields=[],
-                                                    signals=[],
-                                                    tags=[],
-                                                )
-                                                for u in retriever_result.canned_responses
+                                                u for u in retriever_result.canned_responses
                                             ],
                                             canned_response_fields=retriever_result.canned_response_fields,
                                         ),

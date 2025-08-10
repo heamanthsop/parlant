@@ -54,7 +54,7 @@ from parlant.core.persistence.document_database import (
     DocumentCollection,
 )
 from parlant.core.glossary import TermId
-from parlant.core.canned_responses import CannedResponse, CannedResponseId
+from parlant.core.canned_responses import CannedResponseId
 from parlant.core.persistence.document_database_helper import (
     DocumentMigrationHelper,
     DocumentStoreMigrationHelper,
@@ -159,7 +159,7 @@ class ToolResult(TypedDict):
     data: JSONSerializable
     metadata: Mapping[str, JSONSerializable]
     control: ControlOptions
-    canned_responses: Sequence[CannedResponse]
+    canned_responses: Sequence[str]
     canned_response_fields: Mapping[str, JSONSerializable]
 
 
@@ -537,7 +537,7 @@ class _ToolResult_v0_5_0(TypedDict):
     data: JSONSerializable
     metadata: Mapping[str, JSONSerializable]
     control: ControlOptions
-    utterances: Sequence[CannedResponse]
+    utterances: Sequence[str]
     utterance_fields: Mapping[str, JSONSerializable]
 
 

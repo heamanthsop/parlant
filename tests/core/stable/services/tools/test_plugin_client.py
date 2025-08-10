@@ -40,7 +40,6 @@ from parlant.core.services.tools.plugins import PluginClient
 from parlant.core.sessions import SessionId, EventKind
 from parlant.core.tools import ToolExecutionError
 from tests.test_utilities import run_service_server
-from parlant.core.canned_responses import CannedResponse, CannedResponseId, CannedResponseField
 
 
 class SessionBuffers(EventEmitterFactory):
@@ -769,28 +768,8 @@ async def test_that_a_plugin_tool_can_return_canned_responses(
     container: Container,
 ) -> None:
     canned_responses = [
-        CannedResponse(
-            id=CannedResponseId("<test-canned-response-1>"),
-            creation_utc=datetime.now(),
-            value="This is a test canned response with {field_name}",
-            fields=[
-                CannedResponseField(
-                    name="field_name",
-                    description="A sample field",
-                    examples=["sample value"],
-                )
-            ],
-            tags=[],
-            signals=[],
-        ),
-        CannedResponse(
-            id=CannedResponseId("<test-canned-response-2>"),
-            creation_utc=datetime.now(),
-            value="Another canned response for testing",
-            fields=[],
-            tags=[],
-            signals=[],
-        ),
+        "This is a test canned response with {field_name}",
+        "Another canned response for testing",
     ]
 
     @tool

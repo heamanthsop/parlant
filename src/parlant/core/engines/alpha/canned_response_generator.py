@@ -699,8 +699,8 @@ You will now be given the current state of the interaction to which you must gen
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
                 for tool_call in tool_calls:
                     responses_by_staged_event.extend(
-                        CannedResponse.create_transient(f.value)
-                        for f in tool_call["result"].get("canned_responses", [])
+                        CannedResponse.create_transient(r)
+                        for r in tool_call["result"].get("canned_responses", [])
                     )
 
         all_candidates = [*stored_responses, *responses_by_staged_event]
@@ -722,22 +722,29 @@ You will now be given the current state of the interaction to which you must gen
             ]
         )
 
-        all_available_fields = list(
+        fields_available_in_context = list(
             chain.from_iterable(tc["result"]["canned_response_fields"] for tc in all_tool_calls)
         )
 
-        all_available_fields.extend(("std", "generative"))
+        fields_available_in_context.extend(("std", "generative"))
 
         relevant_responses = []
 
         for canrep in all_candidates:
-            if canrep.id not in self._cached_response_fields:
+            if (
+                canrep.id != CannedResponse.TRANSIENT_ID
+                and canrep.id not in self._cached_response_fields
+            ):
                 self._cached_response_fields[canrep.id] = _get_response_template_fields(
                     canrep.value
                 )
 
-            if all(
-                field in all_available_fields for field in self._cached_response_fields[canrep.id]
+            # Conditions for a response being relevant:
+            # 1. It's a transient response just generated (e.g., by a tool)
+            # 2. Its relevant fields are in-context
+            if canrep.id == CannedResponse.TRANSIENT_ID or all(
+                field in fields_available_in_context
+                for field in self._cached_response_fields[canrep.id]
             ):
                 relevant_responses.append(canrep)
 
@@ -1444,6 +1451,12 @@ Output a JSON object with three properties:
                     available_canned_responses=canned_responses,
                     max_count=30,
                 )
+            )
+
+            # Filtering based on similarity will have taken out all transient
+            # ones, so we need to bring them back.
+            relevant_canreps.update(
+                [r for r in canned_responses if r.id == CannedResponse.TRANSIENT_ID]
             )
 
             relevant_canreps.update(

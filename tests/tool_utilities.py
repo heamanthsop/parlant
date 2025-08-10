@@ -19,7 +19,6 @@ import json
 from typing import Optional
 
 
-from parlant.core.canned_responses import CannedResponse
 from parlant.core.tools import ToolResult
 
 
@@ -88,16 +87,7 @@ def add(first_number: int, second_number: int) -> ToolResult:
 def multiply(first_number: int, second_number: int) -> ToolResult:
     return ToolResult(
         first_number * second_number,
-        canned_responses=[
-            CannedResponse(
-                id=CannedResponse.TRANSIENT_ID,
-                creation_utc=datetime.now(),
-                value="asd",
-                fields=[],
-                tags=[],
-                signals=[],
-            )
-        ],
+        canned_responses=["asd"],
     )
 
 

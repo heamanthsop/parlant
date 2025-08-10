@@ -40,7 +40,6 @@ from pydantic import BaseModel, Field, TypeAdapter
 from typing_extensions import override, TypedDict
 
 from parlant.core.common import DefaultBaseModel, ItemNotFoundError, JSONSerializable, UniqueId
-from parlant.core.canned_responses import CannedResponse
 
 ToolParameterType = Literal[
     "string",
@@ -156,7 +155,7 @@ class ToolResult:
     control: ControlOptions
     """Control options for the tool result, which can influence how it is processed by the engine."""
 
-    canned_responses: Sequence[CannedResponse]
+    canned_responses: Sequence[str]
     """Canned responses associated with the tool result, which can be used to dynamically provide predefined responses."""
 
     canned_response_fields: Mapping[str, Any]
@@ -167,7 +166,7 @@ class ToolResult:
         data: Any,
         metadata: Optional[Mapping[str, Any]] = None,
         control: Optional[ControlOptions] = None,
-        canned_responses: Optional[Sequence[CannedResponse]] = None,
+        canned_responses: Optional[Sequence[str]] = None,
         canned_response_fields: Optional[Mapping[str, Any]] = None,
     ) -> None:
         object.__setattr__(self, "data", data)
