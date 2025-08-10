@@ -38,6 +38,19 @@ from parlant.core.nlp.generation import (
 from parlant.core.nlp.generation_info import GenerationInfo, UsageInfo
 from parlant.core.loggers import Logger
 
+RATE_LIMIT_ERROR_MESSAGE = (
+    "Google API rate limit exceeded.\n\n"
+    "Possible reasons:\n"
+    "1. Insufficient API credits in your account.\n"
+    "2. Using a free-tier account with limited request capacity.\n"
+    "3. Exceeded the requests-per-minute limit for your account.\n\n"
+    "Recommended actions:\n"
+    "- Check your Google API account balance and billing status.\n"
+    "- Review your API usage limits in the Google Cloud Console.\n"
+    "- Learn more about quotas and limits:\n"
+    "  https://cloud.google.com/docs/quota-and-billing/quotas/quotas-overview"
+)
+
 
 class GoogleEstimatingTokenizer(EstimatingTokenizer):
     def __init__(self, client: google.genai.Client, model_name: str) -> None:
@@ -119,19 +132,7 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
                 config=cast(google.genai.types.GenerateContentConfigOrDict, config),
             )
         except TooManyRequests:
-            self._logger.error(
-                (
-                    "Google API rate limit exceeded. Possible reasons:\n"
-                    "1. Your account may have insufficient API credits.\n"
-                    "2. You may be using a free-tier account with limited request capacity.\n"
-                    "3. You might have exceeded the requests-per-minute limit for your account.\n\n"
-                    "Recommended actions:\n"
-                    "- Check your Google API account balance and billing status.\n"
-                    "- Review your API usage limits in Google's dashboard.\n"
-                    "- For more details on rate limits and usage tiers, visit:\n"
-                    "  https://cloud.google.com/docs/quota-and-billing/quotas/quotas-overview"
-                ),
-            )
+            self._logger.error(RATE_LIMIT_ERROR_MESSAGE)
             raise
 
         t_end = time.time()
@@ -153,6 +154,9 @@ class GeminiSchematicGenerator(SchematicGenerator[T]):
                 f"Failed to extract JSON returned by {self.model_name}:\n{raw_content}"
             )
             raise
+
+        if response.usage_metadata:
+            self._logger.trace(response.usage_metadata.model_dump_json(indent=2))
 
         try:
             model_content = self.schema.model_validate(json_object)
