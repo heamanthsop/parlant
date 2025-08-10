@@ -23,6 +23,13 @@ import jsonfinder  # type: ignore
 from pydantic import ValidationError
 
 from parlant.adapters.nlp.common import normalize_json_output
+from parlant.core.engines.alpha.canned_response_generator import CannedResponseSelectionSchema
+from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
+    DisambiguationGuidelineMatchesSchema,
+)
+from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
+    JourneyNodeSelectionSchema,
+)
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.tokenization import EstimatingTokenizer
@@ -238,6 +245,32 @@ class Gemini_1_5_Pro(GeminiSchematicGenerator[T]):
         return 2 * 1024 * 1024
 
 
+class Gemini_2_5_Flash(GeminiSchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="gemini-2.5-flash",
+            logger=logger,
+        )
+
+    @property
+    @override
+    def max_tokens(self) -> int:
+        return 1024 * 1024
+
+
+class Gemini_2_5_Pro(GeminiSchematicGenerator[T]):
+    def __init__(self, logger: Logger) -> None:
+        super().__init__(
+            model_name="gemini-2.5-pro",
+            logger=logger,
+        )
+
+    @property
+    @override
+    def max_tokens(self) -> int:
+        return 1024 * 1024
+
+
 class GoogleEmbedder(Embedder):
     supported_hints = ["title", "task_type"]
 
@@ -331,9 +364,16 @@ class GeminiService(NLPService):
 
     @override
     async def get_schematic_generator(self, t: type[T]) -> GeminiSchematicGenerator[T]:
+        if (
+            t == JourneyNodeSelectionSchema
+            or t == DisambiguationGuidelineMatchesSchema
+            or t == CannedResponseSelectionSchema
+        ):
+            return Gemini_2_5_Pro[t](self._logger)  # type: ignore
+
         return FallbackSchematicGenerator[t](  # type: ignore
-            Gemini_2_0_Flash[t](self._logger),  # type: ignore
-            Gemini_1_5_Pro[t](self._logger),  # type: ignore
+            Gemini_2_5_Flash[t](self._logger),  # type: ignore
+            Gemini_2_5_Pro[t](self._logger),  # type: ignore
             logger=self._logger,
         )
 
