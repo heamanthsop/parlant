@@ -187,6 +187,7 @@ from parlant.core.services.tools.plugins import PluginServer, ToolEntry, tool
 from parlant.core.tags import Tag as _Tag, TagDocumentStore, TagId, TagStore
 from parlant.core.tools import (
     ControlOptions,
+    Lifespan,
     SessionMode,
     SessionStatus,
     Tool,
@@ -2950,6 +2951,7 @@ __all__ = [
     "JourneyTransition",
     "JourneyTransitionId",
     "JSONSerializable",
+    "Lifespan",
     "LoadedContext",
     "LogLevel",
     "Logger",
