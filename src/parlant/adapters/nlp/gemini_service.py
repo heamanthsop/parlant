@@ -23,13 +23,6 @@ import jsonfinder  # type: ignore
 from pydantic import ValidationError
 
 from parlant.adapters.nlp.common import normalize_json_output
-from parlant.core.engines.alpha.canned_response_generator import CannedResponseSelectionSchema
-from parlant.core.engines.alpha.guideline_matching.generic.disambiguation_batch import (
-    DisambiguationGuidelineMatchesSchema,
-)
-from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
-    JourneyNodeSelectionSchema,
-)
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder
 from parlant.core.nlp.policies import policy, retry
 from parlant.core.nlp.tokenization import EstimatingTokenizer
@@ -66,7 +59,7 @@ class GoogleEstimatingTokenizer(EstimatingTokenizer):
 
 
 class GeminiSchematicGenerator(SchematicGenerator[T]):
-    supported_hints = ["temperature"]
+    supported_hints = ["temperature", "thinking_budget"]
 
     def __init__(
         self,
@@ -252,6 +245,17 @@ class Gemini_2_5_Flash(GeminiSchematicGenerator[T]):
             logger=logger,
         )
 
+    @override
+    async def generate(
+        self,
+        prompt: str | PromptBuilder,
+        hints: Mapping[str, Any] = {},
+    ) -> SchematicGenerationResult[T]:
+        return await super().generate(
+            prompt,
+            {"thinking_budget": 0, **hints},
+        )
+
     @property
     @override
     def max_tokens(self) -> int:
@@ -364,13 +368,6 @@ class GeminiService(NLPService):
 
     @override
     async def get_schematic_generator(self, t: type[T]) -> GeminiSchematicGenerator[T]:
-        if (
-            t == JourneyNodeSelectionSchema
-            or t == DisambiguationGuidelineMatchesSchema
-            or t == CannedResponseSelectionSchema
-        ):
-            return Gemini_2_5_Pro[t](self._logger)  # type: ignore
-
         return FallbackSchematicGenerator[t](  # type: ignore
             Gemini_2_5_Flash[t](self._logger),  # type: ignore
             Gemini_2_5_Pro[t](self._logger),  # type: ignore
