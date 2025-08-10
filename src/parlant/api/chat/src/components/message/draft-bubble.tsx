@@ -12,8 +12,8 @@ const DraftBubble = ({draft = '', open = false}) => {
 	}, [open]);
 
 	return (
-		<div className={twMerge('group/main flex !origin-top', !open && !wasOpen && 'h-0 opacity-0', open ? 'animate-slide-down' : wasOpen ? 'animate-slide-up' : '')}>
-			<div className='text-gray-400 relative px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[16px] max-w-[min(560px,100%)] overflow-hidden'>
+		<div className={twMerge('group/main flex !origin-top min-w-full', !open && !wasOpen && 'h-0 opacity-0', open ? 'animate-slide-down' : wasOpen ? 'animate-slide-up' : '')}>
+			<div className='text-gray-400 relative px-[22px] peer/draft py-[20px] bg-[#F5F6F8] rounded-[22px] mb-[16px] max-w-[min(560px,calc(100%-30px))] min-w-[min(560px,100%)]'>
 				<Markdown className='leading-[26px]'>{draft}</Markdown>
 			</div>
 			<div className={twMerge('mx-[10px] self-stretch relative invisible items-center flex group-hover/main:visible peer-hover:visible hover:visible')}>
