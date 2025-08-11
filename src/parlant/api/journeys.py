@@ -260,7 +260,7 @@ def create_router(
         The journey will be initialized with the provided title, description, and conditions.
         A unique identifier will be automatically generated.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.CREATE_JOURNEY
         )
 
@@ -313,7 +313,7 @@ def create_router(
         """
         Retrieves a list of all journeys in the system.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.LIST_JOURNEYS
         )
 
@@ -360,7 +360,7 @@ def create_router(
         """
         Retrieves details of a specific journey by ID.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.READ_JOURNEY
         )
 
@@ -402,7 +402,7 @@ def create_router(
 
         Only the provided attributes will be updated; others will remain unchanged.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.UPDATE_JOURNEY
         )
 
@@ -496,7 +496,7 @@ def create_router(
         Deleting a non-existent journey will return 404.
         No content will be returned from a successful deletion.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_JOURNEY
         )
 

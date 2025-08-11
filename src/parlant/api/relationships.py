@@ -350,7 +350,7 @@ def create_router(
         A relationship is a relationship between a guideline and a tag.
         It can be created between a guideline and a tag, or between two guidelines, or between two tags.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.CREATE_RELATIONSHIP
         )
 
@@ -445,7 +445,7 @@ def create_router(
 
         Either `guideline_id` or `tag_id` or `tool_id` must be provided.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.LIST_RELATIONSHIPS
         )
 
@@ -521,7 +521,7 @@ def create_router(
         """
         Read a relationship by ID.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.READ_RELATIONSHIP
         )
 
@@ -546,7 +546,7 @@ def create_router(
         """
         Delete a relationship by ID.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_RELATIONSHIP
         )
 

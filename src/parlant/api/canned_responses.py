@@ -294,7 +294,9 @@ def create_router(
         request: Request,
         params: CannedResponseCreationParamsDTO,
     ) -> CannedResponseDTO:
-        await authorization_policy.ensure(request, AuthorizationPermission.CREATE_CANNED_RESPONSE)
+        await authorization_policy.authorize(
+            request, AuthorizationPermission.CREATE_CANNED_RESPONSE
+        )
 
         tags = []
 
@@ -340,7 +342,7 @@ def create_router(
         canned_response_id: CannedResponseIdField,
     ) -> CannedResponseDTO:
         """Retrieves details of a specific canned response by ID."""
-        await authorization_policy.ensure(request, AuthorizationPermission.READ_CANNED_RESPONSE)
+        await authorization_policy.authorize(request, AuthorizationPermission.READ_CANNED_RESPONSE)
 
         response = await canned_response_store.read_canned_response(
             canned_response_id=canned_response_id
@@ -371,7 +373,7 @@ def create_router(
         request: Request, tags: TagsQuery = []
     ) -> Sequence[CannedResponseDTO]:
         """Lists all canned responses, optionally filtered by tags."""
-        await authorization_policy.ensure(request, AuthorizationPermission.LIST_CANNED_RESPONSES)
+        await authorization_policy.authorize(request, AuthorizationPermission.LIST_CANNED_RESPONSES)
 
         if tags:
             responses = await canned_response_store.list_canned_responses(tags=tags)
@@ -420,7 +422,9 @@ def create_router(
         The canned response's ID and creation timestamp cannot be modified.
         Extra metadata and tags can be added or removed independently.
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.UPDATE_CANNED_RESPONSE)
+        await authorization_policy.authorize(
+            request, AuthorizationPermission.UPDATE_CANNED_RESPONSE
+        )
 
         if params.fields and not params.value:
             raise HTTPException(
@@ -477,7 +481,9 @@ def create_router(
     async def delete_canned_response(
         request: Request, canned_response_id: CannedResponseIdField
     ) -> None:
-        await authorization_policy.ensure(request, AuthorizationPermission.DELETE_CANNED_RESPONSE)
+        await authorization_policy.authorize(
+            request, AuthorizationPermission.DELETE_CANNED_RESPONSE
+        )
 
         await canned_response_store.delete_canned_response(canned_response_id)
 

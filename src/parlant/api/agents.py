@@ -282,7 +282,7 @@ def create_router(
         - `description` defaults to `None`
         - `max_engine_iterations` defaults to `None` (uses system default)
         """
-        await policy.ensure(
+        await policy.authorize(
             request=request,
             permission=AuthorizationPermission.CREATE_AGENT,
         )
@@ -334,7 +334,7 @@ def create_router(
         Returns an empty list if no agents exist.
         Agents are returned in no guaranteed order.
         """
-        await policy.ensure(
+        await policy.authorize(
             request=request,
             permission=AuthorizationPermission.LIST_AGENTS,
         )
@@ -376,7 +376,7 @@ def create_router(
         """
         Retrieves details of a specific agent by ID.
         """
-        await policy.ensure(
+        await policy.authorize(
             request=request,
             permission=AuthorizationPermission.READ_AGENT,
         )
@@ -422,7 +422,7 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The agent's ID and creation timestamp cannot be modified.
         """
-        await policy.ensure(
+        await policy.authorize(
             request=request,
             permission=AuthorizationPermission.UPDATE_AGENT,
         )
@@ -502,7 +502,7 @@ def create_router(
         Deleting a non-existent agent will return 404.
         No content will be returned from a successful deletion.
         """
-        await policy.ensure(
+        await policy.authorize(
             request=request,
             permission=AuthorizationPermission.DELETE_AGENT,
         )

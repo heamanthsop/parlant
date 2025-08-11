@@ -1244,12 +1244,12 @@ def create_router(
         _ = await agent_store.read_agent(agent_id=params.agent_id)
 
         if params.customer_id:
-            await authorization_policy.ensure(
+            await authorization_policy.authorize(
                 request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_SESSION
             )
 
         else:
-            await authorization_policy.ensure(
+            await authorization_policy.authorize(
                 request=request, permission=AuthorizationPermission.CREATE_GUEST_SESSION
             )
 
@@ -1288,7 +1288,7 @@ def create_router(
         session_id: SessionIdPath,
     ) -> SessionDTO:
         """Retrieves details of a specific session by ID."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.READ_SESSION
         )
 
@@ -1330,7 +1330,7 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Returns all sessions if no
         filters are provided."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.LIST_SESSIONS
         )
 
@@ -1371,7 +1371,7 @@ def create_router(
         """Deletes a session and all its associated events.
 
         The operation is idempotent - deleting a non-existent session will return 404."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_SESSION
         )
 
@@ -1401,7 +1401,7 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Will delete all sessions if no
         filters are provided."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_SESSIONS
         )
 
@@ -1433,7 +1433,7 @@ def create_router(
         """Updates an existing session's attributes.
 
         Only provided attributes will be updated; others remain unchanged."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.UPDATE_SESSION
         )
 
@@ -1503,17 +1503,17 @@ def create_router(
 
         if params.kind == EventKindDTO.MESSAGE:
             if params.source == EventSourceDTO.CUSTOMER:
-                await authorization_policy.ensure(
+                await authorization_policy.authorize(
                     request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_EVENT
                 )
                 return await _add_customer_message(session_id, params, moderation)
             elif params.source == EventSourceDTO.AI_AGENT:
-                await authorization_policy.ensure(
+                await authorization_policy.authorize(
                     request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
                 )
                 return await _add_agent_message(session_id, params)
             elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
-                await authorization_policy.ensure(
+                await authorization_policy.authorize(
                     request=request, permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
                 )
                 return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
@@ -1524,7 +1524,7 @@ def create_router(
                 )
 
         elif params.kind == EventKindDTO.CUSTOM:
-            await authorization_policy.ensure(
+            await authorization_policy.authorize(
                 request=request, permission=AuthorizationPermission.CREATE_CUSTOM_EVENT
             )
 
@@ -1749,7 +1749,7 @@ def create_router(
                 - If no new events arrive before timeout, raises 504 Gateway Timeout
                 - If matching events already exist, returns immediately with those events
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.LIST_EVENTS
         )
 
@@ -1815,7 +1815,7 @@ def create_router(
         """Deletes events from a session with offset >= the specified value.
 
         This operation is permanent and cannot be undone."""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_EVENTS
         )
 

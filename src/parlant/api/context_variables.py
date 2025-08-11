@@ -1013,7 +1013,7 @@ def create_router(
         - Store usage patterns for personalized recommendations
         - Remember preferences for tailored responses
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.CREATE_CONTEXT_VARIABLE,
         )
@@ -1082,7 +1082,7 @@ def create_router(
 
         Only provided fields will be updated; others remain unchanged.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.UPDATE_CONTEXT_VARIABLE,
         )
@@ -1156,7 +1156,9 @@ def create_router(
         tag_id: TagIdQuery = None,
     ) -> Sequence[ContextVariableDTO]:
         """Lists all context variables set for the provided tag or all context variables if no tag is provided"""
-        await authorization_policy.ensure(request, AuthorizationPermission.LIST_CONTEXT_VARIABLES)
+        await authorization_policy.authorize(
+            request, AuthorizationPermission.LIST_CONTEXT_VARIABLES
+        )
 
         if tag_id:
             variables = await context_variable_store.list_variables(
@@ -1204,7 +1206,7 @@ def create_router(
 
         Can return all customer or tag values for this variable type if include_values=True.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.READ_CONTEXT_VARIABLE,
         )
@@ -1259,7 +1261,7 @@ def create_router(
         tag_id: TagIdQuery = None,
     ) -> None:
         """Deletes all context variables for the provided tag"""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLES,
         )
@@ -1296,7 +1298,7 @@ def create_router(
         variable_id: ContextVariableIdPath,
     ) -> None:
         """Deletes a context variable"""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLE,
         )
@@ -1322,7 +1324,7 @@ def create_router(
         key: ContextVariableKeyPath,
     ) -> ContextVariableValueDTO:
         """Retrieves a customer or tag value for the provided context variable"""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.READ_CONTEXT_VARIABLE_VALUE,
         )
@@ -1363,7 +1365,7 @@ def create_router(
         params: ContextVariableValueUpdateParamsDTO,
     ) -> ContextVariableValueDTO:
         """Updates a customer or tag value for the provided context variable"""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.UPDATE_CONTEXT_VARIABLE_VALUE,
         )
@@ -1400,7 +1402,7 @@ def create_router(
         key: ContextVariableKeyPath,
     ) -> None:
         """Deletes a customer or tag value for the provided context variable"""
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLE_VALUE,
         )

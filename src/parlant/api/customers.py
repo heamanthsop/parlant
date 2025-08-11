@@ -250,7 +250,7 @@ def create_router(
         A customer may be created with as little as a `name`.
         `metadata` key-value pairs and additional `tags` may be attached to a customer.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.CREATE_CUSTOMER,
         )
@@ -305,7 +305,7 @@ def create_router(
         Returns a complete customer object including their metadata and tags.
         The customer must exist in the system.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.READ_CUSTOMER,
         )
@@ -339,7 +339,7 @@ def create_router(
         Returns an empty list if no customers exist.
         Customers are returned in no guaranteed order.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.LIST_CUSTOMERS,
         )
@@ -387,7 +387,7 @@ def create_router(
         The customer's ID and creation timestamp cannot be modified.
         Extra metadata and tags can be added or removed independently.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.UPDATE_CUSTOMER,
         )
@@ -450,7 +450,7 @@ def create_router(
         Deleting a non-existent customer will return 404.
         No content will be returned from a successful deletion.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.DELETE_CUSTOMER,
         )

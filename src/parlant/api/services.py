@@ -332,7 +332,7 @@ def create_router(
         - URLs must include http:// or https:// scheme
         - Updates cause brief service interruption while reconnecting
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.UPDATE_SERVICE
         )
 
@@ -431,7 +431,7 @@ def create_router(
         - Historical data about tool usage is preserved
         - Running operations may fail
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.DELETE_SERVICE
         )
 
@@ -461,7 +461,7 @@ def create_router(
         Use the retrieve endpoint to get complete information including
         tools for a specific service.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.LIST_SERVICES
         )
 
@@ -508,7 +508,7 @@ def create_router(
         - Parameters marked as required must be provided when using a tool
         - Enum parameters restrict inputs to the listed values
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request, permission=AuthorizationPermission.READ_SERVICE
         )
 

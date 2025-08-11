@@ -196,3 +196,50 @@ async def test_that_server_starts_with_single_module(context: ContextOfTest) -> 
             agent_replies[0]["data"]["message"],
             "laptops and chairs",
         )
+
+
+async def test_that_read_session_is_not_rate_limited_in_production(
+    context: ContextOfTest,
+) -> None:
+    with run_server(context):
+        await asyncio.sleep(EXTENDED_AMOUNT_OF_TIME)
+
+        agent = await context.api.get_first_agent()
+
+    os.environ["PARLANT_ENV"] = "production"
+    with run_server(context):
+        await asyncio.sleep(EXTENDED_AMOUNT_OF_TIME)
+
+        session = await context.api.create_session(agent["id"])
+
+        for _ in range(5):
+            dto = await context.api.read_session(session["id"])
+            assert dto["id"] == session["id"]
+
+
+async def test_that_list_events_hits_rate_limit_in_production(context: ContextOfTest) -> None:
+    with run_server(context):
+        await asyncio.sleep(EXTENDED_AMOUNT_OF_TIME)
+
+        agent = await context.api.get_first_agent()
+
+    os.environ["PARLANT_ENV"] = "production"
+
+    with run_server(context):
+        await asyncio.sleep(EXTENDED_AMOUNT_OF_TIME)
+
+        session = await context.api.create_session(agent["id"])
+
+        exceeded = False
+        last_exc_text = ""
+
+        for i in range(50):
+            try:
+                _ = await context.api.read_session(session_id=session["id"])
+            except Exception as exc:
+                exceeded = True
+                last_exc_text = str(exc)
+                break
+
+        assert exceeded, "Expected to exceed the READ_SESSION rate limit but did not."
+        assert "Rate limit exceeded" in last_exc_text or "429" in last_exc_text

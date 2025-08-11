@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
+
 from lagom import Container
 
 from parlant.adapters.loggers.websocket import WebSocketLogger
@@ -42,6 +43,7 @@ from parlant.api import canned_responses
 from parlant.api.authorization import (
     AuthorizationPolicy,
     AuthorizationPermission,
+    RateLimitExceededException,
 )
 from parlant.core.capabilities import CapabilityStore
 from parlant.core.context_variables import ContextVariableStore
@@ -149,14 +151,14 @@ async def create_api_app(container: Container) -> ASGIApplication:
             or request.url.path.startswith("/redoc")
             or request.url.path.startswith("/openapi.json")
         ):
-            await authorization_policy.ensure(
+            await authorization_policy.authorize(
                 request=request,
                 permission=AuthorizationPermission.API_DOCS,
             )
             return await call_next(request)
 
         if request.url.path.startswith("/chat/"):
-            await authorization_policy.ensure(
+            await authorization_policy.authorize(
                 request=request,
                 permission=AuthorizationPermission.INTEGRATED_UI,
             )
@@ -171,6 +173,17 @@ async def create_api_app(container: Container) -> ASGIApplication:
                 create_scope=False,
             ):
                 return await call_next(request)
+
+    @api_app.exception_handler(RateLimitExceededException)
+    async def rate_limit_exceeded_handler(
+        request: Request, exc: RateLimitExceededException
+    ) -> HTTPException:
+        logger.warning(f"Rate limit exceeded: {exc}")
+
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+        )
 
     @api_app.exception_handler(ItemNotFoundError)
     async def item_not_found_error_handler(

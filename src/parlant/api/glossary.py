@@ -573,7 +573,7 @@ def create_router(
         Default behaviors:
         - `synonyms` defaults to an empty list if not provided
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.CREATE_TERM)
+        await authorization_policy.authorize(request, AuthorizationPermission.CREATE_TERM)
 
         tags = []
         if params.tags:
@@ -622,7 +622,7 @@ def create_router(
         """
         Retrieves details of a specific term by ID.
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.READ_TERM)
+        await authorization_policy.authorize(request, AuthorizationPermission.READ_TERM)
 
         term = await glossary_store.read_term(term_id=term_id)
 
@@ -656,7 +656,7 @@ def create_router(
         Returns an empty list if no terms exist.
         Terms are returned in no guaranteed order.
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.LIST_TERMS)
+        await authorization_policy.authorize(request, AuthorizationPermission.LIST_TERMS)
 
         if tag_id:
             terms = await glossary_store.list_terms(tags=[tag_id])
@@ -703,7 +703,7 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The term's ID and creation timestamp cannot be modified.
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.UPDATE_TERM)
+        await authorization_policy.authorize(request, AuthorizationPermission.UPDATE_TERM)
 
         def from_dto(dto: TermUpdateParamsDTO) -> TermUpdateParams:
             params: TermUpdateParams = {}
@@ -774,7 +774,7 @@ def create_router(
         Deleting a non-existent term will return 404.
         No content will be returned from a successful deletion.
         """
-        await authorization_policy.ensure(request, AuthorizationPermission.DELETE_TERM)
+        await authorization_policy.authorize(request, AuthorizationPermission.DELETE_TERM)
 
         await glossary_store.delete_term(term_id=term_id)
 

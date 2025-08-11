@@ -525,7 +525,7 @@ def create_router(
 
         Returns immediately with the created evaluation's initial state.
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.CREATE_EVALUATION,
         )
@@ -580,7 +580,7 @@ def create_router(
         - Returns final state if evaluation completes within timeout
         - Raises 504 if timeout is reached before completion
         """
-        await authorization_policy.ensure(
+        await authorization_policy.authorize(
             request=request,
             permission=AuthorizationPermission.READ_EVALUATION,
         )
