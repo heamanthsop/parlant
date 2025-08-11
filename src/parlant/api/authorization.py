@@ -194,28 +194,22 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
             AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: self.default_limiter,
         }
 
+        self._permission_rate_limits: dict[AuthorizationPermission, RateLimitItem] = {
+            AuthorizationPermission.READ_SESSION: RateLimitItemPerMinute(30),
+            AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(240),
+            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(30),
+            AuthorizationPermission.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
+            AuthorizationPermission.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
+            AuthorizationPermission.CREATE_AGENT_EVENT: RateLimitItemPerMinute(120),
+            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: RateLimitItemPerMinute(60),
+        }
+
         self._rate_limiter = BasicRateLimiter(
-            permission_rate_limits={
-                AuthorizationPermission.READ_SESSION: RateLimitItemPerMinute(30),
-                AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(240),
-                AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(30),
-                AuthorizationPermission.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
-                AuthorizationPermission.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
-                AuthorizationPermission.CREATE_AGENT_EVENT: RateLimitItemPerMinute(120),
-                AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: RateLimitItemPerMinute(60),
-            }
+            permission_rate_limits=self._permission_rate_limits,
         )
 
     async def default_limiter(self, request: Request, permission: AuthorizationPermission) -> bool:
-        if permission in [
-            AuthorizationPermission.LIST_EVENTS,
-            AuthorizationPermission.READ_EVENT,
-            AuthorizationPermission.CREATE_CUSTOMER_EVENT,
-            AuthorizationPermission.CREATE_AGENT_EVENT,
-            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT,
-            AuthorizationPermission.READ_SESSION,
-            AuthorizationPermission.CREATE_GUEST_SESSION,
-        ]:
+        if permission in self._permission_rate_limits:
             return await self._rate_limiter.check(request, permission)
         else:
             return False
