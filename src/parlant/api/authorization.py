@@ -196,13 +196,13 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
 
         self._rate_limiter = BasicRateLimiter(
             permission_rate_limits={
-                AuthorizationPermission.READ_SESSION: RateLimitItemPerMinute(10),
-                AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(20),
+                AuthorizationPermission.READ_SESSION: RateLimitItemPerMinute(30),
+                AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(240),
                 AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(30),
-                AuthorizationPermission.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(15),
+                AuthorizationPermission.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
                 AuthorizationPermission.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
-                AuthorizationPermission.CREATE_AGENT_EVENT: RateLimitItemPerMinute(15),
-                AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: RateLimitItemPerMinute(15),
+                AuthorizationPermission.CREATE_AGENT_EVENT: RateLimitItemPerMinute(120),
+                AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: RateLimitItemPerMinute(60),
             }
         )
 
