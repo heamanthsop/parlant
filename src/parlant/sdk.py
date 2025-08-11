@@ -245,6 +245,13 @@ class NLPServices:
         from parlant.adapters.nlp.together_service import TogetherService
 
         return TogetherService(container[Logger])
+    
+    @staticmethod
+    def gemini(container: Container) -> NLPService:
+        """Creates a Gemini NLPService instance using the provided container."""
+        from parlant.adapters.nlp.gemini_service import GeminiService
+
+        return GeminiService(container[Logger])
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
@@ -2952,6 +2959,7 @@ __all__ = [
     "ModerationTag",
     "NoModeration",
     "NLPService",
+    "NLPServices",
     "OptimizationPolicy",
     "PromptBuilder",
     "PromptSection",
