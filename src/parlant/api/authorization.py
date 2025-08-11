@@ -207,19 +207,18 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
         )
 
     async def default_limiter(self, request: Request, permission: AuthorizationPermission) -> bool:
-        match permission:
-            case (
-                AuthorizationPermission.READ_SESSION
-                | AuthorizationPermission.LIST_EVENTS
-                | AuthorizationPermission.READ_EVENT
-                | AuthorizationPermission.CREATE_CUSTOMER_EVENT
-                | AuthorizationPermission.CREATE_AGENT_EVENT
-                | AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
-                | AuthorizationPermission.CREATE_GUEST_SESSION
-            ):
-                return await self._rate_limiter.check(request, permission)
-            case _:
-                return True
+        if permission in [
+            AuthorizationPermission.LIST_EVENTS,
+            AuthorizationPermission.READ_EVENT,
+            AuthorizationPermission.CREATE_CUSTOMER_EVENT,
+            AuthorizationPermission.CREATE_AGENT_EVENT,
+            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT,
+            AuthorizationPermission.READ_SESSION,
+            AuthorizationPermission.CREATE_GUEST_SESSION,
+        ]:
+            return await self._rate_limiter.check(request, permission)
+        else:
+            return False
 
     @property
     @override
