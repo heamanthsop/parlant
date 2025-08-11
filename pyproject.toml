@@ -67,6 +67,7 @@ mcp = { extras = ["cli"], version = "^1.7.1" }
 fastmcp = "2.6.1"
 cachetools = "5.5.2"
 types-cachetools = "^6.0.0.20250525"
+limits = "^5.5.0"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -58,6 +58,16 @@ from lagom import Container
 from parlant.adapters.db.json_file import JSONFileDocumentCollection, JSONFileDocumentDatabase
 from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
+from parlant.api.authorization import (
+    AuthorizationException,
+    AuthorizationPermission,
+    AuthorizationPolicy,
+    BasicRateLimiter,
+    DevelopmentAuthorizationPolicy,
+    ProductionAuthorizationPolicy,
+    RateLimitExceededException,
+    RateLimiter,
+)
 from parlant.core import async_utils
 from parlant.core.agents import (
     Agent as _Agent,
@@ -2922,6 +2932,11 @@ class Server:
 __all__ = [
     "Agent",
     "AgentId",
+    "AuthorizationException",
+    "AuthorizationPermission",
+    "AuthorizationPolicy",
+    "DevelopmentAuthorizationPolicy",
+    "ProductionAuthorizationPolicy",
     "Capability",
     "CapabilityId",
     "CompositionMode",
@@ -2975,6 +2990,9 @@ __all__ = [
     "NoMatchResponseProvider",
     "BasicNoMatchResponseProvider",
     "PluginServer",
+    "RateLimiter",
+    "RateLimitExceededException",
+    "BasicRateLimiter",
     "RelationshipEntity",
     "RelationshipEntityId",
     "RelationshipEntityKind",

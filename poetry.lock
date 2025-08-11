@@ -2369,6 +2369,34 @@ files = [
 ]
 
 [[package]]
+name = "limits"
+version = "5.5.0"
+description = "Rate limiting utilities"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "limits-5.5.0-py3-none-any.whl", hash = "sha256:57217d01ffa5114f7e233d1f5e5bdc6fe60c9b24ade387bf4d5e83c5cf929bae"},
+    {file = "limits-5.5.0.tar.gz", hash = "sha256:ee269fedb078a904608b264424d9ef4ab10555acc8d090b6fc1db70e913327ea"},
+]
+
+[package.dependencies]
+deprecated = ">=1.2"
+packaging = ">=21"
+typing_extensions = "*"
+
+[package.extras]
+all = ["coredis (>=3.4.0,<6)", "memcachio (>=0.3)", "motor (>=3,<4)", "pymemcache (>3,<5.0.0)", "pymongo (>4.1,<5)", "redis (>3,!=4.5.2,!=4.5.3,<7.0.0)", "redis (>=4.2.0,!=4.5.2,!=4.5.3)", "valkey (>=6)", "valkey (>=6)"]
+async-memcached = ["memcachio (>=0.3)"]
+async-mongodb = ["motor (>=3,<4)"]
+async-redis = ["coredis (>=3.4.0,<6)"]
+async-valkey = ["valkey (>=6)"]
+memcached = ["pymemcache (>3,<5.0.0)"]
+mongodb = ["pymongo (>4.1,<5)"]
+redis = ["redis (>3,!=4.5.2,!=4.5.3,<7.0.0)"]
+rediscluster = ["redis (>=4.2.0,!=4.5.2,!=4.5.3)"]
+valkey = ["valkey (>=6)"]
+
+[[package]]
 name = "litellm"
 version = "1.75.4"
 description = "Library to easily interface with LLM API providers"
@@ -7018,4 +7046,4 @@ together = ["together", "torch", "transformers"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f7995e32f0186053f12b74ae0e9aae601123a5c55d00954ec977253f41a41abc"
+content-hash = "8b59507d1eb33fb8ab2b40c50f10bf360671932abf926587adedeca2c3438f1c"
