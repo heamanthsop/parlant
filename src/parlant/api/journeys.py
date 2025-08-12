@@ -16,15 +16,16 @@ from collections import defaultdict
 from fastapi import APIRouter, Path, Query, Request, status
 from fastapi.responses import PlainTextResponse
 from pydantic import Field
-from typing import Annotated, Optional, Sequence, TypeAlias
+from typing import Annotated, Optional, Sequence, TypeAlias, cast
 
 from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
-from parlant.core.common import DefaultBaseModel
+from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.journeys import (
     Journey,
     JourneyEdge,
     JourneyId,
+    JourneyNode,
     JourneyNodeId,
     JourneyStore,
     JourneyUpdateParams,
@@ -100,12 +101,13 @@ JourneyMermaidChartDTO: TypeAlias = Annotated[
     str,
     Field(
         description=(
-            "Mermaid flowchart definition (flowchart TD). " "Render with a Mermaid renderer."
+            "Mermaid stateDiagram V2 definition (stateDiagram). " "Render with a Mermaid renderer."
         ),
         examples=[
             """
-flowchart TD
-    N0["(start)"] -->|got_name| N1["ask_email"]
+stateDiagram
+    [*] --> A
+    A --> B
     N1 --> END((End))
 """
         ],
@@ -256,18 +258,16 @@ async def _build_mermaid_chart(
     journey_store: JourneyStore,
     journey: Journey,
 ) -> JourneyMermaidChartDTO:
-    """
-    Produce a Mermaid 'flowchart TD' for the given journey.
+    NORMAL_STYLE = "fill:#006e53,stroke:#ffffff,stroke-width:2px,color:#ffffff"
+    TOOL_STYLE = "fill:#ffeeaa,stroke:#ffeeaa,stroke-width:2px,color:#dd6600"
 
-    - Walks from root_id
-    - Labels nodes with their action (root gets '(start)')
-    - Labels edges with their 'condition' string when present
-    - Adds an explicit END(("End")) node if referenced
-    - Any nodes not reachable from root are listed in an 'Unreachable' subgraph
-    """
+    def _is_tool_node(node: JourneyNode) -> bool:
+        return (
+            cast(dict[str, JSONSerializable], node.metadata.get("journey_node", {})).get("kind")
+            == "tool"
+        )
 
     root_id: JourneyNodeId = journey.root_id
-
     nodes = await journey_store.list_nodes(journey.id)
     edges = await journey_store.list_edges(journey.id)
 
@@ -277,74 +277,96 @@ async def _build_mermaid_chart(
     for e in edges:
         outgoing[e.source].append(e)
 
-    # Stable short Mermaid ids: N0, N1, ...
     alias: dict[JourneyNodeId, str] = {}
 
-    def mermaid_node_id(nid: JourneyNodeId) -> str:
+    def mermaid_id(nid: JourneyNodeId) -> str:
         if nid == JourneyStore.END_NODE_ID:
-            return "END"
-
+            return "[*]"
         if nid not in alias:
             alias[nid] = f"N{len(alias)}"
-
         return alias[nid]
 
     def node_label(nid: JourneyNodeId) -> str:
         if nid == JourneyStore.END_NODE_ID:
             return "End"
-
-        n = node_by_id[nid]
-        return n.action or "start"
+        n = node_by_id.get(nid)
+        if not n:
+            return ""
+        return n.action or ""
 
     lines: list[str] = []
-    lines.append("flowchart TD")
+    lines.append("stateDiagram-v2")
 
-    # DFS from root to capture the reachable subgraph; avoid infinite loops
-    visited_nodes: set[JourneyNodeId] = set()
-    declared_nodes: set[str] = set()  # Mermaid ids we've declared with labels
-    stack: list[JourneyNodeId] = [root_id]
+    visited: set[JourneyNodeId] = set()
+    declared: set[JourneyNodeId] = set()
+
+    state_decls: list[str] = []
+    transitions: list[str] = []
+    style_lines: list[str] = []
 
     def declare(nid: JourneyNodeId) -> None:
-        m = mermaid_node_id(nid)
-        if m in declared_nodes:
+        if nid == JourneyStore.END_NODE_ID or nid in declared:
             return
-        if nid == JourneyStore.END_NODE_ID:
-            lines.append(f"    {m}(End)")
+        lbl = node_label(nid)
+        if not lbl:
+            return
+        declared.add(nid)
+        m = mermaid_id(nid)
+        state_decls.append(f"    {m}: {lbl}")
+        node = node_by_id.get(nid)
+        if node and _is_tool_node(node):
+            style_lines.append(f"style {m} {TOOL_STYLE}")
         else:
-            lines.append(f"    {m}[{node_label(nid)}]")
+            style_lines.append(f"style {m} {NORMAL_STYLE}")
 
-        declared_nodes.add(m)
+    declare(root_id)
 
+    for e in outgoing.get(root_id, []):
+        tid = e.target
+        declare(tid)
+        if e.condition:
+            transitions.append(f"    [*] --> {mermaid_id(tid)}: {e.condition}")
+        else:
+            transitions.append(f"    [*] --> {mermaid_id(tid)}")
+
+    stack: list[JourneyNodeId] = [root_id]
     while stack:
         nid = stack.pop()
-        if nid in visited_nodes:
+        if nid in visited:
             continue
-        visited_nodes.add(nid)
-
-        declare(nid)
+        visited.add(nid)
 
         for e in outgoing.get(nid, []):
             tid = e.target
             declare(tid)
 
-            edge_label = e.condition or ""
-            if edge_label:
-                lines.append(f"    {mermaid_node_id(nid)} -->|{edge_label}| {mermaid_node_id(tid)}")
-            else:
-                lines.append(f"    {mermaid_node_id(nid)} --> {mermaid_node_id(tid)}")
+            # Skip standard transition if it would be from an unlabeled root;
+            # we already emitted [*] --> target above for those.
+            if not (nid == root_id and node_label(nid) == ""):
+                src = mermaid_id(nid)
+                dst = mermaid_id(tid)
+                if e.condition:
+                    transitions.append(f"    {src} --> {dst}: {e.condition}")
+                else:
+                    transitions.append(f"    {src} --> {dst}")
 
-            if tid != JourneyStore.END_NODE_ID and tid not in visited_nodes:
+            if tid != JourneyStore.END_NODE_ID and tid not in visited:
                 stack.append(tid)
 
-    orphans: list[JourneyNodeId] = [
-        n.id for n in nodes if n.id not in visited_nodes and n.id != JourneyStore.END_NODE_ID
-    ]
-
+    orphans = [n.id for n in nodes if n.id not in visited and n.id != JourneyStore.END_NODE_ID]
     if orphans:
-        lines.append('    subgraph Orphans["Unreachable"]')
+        lines.append("    %% Unreachable states:")
         for oid in orphans:
             declare(oid)
-        lines.append("    end")
+            lbl = node_label(oid)
+            if lbl:
+                lines.append(f"    %%   {mermaid_id(oid)}: {lbl}")
+            else:
+                lines.append(f"    %%   {mermaid_id(oid)}")
+
+    lines.extend(state_decls)
+    lines.extend(transitions)
+    lines.extend(style_lines)
 
     return "\n".join(lines)
 
@@ -502,8 +524,8 @@ def create_router(
         response_class=PlainTextResponse,
         responses={
             status.HTTP_200_OK: {
-                "description": "Mermaid flowchart (text/plain). Copy/paste directly into a Mermaid renderer.",
-                "content": {"text/plain": {"example": "flowchart TD\n  A-->B\n"}},
+                "description": "Mermaid stateDiagram V2 (text/plain). Copy/paste directly into a Mermaid renderer.",
+                "content": {"text/plain": {"example": "stateDiagram\n  [*] --> A\n  A --> B\n"}},
             },
             status.HTTP_404_NOT_FOUND: {"description": "Journey not found"},
         },
@@ -514,7 +536,7 @@ def create_router(
         journey_id: JourneyIdPath,
     ) -> str:
         """
-        Returns the journey as a Mermaid 'flowchart TD' string.
+        Returns the journey as a Mermaid 'stateDiagramv-v2' string.
         Content-Type: text/plain
         """
         await authorization_policy.authorize(
