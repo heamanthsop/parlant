@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from fastapi import APIRouter, Path, Query, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
@@ -19,7 +20,14 @@ from typing import Annotated, Optional, Sequence, TypeAlias
 from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
-from parlant.core.journeys import JourneyId, JourneyStore, JourneyUpdateParams
+from parlant.core.journeys import (
+    Journey,
+    JourneyEdge,
+    JourneyId,
+    JourneyNodeId,
+    JourneyStore,
+    JourneyUpdateParams,
+)
 from parlant.core.guidelines import GuidelineId, GuidelineStore
 from parlant.core.tags import TagId, Tag
 
@@ -86,6 +94,31 @@ journey_example: ExampleJson = {
     ],
     "tags": ["tag1", "tag2"],
 }
+
+JourneyMermaidChart: TypeAlias = Annotated[
+    str,
+    Field(
+        description=(
+            "Mermaid flowchart definition (flowchart TD). " "Render with a Mermaid renderer."
+        ),
+        examples=[
+            'flowchart TD\n  N0["(start)"] -->|got_name| N1["ask_email"]\n  N1 --> END(("End"))'
+        ],
+    ),
+]
+
+
+class JourneyIncludesMermaidChartDTO(DefaultBaseModel):
+    """
+    A journey DTO that includes a mermaid chart for visualization.
+    """
+
+    id: JourneyIdPath
+    title: JourneyTitleField
+    description: str
+    conditions: Sequence[GuidelineId]
+    tags: JourneyTagsField
+    mermaid: JourneyMermaidChart
 
 
 class JourneyDTO(
@@ -227,6 +260,103 @@ TagIdQuery: TypeAlias = Annotated[
 ]
 
 
+async def _build_mermaid_chart(
+    journey_store: JourneyStore,
+    journey: Journey,
+) -> JourneyMermaidChart:
+    """
+    Produce a Mermaid 'flowchart TD' for the given journey.
+
+    - Walks from root_id
+    - Labels nodes with their action (root gets '(start)')
+    - Labels edges with their 'condition' string when present
+    - Adds an explicit END(("End")) node if referenced
+    - Any nodes not reachable from root are listed in an 'Unreachable' subgraph
+    """
+
+    root_id: JourneyNodeId = journey.root_id
+
+    nodes = await journey_store.list_nodes(journey.id)
+    edges = await journey_store.list_edges(journey.id)
+
+    node_by_id = {n.id: n for n in nodes if n.id != JourneyStore.END_NODE_ID}
+
+    outgoing: dict[JourneyNodeId, list[JourneyEdge]] = defaultdict(list)
+    for e in edges:
+        outgoing[e.source].append(e)
+
+    # Stable short Mermaid ids: N0, N1, ...
+    alias: dict[JourneyNodeId, str] = {}
+
+    def mermaid_node_id(nid: JourneyNodeId) -> str:
+        if nid == JourneyStore.END_NODE_ID:
+            return "END"
+
+        if nid not in alias:
+            alias[nid] = f"N{len(alias)}"
+
+        return alias[nid]
+
+    def node_label(nid: JourneyNodeId) -> str:
+        if nid == JourneyStore.END_NODE_ID:
+            return "End"
+
+        n = node_by_id[nid]
+        return n.action or "start"
+
+    lines: list[str] = []
+    lines.append("flowchart TD")
+
+    # DFS from root to capture the reachable subgraph; avoid infinite loops
+    visited_nodes: set[JourneyNodeId] = set()
+    declared_nodes: set[str] = set()  # Mermaid ids we've declared with labels
+    stack: list[JourneyNodeId] = [root_id]
+
+    def declare(nid: JourneyNodeId) -> None:
+        m = mermaid_node_id(nid)
+        if m in declared_nodes:
+            return
+        if nid == JourneyStore.END_NODE_ID:
+            lines.append(f"    {m}(End)")
+        else:
+            lines.append(f"    {m}[{node_label(nid)}]")
+
+        declared_nodes.add(m)
+
+    while stack:
+        nid = stack.pop()
+        if nid in visited_nodes:
+            continue
+        visited_nodes.add(nid)
+
+        declare(nid)
+
+        for e in outgoing.get(nid, []):
+            tid = e.target
+            declare(tid)
+
+            edge_label = e.condition or ""
+            if edge_label:
+                lines.append(f"    {mermaid_node_id(nid)} -->|{edge_label}| {mermaid_node_id(tid)}")
+            else:
+                lines.append(f"    {mermaid_node_id(nid)} --> {mermaid_node_id(tid)}")
+
+            if tid != JourneyStore.END_NODE_ID and tid not in visited_nodes:
+                stack.append(tid)
+
+    orphans: list[JourneyNodeId] = [
+        n.id for n in nodes if n.id not in visited_nodes and n.id != JourneyStore.END_NODE_ID
+    ]
+
+    if orphans:
+        lines.append('    subgraph Orphans["Unreachable"]')
+        for oid in orphans:
+            declare(oid)
+        lines.append("    end")
+
+    return "\n".join(lines)
+
+
 def create_router(
     authorization_policy: AuthorizationPolicy,
     journey_store: JourneyStore,
@@ -341,7 +471,7 @@ def create_router(
     @router.get(
         "/{journey_id}",
         operation_id="read_journey",
-        response_model=JourneyDTO,
+        response_model=JourneyIncludesMermaidChartDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Journey details successfully retrieved. Returns the complete journey object.",
@@ -356,7 +486,7 @@ def create_router(
     async def read_journey(
         request: Request,
         journey_id: JourneyIdPath,
-    ) -> JourneyDTO:
+    ) -> JourneyIncludesMermaidChartDTO:
         """
         Retrieves details of a specific journey by ID.
         """
@@ -366,12 +496,13 @@ def create_router(
 
         journey = await journey_store.read_journey(journey_id=journey_id)
 
-        return JourneyDTO(
+        return JourneyIncludesMermaidChartDTO(
             id=journey.id,
             title=journey.title,
             description=journey.description,
             conditions=journey.conditions,
             tags=journey.tags,
+            mermaid=await _build_mermaid_chart(journey_store, journey),
         )
 
     @router.patch(
