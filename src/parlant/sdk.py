@@ -2176,6 +2176,9 @@ class Server:
         for journey_id, (args, journey_func) in self._journey_evaluations.items():
             tasks.append((create_evaluation_task(journey_func(*args), "journey", journey_id)))
 
+        if not tasks:
+            return
+
         if self.log_level == LogLevel.TRACE:
             evaluation_results = await async_utils.safe_gather(*tasks)
         else:
