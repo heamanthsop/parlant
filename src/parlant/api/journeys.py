@@ -14,6 +14,7 @@
 
 from collections import defaultdict
 from fastapi import APIRouter, Path, Query, Request, status
+from fastapi.responses import PlainTextResponse
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
@@ -95,30 +96,21 @@ journey_example: ExampleJson = {
     "tags": ["tag1", "tag2"],
 }
 
-JourneyMermaidChart: TypeAlias = Annotated[
+JourneyMermaidChartDTO: TypeAlias = Annotated[
     str,
     Field(
         description=(
             "Mermaid flowchart definition (flowchart TD). " "Render with a Mermaid renderer."
         ),
         examples=[
-            'flowchart TD\n  N0["(start)"] -->|got_name| N1["ask_email"]\n  N1 --> END(("End"))'
+            """
+flowchart TD
+    N0["(start)"] -->|got_name| N1["ask_email"]
+    N1 --> END((End))
+"""
         ],
     ),
 ]
-
-
-class JourneyIncludesMermaidChartDTO(DefaultBaseModel):
-    """
-    A journey DTO that includes a mermaid chart for visualization.
-    """
-
-    id: JourneyIdPath
-    title: JourneyTitleField
-    description: str
-    conditions: Sequence[GuidelineId]
-    tags: JourneyTagsField
-    mermaid: JourneyMermaidChart
 
 
 class JourneyDTO(
@@ -263,7 +255,7 @@ TagIdQuery: TypeAlias = Annotated[
 async def _build_mermaid_chart(
     journey_store: JourneyStore,
     journey: Journey,
-) -> JourneyMermaidChart:
+) -> JourneyMermaidChartDTO:
     """
     Produce a Mermaid 'flowchart TD' for the given journey.
 
@@ -471,7 +463,7 @@ def create_router(
     @router.get(
         "/{journey_id}",
         operation_id="read_journey",
-        response_model=JourneyIncludesMermaidChartDTO,
+        response_model=JourneyDTO,
         responses={
             status.HTTP_200_OK: {
                 "description": "Journey details successfully retrieved. Returns the complete journey object.",
@@ -486,7 +478,7 @@ def create_router(
     async def read_journey(
         request: Request,
         journey_id: JourneyIdPath,
-    ) -> JourneyIncludesMermaidChartDTO:
+    ) -> JourneyDTO:
         """
         Retrieves details of a specific journey by ID.
         """
@@ -496,14 +488,43 @@ def create_router(
 
         journey = await journey_store.read_journey(journey_id=journey_id)
 
-        return JourneyIncludesMermaidChartDTO(
+        return JourneyDTO(
             id=journey.id,
             title=journey.title,
             description=journey.description,
             conditions=journey.conditions,
             tags=journey.tags,
-            mermaid=await _build_mermaid_chart(journey_store, journey),
         )
+
+    @router.get(
+        "/{journey_id}/mermaid",
+        operation_id="journey_mermaid",
+        response_class=PlainTextResponse,
+        responses={
+            status.HTTP_200_OK: {
+                "description": "Mermaid flowchart (text/plain). Copy/paste directly into a Mermaid renderer.",
+                "content": {"text/plain": {"example": "flowchart TD\n  A-->B\n"}},
+            },
+            status.HTTP_404_NOT_FOUND: {"description": "Journey not found"},
+        },
+        **apigen_config(group_name=API_GROUP, method_name="mermaid"),
+    )
+    async def journey_mermaid(
+        request: Request,
+        journey_id: JourneyIdPath,
+    ) -> str:
+        """
+        Returns the journey as a Mermaid 'flowchart TD' string.
+        Content-Type: text/plain
+        """
+        await authorization_policy.authorize(
+            request=request, permission=AuthorizationPermission.READ_JOURNEY
+        )
+
+        journey = await journey_store.read_journey(journey_id=journey_id)
+        chart = await _build_mermaid_chart(journey_store, journey)
+
+        return chart
 
     @router.patch(
         "/{journey_id}",
