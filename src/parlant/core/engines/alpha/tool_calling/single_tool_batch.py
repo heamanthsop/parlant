@@ -205,7 +205,7 @@ class SingleToolBatch(ToolCallBatch):
         tool_id, tool, _ = candidate_descriptor
 
         # Send the tool call inference prompt to the LLM
-        with self._logger.operation(f"Evaluation: {tool_id}"):
+        with self._logger.operation(f"Evaluation({tool_id})"):
             generation_attempt_temperatures = (
                 self._optimization_policy.get_tool_calling_batch_retry_temperatures()
             )

@@ -59,8 +59,9 @@ class Timeout:
     async def wait(self) -> None:
         await asyncio.sleep(self.remaining())
 
-    async def wait_up_to(self, seconds: float) -> None:
+    async def wait_up_to(self, seconds: float) -> bool:
         await asyncio.sleep(self.afford_up_to(seconds).remaining())
+        return self.expired()
 
     def __bool__(self) -> bool:
         return not self.expired()

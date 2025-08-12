@@ -515,18 +515,45 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         preamble_task: asyncio.Task[bool],
     ) -> _PreparationIterationResult:
-        # For optimization concerns, it's useful to capture the exact state
-        # we were in before matching guidelines.
-        tool_preexecution_state = await self._capture_tool_preexecution_state(context)
+        matching_finished = False
 
-        # Match relevant guidelines, retrieving them in a
-        # structured format such that we can distinguish
-        # between ordinary and tool-enabled ones.
-        guideline_and_journey_matching_result = await self._load_matched_guidelines_and_journeys(
-            context
-        )
+        async def extended_thinking_status_emission() -> None:
+            nonlocal matching_finished
 
-        context.state.journeys = guideline_and_journey_matching_result.journeys
+            while not preamble_task.done():
+                await asyncio.sleep(0.1)
+
+            if matching_finished:
+                return
+
+            timeout = async_utils.Timeout(
+                await self._perceived_performance_policy.get_extended_processing_indicator_delay()
+            )
+
+            while not matching_finished:
+                if await timeout.wait_up_to(0.1):
+                    await self._emit_processing_event(context, stage="Interpreting")
+                    return
+
+        extended_thinking_status_task = asyncio.create_task(extended_thinking_status_emission())
+
+        try:
+            # For optimization concerns, it's useful to capture the exact state
+            # we were in before matching guidelines.
+            tool_preexecution_state = await self._capture_tool_preexecution_state(context)
+
+            # Match relevant guidelines, retrieving them in a
+            # structured format such that we can distinguish
+            # between ordinary and tool-enabled ones.
+            guideline_and_journey_matching_result = (
+                await self._load_matched_guidelines_and_journeys(context)
+            )
+
+            matching_finished = True
+
+            context.state.journeys = guideline_and_journey_matching_result.journeys
+        finally:
+            await extended_thinking_status_task
 
         if not await preamble_task:
             # Bail out on the rest of the processing, as the preamble
@@ -809,18 +836,21 @@ class AlphaEngine(Engine):
 
                 if not await self._hooks.call_on_preamble_emitted(context):
                     return False
+
+                # Emit a processing event to indicate that the agent is thinking
+
+                await asyncio.sleep(
+                    await self._perceived_performance_policy.get_processing_indicator_delay(
+                        context
+                    ),
+                )
+
+                await self._emit_processing_event(context, stage="Thinking")
+
+                return True
+
             else:
-                pass  # No preamble message is needed
-
-            # Emit a processing event to indicate that the agent is thinking
-
-            await asyncio.sleep(
-                await self._perceived_performance_policy.get_processing_indicator_delay(context),
-            )
-
-            await self._emit_processing_event(context)
-
-            return True
+                return True  # No preamble message is needed
 
         return asyncio.create_task(preamble_task())
 
@@ -887,13 +917,13 @@ class AlphaEngine(Engine):
             },
         )
 
-    async def _emit_processing_event(self, context: LoadedContext) -> None:
+    async def _emit_processing_event(self, context: LoadedContext, stage: str) -> None:
         await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
                 "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "processing",
-                "data": {},
+                "data": {"stage": stage},
             },
         )
 

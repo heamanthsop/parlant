@@ -29,12 +29,12 @@ export interface EventInterface {
 	offset: number;
 	creation_utc: Date;
 	data: {
-		participant?: {display_name?: string}
+		participant?: { display_name?: string }
 		status?: ServerStatus;
 		draft?: string;
 		canned_responses?: string[];
 		message: string;
-		data?: {exception?: string};
+		data?: { exception?: string, stage?: string };
 		tags?: string;
 	};
 	index?: number;

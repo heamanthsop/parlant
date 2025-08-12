@@ -282,6 +282,9 @@ class ToolId(NamedTuple):
 
         return f"{self.service_name}:{self.tool_name}"
 
+    def __str__(self) -> str:
+        return self.to_string()
+
 
 class ToolError(Exception):
     """Base class for all tool-related errors."""

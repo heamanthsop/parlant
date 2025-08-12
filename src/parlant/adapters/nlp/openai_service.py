@@ -34,6 +34,10 @@ from pydantic import ValidationError
 import tiktoken
 
 from parlant.adapters.nlp.common import normalize_json_output
+from parlant.core.engines.alpha.canned_response_generator import (
+    CannedResponseDraftSchema,
+    CannedResponseSelectionSchema,
+)
 from parlant.core.engines.alpha.guideline_matching.generic.journey_node_selection_batch import (
     JourneyNodeSelectionSchema,
 )
@@ -433,8 +437,10 @@ class OpenAIService(NLPService):
     @override
     async def get_schematic_generator(self, t: type[T]) -> OpenAISchematicGenerator[T]:
         return {
-            SingleToolBatchSchema: GPT_4o[SingleToolBatchSchema],  # type: ignore
+            SingleToolBatchSchema: GPT_4o[SingleToolBatchSchema],
             JourneyNodeSelectionSchema: GPT_4_1[JourneyNodeSelectionSchema],
+            CannedResponseDraftSchema: GPT_4_1[CannedResponseDraftSchema],
+            CannedResponseSelectionSchema: GPT_4_1[CannedResponseSelectionSchema],
         }.get(t, GPT_4o_24_08_06[t])(self._logger)  # type: ignore
 
     @override

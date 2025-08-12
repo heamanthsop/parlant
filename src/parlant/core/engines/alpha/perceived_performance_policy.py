@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
+import math
 import random
 from typing import cast
 from typing_extensions import override
@@ -32,6 +33,19 @@ class PerceivedPerformancePolicy(ABC):
     ) -> float:
         """
         Returns the delay before the indicator (agent is thinking...) is sent.
+
+        :param context: The loaded context containing session and interaction details.
+        :return: The delay in seconds before sending the indicator.
+        """
+        ...
+
+    @abstractmethod
+    async def get_extended_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        """
+        Returns the delay before the indicator (agent is thinking "hard"...) is sent.
 
         :param context: The loaded context containing session and interaction details.
         :return: The delay in seconds before sending the indicator.
@@ -89,6 +103,13 @@ class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
         return random.uniform(1.0, 2.0)
 
     @override
+    async def get_extended_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return random.uniform(3.5, 5.0)
+
+    @override
     async def get_follow_up_delay(
         self,
         context: LoadedContext | None = None,
@@ -100,7 +121,7 @@ class BasicPerceivedPerformancePolicy(PerceivedPerformancePolicy):
         self,
         context: LoadedContext | None = None,
     ) -> float:
-        return random.uniform(2.0, 3.0)
+        return random.uniform(1.5, 2.0)
 
     @override
     async def is_preamble_required(
@@ -178,6 +199,13 @@ class NullPerceivedPerformancePolicy(PerceivedPerformancePolicy):
         context: LoadedContext | None = None,
     ) -> float:
         return 0
+
+    @override
+    async def get_extended_processing_indicator_delay(
+        self,
+        context: LoadedContext | None = None,
+    ) -> float:
+        return math.inf
 
     @override
     async def get_follow_up_delay(

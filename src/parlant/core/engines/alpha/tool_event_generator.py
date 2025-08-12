@@ -117,6 +117,15 @@ class ToolEventGenerator:
             self._logger.debug("Skipping tool calling; no tools associated with guidelines found")
             return ToolEventGenerationResult(generations=[], events=[], insights=ToolInsights())
 
+        await session_event_emitter.emit_status_event(
+            correlation_id=self._correlator.correlation_id,
+            data={
+                "acknowledged_offset": 0,  # FIXME: Either set the right value here or just get rid of acknowledged_offset already...
+                "status": "processing",
+                "data": {"stage": "Fetching data"},
+            },
+        )
+
         tool_context = ToolContext(
             agent_id=agent.id,
             session_id=session_id,
