@@ -532,7 +532,7 @@ class AlphaEngine(Engine):
 
             while not matching_finished:
                 if await timeout.wait_up_to(0.1):
-                    await self._emit_processing_event(context, stage="Interpreting")
+                    await self._emit_processing_event(context, stage="Thinking")
                     return
 
         extended_thinking_status_task = asyncio.create_task(extended_thinking_status_emission())
@@ -845,7 +845,7 @@ class AlphaEngine(Engine):
                     ),
                 )
 
-                await self._emit_processing_event(context, stage="Thinking")
+                await self._emit_processing_event(context, stage="Interpreting")
 
                 return True
 
