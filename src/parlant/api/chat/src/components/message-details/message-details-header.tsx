@@ -4,14 +4,14 @@ import {useAtom} from 'jotai';
 import {ClassNameValue, twMerge} from 'tailwind-merge';
 import HeaderWrapper from '../header-wrapper/header-wrapper';
 import {Flag, X} from 'lucide-react';
-import { Button } from '../ui/button';
+import {Button} from '../ui/button';
 import FlagMessage from './flag-message';
-import { useEffect, useState } from 'react';
-import { getItemFromIndexedDB } from '@/lib/utils';
-
+import {useEffect, useState} from 'react';
+import {getItemFromIndexedDB} from '@/lib/utils';
 
 const MessageDetailsHeader = ({
 	event,
+	sameCorrelationMessages,
 	regenerateMessageFn,
 	resendMessageFn,
 	closeLogs,
@@ -19,6 +19,7 @@ const MessageDetailsHeader = ({
 	flaggedChanged,
 }: {
 	event: EventInterface | null;
+	sameCorrelationMessages?: EventInterface[];
 	regenerateMessageFn?: (messageId: string) => void;
 	resendMessageFn?: (messageId: string) => void;
 	closeLogs?: VoidFunction;
@@ -35,9 +36,9 @@ const MessageDetailsHeader = ({
 		const flag = getItemFromIndexedDB('Parlant-flags', 'message_flags', event?.correlation_id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
 		if (flag) {
 			flag.then((f) => {
-				setMessageFlag((f as {flagValue:string})?.flagValue);
-				flaggedChanged?.(!!(f as {flagValue:string})?.flagValue);
-			});	
+				setMessageFlag((f as {flagValue: string})?.flagValue);
+				flaggedChanged?.(!!(f as {flagValue: string})?.flagValue);
+			});
 		}
 	}, [event, refreshFlag]);
 
@@ -52,11 +53,19 @@ const MessageDetailsHeader = ({
 					</div>
 					<div className='flex items-center gap-[12px] mb-[1px]'>
 						{!isCustomer && (
-								<Button className={twMerge('gap-1', messageFlag && 'border-[#9B0360] !text-[#9B0360]')} variant='outline' onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={messageFlag || ''} event={event} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)}/>, {width: '600px', height: '636px'})}>
-									<Flag color={messageFlag ? '#9B0360' : 'black'} size={16}/>
-									<div>{messageFlag ? 'View Comment' : 'Flag'}</div>
-								</Button>
-							)}
+							<Button
+								className={twMerge('gap-1', messageFlag && 'border-[#9B0360] !text-[#9B0360]')}
+								variant='outline'
+								onClick={() =>
+									dialog.openDialog('Flag Response', <FlagMessage existingFlagValue={messageFlag || ''} events={sameCorrelationMessages || [event]} sessionId={session?.id as string} onFlag={() => setRefreshFlag(!refreshFlag)} />, {
+										width: '600px',
+										height: '636px',
+									})
+								}>
+								<Flag color={messageFlag ? '#9B0360' : 'black'} size={16} />
+								<div>{messageFlag ? 'View Comment' : 'Flag'}</div>
+							</Button>
+						)}
 						<div
 							className='group bg-[#006E53] [box-shadow:0px_2px_4px_0px_#00403029,0px_1px_5.5px_0px_#006E5329] hover:bg-[#005C3F] flex  h-[38px] rounded-[5px] ms-[4px] items-center gap-[7px] py-[13px] px-[10px]'
 							role='button'

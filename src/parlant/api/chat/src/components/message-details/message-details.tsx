@@ -56,8 +56,10 @@ const MessageDetails = ({
 	regenerateMessageFn,
 	resendMessageFn,
 	flaggedChanged,
+	sameCorrelationMessages,
 }: {
 	event?: EventInterface | null;
+	sameCorrelationMessages?: EventInterface[];
 	closeLogs?: VoidFunction;
 	regenerateMessageFn?: (sessionId: string) => void;
 	resendMessageFn?: (sessionId: string) => void;
@@ -152,6 +154,7 @@ const MessageDetails = ({
 			<MessageDetailsHeader
 				event={event || null}
 				closeLogs={closeLogs}
+				sameCorrelationMessages={sameCorrelationMessages}
 				resendMessageFn={resendMessageFn}
 				regenerateMessageFn={regenerateMessageFn}
 				className={twJoin('shadow-main h-[60px] min-h-[60px]', Object.keys(filters || {}).length ? 'border-[#F3F5F9]' : '')}
