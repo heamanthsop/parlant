@@ -25,6 +25,7 @@ from parlant.core import async_utils
 from parlant.core.agents import Agent
 from parlant.core.common import JSONSerializable, generate_id
 from parlant.core.context_variables import ContextVariable, ContextVariableValue
+from parlant.core.customers import CustomerId
 from parlant.core.emissions import EmittedEvent
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.glossary import Term
@@ -32,7 +33,7 @@ from parlant.core.journeys import Journey
 from parlant.core.loggers import Logger
 from parlant.core.nlp.generation_info import GenerationInfo
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.sessions import Event, ToolResult
+from parlant.core.sessions import Event, SessionId, ToolResult
 from parlant.core.tools import (
     Tool,
     ToolContext,
@@ -121,13 +122,14 @@ class ToolCallInferenceResult:
 @dataclass(frozen=True)
 class ToolCallContext:
     agent: Agent
-    services: dict[str, ToolService]
+    session_id: SessionId
+    customer_id: CustomerId
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
     ordinary_guideline_matches: Sequence[GuidelineMatch]
-    journeys: Sequence[Journey]
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
+    journeys: Sequence[Journey]
     staged_events: Sequence[EmittedEvent]
 
 
@@ -165,18 +167,10 @@ class ToolCaller:
 
     async def infer_tool_calls(
         self,
-        agent: Agent,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        staged_events: Sequence[EmittedEvent],
-        tool_context: ToolContext,
+        context: ToolCallContext,
     ) -> ToolCallInferenceResult:
         with self._logger.scope("ToolCaller"):
-            if not tool_enabled_guideline_matches:
+            if not context.tool_enabled_guideline_matches:
                 return ToolCallInferenceResult(
                     total_duration=0.0,
                     batch_count=0,
@@ -187,67 +181,63 @@ class ToolCaller:
 
             t_start = time.time()
 
-            tools: dict[tuple[ToolId, Tool], list[GuidelineMatch]] = defaultdict(list)
-            services: dict[str, ToolService] = {}
+        tool_context = ToolContext(
+            agent_id=context.agent.id,
+            session_id=context.session_id,
+            customer_id=context.customer_id,
+        )
 
-            for guideline_match, tool_ids in tool_enabled_guideline_matches.items():
-                for tool_id in tool_ids:
-                    if tool_id.service_name not in services:
-                        services[
-                            tool_id.service_name
-                        ] = await self._service_registry.read_tool_service(tool_id.service_name)
+        tools: dict[tuple[ToolId, Tool], list[GuidelineMatch]] = defaultdict(list)
+        services: dict[str, ToolService] = {}
 
-                    tool = await services[tool_id.service_name].resolve_tool(
-                        tool_id.tool_name, tool_context
+        for guideline_match, tool_ids in context.tool_enabled_guideline_matches.items():
+            for tool_id in tool_ids:
+                if tool_id.service_name not in services:
+                    services[tool_id.service_name] = await self._service_registry.read_tool_service(
+                        tool_id.service_name
                     )
 
-                    tools[(tool_id, tool)].append(guideline_match)
-
-            with self._logger.operation("Creating batches", create_scope=False):
-                batches = await self.batcher.create_batches(
-                    tools=tools,
-                    context=ToolCallContext(
-                        agent=agent,
-                        services=services,
-                        context_variables=context_variables,
-                        interaction_history=interaction_history,
-                        terms=terms,
-                        ordinary_guideline_matches=ordinary_guideline_matches,
-                        journeys=journeys,
-                        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-                        staged_events=staged_events,
-                    ),
+                tool = await services[tool_id.service_name].resolve_tool(
+                    tool_id.tool_name, tool_context
                 )
 
-            with self._logger.operation("Processing batches", create_scope=False):
-                batch_tasks = [batch.process() for batch in batches]
-                batch_results = await async_utils.safe_gather(*batch_tasks)
+                tools[(tool_id, tool)].append(guideline_match)
 
-            t_end = time.time()
-
-            # Aggregate insights from all batch results (e.g., missing data across batches)
-            aggregated_evaluations: list[tuple[ToolId, ToolCallEvaluation]] = []
-            aggregated_missing_data: list[MissingToolData] = []
-            aggregated_invalid_data: list[InvalidToolData] = []
-            for result in batch_results:
-                if result.insights and result.insights.evaluations:
-                    aggregated_evaluations.extend(result.insights.evaluations)
-                if result.insights and result.insights.missing_data:
-                    aggregated_missing_data.extend(result.insights.missing_data)
-                if result.insights and result.insights.invalid_data:
-                    aggregated_invalid_data.extend(result.insights.invalid_data)
-
-            return ToolCallInferenceResult(
-                total_duration=t_end - t_start,
-                batch_count=len(batches),
-                batch_generations=[result.generation_info for result in batch_results],
-                batches=[result.tool_calls for result in batch_results],
-                insights=ToolInsights(
-                    evaluations=aggregated_evaluations,
-                    missing_data=aggregated_missing_data,
-                    invalid_data=aggregated_invalid_data,
-                ),
+        with self._logger.operation("Creating batches", create_scope=False):
+            batches = await self.batcher.create_batches(
+                tools=tools,
+                context=context,
             )
+
+        with self._logger.operation("Processing batches", create_scope=False):
+            batch_tasks = [batch.process() for batch in batches]
+            batch_results = await async_utils.safe_gather(*batch_tasks)
+
+        t_end = time.time()
+
+        # Aggregate insights from all batch results (e.g., missing data across batches)
+        aggregated_evaluations: list[tuple[ToolId, ToolCallEvaluation]] = []
+        aggregated_missing_data: list[MissingToolData] = []
+        aggregated_invalid_data: list[InvalidToolData] = []
+        for result in batch_results:
+            if result.insights and result.insights.evaluations:
+                aggregated_evaluations.extend(result.insights.evaluations)
+            if result.insights and result.insights.missing_data:
+                aggregated_missing_data.extend(result.insights.missing_data)
+            if result.insights and result.insights.invalid_data:
+                aggregated_invalid_data.extend(result.insights.invalid_data)
+
+        return ToolCallInferenceResult(
+            total_duration=t_end - t_start,
+            batch_count=len(batches),
+            batch_generations=[result.generation_info for result in batch_results],
+            batches=[result.tool_calls for result in batch_results],
+            insights=ToolInsights(
+                evaluations=aggregated_evaluations,
+                missing_data=aggregated_missing_data,
+                invalid_data=aggregated_invalid_data,
+            ),
+        )
 
     async def _run_tool(
         self,

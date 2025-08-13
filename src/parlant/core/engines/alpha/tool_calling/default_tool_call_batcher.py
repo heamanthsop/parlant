@@ -126,7 +126,8 @@ class DefaultToolCallBatcher(ToolCallBatcher):
         if independent_tools:
             context_without_reference_tools = ToolCallContext(
                 agent=context.agent,
-                services=context.services,
+                session_id=context.session_id,
+                customer_id=context.customer_id,
                 context_variables=context.context_variables,
                 interaction_history=context.interaction_history,
                 terms=context.terms,

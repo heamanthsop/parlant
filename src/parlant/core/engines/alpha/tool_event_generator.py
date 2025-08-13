@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Mapping, Optional, Sequence
 from parlant.core.customers import Customer
-from parlant.core.journeys import Journey
+from parlant.core.engines.alpha.loaded_context import LoadedContext
 from parlant.core.tools import ToolContext
 from parlant.core.contextual_correlator import ContextualCorrelator
 from parlant.core.nlp.generation_info import GenerationInfo
@@ -28,6 +28,7 @@ from parlant.core.sessions import Event, SessionId, ToolEventData
 from parlant.core.engines.alpha.guideline_matching.guideline_match import GuidelineMatch
 from parlant.core.glossary import Term
 from parlant.core.engines.alpha.tool_calling.tool_caller import (
+    ToolCallContext,
     ToolCaller,
     ToolInsights,
 )
@@ -98,50 +99,38 @@ class ToolEventGenerator:
     async def generate_events(
         self,
         preexecution_state: ToolPreexecutionState,
-        session_event_emitter: EventEmitter,
-        response_event_emitter: EventEmitter,
-        session_id: SessionId,
-        agent: Agent,
-        customer: Customer,
-        context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
-        interaction_history: Sequence[Event],
-        terms: Sequence[Term],
-        ordinary_guideline_matches: Sequence[GuidelineMatch],
-        tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        journeys: Sequence[Journey],
-        staged_events: Sequence[EmittedEvent],
+        context: LoadedContext,
     ) -> ToolEventGenerationResult:
         _ = preexecution_state  # Not used for now, but good to have for extensibility
 
-        if not tool_enabled_guideline_matches:
+        if not context.state.tool_enabled_guideline_matches:
             self._logger.debug("Skipping tool calling; no tools associated with guidelines found")
             return ToolEventGenerationResult(generations=[], events=[], insights=ToolInsights())
 
-        await session_event_emitter.emit_status_event(
+        await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": 0,  # FIXME: Either set the right value here or just get rid of acknowledged_offset already...
+                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "processing",
                 "data": {"stage": "Fetching data"},
             },
         )
 
-        tool_context = ToolContext(
-            agent_id=agent.id,
-            session_id=session_id,
-            customer_id=customer.id,
+        tool_call_context = ToolCallContext(
+            agent=context.agent,
+            session_id=context.session.id,
+            customer_id=context.customer.id,
+            context_variables=context.state.context_variables,
+            interaction_history=context.interaction.history,
+            terms=list(context.state.glossary_terms),
+            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
+            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
+            journeys=context.state.journeys,
+            staged_events=context.state.tool_events,
         )
 
         inference_result = await self._tool_caller.infer_tool_calls(
-            agent=agent,
-            context_variables=context_variables,
-            interaction_history=interaction_history,
-            terms=terms,
-            ordinary_guideline_matches=ordinary_guideline_matches,
-            tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=journeys,
-            staged_events=staged_events,
-            tool_context=tool_context,
+            context=tool_call_context,
         )
 
         tool_calls = list(chain.from_iterable(inference_result.batches))
@@ -152,6 +141,12 @@ class ToolEventGenerator:
                 events=[],
                 insights=inference_result.insights,
             )
+
+        tool_context = ToolContext(
+            agent_id=context.agent.id,
+            session_id=context.session.id,
+            customer_id=context.customer.id,
+        )
 
         tool_results = await self._tool_caller.execute_tool_calls(
             tool_context,
@@ -178,14 +173,14 @@ class ToolEventGenerator:
             }
             if r.result["control"].get("lifespan", "session") == "session":
                 events.append(
-                    await session_event_emitter.emit_tool_event(
+                    await context.session_event_emitter.emit_tool_event(
                         correlation_id=self._correlator.correlation_id,
                         data=event_data,
                     )
                 )
             else:
                 events.append(
-                    await response_event_emitter.emit_tool_event(
+                    await context.response_event_emitter.emit_tool_event(
                         correlation_id=self._correlator.correlation_id,
                         data=event_data,
                     )

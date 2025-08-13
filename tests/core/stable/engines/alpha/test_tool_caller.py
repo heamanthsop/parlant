@@ -15,7 +15,7 @@
 from datetime import date, datetime, timezone, timedelta
 import enum
 from itertools import chain
-from typing import Annotated, Any, Mapping, Optional, Sequence, List
+from typing import Annotated, Any, Mapping, Optional, Sequence, List, cast
 import uuid
 from pathlib import Path
 from lagom import Container
@@ -34,6 +34,7 @@ from parlant.core.engines.alpha.tool_calling.tool_caller import (
     ToolCallBatcher,
     ToolCallContext,
     ToolCallId,
+    ToolCallInferenceResult,
     ToolCaller,
     ToolInsights,
 )
@@ -47,7 +48,7 @@ from parlant.core.relationships import (
 )
 from parlant.core.services.tools.plugins import tool
 from parlant.core.services.tools.service_registry import ServiceRegistry
-from parlant.core.sessions import Event, EventSource, SessionStore
+from parlant.core.sessions import Event, EventSource, SessionId, SessionStore
 from parlant.core.tags import TagId, Tag
 from parlant.core.tools import (
     LocalToolService,
@@ -147,13 +148,38 @@ async def create_local_tool(
     )
 
 
+async def _inference_tool_calls_result(
+    container: Container,
+    agent: Agent,
+    interaction_history: list[Event],
+    tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
+    tool_context_obj: ToolContext | None = None,
+) -> ToolCallInferenceResult:
+    tool_caller = container[ToolCaller]
+
+    tool_context_obj = tool_context_obj or await tool_context(container, agent)
+
+    tool_call_context = ToolCallContext(
+        agent=agent,
+        session_id=cast(SessionId, tool_context_obj.session_id),
+        customer_id=cast(CustomerId, tool_context_obj.customer_id),
+        context_variables=[],
+        interaction_history=interaction_history,
+        terms=[],
+        ordinary_guideline_matches=[],
+        tool_enabled_guideline_matches=tool_enabled_guideline_matches,
+        journeys=[],
+        staged_events=[],
+    )
+
+    return await tool_caller.infer_tool_calls(tool_call_context)
+
+
 async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_parameter(
     container: Container,
     local_tool_service: LocalToolService,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
-
     tool = await create_local_tool(
         local_tool_service,
         name="available_products_by_category",
@@ -184,16 +210,11 @@ async def test_that_a_tool_from_a_local_service_gets_called_with_an_enum_paramet
         ): [ToolId(service_name="local", tool_name=tool.name)]
     }
 
-    inference_tool_calls_result = await tool_caller.infer_tool_calls(
+    inference_tool_calls_result = await _inference_tool_calls_result(
+        container=container,
         agent=agent,
-        context_variables=[],
         interaction_history=interaction_history,
-        terms=[],
-        ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-        journeys=[],
-        staged_events=[],
-        tool_context=await tool_context(container, agent),
     )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -208,7 +229,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class ProductCategory(enum.Enum):
@@ -251,16 +271,11 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_parameter(
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -275,7 +290,6 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class AppointmentType(enum.Enum):
@@ -328,16 +342,11 @@ async def test_that_a_plugin_tool_is_called_with_required_parameters_with_defaul
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -350,7 +359,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class ProductCategory(enum.Enum):
@@ -393,16 +401,11 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_an_enum_list_parameter
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -425,7 +428,6 @@ async def test_that_a_tool_is_called_with_typing_lists(
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     class ProductCategory(enum.Enum):
@@ -468,16 +470,11 @@ async def test_that_a_tool_is_called_with_typing_lists(
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -498,7 +495,6 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
     plugin_data = {"choices": ["laptops", "peripherals"]}
 
@@ -542,16 +538,11 @@ async def test_that_a_tool_from_a_plugin_gets_called_with_a_parameter_attached_t
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -570,7 +561,6 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
 ) -> None:
     service_registry = container[ServiceRegistry]
     customer_store = container[CustomerStore]
-    tool_caller = container[ToolCaller]
 
     # Fabricate two customers and sessions
     customer_larry = await customer_store.create_customer(
@@ -639,41 +629,29 @@ async def test_that_a_tool_with_a_parameter_attached_to_a_choice_provider_gets_t
             url=server.url,
         )
 
-        inference_tool_calls_result_larry = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result_larry = await _inference_tool_calls_result(
+            container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history_larry,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=tool_context_larry,
+            tool_context_obj=tool_context_larry,
         )
 
-        inference_tool_calls_result_harry = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result_harry = await _inference_tool_calls_result(
+            container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history_harry,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=tool_context_harry,
+            tool_context_obj=tool_context_harry,
         )
 
         # Check that mixing of "larry" chat and "harry" context doesn't work well
-        inference_tool_calls_result_mixed = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result_mixed = await _inference_tool_calls_result(
+            container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history_larry,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=tool_context_harry,
+            tool_context_obj=tool_context_harry,
         )
 
     assert len(inference_tool_calls_result_larry.batches) == 1
@@ -698,7 +676,6 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
     service_registry = container[ServiceRegistry]
 
     @tool
@@ -739,16 +716,11 @@ async def test_that_a_tool_from_a_plugin_with_missing_parameters_returns_the_mis
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -766,7 +738,6 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
     agent: Agent,
 ) -> None:
     service_registry = container[ServiceRegistry]
-    tool_caller = container[ToolCaller]
 
     async def destination_choices() -> list[str]:
         return ["London", "Tokyo", "Reykjavik"]
@@ -804,16 +775,11 @@ async def test_that_a_tool_with_an_invalid_choice_provider_parameter_and_a_missi
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -828,7 +794,6 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
     agent: Agent,
 ) -> None:
     service_registry = container[ServiceRegistry]
-    tool_caller = container[ToolCaller]
 
     class Destination(enum.Enum):
         LONDON = "London"
@@ -871,16 +836,11 @@ async def test_that_a_tool_with_an_invalid_enum_parameter_and_a_missing_paramete
             url=server.url,
         )
 
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container=container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=await tool_context(container, agent),
         )
 
     tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -897,8 +857,8 @@ async def test_that_mcp_tool_with_uuid_path_timedelta_and_datetime_parameters_in
     container: Container,
     agent: Agent,
 ) -> None:
-    service_registry = container[ServiceRegistry]
     tool_caller = container[ToolCaller]
+    service_registry = container[ServiceRegistry]
 
     async def report_update_duration(
         reporter: uuid.UUID,
@@ -934,17 +894,11 @@ async def test_that_mcp_tool_with_uuid_path_timedelta_and_datetime_parameters_in
             url=f"http://localhost:{server.get_port()}",
         )
 
-        context = await tool_context(container, agent)
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=context,
         )
 
         tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -956,6 +910,8 @@ async def test_that_mcp_tool_with_uuid_path_timedelta_and_datetime_parameters_in
         assert tc.arguments["path"] == "/secret/path/to.file"
         assert tc.arguments["update_start"] == str(datetime(1999, 11, 1, 3, 22, 41))
         assert tc.arguments["update_duration"] == str(timedelta(hours=2, minutes=3, seconds=31))
+
+        context = await tool_context(container, agent)
 
         results = await tool_caller.execute_tool_calls(context, tool_calls)
 
@@ -1020,16 +976,12 @@ async def test_that_mcp_tool_with_optional_lists_of_enum_date_and_bool_can_run(
         )
 
         context = await tool_context(container, agent)
-        inference_tool_calls_result = await tool_caller.infer_tool_calls(
+        inference_tool_calls_result = await _inference_tool_calls_result(
+            container,
             agent=agent,
-            context_variables=[],
             interaction_history=interaction_history,
-            terms=[],
-            ordinary_guideline_matches=[],
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-            journeys=[],
-            staged_events=[],
-            tool_context=context,
+            tool_context_obj=context,
         )
 
         tool_calls = list(chain.from_iterable(inference_tool_calls_result.batches))
@@ -1052,8 +1004,6 @@ async def test_that_tool_calling_batchers_can_be_overridden(
     container: Container,
     agent: Agent,
 ) -> None:
-    tool_caller = container[ToolCaller]
-
     class ActivateToolCallBatch(ToolCallBatch):
         def __init__(self, tools: Mapping[tuple[ToolId, Tool], Sequence[GuidelineMatch]]):
             self.tools = tools
@@ -1164,19 +1114,14 @@ async def test_that_tool_calling_batchers_can_be_overridden(
         ): [ping_tool_id],
     }
 
-    res = await tool_caller.infer_tool_calls(
+    result = await _inference_tool_calls_result(
+        container,
         agent=agent,
-        context_variables=[],
         interaction_history=interaction_history,
-        terms=[],
-        ordinary_guideline_matches=[],
         tool_enabled_guideline_matches=tool_enabled_guideline_matches,
-        journeys=[],
-        staged_events=[],
-        tool_context=await tool_context(container, agent),
     )
 
-    all_tool_ids = {tc.tool_id.to_string() for tc in chain.from_iterable(res.batches)}
+    all_tool_ids = {tc.tool_id.to_string() for tc in chain.from_iterable(result.batches)}
     assert ping_tool_id.to_string() in all_tool_ids
     assert echo_tool_id.to_string() not in all_tool_ids
 
@@ -1263,9 +1208,12 @@ async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_
         (b_tool_id, _tool): [],
         (c_tool_id, _tool): [],
     }
+
+    tool_context_obj = await tool_context(container, agent)
     tool_call_context = ToolCallContext(
         agent=agent,
-        services={},
+        session_id=cast(SessionId, tool_context_obj.session_id),
+        customer_id=cast(CustomerId, tool_context_obj.customer_id),
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
@@ -1274,6 +1222,7 @@ async def test_that_two_non_overlapping_tools_are_overlapping_with_a_third_tool_
         journeys=[],
         staged_events=[],
     )
+
     batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
         tools, context=tool_call_context
     )
@@ -1355,9 +1304,12 @@ async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evalu
         (a_tool_id, _tool): [],
         (c_tool_id, _tool): [],
     }
+
+    tool_context_obj = await tool_context(container, agent)
     tool_call_context = ToolCallContext(
         agent=agent,
-        services={},
+        session_id=cast(SessionId, tool_context_obj.session_id),
+        customer_id=cast(CustomerId, tool_context_obj.customer_id),
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
@@ -1366,6 +1318,7 @@ async def test_that_a_tool_with_unmatched_guideline_is_not_included_in_the_evalu
         journeys=[],
         staged_events=[],
     )
+
     batches: Sequence[ToolCallBatch] = await tool_caller.batcher.create_batches(
         tools, context=tool_call_context
     )

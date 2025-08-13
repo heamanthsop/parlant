@@ -1618,21 +1618,7 @@ class AlphaEngine(Engine):
         context: LoadedContext,
         preexecution_state: ToolPreexecutionState,
     ) -> tuple[ToolEventGenerationResult, list[EmittedEvent], ToolInsights] | None:
-        result = await self._tool_event_generator.generate_events(
-            preexecution_state,
-            session_event_emitter=context.session_event_emitter,
-            response_event_emitter=context.response_event_emitter,
-            session_id=context.session.id,
-            agent=context.agent,
-            customer=context.customer,
-            context_variables=context.state.context_variables,
-            interaction_history=context.interaction.history,
-            terms=list(context.state.glossary_terms),
-            ordinary_guideline_matches=context.state.ordinary_guideline_matches,
-            tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
-            journeys=context.state.journeys,
-            staged_events=context.state.tool_events,
-        )
+        result = await self._tool_event_generator.generate_events(preexecution_state, context)
 
         tool_events = [e for e in result.events if e] if result else []
 
