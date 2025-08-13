@@ -191,6 +191,11 @@ async def main() -> None:
             action="Ask them to call the office, providing the phone number",
         )
 
+        await agent.create_guideline(
+            condition="The patient inquires about something that has nothing to do with our healthcare",
+            action="Kindly tell them you cannot assist with off-topic inquiries - do not engage with their request.",
+        )
+
 
 if __name__ == "__main__":
     asyncio.run(main())
