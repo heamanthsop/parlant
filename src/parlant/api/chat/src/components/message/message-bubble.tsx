@@ -8,10 +8,10 @@ import {useAtom} from 'jotai';
 import {agentAtom, customerAtom, dialogAtom, sessionAtom} from '@/store';
 import {getAvatarColor} from '../avatar/avatar';
 // import MessageRelativeTime from './message-relative-time';
-import { copy } from '@/lib/utils';
-import { Eye, EyeOff, Flag, Search } from 'lucide-react';
+import {copy} from '@/lib/utils';
+import {Eye, EyeOff, Flag, Search} from 'lucide-react';
 import FlagMessage from '../message-details/flag-message';
-import { EventInterface } from '@/utils/interfaces';
+import {EventInterface} from '@/utils/interfaces';
 import DraftBubble from './draft-bubble';
 
 interface Props {
@@ -29,7 +29,6 @@ interface Props {
 	setIsEditing?: React.Dispatch<React.SetStateAction<boolean>>;
 	sameCorrelationMessages?: EventInterface[];
 }
-
 
 const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, showLogsForMessage, setIsEditing, flagged, flaggedChanged, sameCorrelationMessages}: Props) => {
 	const ref = useRef<HTMLDivElement>(null);
@@ -66,7 +65,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 	const isViewingCurrentMessage = showLogsForMessage && showLogsForMessage.id === event.id;
 	const colorPallete = getAvatarColor((isCustomer ? customer?.id : agent?.id) || '', isCustomer ? 'customer' : 'agent');
 	const name = isCustomer ? customer?.name : agent?.name;
-	const formattedName = (isCustomer && isGuest) ? 'Guest' : name;
+	const formattedName = isCustomer && isGuest ? 'Guest' : name;
 
 	return (
 		<>
@@ -84,11 +83,11 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 							</div>
 							<div className='flex items-center flex-1 justify-end'>
 								{!isCustomer && sameCorrelationMessages?.some((e: EventInterface) => e.data?.draft) && (
-									<div className="flex items-center me-[6px] pe-[6px] border-e border-[#EBECF0]">
+									<div className='flex items-center me-[6px] pe-[6px] border-e border-[#EBECF0]'>
 										<Tooltip value={showDraft ? 'Hide Draft' : 'Show Draft'} side='top'>
 											<Button data-selected={showDraft} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => setShowDraft(!showDraft)}>
 												<div className='text-[14px] text-[#777] font-normal px-[.25em] flex items-center gap-[6px]'>
-													{showDraft ? <Eye size={16} color='#777'/> : <EyeOff size={16} color='#777'/>}
+													{showDraft ? <Eye size={16} color='#777' /> : <EyeOff size={16} color='#777' />}
 													Draft
 												</div>
 											</Button>
@@ -101,26 +100,28 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 											<Button
 												variant='ghost'
 												className='flex p-1 h-fit items-center gap-1'
-												onClick={() => dialog.openDialog('Flag Message', <FlagMessage existingFlagValue={flagged || ''} event={event} sessionId={session?.id as string} onFlag={flaggedChanged}/>, {width: '600px', height: '636px'})}>
-												<Flag size={16} color='#777'/>
+												onClick={() =>
+													dialog.openDialog('Flag Response', <FlagMessage existingFlagValue={flagged || ''} events={sameCorrelationMessages || [event]} sessionId={session?.id as string} onFlag={flaggedChanged} />, {width: '600px', height: '636px'})
+												}>
+												<Flag size={16} color='#777' />
 												<div className='text-[14px] text-[#777] font-normal px-[.25em]'>{'Flagged'}</div>
 											</Button>
 										</Tooltip>
 									</div>
-									)}
+								)}
 								{/* <MessageRelativeTime event={event} /> */}
-								{!isCustomer &&
-								<Tooltip value='View message actions and logs' side='top'>
-									<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
-										<Search size={16} color='#777'/>
-										<div className='text-[14px] text-[#777] font-normal px-[.25em]'>Inspect</div>
-									</Button>
+								{!isCustomer && (
+									<Tooltip value='View message actions and logs' side='top'>
+										<Button data-selected={isViewingCurrentMessage} variant='ghost' className='flex p-1 h-fit items-center gap-1' onClick={() => showLogs(event)}>
+											<Search size={16} color='#777' />
+											<div className='text-[14px] text-[#777] font-normal px-[.25em]'>Inspect</div>
+										</Button>
 									</Tooltip>
-									}
+								)}
 							</div>
 						</div>
 					)}
-                    <DraftBubble open={showDraft} draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''}/>
+					<DraftBubble open={showDraft} draft={sameCorrelationMessages?.find((e) => e.data?.draft)?.data?.draft || ''} />
 					<div className='group/main relative'>
 						<div className={twMerge('flex items-center max-w-full', isCustomer && 'flex-row-reverse')}>
 							<div className='max-w-full'>
@@ -128,7 +129,6 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									ref={ref}
 									tabIndex={0}
 									data-testid='message'
-
 									className={twMerge(
 										'bg-green-light border-[2px] hover:bg-[#F5F9F3] text-black border-transparent',
 										// isViewingCurrentMessage && '!bg-white hover:!bg-white border-[#EEEEEE] shadow-main',
@@ -139,9 +139,7 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 									)}>
 									<div className={twMerge('markdown overflow-hidden relative min-w-[200px] max-w-[608px] [word-break:break-word] font-light text-[16px] pe-[38px]')}>
 										<span ref={markdownRef}>
-											<Markdown className={twJoin(!isOneLiner && 'leading-[26px]')}>
-												{event?.data?.message || ''}
-											</Markdown>
+											<Markdown className={twJoin(!isOneLiner && 'leading-[26px]')}>{event?.data?.message || ''}</Markdown>
 										</span>
 									</div>
 									<div className={twMerge('flex h-full font-normal text-[11px] text-[#AEB4BB] pe-[20px] font-inter self-end items-end whitespace-nowrap leading-[14px]', isOneLiner ? 'ps-[12px]' : '')}></div>
@@ -153,11 +151,13 @@ const MessageBubble = ({event, isFirstMessageInDate, showLogs, isContinual, show
 										<img src='icons/copy.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
 									</div>
 								</Tooltip>
-								{isCustomer && <Tooltip value='Edit' side='top'>
-									<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
-										<img src='icons/edit-message.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
-									</div>
-								</Tooltip>}
+								{isCustomer && (
+									<Tooltip value='Edit' side='top'>
+										<div data-testid='edit-button' role='button' onClick={() => setIsEditing?.(true)} className='group cursor-pointer'>
+											<img src='icons/edit-message.svg' alt='edit' className='block opacity-50 rounded-[10px] group-hover:bg-[#EBECF0] size-[30px] p-[5px]' />
+										</div>
+									</Tooltip>
+								)}
 							</div>
 						</div>
 					</div>

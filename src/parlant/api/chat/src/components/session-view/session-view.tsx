@@ -1,27 +1,27 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { ReactElement, useEffect, useRef, useState } from 'react';
+import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import useFetch from '@/hooks/useFetch';
-import { Textarea } from '../ui/textarea';
-import { Button } from '../ui/button';
-import { deleteData, postData } from '@/utils/api';
-import { groupBy } from '@/utils/obj';
+import {Textarea} from '../ui/textarea';
+import {Button} from '../ui/button';
+import {deleteData, postData} from '@/utils/api';
+import {groupBy} from '@/utils/obj';
 import Message from '../message/message';
-import { EventInterface, ServerStatus, SessionInterface } from '@/utils/interfaces';
+import {EventInterface, ServerStatus, SessionInterface} from '@/utils/interfaces';
 import Spacer from '../ui/custom/spacer';
-import { toast } from 'sonner';
-import { NEW_SESSION_ID } from '../chat-header/chat-header';
-import { useQuestionDialog } from '@/hooks/useQuestionDialog';
-import { twJoin, twMerge } from 'tailwind-merge';
+import {toast} from 'sonner';
+import {NEW_SESSION_ID} from '../chat-header/chat-header';
+import {useQuestionDialog} from '@/hooks/useQuestionDialog';
+import {twJoin, twMerge} from 'tailwind-merge';
 import MessageDetails from '../message-details/message-details';
-import { useAtom } from 'jotai';
-import { agentAtom, agentsAtom, emptyPendingMessage, newSessionAtom, pendingMessageAtom, sessionAtom, sessionsAtom, viewingMessageDetailsAtom } from '@/store';
+import {useAtom} from 'jotai';
+import {agentAtom, agentsAtom, emptyPendingMessage, newSessionAtom, pendingMessageAtom, sessionAtom, sessionsAtom, viewingMessageDetailsAtom} from '@/store';
 import ErrorBoundary from '../error-boundary/error-boundary';
 import DateHeader from './date-header/date-header';
 // import SessoinViewHeader from './session-view-header/session-view-header';
-import { getIndexedItemsFromIndexedDB, isSameDay } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { ShieldEllipsis } from 'lucide-react';
-import { soundDoubleBlip } from '@/utils/sounds';
+import {getIndexedItemsFromIndexedDB, isSameDay} from '@/lib/utils';
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '../ui/dropdown-menu';
+import {ShieldEllipsis} from 'lucide-react';
+import {soundDoubleBlip} from '@/utils/sounds';
 
 const SessionView = (): ReactElement => {
 	const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -34,9 +34,9 @@ const SessionView = (): ReactElement => {
 	const [messages, setMessages] = useState<EventInterface[]>([]);
 	const [showTyping, setShowTyping] = useState(false);
 	const [showThinking, setShowThinking] = useState(false);
-	const [thinkingDisplay, setThinkingDisplay] = useState("");
+	const [thinkingDisplay, setThinkingDisplay] = useState('');
 	const [isFirstScroll, setIsFirstScroll] = useState(true);
-	const { openQuestionDialog, closeQuestionDialog } = useQuestionDialog();
+	const {openQuestionDialog, closeQuestionDialog} = useQuestionDialog();
 	const [useContentFiltering, setUseContentFiltering] = useState(false);
 	const [showLogsForMessage, setShowLogsForMessage] = useState<EventInterface | null>(null);
 	const [isMissingAgent, setIsMissingAgent] = useState<boolean | null>(null);
@@ -50,7 +50,7 @@ const SessionView = (): ReactElement => {
 	const [newSession, setNewSession] = useAtom(newSessionAtom);
 	const [, setViewingMessage] = useAtom(viewingMessageDetailsAtom);
 	const [, setSessions] = useAtom(sessionsAtom);
-	const { data: lastEvents, refetch, ErrorTemplate, abortFetch } = useFetch<EventInterface[]>(`sessions/${session?.id}/events`, { min_offset: lastOffset }, [], session?.id !== NEW_SESSION_ID, !!(session?.id && session?.id !== NEW_SESSION_ID), false);
+	const {data: lastEvents, refetch, ErrorTemplate, abortFetch} = useFetch<EventInterface[]>(`sessions/${session?.id}/events`, {min_offset: lastOffset}, [], session?.id !== NEW_SESSION_ID, !!(session?.id && session?.id !== NEW_SESSION_ID), false);
 
 	const resetChat = () => {
 		setMessage('');
@@ -76,7 +76,7 @@ const SessionView = (): ReactElement => {
 		};
 
 		const question = 'Resending this message would cause all of the following messages in the session to disappear.';
-		openQuestionDialog('Are you sure?', question, [{ text: 'Resend Anyway', onClick: onApproved, isMainAction: true }]);
+		openQuestionDialog('Are you sure?', question, [{text: 'Resend Anyway', onClick: onApproved, isMainAction: true}]);
 	};
 
 	const regenerateMessageDialog = (index: number) => (sessionId: string) => {
@@ -98,13 +98,13 @@ const SessionView = (): ReactElement => {
 		};
 
 		const question = 'Regenerating this message would cause all of the following messages in the session to disappear.';
-		openQuestionDialog('Are you sure?', question, [{ text: 'Regenerate Anyway', onClick: onApproved, isMainAction: true }]);
+		openQuestionDialog('Are you sure?', question, [{text: 'Regenerate Anyway', onClick: onApproved, isMainAction: true}]);
 	};
 
 	const resendMessage = async (index: number, sessionId: string, offset: number, text?: string) => {
 		const event = messages[index];
 
-		const deleteSession = await deleteData(`sessions/${sessionId}/events?min_offset=${offset}`).catch((e) => ({ error: e }));
+		const deleteSession = await deleteData(`sessions/${sessionId}/events?min_offset=${offset}`).catch((e) => ({error: e}));
 		if (deleteSession?.error) {
 			toast.error(deleteSession.error.message || deleteSession.error);
 			return;
@@ -132,7 +132,7 @@ const SessionView = (): ReactElement => {
 
 		const newMessages = lastEvents?.filter((e) => e.kind === 'message') || [];
 		const withStatusMessages = newMessages.map((newMessage, i) => {
-			const data: EventInterface = { ...newMessage };
+			const data: EventInterface = {...newMessage};
 			const item = correlationsMap?.[newMessage.correlation_id.split('::')[0]]?.at(-1)?.data;
 			data.serverStatus = (item?.status || (newMessages[i + 1] ? 'ready' : null)) as ServerStatus;
 			if (data.serverStatus === 'error') data.error = item?.data?.exception;
@@ -173,7 +173,7 @@ const SessionView = (): ReactElement => {
 	};
 
 	const scrollToLastMessage = () => {
-		lastMessageRef?.current?.scrollIntoView?.({ behavior: isFirstScroll ? 'instant' : 'smooth' });
+		lastMessageRef?.current?.scrollIntoView?.({behavior: isFirstScroll ? 'instant' : 'smooth'});
 		if (lastMessageRef?.current && isFirstScroll) setIsFirstScroll(false);
 	};
 
@@ -185,8 +185,8 @@ const SessionView = (): ReactElement => {
 	};
 
 	const getSessionFlaggedItems = async () => {
-		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, { name: 'sessionIndex', keyPath: 'sessionId' });
-		const asMap = (flaggedItems as { correlationId: string; flagValue: string; sessionId: string }[]).reduce((acc, item) => {
+		const flaggedItems = await getIndexedItemsFromIndexedDB('Parlant-flags', 'message_flags', 'sessionIndex', session?.id as string, {name: 'sessionIndex', keyPath: 'sessionId'});
+		const asMap = (flaggedItems as {correlationId: string; flagValue: string; sessionId: string}[]).reduce((acc, item) => {
 			acc[item.correlationId] = item.flagValue;
 			return acc;
 		}, {} as Record<string, string>);
@@ -205,7 +205,7 @@ const SessionView = (): ReactElement => {
 	useEffect(scrollToLastMessage, [messages?.length, pendingMessage, isFirstScroll]);
 	useEffect(resetSession, [session?.id]);
 	useEffect(() => {
-		if (showThinking || showTyping) lastMessageRef?.current?.scrollIntoView({ behavior: 'smooth' });
+		if (showThinking || showTyping) lastMessageRef?.current?.scrollIntoView({behavior: 'smooth'});
 	}, [showThinking, showTyping]);
 	useEffect(() => {
 		if (agents && agent?.id) setIsMissingAgent(!agents?.find((a) => a.id === agent?.id));
@@ -213,8 +213,8 @@ const SessionView = (): ReactElement => {
 
 	const createSession = async (): Promise<SessionInterface | undefined> => {
 		if (!newSession) return;
-		const { customer_id, title } = newSession;
-		return postData('sessions?allow_greeting=false', { customer_id, agent_id: agent?.id, title } as object)
+		const {customer_id, title} = newSession;
+		return postData('sessions?allow_greeting=false', {customer_id, agent_id: agent?.id, title} as object)
 			.then((res: SessionInterface) => {
 				if (newSession) {
 					setSession(res);
@@ -230,11 +230,11 @@ const SessionView = (): ReactElement => {
 	};
 
 	const postMessage = async (content: string): Promise<void> => {
-		setPendingMessage((pendingMessage) => ({ ...pendingMessage, sessionId: session?.id, data: { message: content } }));
+		setPendingMessage((pendingMessage) => ({...pendingMessage, sessionId: session?.id, data: {message: content}}));
 		setMessage('');
 		const eventSession = newSession ? (await createSession())?.id : session?.id;
 		const useContentFilteringStatus = useContentFiltering ? 'auto' : 'none';
-		postData(`sessions/${eventSession}/events?moderation=${useContentFilteringStatus}`, { kind: 'message', message: content, source: 'customer' })
+		postData(`sessions/${eventSession}/events?moderation=${useContentFilteringStatus}`, {kind: 'message', message: content, source: 'customer'})
 			.then(() => {
 				soundDoubleBlip();
 				refetch();
@@ -302,12 +302,8 @@ const SessionView = (): ReactElement => {
 										<div className='bubblesWrapper snap-end' aria-hidden='true'>
 											<div className='bubbles' />
 										</div>
-										{showTyping &&
-											<p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>Typing...</p>
-										}
-										{showThinking &&
-											<p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>{thinkingDisplay}...</p>
-										}
+										{showTyping && <p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>Typing...</p>}
+										{showThinking && <p className={twMerge('flex items-center font-normal text-[#A9AFB7] text-[14px] font-inter')}>{thinkingDisplay}...</p>}
 									</div>
 								)}
 							</div>
@@ -378,6 +374,7 @@ const SessionView = (): ReactElement => {
 								flaggedChanged={() => {
 									setRefreshFlag((val) => !val);
 								}}
+								sameCorrelationMessages={visibleMessages.filter((e) => e.correlation_id === showLogsForMessage.correlation_id)}
 								event={showLogsForMessage}
 								regenerateMessageFn={showLogsForMessage?.index ? regenerateMessageDialog(showLogsForMessage.index) : undefined}
 								resendMessageFn={showLogsForMessage?.index || showLogsForMessage?.index === 0 ? resendMessageDialog(showLogsForMessage.index) : undefined}
