@@ -18,7 +18,6 @@ import asyncio
 from collections import defaultdict
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import enum
 from hashlib import md5
 import importlib.util
@@ -70,16 +69,15 @@ from parlant.api.authorization import (
 )
 from parlant.core import async_utils
 from parlant.core.agents import (
-    Agent as _Agent,
+    AgentDocumentStore,
     AgentId,
     AgentStore,
-    AgentUpdateParams,
     CompositionMode as _CompositionMode,
 )
 from parlant.core.application import Application
 from parlant.core.async_utils import Timeout, default_done_callback
 from parlant.core.capabilities import CapabilityId, CapabilityStore, CapabilityVectorStore
-from parlant.core.common import IdGenerator, ItemNotFoundError, JSONSerializable, UniqueId, Version
+from parlant.core.common import IdGenerator, ItemNotFoundError, JSONSerializable, Version
 from parlant.core.context_variables import (
     ContextVariable,
     ContextVariableDocumentStore,
@@ -576,71 +574,6 @@ class _CachedEvaluator:
                 edge_properties=cast(InvoiceJourneyData, invoice.data).edge_properties_proposition
                 or {},
             )
-
-
-class _SdkAgentStore(AgentStore):
-    """This is a minimal in-memory implementation of AgentStore for SDK purposes.
-    The reason we use this and not any of the other implementations is that it
-    uses the agent's name as the ID, which is convenient for SDK usage.
-
-    This is because an SDK file would be re-run multiple times within the same testing session,
-    and Parlant's integrated web UI would likely stay running in the background between runs.
-
-    Now, if the agent's ID changed between runs, the UI would not be able to find the agent
-    and would essentially lose context in the sessions it displays.
-
-    Incidentally, this is also why we support using a non-transient session store in the SDK."""
-
-    def __init__(self) -> None:
-        self._agents: dict[AgentId, _Agent] = {}
-
-    async def create_agent(
-        self,
-        name: str,
-        description: str | None = None,
-        creation_utc: datetime | None = None,
-        max_engine_iterations: int | None = None,
-        composition_mode: _CompositionMode | None = None,
-        tags: Sequence[TagId] | None = None,
-    ) -> _Agent:
-        agent = _Agent(
-            id=AgentId(name),
-            name=name,
-            description=description,
-            creation_utc=creation_utc or datetime.now(timezone.utc),
-            max_engine_iterations=max_engine_iterations or 1,
-            tags=tags or [],
-            composition_mode=composition_mode or _CompositionMode.CANNED_FLUID,
-        )
-
-        self._agents[agent.id] = agent
-
-        return agent
-
-    async def list_agents(self) -> Sequence[_Agent]:
-        return list(self._agents.values())
-
-    async def read_agent(self, agent_id: AgentId) -> _Agent:
-        if agent_id not in self._agents:
-            raise ItemNotFoundError(UniqueId(agent_id), "Agent not found")
-        return self._agents[agent_id]
-
-    async def update_agent(self, agent_id: AgentId, params: AgentUpdateParams) -> _Agent:
-        raise NotImplementedError
-
-    async def delete_agent(self, agent_id: AgentId) -> None:
-        raise NotImplementedError
-
-    async def upsert_tag(
-        self,
-        agent_id: AgentId,
-        tag_id: TagId,
-        creation_utc: datetime | None = None,
-    ) -> bool:
-        raise NotImplementedError
-
-    async def remove_tag(self, agent_id: AgentId, tag_id: TagId) -> None:
-        raise NotImplementedError
 
 
 @dataclass(frozen=True)
@@ -2715,9 +2648,8 @@ class Server:
         async def override_stores_with_transient_versions(c: Callable[[], Container]) -> None:
             c()[NLPService] = self._nlp_service_func(c())
 
-            c()[AgentStore] = _SdkAgentStore()
-
             for interface, implementation in [
+                (AgentStore, AgentDocumentStore),
                 (ContextVariableStore, ContextVariableDocumentStore),
                 (TagStore, TagDocumentStore),
                 (GuidelineStore, GuidelineDocumentStore),
