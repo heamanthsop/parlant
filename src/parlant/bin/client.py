@@ -51,7 +51,6 @@ from parlant.client.types import (
     CustomerMetadataUpdateParams,
     CustomerTagUpdateParams,
     Event,
-    EventInspectionResult,
     Journey,
     JourneyTagUpdateParams,
     JourneyConditionUpdateParams,
@@ -323,19 +322,6 @@ class Actions:
         return client.sessions.list(
             agent_id=agent_id,
             customer_id=customer_id,
-        )
-
-    @staticmethod
-    def inspect_event(
-        ctx: click.Context,
-        session_id: str,
-        event_id: str,
-    ) -> EventInspectionResult:
-        client = cast(ParlantClient, ctx.obj.client)
-
-        return client.sessions.inspect_event(
-            session_id=session_id,
-            event_id=event_id,
         )
 
     @staticmethod
@@ -1776,67 +1762,6 @@ class Interface:
     ) -> None:
         Actions.update_session(ctx, session_id, consumption_offsets, title)
         Interface._write_success(f"Updated session (id: {session_id})")
-
-    @staticmethod
-    def inspect_event(
-        ctx: click.Context,
-        session_id: str,
-        event_id: str,
-    ) -> None:
-        inspection = Actions.inspect_event(ctx, session_id, event_id)
-
-        rich.print(f"Session ID: '{session_id}'")
-        rich.print(f"Event ID: '{event_id}'\n")
-
-        Interface._render_events([inspection.event])
-
-        rich.print("\n")
-
-        if not inspection.trace:
-            return
-
-        for i, iteration in enumerate(inspection.trace.preparation_iterations):
-            rich.print(Text(f"Iteration #{i}:", style="bold yellow"))
-
-            rich.print(Text(f"{INDENT}Guideline Matches:", style="bold"))
-
-            if iteration.guideline_matches:
-                for match in iteration.guideline_matches:
-                    rich.print(f"{INDENT * 2}Condition: {match.condition}")
-                    rich.print(f"{INDENT * 2}Action: {match.action}")
-                    rich.print(f"{INDENT * 2}Relevance Score: {match.score}/10")
-                    rich.print(f"{INDENT * 2}Rationale: {match.rationale}\n")
-            else:
-                rich.print(f"{INDENT * 2}(none)\n")
-
-            rich.print(Text(f"{INDENT}Tool Calls:", style="bold"))
-
-            if iteration.tool_calls:
-                for tool_call in iteration.tool_calls:
-                    rich.print(f"{INDENT * 2}Tool Id: {tool_call.tool_id}")
-                    rich.print(f"{INDENT * 2}Arguments: {tool_call.arguments}")
-                    rich.print(f"{INDENT * 2}Result: {tool_call.result}\n")
-            else:
-                rich.print(f"{INDENT * 2}(none)\n")
-
-            rich.print(Text(f"{INDENT}Context Variables:", style="bold"))
-
-            if iteration.context_variables:
-                for variable in iteration.context_variables:
-                    rich.print(f"{INDENT * 2}Name: {variable.name}")
-                    rich.print(f"{INDENT * 2}Key: {variable.key}")
-                    rich.print(f"{INDENT * 2}Value: {variable.value}\n")
-            else:
-                rich.print(f"{INDENT * 2}(none)\n")
-
-            rich.print(Text(f"{INDENT}Glossary Terms:", style="bold"))
-
-            if iteration.terms:
-                for term in iteration.terms:
-                    rich.print(f"{INDENT * 2}Name: {term.name}")
-                    rich.print(f"{INDENT * 2}Description: {term.description}\n")
-            else:
-                rich.print(f"{INDENT * 2}(none)\n")
 
     @staticmethod
     def _render_glossary(terms: list[Term]) -> None:
@@ -3557,13 +3482,6 @@ async def async_main() -> None:
     @click.pass_context
     def session_view(ctx: click.Context, id: str) -> None:
         Interface.view_session(ctx, id)
-
-    @session.command("inspect", help="Inspect an event from a session")
-    @click.option("--session-id", type=str, help="Session ID", metavar="ID", required=True)
-    @click.option("--event-id", type=str, help="Event ID", metavar="ID", required=True)
-    @click.pass_context
-    def session_inspect(ctx: click.Context, session_id: str, event_id: str) -> None:
-        Interface.inspect_event(ctx, session_id, event_id)
 
     @cli.group(help="Manage an agent's glossary")
     def glossary() -> None:
