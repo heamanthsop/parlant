@@ -1514,7 +1514,8 @@ def create_router(
                 return await _add_agent_message(session_id, params)
             elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
                 await authorization_policy.authorize(
-                    request=request, permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT
+                    request=request,
+                    permission=AuthorizationPermission.CREATE_HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT_EVENT,
                 )
                 return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
             else:
