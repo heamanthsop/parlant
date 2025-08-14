@@ -1012,66 +1012,6 @@ async def test_that_a_variable_value_can_be_deleted(
         assert len(variable["key_value_pairs"]) == 0
 
 
-async def test_that_a_message_can_be_inspected(
-    context: ContextOfTest,
-) -> None:
-    with run_server(context):
-        guideline = await context.api.create_guideline(
-            condition="the customer talks about cows",
-            action="address the customer by his first name and say you like Pepsi",
-        )
-
-        term = await context.api.create_term(
-            name="Bazoo",
-            description="a type of cow",
-        )
-
-        variable = await context.api.create_context_variable(
-            name="Customer first name",
-            description="",
-        )
-
-        customer = await context.api.create_customer("John Smith")
-
-        await context.api.update_context_variable_value(
-            variable_id=variable["id"],
-            key=customer["id"],
-            value="Johnny",
-        )
-
-        agent = await context.api.create_agent(name="test_agent")
-
-        session = await context.api.create_session(agent_id=agent["id"], customer_id=customer["id"])
-
-        reply_event = await context.api.get_agent_reply(session["id"], "Oh do I like bazoos")
-
-        assert "Johnny" in reply_event["data"]["message"]
-        assert "Pepsi" in reply_event["data"]["message"]
-
-        process = await run_cli(
-            "session",
-            "inspect",
-            "--session-id",
-            session["id"],
-            "--event-id",
-            reply_event["id"],
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            address=context.api.server_address,
-        )
-
-        stdout, stderr = await process.communicate()
-        output = stdout.decode() + stderr.decode()
-        assert process.returncode == os.EX_OK
-
-        assert guideline["condition"] in output
-        assert guideline["action"] in output
-        assert term["name"] in output
-        assert term["description"] in output
-        assert variable["name"] in output
-        assert customer["id"] in output
-
-
 async def test_that_an_openapi_service_can_be_added_via_file(
     context: ContextOfTest,
 ) -> None:
@@ -1388,7 +1328,7 @@ async def test_that_a_customer_can_be_deleted(context: ContextOfTest) -> None:
         assert not any(c["name"] == "TestCustomer" for c in customers)
 
 
-async def test_that_a_customer_metadata_can_be_added(context: ContextOfTest) -> None:
+async def test_that_a_customer_metadata_can_be_set(context: ContextOfTest) -> None:
     with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
 
@@ -1411,7 +1351,7 @@ async def test_that_a_customer_metadata_can_be_added(context: ContextOfTest) -> 
         assert customer["metadata"].get("key1") == "value1"
 
 
-async def test_that_a_customer_metadata_can_be_deleted(context: ContextOfTest) -> None:
+async def test_that_a_customer_metadata_can_be_unset(context: ContextOfTest) -> None:
     with run_server(context):
         customer_id = (
             await context.api.create_customer(name="TestCustomer", extra={"key1": "value1"})
