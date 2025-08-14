@@ -169,17 +169,23 @@ class ToolCaller:
         self,
         context: ToolCallContext,
     ) -> ToolCallInferenceResult:
-        with self._logger.scope("ToolCaller"):
-            if not context.tool_enabled_guideline_matches:
-                return ToolCallInferenceResult(
-                    total_duration=0.0,
-                    batch_count=0,
-                    batch_generations=[],
-                    batches=[],
-                    insights=ToolInsights(),
-                )
+        if not context.tool_enabled_guideline_matches:
+            return ToolCallInferenceResult(
+                total_duration=0.0,
+                batch_count=0,
+                batch_generations=[],
+                batches=[],
+                insights=ToolInsights(),
+            )
 
-            t_start = time.time()
+        with self._logger.scope("ToolCaller"):
+            return await self._do_infer_tool_calls(context)
+
+    async def _do_infer_tool_calls(
+        self,
+        context: ToolCallContext,
+    ) -> ToolCallInferenceResult:
+        t_start = time.time()
 
         tool_context = ToolContext(
             agent_id=context.agent.id,
