@@ -149,7 +149,7 @@ async def test_that_an_agent_can_be_updated(
         assert agent["name"] == new_name
         assert agent["description"] == new_description
         assert agent["max_engine_iterations"] == new_max_engine_iterations
-        assert agent["composition_mode"] == "strict_canned_response"
+        assert agent["composition_mode"] == "strict_canned"
 
 
 async def test_that_an_agent_can_be_deleted(
