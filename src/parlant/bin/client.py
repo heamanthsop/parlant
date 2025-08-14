@@ -1034,6 +1034,7 @@ class Actions:
         customer_id: str,
     ) -> Customer:
         client = cast(ParlantClient, ctx.obj.client)
+
         result = client.customers.retrieve(customer_id=customer_id)
         return result
 
