@@ -261,11 +261,30 @@ class AgentMessageGuidelineDTO(DefaultBaseModel):
     rationale: AgentMessageGuidelineRationaleDTO = AgentMessageGuidelineRationaleDTO.UNSPECIFIED
 
 
-class ParticipantDTO(DefaultBaseModel):
-    """Represents a participant in a session."""
+ParticipantIdDTO = AgentId | CustomerId | None
 
-    id: Optional[str]
-    display_name: str
+ParticipantDisplayNameField: TypeAlias = Annotated[
+    str,
+    Field(
+        description="Name to display for the participant",
+        examples=["John Doe", "Alice"],
+    ),
+]
+
+
+participant_example = {
+    "id": "cust_123xy",
+    "display_name": "John Doe",
+}
+
+
+class ParticipantDTO(DefaultBaseModel):
+    """
+    Represents the participant information in a message event.
+    """
+
+    id: ParticipantIdDTO = None
+    display_name: ParticipantDisplayNameField
 
 
 class EventCreationParamsDTO(
@@ -669,31 +688,6 @@ MessageGenerationInspectionMessagesField: TypeAlias = Annotated[
         description="The messages that were generated",
     ),
 ]
-
-ParticipantIdDTO = AgentId | CustomerId | None
-
-ParticipantDisplayNameField: TypeAlias = Annotated[
-    str,
-    Field(
-        description="Name to display for the participant",
-        examples=["John Doe", "Alice"],
-    ),
-]
-
-
-participant_example = {
-    "id": "cust_123xy",
-    "display_name": "John Doe",
-}
-
-
-class ParticipantDTO(DefaultBaseModel):
-    """
-    Represents the participant information in a message event.
-    """
-
-    id: ParticipantIdDTO = None
-    display_name: ParticipantDisplayNameField
 
 
 MessageEventDataMessageField: TypeAlias = Annotated[
