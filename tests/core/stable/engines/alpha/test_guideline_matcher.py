@@ -589,7 +589,8 @@ async def analyze_response_and_update_session(
     session_id: SessionId,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
-    staged_events: Sequence[EmittedEvent],
+    staged_tool_events: Sequence[EmittedEvent],
+    staged_message_events: Sequence[EmittedEvent],
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
@@ -621,7 +622,8 @@ async def analyze_response_and_update_session(
             interaction_history=interaction_history_for_analysis,
             context_variables=context_variables,
             terms=terms,
-            staged_events=staged_events,
+            staged_tool_events=staged_tool_events,
+            staged_message_events=staged_message_events,
         ),
         guideline_matches=matches_to_analyze,
     )
@@ -650,7 +652,8 @@ async def base_test_that_correct_guidelines_are_matched(
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
     capabilities: Sequence[Capability] = [],
-    staged_events: Sequence[EmittedEvent] = [],
+    staged_tool_events: Sequence[EmittedEvent] = [],
+    staged_message_events: Sequence[EmittedEvent] = [],
 ) -> None:
     interaction_history = [
         create_event_message(
@@ -704,7 +707,8 @@ async def base_test_that_correct_guidelines_are_matched(
         customer=customer,
         context_variables=context_variables,
         terms=terms,
-        staged_events=staged_events,
+        staged_tool_events=staged_tool_events,
+        staged_message_events=staged_message_events,
         previously_matched_guidelines=previously_matched_guidelines,
         interaction_history=interaction_history,
     )
@@ -717,7 +721,7 @@ async def base_test_that_correct_guidelines_are_matched(
         interaction_history=interaction_history,
         context_variables=context_variables,
         terms=terms,
-        staged_events=staged_events,
+        staged_events=staged_tool_events,
         capabilities=capabilities,
     )
 
@@ -1144,7 +1148,7 @@ async def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_contex
             ]
         },
     )
-    staged_events = [
+    staged_tool_events = [
         EmittedEvent(
             source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result_1
         ),
@@ -1152,6 +1156,7 @@ async def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_contex
             source=EventSource.AI_AGENT, kind=EventKind.TOOL, correlation_id="", data=tool_result_2
         ),
     ]
+
     context_variables = [
         create_context_variable(
             name="user_id_1",
@@ -1171,6 +1176,7 @@ async def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_contex
     ]
     conversation_guideline_names: list[str] = ["suggest_drink_underage", "suggest_drink_adult"]
     relevant_guideline_names = ["suggest_drink_underage"]
+
     await base_test_that_correct_guidelines_are_matched(
         context,
         agent,
@@ -1179,7 +1185,7 @@ async def test_that_guidelines_are_matched_based_on_staged_tool_calls_and_contex
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
-        staged_events=staged_events,
+        staged_tool_events=staged_tool_events,
         context_variables=context_variables,
     )
 
@@ -1251,7 +1257,7 @@ async def test_that_guidelines_are_matched_based_on_staged_tool_calls_without_co
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names=relevant_guideline_names,
-        staged_events=staged_events,
+        staged_tool_events=staged_events,
     )
 
 
@@ -2079,7 +2085,7 @@ async def test_that_observational_guidelines_are_detected_based_on_tool_results(
         conversation_context,
         conversation_guideline_names,
         relevant_guideline_names,
-        staged_events=staged_events,
+        staged_tool_events=staged_events,
     )
 
 
@@ -2530,7 +2536,8 @@ async def analyze_response(
     interaction_history: Sequence[Event],
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]] = [],
     terms: Sequence[Term] = [],
-    staged_events: Sequence[EmittedEvent] = [],
+    staged_tool_events: Sequence[EmittedEvent] = [],
+    staged_message_events: Sequence[EmittedEvent] = [],
 ) -> Sequence[AnalyzedGuideline]:
     session = await context.container[SessionStore].read_session(session_id)
 
@@ -2552,7 +2559,8 @@ async def analyze_response(
         context_variables=context_variables,
         interaction_history=interaction_history,
         terms=terms,
-        staged_events=staged_events,
+        staged_tool_events=staged_tool_events,
+        staged_message_events=staged_message_events,
         guideline_matches=matches_to_analyze,
     )
 
@@ -2580,7 +2588,8 @@ async def test_that_response_analysis_returns_empty_result_for_no_guidelines(
         context_variables=[],
         interaction_history=interaction_history,
         terms=[],
-        staged_events=[],
+        staged_tool_events=[],
+        staged_message_events=[],
         guideline_matches=[],
     )
 
@@ -2624,7 +2633,8 @@ async def test_that_response_analysis_processes_guideline(
         interaction_history=interaction_history,
         context_variables=[],
         terms=[],
-        staged_events=[],
+        staged_tool_events=[],
+        staged_message_events=[],
     )
 
     assert response_analysis_result
@@ -2718,7 +2728,8 @@ async def test_that_response_analysis_strategy_can_be_overridden(
         interaction_history=interaction_history,
         context_variables=[],
         terms=[],
-        staged_events=[],
+        staged_tool_events=[],
+        staged_message_events=[],
     )
 
     assert len(response_analysis_result) == 1

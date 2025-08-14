@@ -150,7 +150,8 @@ class CannedResponseContext:
     tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]]
     journeys: Sequence[Journey]
     tool_insights: ToolInsights
-    staged_events: Sequence[EmittedEvent]
+    staged_tool_events: Sequence[EmittedEvent]
+    staged_message_events: Sequence[EmittedEvent]
 
     @property
     def guideline_matches(self) -> Sequence[GuidelineMatch]:
@@ -220,7 +221,7 @@ class ToolBasedFieldExtraction(CannedResponseFieldExtractionMethod):
 
         tool_calls_in_order_of_importance.extend(
             tc
-            for e in context.staged_events
+            for e in context.staged_tool_events
             if e.kind == EventKind.TOOL
             for tc in cast(ToolEventData, e.data)["tool_calls"]
         )
@@ -343,9 +344,12 @@ The guidelines are not necessarily intended to aid your current task of field ge
                 )
             },
         )
-        builder.add_interaction_history(context.interaction_history)
+        builder.add_interaction_history_in_message_generation(
+            context.interaction_history,
+            context.staged_message_events,
+        )
         builder.add_glossary(context.terms)
-        builder.add_staged_events(context.staged_events)
+        builder.add_staged_tool_events(context.staged_tool_events)
 
         builder.add_section(
             "canned-response-generative-field-extraction-field-name",
@@ -509,7 +513,8 @@ class CannedResponseGenerator(MessageEventComposer):
             journeys=context.state.journeys,
             capabilities=context.state.capabilities,
             tool_insights=context.state.tool_insights,
-            staged_events=context.state.tool_events,
+            staged_tool_events=context.state.tool_events,
+            staged_message_events=context.state.message_events,
         )
 
         prompt_builder = PromptBuilder(
@@ -611,7 +616,10 @@ You will now be given the current state of the interaction to which you must gen
             },
         )
 
-        prompt_builder.add_interaction_history(canrep_context.interaction_history)
+        prompt_builder.add_interaction_history_in_message_generation(
+            canrep_context.interaction_history,
+            context.state.message_events,
+        )
 
         last_known_event_offset = (
             canrep_context.interaction_history[-1].offset
@@ -693,7 +701,7 @@ You will now be given the current state of the interaction to which you must gen
 
         # Add responses from staged tool events (transient)
         responses_by_staged_event: list[CannedResponse] = []
-        for event in context.staged_events:
+        for event in context.staged_tool_events:
             if event.kind == EventKind.TOOL:
                 event_data: dict[str, Any] = cast(dict[str, Any], event.data)
                 tool_calls: list[Any] = cast(list[Any], event_data.get("tool_calls", []))
@@ -711,7 +719,7 @@ You will now be given the current state of the interaction to which you must gen
             [
                 *(
                     cast(ToolEventData, e.data)["tool_calls"]
-                    for e in context.staged_events
+                    for e in context.staged_tool_events
                     if e.kind == EventKind.TOOL
                 ),
                 *(
@@ -766,7 +774,8 @@ You will now be given the current state of the interaction to which you must gen
         capabilities = loaded_context.state.capabilities
         tool_enabled_guideline_matches = loaded_context.state.tool_enabled_guideline_matches
         tool_insights = loaded_context.state.tool_insights
-        staged_events = loaded_context.state.tool_events
+        staged_tool_events = loaded_context.state.tool_events
+        staged_message_events = loaded_context.state.message_events
 
         if (
             not interaction_history
@@ -790,7 +799,8 @@ You will now be given the current state of the interaction to which you must gen
             journeys=journeys,
             capabilities=capabilities,
             tool_insights=tool_insights,
-            staged_events=staged_events,
+            staged_tool_events=staged_tool_events,
+            staged_message_events=staged_message_events,
         )
 
         responses = await self._get_relevant_canned_responses(context)
@@ -1010,7 +1020,8 @@ Example {i} - {shot.description}: ###
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EmittedEvent],
+        staged_tool_events: Sequence[EmittedEvent],
+        staged_message_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[CannedResponseGeneratorDraftShot],
     ) -> PromptBuilder:
@@ -1147,8 +1158,11 @@ EXAMPLES
             tool_enabled_guideline_matches,
             guideline_representations,
         )
-        builder.add_interaction_history(interaction_history)
-        builder.add_staged_events(staged_events)
+        builder.add_interaction_history_in_message_generation(
+            interaction_history,
+            staged_events=staged_message_events,
+        )
+        builder.add_staged_tool_events(staged_tool_events)
 
         if tool_insights.missing_data:
             builder.add_section(
@@ -1332,7 +1346,10 @@ Produce a valid JSON object according to the following spec. Use the values prov
         )
 
         builder.add_glossary(context.terms)
-        builder.add_interaction_history(context.interaction_history)
+        builder.add_interaction_history_in_message_generation(
+            context.interaction_history,
+            staged_events=context.staged_message_events,
+        )
 
         builder.add_section(
             name="canned-response-generator-selection-inputs",
@@ -1399,7 +1416,8 @@ Output a JSON object with three properties:
             journeys=context.journeys,
             capabilities=context.capabilities,
             tool_enabled_guideline_matches=context.tool_enabled_guideline_matches,
-            staged_events=context.staged_events,
+            staged_tool_events=context.staged_tool_events,
+            staged_message_events=context.staged_message_events,
             tool_insights=context.tool_insights,
             shots=await self.shots(context.agent.composition_mode),
         )

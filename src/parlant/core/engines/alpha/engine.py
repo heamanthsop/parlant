@@ -1721,7 +1721,8 @@ class AlphaEngine(Engine):
             context_variables=context.state.context_variables,
             interaction_history=context.interaction.history,
             terms=list(context.state.glossary_terms),
-            staged_events=context.state.tool_events,
+            staged_tool_events=context.state.tool_events,
+            staged_message_events=context.state.message_events,
             guideline_matches=matches_to_analyze,
         )
 

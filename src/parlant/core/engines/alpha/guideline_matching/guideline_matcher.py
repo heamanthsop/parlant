@@ -84,7 +84,8 @@ class ResponseAnalysisContext:
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]]
     interaction_history: Sequence[Event]
     terms: Sequence[Term]
-    staged_events: Sequence[EmittedEvent]
+    staged_tool_events: Sequence[EmittedEvent]
+    staged_message_events: Sequence[EmittedEvent]
 
 
 @dataclass(frozen=True)
@@ -273,7 +274,8 @@ class GuidelineMatcher:
         context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
         interaction_history: Sequence[Event],
         terms: Sequence[Term],
-        staged_events: Sequence[EmittedEvent],
+        staged_tool_events: Sequence[EmittedEvent],
+        staged_message_events: Sequence[EmittedEvent],
         guideline_matches: Sequence[GuidelineMatch],
     ) -> ResponseAnalysisResult:
         if not guideline_matches:
@@ -308,7 +310,8 @@ class GuidelineMatcher:
                             context_variables,
                             interaction_history,
                             terms,
-                            staged_events,
+                            staged_tool_events,
+                            staged_message_events,
                         ),
                     )
                     for _, (strategy, guideline_matches) in guideline_strategies.items()

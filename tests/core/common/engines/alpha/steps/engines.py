@@ -79,9 +79,9 @@ def given_a_faulty_message_production_mechanism(
 
 @step(
     given,
-    parsers.parse('a canned response request "{action}", to {do_something}'),
+    parsers.parse('an utterance request "{action}", to {do_something}'),
 )
-def given_a_follow_up_canned_response_request(
+def given_a_follow_up_utterance_request(
     context: ContextOfTest, action: str, do_something: str
 ) -> UtteranceRequest:
     canned_response_request = UtteranceRequest(
@@ -245,7 +245,8 @@ def when_detection_and_processing_are_triggered(
             context_variables=context_variables,
             interaction_history=interaction_history,
             terms=terms,
-            staged_events=[],
+            staged_tool_events=[],
+            staged_message_events=[],
         ),
         guideline_matches=matches_to_prepare,
     )

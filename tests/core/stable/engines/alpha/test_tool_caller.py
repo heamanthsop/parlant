@@ -997,7 +997,8 @@ async def test_that_mcp_tool_with_optional_lists_of_enum_date_and_bool_can_run(
 
     assert len(results) == 1
     result_data = results[0].result["data"]
-    assert isinstance(result_data, str) and "Delivering birds: " in result_data
+    assert isinstance(result_data, str)
+    assert "Delivering birds: " in result_data
 
 
 async def test_that_tool_calling_batchers_can_be_overridden(

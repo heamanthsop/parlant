@@ -234,7 +234,8 @@ async def base_test_that_correct_guidelines_are_detected_as_previously_applied(
             context_variables=[],
             interaction_history=interaction_history,
             terms=[],
-            staged_events=staged_events,
+            staged_tool_events=staged_events,
+            staged_message_events=[],
         ),
         guideline_matches=guideline_matches,
     )

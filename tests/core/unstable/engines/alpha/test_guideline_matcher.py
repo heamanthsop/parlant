@@ -462,7 +462,8 @@ async def analyze_response_and_update_session(
     session_id: SessionId,
     context_variables: Sequence[tuple[ContextVariable, ContextVariableValue]],
     terms: Sequence[Term],
-    staged_events: Sequence[EmittedEvent],
+    staged_tool_events: Sequence[EmittedEvent],
+    staged_message_events: Sequence[EmittedEvent],
     previously_matched_guidelines: list[Guideline],
     interaction_history: list[Event],
 ) -> None:
@@ -494,7 +495,8 @@ async def analyze_response_and_update_session(
             interaction_history=interaction_history_for_analysis,
             context_variables=context_variables,
             terms=terms,
-            staged_events=staged_events,
+            staged_tool_events=staged_tool_events,
+            staged_message_events=staged_message_events,
         ),
         guideline_matches=matches_to_analyze,
     )
@@ -561,7 +563,8 @@ async def base_test_that_correct_guidelines_are_matched(
         customer=customer,
         context_variables=context_variables,
         terms=terms,
-        staged_events=staged_events,
+        staged_tool_events=[e for e in staged_events if e.kind == EventKind.TOOL],
+        staged_message_events=[e for e in staged_events if e.kind == EventKind.MESSAGE],
         previously_matched_guidelines=previously_matched_guidelines,
         interaction_history=interaction_history,
     )

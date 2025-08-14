@@ -282,7 +282,8 @@ def analyze_response_and_update_session(
             interaction_history=interaction_history_for_analysis,
             context_variables=[],
             terms=[],
-            staged_events=[],
+            staged_tool_events=[],
+            staged_message_events=[],
         ),
         guideline_matches=matches_to_analyze,
     )

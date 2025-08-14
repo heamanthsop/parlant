@@ -165,7 +165,8 @@ class MessageGenerator(MessageEventComposer):
                         journeys=context.state.journeys,
                         tool_enabled_guideline_matches=context.state.tool_enabled_guideline_matches,
                         tool_insights=context.state.tool_insights,
-                        staged_events=context.state.tool_events,
+                        staged_tool_events=context.state.tool_events,
+                        staged_message_events=context.state.message_events,
                         latch=latch,
                     )
 
@@ -196,7 +197,8 @@ class MessageGenerator(MessageEventComposer):
         journeys: Sequence[Journey],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
         tool_insights: ToolInsights,
-        staged_events: Sequence[EmittedEvent],
+        staged_tool_events: Sequence[EmittedEvent],
+        staged_message_events: Sequence[EmittedEvent],
         latch: Optional[CancellationSuppressionLatch] = None,
     ) -> Sequence[MessageEventComposition]:
         if (
@@ -218,7 +220,8 @@ class MessageGenerator(MessageEventComposer):
             ordinary_guideline_matches=ordinary_guideline_matches,
             tool_enabled_guideline_matches=tool_enabled_guideline_matches,
             capabilities=capabilities,
-            staged_events=staged_events,
+            staged_tool_events=staged_tool_events,
+            staged_message_events=staged_message_events,
             tool_insights=tool_insights,
             shots=await self.shots(),
         )
@@ -300,7 +303,8 @@ class MessageGenerator(MessageEventComposer):
         capabilities: Sequence[Capability],
         ordinary_guideline_matches: Sequence[GuidelineMatch],
         tool_enabled_guideline_matches: Mapping[GuidelineMatch, Sequence[ToolId]],
-        staged_events: Sequence[EmittedEvent],
+        staged_tool_events: Sequence[EmittedEvent],
+        staged_message_events: Sequence[EmittedEvent],
         tool_insights: ToolInsights,
         shots: Sequence[MessageGeneratorShot],
     ) -> PromptBuilder:
@@ -487,8 +491,10 @@ INTERACTION CONTEXT
             tool_enabled_guideline_matches,
             guideline_representations,
         )
-        builder.add_interaction_history(interaction_history)
-        builder.add_staged_events(staged_events)
+        builder.add_interaction_history_in_message_generation(
+            interaction_history, staged_message_events
+        )
+        builder.add_staged_tool_events(staged_tool_events)
 
         if tool_insights.missing_data:
             builder.add_section(

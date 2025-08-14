@@ -217,46 +217,92 @@ The user you're interacting with is called {customer_name}.
 
         return self
 
-    def add_interaction_history(
-        self,
-        events: Sequence[Event],
-    ) -> PromptBuilder:
-        if events:
-            interaction_events = [self.adapt_event(e) for e in events if e.kind != EventKind.STATUS]
-
-            last_event_note = ""
-
-            if last_message_event := next(
-                (e for e in reversed(events) if e.kind == EventKind.MESSAGE), None
-            ):
-                if last_message_event.source == EventSource.AI_AGENT:
-                    last_message = cast(MessageEventData, last_message_event.data)["message"]
-                    last_event_note = f"\nIMPORTANT: Please note that the last message was sent by you, the AI agent (likely as a preamble). Your last message was: ###\n{last_message}\n###\n\nYou must keep that in mind when responding to the user, to continue the last message naturally (without repeating anything similar in your last message - make sure you don't repeat something like this in your next message - it was already said!)."
-
-            self.add_section(
-                name=BuiltInSection.INTERACTION_HISTORY,
-                template="""
+    _INTERACTION_BODY = """
 The following is a list of events describing a back-and-forth
 interaction between you and a user: ###
 {interaction_events}
 ###
-{last_event_note}
-""",
-                props={
-                    "interaction_events": interaction_events,
-                    "last_event_note": last_event_note,
-                },
-                status=SectionStatus.ACTIVE,
-            )
-        else:
-            self.add_section(
-                name=BuiltInSection.INTERACTION_HISTORY,
-                template="""
+"""
+
+    _EMPTY_HISTORY = """
 Your interaction with the user has just began, and no events have been recorded yet.
 Proceed with your task accordingly.
-""",
-                status=SectionStatus.PASSIVE,
+"""
+
+    def _gather_interaction_events(
+        self,
+        events: Sequence[Event],
+        staged_events: Sequence[EmittedEvent],
+    ) -> list[str]:
+        combined = list(events) + list(staged_events)
+        return [self.adapt_event(e) for e in combined if e.kind != EventKind.STATUS]
+
+    def _last_agent_message_note(
+        self,
+        events: Sequence[Event],
+    ) -> str:
+        last_message_event = next(
+            (e for e in reversed(events) if e.kind == EventKind.MESSAGE),
+            None,
+        )
+        if not last_message_event or last_message_event.source != EventSource.AI_AGENT:
+            return ""
+
+        last_message = cast(MessageEventData, last_message_event.data)["message"]
+        return f"\nIMPORTANT: Please note that the last message was sent by you, the AI agent (likely as a preamble). Your last message was: ###\n{last_message}\n###\n\nYou must keep that in mind when responding to the user, to continue the last message naturally (without repeating anything similar in your last message - make sure you don't repeat something like this in your next message - it was already said!)."
+
+    def _add_history_section(
+        self,
+        interaction_events: list[str],
+        last_event_note: str | None = None,
+    ) -> None:
+        template = self._INTERACTION_BODY
+        props: dict[str, Any] = {"interaction_events": interaction_events}
+
+        if last_event_note:
+            template += "{last_event_note}\n"
+            props["last_event_note"] = last_event_note
+
+        self.add_section(
+            name=BuiltInSection.INTERACTION_HISTORY,
+            template=template,
+            props=props,
+            status=SectionStatus.ACTIVE,
+        )
+
+    def _add_empty_history_section(self) -> None:
+        self.add_section(
+            name=BuiltInSection.INTERACTION_HISTORY,
+            template=self._EMPTY_HISTORY,
+            status=SectionStatus.PASSIVE,
+        )
+
+    def add_interaction_history(
+        self,
+        events: Sequence[Event],
+        staged_events: Sequence[EmittedEvent] = [],
+    ) -> PromptBuilder:
+        if events:
+            interaction_events = self._gather_interaction_events(events, staged_events)
+            self._add_history_section(interaction_events=interaction_events)
+        else:
+            self._add_empty_history_section()
+
+        return self
+
+    def add_interaction_history_in_message_generation(
+        self,
+        events: Sequence[Event],
+        staged_events: Sequence[EmittedEvent] = [],
+    ) -> PromptBuilder:
+        if events:
+            interaction_events = self._gather_interaction_events(events, staged_events)
+            last_event_note = self._last_agent_message_note(events)
+            self._add_history_section(
+                interaction_events=interaction_events, last_event_note=last_event_note
             )
+        else:
+            self._add_empty_history_section()
 
         return self
 
@@ -304,7 +350,7 @@ and let the user know if/when you assume they meant a term by their typo: ###
 
         return self
 
-    def add_staged_events(
+    def add_staged_tool_events(
         self,
         events: Sequence[EmittedEvent],
     ) -> PromptBuilder:

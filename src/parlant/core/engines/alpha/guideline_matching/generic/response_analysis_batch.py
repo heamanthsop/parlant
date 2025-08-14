@@ -363,8 +363,11 @@ Examples of ...:
         builder.add_agent_identity(self._context.agent)
         builder.add_context_variables(self._context.context_variables)
         builder.add_glossary(self._context.terms)
-        builder.add_interaction_history(self._context.interaction_history)
-        builder.add_staged_events(self._context.staged_events)
+        builder.add_interaction_history(
+            self._context.interaction_history,
+            staged_events=self._context.staged_message_events,
+        )
+        builder.add_staged_tool_events(self._context.staged_tool_events)
         builder.add_section(
             name=BuiltInSection.GUIDELINE_DESCRIPTIONS,
             template=self._add_guideline_matches_section(guidelines, guideline_representations),
