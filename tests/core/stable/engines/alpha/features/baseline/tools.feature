@@ -625,7 +625,7 @@ Feature: Tools
         When processing is triggered
         Then no tool calls event is emitted
         And a single message event is emitted
-        And the message mentions that parameters are missing
+        And the message mentions that the robot parameter is missing or needs to be specified
         And the number of missing parameters is exactly 1
         And the message mentions that parameters are invalid
         And the number of invalid parameters is exactly 2

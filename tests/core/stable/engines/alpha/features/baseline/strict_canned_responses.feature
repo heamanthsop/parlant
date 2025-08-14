@@ -74,6 +74,7 @@ Feature: Strict Canned Response
         And a customer message, "Hi, my first name is Nushi, Please register me for a sweepstake with 3 entries"
         And a canned response, "Hi {{std.invalid_params.first_name}}, you are not eligible to participate in the sweepstake"
         And a canned response, "Hi {{std.customer.name}}, we are happy to register you for the sweepstake"
+        And a canned response, "Hi {{std.customer.name}}, you are not currently not eligible to participate in the sweepstake due to invalid details."
         And a canned response, "Dear customer, please check if you have water in your tank"
         When processing is triggered
         Then no tool calls event is emitted
