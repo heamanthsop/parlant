@@ -472,9 +472,6 @@ class GenericJourneyNodeSelectionBatch(GuidelineMatchingBatch):
                         f"Completion:\n{inference.content.model_dump_json(indent=2)}"
                     )
 
-                    with open("journey output.txt", "w") as f:
-                        f.write(inference.content.model_dump_json(indent=2))
-
                     journey_path = self._get_verified_node_advancement(inference.content)
 
                     # Get correct guideline to return based on the transition into next_step  TODO consider surrounding with try catch specifically
