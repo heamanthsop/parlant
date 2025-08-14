@@ -20,7 +20,7 @@ from typing import Annotated, Optional, Sequence, TypeAlias, cast
 
 from fastapi import APIRouter
 from parlant.api import common
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import (
     ToolIdDTO,
     JSONSerializableDTO,
@@ -1015,7 +1015,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.CREATE_CONTEXT_VARIABLE,
+            operation=Operation.CREATE_CONTEXT_VARIABLE,
         )
 
         if params.tool_id:
@@ -1084,7 +1084,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.UPDATE_CONTEXT_VARIABLE,
+            operation=Operation.UPDATE_CONTEXT_VARIABLE,
         )
 
         def from_dto(dto: ContextVariableUpdateParamsDTO) -> ContextVariableUpdateParams:
@@ -1156,9 +1156,7 @@ def create_router(
         tag_id: TagIdQuery = None,
     ) -> Sequence[ContextVariableDTO]:
         """Lists all context variables set for the provided tag or all context variables if no tag is provided"""
-        await authorization_policy.authorize(
-            request, AuthorizationPermission.LIST_CONTEXT_VARIABLES
-        )
+        await authorization_policy.authorize(request, Operation.LIST_CONTEXT_VARIABLES)
 
         if tag_id:
             variables = await context_variable_store.list_variables(
@@ -1208,7 +1206,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.READ_CONTEXT_VARIABLE,
+            operation=Operation.READ_CONTEXT_VARIABLE,
         )
 
         variable = await context_variable_store.read_variable(id=variable_id)
@@ -1263,7 +1261,7 @@ def create_router(
         """Deletes all context variables for the provided tag"""
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLES,
+            operation=Operation.DELETE_CONTEXT_VARIABLES,
         )
 
         if tag_id:
@@ -1300,7 +1298,7 @@ def create_router(
         """Deletes a context variable"""
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLE,
+            operation=Operation.DELETE_CONTEXT_VARIABLE,
         )
 
         await context_variable_store.delete_variable(id=variable_id)
@@ -1326,7 +1324,7 @@ def create_router(
         """Retrieves a customer or tag value for the provided context variable"""
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.READ_CONTEXT_VARIABLE_VALUE,
+            operation=Operation.READ_CONTEXT_VARIABLE_VALUE,
         )
 
         _ = await context_variable_store.read_variable(id=variable_id)
@@ -1367,7 +1365,7 @@ def create_router(
         """Updates a customer or tag value for the provided context variable"""
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.UPDATE_CONTEXT_VARIABLE_VALUE,
+            operation=Operation.UPDATE_CONTEXT_VARIABLE_VALUE,
         )
 
         _ = await context_variable_store.read_variable(id=variable_id)
@@ -1404,7 +1402,7 @@ def create_router(
         """Deletes a customer or tag value for the provided context variable"""
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.DELETE_CONTEXT_VARIABLE_VALUE,
+            operation=Operation.DELETE_CONTEXT_VARIABLE_VALUE,
         )
         _ = await context_variable_store.read_variable(id=variable_id)
 

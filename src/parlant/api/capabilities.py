@@ -16,7 +16,7 @@ from fastapi import APIRouter, Path, Query, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
@@ -210,7 +210,7 @@ def create_router(
         Default behaviors:
         - `signals` defaults to an empty list if not provided
         """
-        await authorization_policy.authorize(request, AuthorizationPermission.CREATE_CAPABILITY)
+        await authorization_policy.authorize(request, Operation.CREATE_CAPABILITY)
 
         if params.tags:
             for tag_id in params.tags:
@@ -258,7 +258,7 @@ def create_router(
         Returns an empty list if no capabilities exist.
         Capabilities are returned in no guaranteed order.
         """
-        await authorization_policy.authorize(request, AuthorizationPermission.LIST_CAPABILITIES)
+        await authorization_policy.authorize(request, Operation.LIST_CAPABILITIES)
 
         if tag_id:
             capabilities = await capability_store.list_capabilities(
@@ -302,7 +302,7 @@ def create_router(
 
         Returns the complete capability object.
         """
-        await authorization_policy.authorize(request, AuthorizationPermission.READ_CAPABILITY)
+        await authorization_policy.authorize(request, Operation.READ_CAPABILITY)
 
         capability = await capability_store.read_capability(capability_id=capability_id)
 
@@ -343,7 +343,7 @@ def create_router(
         Only the provided attributes will be updated; others will remain unchanged.
         The capability's ID and creation timestamp cannot be modified.
         """
-        await authorization_policy.authorize(request, AuthorizationPermission.UPDATE_CAPABILITY)
+        await authorization_policy.authorize(request, Operation.UPDATE_CAPABILITY)
 
         update_params: CapabilityUpdateParams = {}
         if params.title:
@@ -411,7 +411,7 @@ def create_router(
         Deleting a non-existent capability will return 404.
         No content will be returned from a successful deletion.
         """
-        await authorization_policy.authorize(request, AuthorizationPermission.DELETE_CAPABILITY)
+        await authorization_policy.authorize(request, Operation.DELETE_CAPABILITY)
 
         await capability_store.delete_capability(capability_id=capability_id)
 

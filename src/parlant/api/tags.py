@@ -15,7 +15,7 @@
 from typing import Annotated, TypeAlias
 from fastapi import APIRouter, Path, Request, status
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import TagDTO, TagNameField, apigen_config, ExampleJson, tag_example
 from parlant.core.common import DefaultBaseModel
 from parlant.core.tags import TagId, TagStore
@@ -107,9 +107,7 @@ def create_router(
         The tag ID is automatically generated and the creation timestamp is set to the current time.
         Tag names must be unique and follow the kebab-case format.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.CREATE_TAG
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.CREATE_TAG)
 
         tag = await tag_store.create_tag(
             name=params.name,
@@ -139,9 +137,7 @@ def create_router(
 
         Returns a 404 error if no tag exists with the specified ID.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_TAG
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_TAG)
 
         tag = await tag_store.read_tag(tag_id=tag_id)
 
@@ -166,9 +162,7 @@ def create_router(
         Returns an empty list if no tags exist.
         Tags are returned in no particular order.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_TAGS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_TAGS)
 
         tags = await tag_store.list_tags()
 
@@ -201,9 +195,7 @@ def create_router(
         Only the name can be modified,
         The tag's ID and creation timestamp cannot be modified.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.UPDATE_TAG
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.UPDATE_TAG)
 
         tag = await tag_store.update_tag(
             tag_id=tag_id,
@@ -232,9 +224,7 @@ def create_router(
         This operation cannot be undone. Returns a 404 error if no tag exists with the specified ID.
         Note that deleting a tag does not affect resources that were previously tagged with it.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_TAG
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_TAG)
 
         await tag_store.delete_tag(tag_id=tag_id)
 

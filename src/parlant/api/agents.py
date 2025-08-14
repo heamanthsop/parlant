@@ -17,7 +17,7 @@ from fastapi import APIRouter, Path, Request, status
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.agents import AgentId, AgentStore, AgentUpdateParams, CompositionMode
 from parlant.core.common import DefaultBaseModel
@@ -284,7 +284,7 @@ def create_router(
         """
         await policy.authorize(
             request=request,
-            permission=AuthorizationPermission.CREATE_AGENT,
+            operation=Operation.CREATE_AGENT,
         )
 
         tags = []
@@ -336,7 +336,7 @@ def create_router(
         """
         await policy.authorize(
             request=request,
-            permission=AuthorizationPermission.LIST_AGENTS,
+            operation=Operation.LIST_AGENTS,
         )
 
         agents = await agent_store.list_agents()
@@ -378,7 +378,7 @@ def create_router(
         """
         await policy.authorize(
             request=request,
-            permission=AuthorizationPermission.READ_AGENT,
+            operation=Operation.READ_AGENT,
         )
 
         agent = await agent_store.read_agent(agent_id=agent_id)
@@ -424,7 +424,7 @@ def create_router(
         """
         await policy.authorize(
             request=request,
-            permission=AuthorizationPermission.UPDATE_AGENT,
+            operation=Operation.UPDATE_AGENT,
         )
 
         def from_dto(dto: AgentUpdateParamsDTO) -> AgentUpdateParams:
@@ -504,7 +504,7 @@ def create_router(
         """
         await policy.authorize(
             request=request,
-            permission=AuthorizationPermission.DELETE_AGENT,
+            operation=Operation.DELETE_AGENT,
         )
 
         await agent_store.read_agent(agent_id=agent_id)

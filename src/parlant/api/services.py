@@ -17,7 +17,7 @@ from typing import Annotated, Optional, Sequence, TypeAlias, cast
 from fastapi import APIRouter, HTTPException, Path, Request, status
 from pydantic import Field
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import (
     ToolDTO,
     apigen_config,
@@ -332,9 +332,7 @@ def create_router(
         - URLs must include http:// or https:// scheme
         - Updates cause brief service interruption while reconnecting
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.UPDATE_SERVICE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.UPDATE_SERVICE)
 
         if params.kind == ToolServiceKindDTO.SDK:
             if not params.sdk:
@@ -431,9 +429,7 @@ def create_router(
         - Historical data about tool usage is preserved
         - Running operations may fail
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_SERVICE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_SERVICE)
 
         await service_registry.read_tool_service(name)
 
@@ -461,9 +457,7 @@ def create_router(
         Use the retrieve endpoint to get complete information including
         tools for a specific service.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_SERVICES
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_SERVICES)
 
         return [
             ServiceDTO(
@@ -508,9 +502,7 @@ def create_router(
         - Parameters marked as required must be provided when using a tool
         - Enum parameters restrict inputs to the listed values
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_SERVICE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_SERVICE)
 
         service = await service_registry.read_tool_service(name)
 

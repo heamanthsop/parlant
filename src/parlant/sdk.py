@@ -59,7 +59,7 @@ from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.authorization import (
     AuthorizationException,
-    AuthorizationPermission,
+    Operation,
     AuthorizationPolicy,
     BasicRateLimiter,
     DevelopmentAuthorizationPolicy,
@@ -2868,7 +2868,7 @@ __all__ = [
     "Agent",
     "AgentId",
     "AuthorizationException",
-    "AuthorizationPermission",
+    "Operation",
     "AuthorizationPolicy",
     "DevelopmentAuthorizationPolicy",
     "ProductionAuthorizationPolicy",

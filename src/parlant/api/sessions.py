@@ -20,7 +20,7 @@ from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, Set, TypeAlias, cast
 
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import GuidelineIdField, ExampleJson, JSONSerializableDTO, apigen_config
 from parlant.api.glossary import TermSynonymsField, TermIdPath, TermNameField, TermDescriptionField
 from parlant.core.agents import AgentId, AgentStore
@@ -1247,12 +1247,12 @@ def create_router(
 
         if params.customer_id:
             await authorization_policy.authorize(
-                request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_SESSION
+                request=request, operation=Operation.CREATE_CUSTOMER_SESSION
             )
 
         else:
             await authorization_policy.authorize(
-                request=request, permission=AuthorizationPermission.CREATE_GUEST_SESSION
+                request=request, operation=Operation.CREATE_GUEST_SESSION
             )
 
         session = await application.create_customer_session(
@@ -1290,9 +1290,7 @@ def create_router(
         session_id: SessionIdPath,
     ) -> SessionDTO:
         """Retrieves details of a specific session by ID."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_SESSION
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_SESSION)
 
         session = await session_store.read_session(session_id=session_id)
 
@@ -1332,9 +1330,7 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Returns all sessions if no
         filters are provided."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_SESSIONS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_SESSIONS)
 
         sessions = await session_store.list_sessions(
             agent_id=agent_id,
@@ -1373,9 +1369,7 @@ def create_router(
         """Deletes a session and all its associated events.
 
         The operation is idempotent - deleting a non-existent session will return 404."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_SESSION
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_SESSION)
 
         await session_store.read_session(session_id)
         await session_store.delete_session(session_id)
@@ -1403,9 +1397,7 @@ def create_router(
 
         Can filter by agent_id and/or customer_id. Will delete all sessions if no
         filters are provided."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_SESSIONS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_SESSIONS)
 
         sessions = await session_store.list_sessions(
             agent_id=agent_id,
@@ -1435,9 +1427,7 @@ def create_router(
         """Updates an existing session's attributes.
 
         Only provided attributes will be updated; others remain unchanged."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.UPDATE_SESSION
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.UPDATE_SESSION)
 
         async def from_dto(dto: SessionUpdateParamsDTO) -> SessionUpdateParams:
             params: SessionUpdateParams = {}
@@ -1506,24 +1496,24 @@ def create_router(
         if params.kind == EventKindDTO.MESSAGE:
             if params.source == EventSourceDTO.CUSTOMER:
                 await authorization_policy.authorize(
-                    request=request, permission=AuthorizationPermission.CREATE_CUSTOMER_EVENT
+                    request=request, operation=Operation.CREATE_CUSTOMER_EVENT
                 )
                 return await _add_customer_message(session_id, params, moderation)
             elif params.source == EventSourceDTO.AI_AGENT:
                 await authorization_policy.authorize(
-                    request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
+                    request=request, operation=Operation.CREATE_AGENT_EVENT
                 )
                 return await _add_agent_message(session_id, params)
             elif params.source == EventSourceDTO.HUMAN_AGENT:
                 await authorization_policy.authorize(
                     request=request,
-                    permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT,
+                    operation=Operation.CREATE_HUMAN_AGENT_EVENT,
                 )
                 return await _add_human_agent_message(session_id, params)
             elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
                 await authorization_policy.authorize(
                     request=request,
-                    permission=AuthorizationPermission.CREATE_HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT_EVENT,
+                    operation=Operation.CREATE_HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT_EVENT,
                 )
                 return await _add_human_agent_message_on_behalf_of_ai_agent(session_id, params)
             else:
@@ -1534,7 +1524,7 @@ def create_router(
 
         elif params.kind == EventKindDTO.CUSTOM:
             await authorization_policy.authorize(
-                request=request, permission=AuthorizationPermission.CREATE_CUSTOM_EVENT
+                request=request, operation=Operation.CREATE_CUSTOM_EVENT
             )
 
             return await _add_custom_event(session_id, params)
@@ -1791,9 +1781,7 @@ def create_router(
                 - If no new events arrive before timeout, raises 504 Gateway Timeout
                 - If matching events already exist, returns immediately with those events
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_EVENTS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_EVENTS)
 
         kind_list: Sequence[EventKind] = [
             _event_kind_dto_to_event_kind(EventKindDTO(k))
@@ -1857,9 +1845,7 @@ def create_router(
         """Deletes events from a session with offset >= the specified value.
 
         This operation is permanent and cannot be undone."""
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_EVENTS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_EVENTS)
 
         session = await session_store.read_session(session_id)
 

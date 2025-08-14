@@ -20,13 +20,17 @@ from typing_extensions import override
 from fastapi import Request
 
 from limits.storage import MemoryStorage
-from limits.strategies import MovingWindowRateLimiter
+from limits.strategies import (
+    MovingWindowRateLimiter,
+    FixedWindowRateLimiter,
+    SlidingWindowCounterRateLimiter,
+)
 from limits import RateLimitItem, RateLimitItemPerMinute
 
 
-class AuthorizationPermission(Enum):
-    INTEGRATED_UI = "integrated_ui"
-    API_DOCS = "api_docs"
+class Operation(Enum):
+    ACCESS_INTEGRATED_UI = "access_integrated_ui"
+    ACCESS_API_DOCS = "access_api_docs"
 
     CREATE_AGENT = "create_agent"
     READ_AGENT = "read_agent"
@@ -122,43 +126,39 @@ class AuthorizationException(Exception):
     def __init__(
         self,
         request: Request,
-        permission: AuthorizationPermission,
+        operation: Operation | None,
         message_prefix: str = "Authorization failed",
     ) -> None:
         super().__init__(
-            f"{message_prefix}: PERMISSION={permission.value}, HEADERS={request.headers}"
+            f"{message_prefix}: OPERATION={operation.value if operation else 'GENERIC'}, HEADERS={request.headers}"
         )
 
         self.request = request
-        self.permission = permission
+        self.operation = operation
 
 
 class RateLimitExceededException(AuthorizationException):
-    def __init__(self, request: Request, permission: AuthorizationPermission) -> None:
+    def __init__(self, request: Request, operation: Operation | None) -> None:
         super().__init__(
             request=request,
-            permission=permission,
+            operation=operation,
             message_prefix="Rate limit exceeded",
         )
 
 
 class AuthorizationPolicy(ABC):
     @abstractmethod
-    async def check_permission(
-        self, request: Request, permission: AuthorizationPermission
-    ) -> bool: ...
+    async def check_permission(self, request: Request, operation: Operation) -> bool: ...
 
     @abstractmethod
-    async def check_rate_limit(
-        self, request: Request, permission: AuthorizationPermission
-    ) -> bool: ...
+    async def check_rate_limit(self, request: Request, operation: Operation) -> bool: ...
 
-    async def authorize(self, request: Request, permission: AuthorizationPermission) -> None:
-        if not await self.check_permission(request, permission):
-            raise AuthorizationException(request, permission)
+    async def authorize(self, request: Request, operation: Operation) -> None:
+        if not await self.check_permission(request, operation):
+            raise AuthorizationException(request, operation)
 
-        if not await self.check_rate_limit(request, permission):
-            raise RateLimitExceededException(request, permission)
+        if not await self.check_rate_limit(request, operation):
+            raise RateLimitExceededException(request, operation)
 
     @property
     @abstractmethod
@@ -167,12 +167,12 @@ class AuthorizationPolicy(ABC):
 
 class DevelopmentAuthorizationPolicy(AuthorizationPolicy):
     @override
-    async def check_rate_limit(self, request: Request, permission: AuthorizationPermission) -> bool:
+    async def check_rate_limit(self, request: Request, operation: Operation) -> bool:
         # In development, we do not enforce rate limits
         return True
 
     @override
-    async def check_permission(self, request: Request, permission: AuthorizationPermission) -> bool:
+    async def check_permission(self, request: Request, operation: Operation) -> bool:
         # In development, we allow all actions
         return True
 
@@ -182,40 +182,36 @@ class DevelopmentAuthorizationPolicy(AuthorizationPolicy):
         return "development"
 
 
+class RateLimiter(ABC):
+    @abstractmethod
+    async def check(
+        self,
+        request: Request,
+        operation: Operation,
+    ) -> bool: ...
+
+
 class ProductionAuthorizationPolicy(AuthorizationPolicy):
     def __init__(self) -> None:
-        self.limiters: dict[
-            AuthorizationPermission,
-            Callable[[Request, AuthorizationPermission], Awaitable[bool]],
+        # This can be modified externally to install specific limiters
+        # for specific API operations.
+        self.specific_limiters: dict[
+            Operation,
+            Callable[[Request, Operation], Awaitable[bool]],
         ] = {}
 
-        self.limits = {
-            AuthorizationPermission.LIST_EVENTS: self.default_limiter,
-            AuthorizationPermission.READ_EVENT: self.default_limiter,
-            AuthorizationPermission.CREATE_CUSTOMER_EVENT: self.default_limiter,
-            AuthorizationPermission.CREATE_AGENT_EVENT: self.default_limiter,
-            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: self.default_limiter,
-        }
-
-        self._permission_rate_limits: dict[AuthorizationPermission, RateLimitItem] = {
-            AuthorizationPermission.READ_SESSION: RateLimitItemPerMinute(30),
-            AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(240),
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(30),
-            AuthorizationPermission.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
-            AuthorizationPermission.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
-            AuthorizationPermission.CREATE_AGENT_EVENT: RateLimitItemPerMinute(120),
-            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT: RateLimitItemPerMinute(60),
-        }
-
-        self._rate_limiter = BasicRateLimiter(
-            permission_rate_limits=self._permission_rate_limits,
+        # It is also possible to change or override the default limiter
+        # for this instance from outside this class (or in subclasses).
+        self.default_limiter: RateLimiter = BasicRateLimiter(
+            rate_limit_item_per_operation={
+                # Some reasonable defaults...
+                Operation.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
+                Operation.READ_SESSION: RateLimitItemPerMinute(30),
+                Operation.LIST_EVENTS: RateLimitItemPerMinute(240),
+                Operation.READ_EVENT: RateLimitItemPerMinute(30),
+                Operation.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
+            }
         )
-
-    async def default_limiter(self, request: Request, permission: AuthorizationPermission) -> bool:
-        if permission in self._permission_rate_limits:
-            return await self._rate_limiter.check(request, permission)
-        else:
-            return False
 
     @property
     @override
@@ -223,82 +219,66 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
         return "production"
 
     @override
-    async def check_permission(self, request: Request, permission: AuthorizationPermission) -> bool:
+    async def check_permission(self, request: Request, permission: Operation) -> bool:
         if permission in [
-            AuthorizationPermission.LIST_EVENTS,
-            AuthorizationPermission.READ_EVENT,
-            AuthorizationPermission.CREATE_CUSTOMER_EVENT,
-            AuthorizationPermission.CREATE_AGENT_EVENT,
-            AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT,
-            AuthorizationPermission.READ_SESSION,
-            AuthorizationPermission.CREATE_GUEST_SESSION,
+            Operation.CREATE_GUEST_SESSION,
+            Operation.READ_SESSION,
+            Operation.LIST_EVENTS,
+            Operation.READ_EVENT,
+            Operation.CREATE_CUSTOMER_EVENT,
         ]:
             return True
         else:
             return False
 
     @override
-    async def check_rate_limit(self, request: Request, permission: AuthorizationPermission) -> bool:
-        if specific_limiter := self.limiters.get(permission):
-            return await specific_limiter(request, permission)
-        return await self.default_limiter(request, permission)
-
-
-class RateLimiter(ABC):
-    @abstractmethod
-    async def check(
-        self,
-        request: Request,
-        permission: AuthorizationPermission,
-    ) -> bool: ...
+    async def check_rate_limit(self, request: Request, operation: Operation) -> bool:
+        if specific_limiter := self.specific_limiters.get(operation):
+            return await specific_limiter(request, operation)
+        return await self.default_limiter.check(request, operation)
 
 
 class BasicRateLimiter(RateLimiter):
     def __init__(
         self,
-        permission_rate_limits: dict[AuthorizationPermission, RateLimitItem],
+        rate_limit_item_per_operation: dict[Operation, RateLimitItem],
         storage: MemoryStorage | None = None,
+        limiter_type: type[
+            MovingWindowRateLimiter | FixedWindowRateLimiter | SlidingWindowCounterRateLimiter
+        ] = MovingWindowRateLimiter,
     ) -> None:
-        self._storage = storage or MemoryStorage()
-        self._limiter = MovingWindowRateLimiter(self._storage)
-
-        self._permission_rate_limits = permission_rate_limits
+        self.rate_limit_item_per_operation = rate_limit_item_per_operation
+        self._limiter = limiter_type(storage or MemoryStorage())
+        self._default_rate_limit_item = RateLimitItemPerMinute(100)
 
     async def check(
         self,
         request: Request,
-        permission: AuthorizationPermission,
+        operation: Operation,
     ) -> bool:
-        if permission not in self._permission_rate_limits:
-            raise AuthorizationException(
-                request=request,
-                permission=permission,
-                message_prefix="Authorization failed: Permission not configured",
-            )
+        if item := self.rate_limit_item_per_operation.get(operation):
+            return self._limiter.hit(item, self._build_key(request, operation))
 
-        item = self._permission_rate_limits[permission]
-
-        identifier = self._build_key(request, permission)
-        return self._limiter.hit(item, identifier)
+        return self._limiter.hit(self._default_rate_limit_item, self._build_key(request, None))
 
     def _build_key(
         self,
         request: Request,
-        permission: AuthorizationPermission,
+        operation: Operation | None,
     ) -> str:
-        ip = self._client_ip(request)
+        ip = self._get_client_ip(request)
 
         if not ip:
             raise AuthorizationException(
                 request=request,
-                permission=permission,
+                operation=operation,
                 message_prefix="Authorization failed: No client IP found",
             )
 
-        return f"ip:{ip}-perm:{permission.value}"
+        return f"IP={ip}--OP={operation.value if operation else 'GENERIC'}"
 
     @staticmethod
-    def _client_ip(request: Request) -> str | None:
+    def _get_client_ip(request: Request) -> str | None:
         headers = request.headers
 
         if xff := headers.get("x-forwarded-for"):

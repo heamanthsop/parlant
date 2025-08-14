@@ -42,7 +42,7 @@ from parlant.api import logs
 from parlant.api import canned_responses
 from parlant.api.authorization import (
     AuthorizationPolicy,
-    AuthorizationPermission,
+    Operation,
     RateLimitExceededException,
 )
 from parlant.core.capabilities import CapabilityStore
@@ -153,14 +153,14 @@ async def create_api_app(container: Container) -> ASGIApplication:
         ):
             await authorization_policy.authorize(
                 request=request,
-                permission=AuthorizationPermission.API_DOCS,
+                operation=Operation.ACCESS_API_DOCS,
             )
             return await call_next(request)
 
         if request.url.path.startswith("/chat/"):
             await authorization_policy.authorize(
                 request=request,
-                permission=AuthorizationPermission.INTEGRATED_UI,
+                operation=Operation.ACCESS_INTEGRATED_UI,
             )
 
             return await call_next(request)

@@ -18,7 +18,7 @@ from limits import RateLimitItemPerMinute
 
 from parlant.api.authorization import (
     AuthorizationException,
-    AuthorizationPermission,
+    Operation,
     BasicRateLimiter,
 )
 
@@ -49,86 +49,73 @@ def make_request(
     return Request(scope)
 
 
-async def test_that_a_configured_permission_is_limited_per_minute() -> None:
+async def test_that_a_configured_operation_is_limited_per_minute() -> None:
     limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(2),
+        rate_limit_item_per_operation={
+            Operation.READ_EVENT: RateLimitItemPerMinute(2),
         }
     )
 
     request = make_request()
 
-    assert await limiter.check(request, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(request, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(request, AuthorizationPermission.READ_EVENT) is False
+    assert await limiter.check(request, Operation.READ_EVENT) is True
+    assert await limiter.check(request, Operation.READ_EVENT) is True
+    assert await limiter.check(request, Operation.READ_EVENT) is False
 
 
-async def test_that_limits_are_isolated_per_permission_bucket() -> None:
+async def test_that_limits_are_isolated_per_operation_bucket() -> None:
     limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(1),
-            AuthorizationPermission.LIST_EVENTS: RateLimitItemPerMinute(1),
+        rate_limit_item_per_operation={
+            Operation.READ_EVENT: RateLimitItemPerMinute(1),
+            Operation.LIST_EVENTS: RateLimitItemPerMinute(1),
         }
     )
 
     request = make_request()
 
-    assert await limiter.check(request, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(request, AuthorizationPermission.LIST_EVENTS) is True
-    assert await limiter.check(request, AuthorizationPermission.READ_EVENT) is False
+    assert await limiter.check(request, Operation.READ_EVENT) is True
+    assert await limiter.check(request, Operation.LIST_EVENTS) is True
+    assert await limiter.check(request, Operation.READ_EVENT) is False
 
 
 async def test_that_limits_are_isolated_per_client_ip() -> None:
     limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(1),
+        rate_limit_item_per_operation={
+            Operation.READ_EVENT: RateLimitItemPerMinute(1),
         }
     )
 
     req_ip1 = make_request(x_forwarded_for="198.51.100.7")
     req_ip2 = make_request(x_forwarded_for="198.51.100.8")
 
-    assert await limiter.check(req_ip1, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(req_ip2, AuthorizationPermission.READ_EVENT) is True
+    assert await limiter.check(req_ip1, Operation.READ_EVENT) is True
+    assert await limiter.check(req_ip2, Operation.READ_EVENT) is True
 
-    assert await limiter.check(req_ip1, AuthorizationPermission.READ_EVENT) is False
+    assert await limiter.check(req_ip1, Operation.READ_EVENT) is False
 
 
 async def test_that_x_forwarded_for_overrides_request_client_host_for_ip_selection() -> None:
     limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(1),
+        rate_limit_item_per_operation={
+            Operation.READ_EVENT: RateLimitItemPerMinute(1),
         }
     )
 
     req_a = make_request(x_forwarded_for="1.1.1.1", client_host="10.0.0.5")
     req_b = make_request(x_forwarded_for="1.1.1.2", client_host="10.0.0.5")
 
-    assert await limiter.check(req_a, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(req_b, AuthorizationPermission.READ_EVENT) is True
-    assert await limiter.check(req_a, AuthorizationPermission.READ_EVENT) is False
+    assert await limiter.check(req_a, Operation.READ_EVENT) is True
+    assert await limiter.check(req_b, Operation.READ_EVENT) is True
+    assert await limiter.check(req_a, Operation.READ_EVENT) is False
 
 
 async def test_that_missing_client_ip_raises_authorization_exception() -> None:
     limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(1),
+        rate_limit_item_per_operation={
+            Operation.READ_EVENT: RateLimitItemPerMinute(1),
         }
     )
     request = make_request(x_forwarded_for=None, client_host=None)
 
     with pytest.raises(AuthorizationException):
-        await limiter.check(request, AuthorizationPermission.READ_EVENT)
-
-
-async def test_that_unconfigured_permissions_raise_error() -> None:
-    limiter = BasicRateLimiter(
-        permission_rate_limits={
-            AuthorizationPermission.READ_EVENT: RateLimitItemPerMinute(1),
-        }
-    )
-
-    request = make_request()
-
-    with pytest.raises(AuthorizationException):
-        await limiter.check(request, AuthorizationPermission.CREATE_AGENT)
+        await limiter.check(request, Operation.READ_EVENT)

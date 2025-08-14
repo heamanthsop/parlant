@@ -18,7 +18,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import Field
 from typing import Annotated, Optional, Sequence, TypeAlias, cast
 
-from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
+from parlant.api.authorization import Operation, AuthorizationPolicy
 from parlant.core.common import DefaultBaseModel, JSONSerializable
 from parlant.api.common import ExampleJson, apigen_config, example_json_content
 from parlant.core.journeys import (
@@ -404,9 +404,7 @@ def create_router(
         The journey will be initialized with the provided title, description, and conditions.
         A unique identifier will be automatically generated.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.CREATE_JOURNEY
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.CREATE_JOURNEY)
 
         guidelines = [
             await guideline_store.create_guideline(
@@ -457,9 +455,7 @@ def create_router(
         """
         Retrieves a list of all journeys in the system.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_JOURNEYS
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_JOURNEYS)
 
         if tag_id:
             journeys = await journey_store.list_journeys(
@@ -504,9 +500,7 @@ def create_router(
         """
         Retrieves details of a specific journey by ID.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_JOURNEY
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_JOURNEY)
 
         journey = await journey_store.read_journey(journey_id=journey_id)
 
@@ -539,9 +533,7 @@ def create_router(
         Returns the journey as a Mermaid 'stateDiagramv-v2' string.
         Content-Type: text/plain
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_JOURNEY
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_JOURNEY)
 
         journey = await journey_store.read_journey(journey_id=journey_id)
         chart = await _build_mermaid_chart(journey_store, journey)
@@ -576,9 +568,7 @@ def create_router(
 
         Only the provided attributes will be updated; others will remain unchanged.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.UPDATE_JOURNEY
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.UPDATE_JOURNEY)
 
         journey = await journey_store.read_journey(journey_id=journey_id)
 
@@ -670,9 +660,7 @@ def create_router(
         Deleting a non-existent journey will return 404.
         No content will be returned from a successful deletion.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_JOURNEY
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_JOURNEY)
 
         journey = await journey_store.read_journey(journey_id=journey_id)
 

@@ -18,7 +18,7 @@ from fastapi import APIRouter, Path, Request, status
 from pydantic import Field
 from typing import Annotated, Mapping, Optional, Sequence, TypeAlias
 
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import apigen_config, ExampleJson, example_json_content
 from parlant.core.agents import AgentStore, AgentId
 from parlant.core.common import DefaultBaseModel
@@ -252,7 +252,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.CREATE_CUSTOMER,
+            operation=Operation.CREATE_CUSTOMER,
         )
 
         tags = []
@@ -307,7 +307,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.READ_CUSTOMER,
+            operation=Operation.READ_CUSTOMER,
         )
 
         customer = await customer_store.read_customer(customer_id=customer_id)
@@ -341,7 +341,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.LIST_CUSTOMERS,
+            operation=Operation.LIST_CUSTOMERS,
         )
 
         customers = await customer_store.list_customers()
@@ -389,7 +389,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.UPDATE_CUSTOMER,
+            operation=Operation.UPDATE_CUSTOMER,
         )
 
         if params.name:
@@ -452,7 +452,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.DELETE_CUSTOMER,
+            operation=Operation.DELETE_CUSTOMER,
         )
 
         await customer_store.delete_customer(customer_id=customer_id)

@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, Path, Request, status, Query
 from pydantic import Field
 
 from parlant.api import agents, common
-from parlant.api.authorization import AuthorizationPermission, AuthorizationPolicy
+from parlant.api.authorization import Operation, AuthorizationPolicy
 from parlant.api.common import (
     CoherenceCheckKindDTO,
     ConnectionPropositionKindDTO,
@@ -1455,9 +1455,7 @@ def create_router(
 
         See the [documentation](https://parlant.io/docs/concepts/customization/guidelines) for more information.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.CREATE_GUIDELINE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.CREATE_GUIDELINE)
 
         tags = []
         if params.tags:
@@ -1511,9 +1509,7 @@ def create_router(
         Guidelines are returned in no guaranteed order.
         Does not include relationships or tool associations.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_GUIDELINES
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.LIST_GUIDELINES)
 
         if tag_id:
             guidelines = await guideline_store.list_guidelines(
@@ -1557,9 +1553,7 @@ def create_router(
         Returns both direct and indirect relationships between guidelines.
         Tool associations indicate which tools the guideline can use.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_GUIDELINE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_GUIDELINE)
 
         try:
             guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
@@ -1639,9 +1633,7 @@ def create_router(
 
         Action with text can not be updated to None.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.UPDATE_GUIDELINE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.UPDATE_GUIDELINE)
 
         _ = await guideline_store.read_guideline(guideline_id=guideline_id)
 
@@ -1788,9 +1780,7 @@ def create_router(
         request: Request,
         guideline_id: GuidelineIdPath,
     ) -> None:
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_GUIDELINE
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.DELETE_GUIDELINE)
 
         guideline = await guideline_store.read_guideline(guideline_id=guideline_id)
 

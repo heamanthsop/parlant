@@ -17,7 +17,7 @@ from typing import Optional, Sequence, cast, Annotated, TypeAlias
 from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 
 from parlant.api import common
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import (
     ExampleJson,
     GuidelineDTO,
@@ -351,7 +351,7 @@ def create_router(
         It can be created between a guideline and a tag, or between two guidelines, or between two tags.
         """
         await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.CREATE_RELATIONSHIP
+            request=request, operation=Operation.CREATE_RELATIONSHIP
         )
 
         if params.source_guideline and params.source_tag:
@@ -446,7 +446,7 @@ def create_router(
         Either `guideline_id` or `tag_id` or `tool_id` must be provided.
         """
         await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.LIST_RELATIONSHIPS
+            request=request, operation=Operation.LIST_RELATIONSHIPS
         )
 
         if not guideline_id and not tag_id and not tool_id:
@@ -521,9 +521,7 @@ def create_router(
         """
         Read a relationship by ID.
         """
-        await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.READ_RELATIONSHIP
-        )
+        await authorization_policy.authorize(request=request, operation=Operation.READ_RELATIONSHIP)
 
         relationship = await relationship_store.read_relationship(id=relationship_id)
 
@@ -547,7 +545,7 @@ def create_router(
         Delete a relationship by ID.
         """
         await authorization_policy.authorize(
-            request=request, permission=AuthorizationPermission.DELETE_RELATIONSHIP
+            request=request, operation=Operation.DELETE_RELATIONSHIP
         )
 
         await relationship_store.delete_relationship(id=relationship_id)

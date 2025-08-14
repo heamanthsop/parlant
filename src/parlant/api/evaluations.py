@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 from pydantic import Field
 
 from parlant.api import common
-from parlant.api.authorization import AuthorizationPolicy, AuthorizationPermission
+from parlant.api.authorization import AuthorizationPolicy, Operation
 from parlant.api.common import (
     EvaluationStatusDTO,
     GuidelineContentDTO,
@@ -527,7 +527,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.CREATE_EVALUATION,
+            operation=Operation.CREATE_EVALUATION,
         )
 
         try:
@@ -582,7 +582,7 @@ def create_router(
         """
         await authorization_policy.authorize(
             request=request,
-            permission=AuthorizationPermission.READ_EVALUATION,
+            operation=Operation.READ_EVALUATION,
         )
 
         if wait_for_completion > 0:
