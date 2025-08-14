@@ -1038,7 +1038,7 @@ class Actions:
         return result
 
     @staticmethod
-    def add_customer_extra(
+    def add_customer_metadata(
         ctx: click.Context,
         customer_id: str,
         key: str,
@@ -1050,7 +1050,7 @@ class Actions:
         )
 
     @staticmethod
-    def remove_customer_extra(
+    def remove_customer_metadata(
         ctx: click.Context,
         customer_id: str,
         key: str,
@@ -2754,6 +2754,7 @@ class Interface:
                 name,
                 tags,
             )
+
             Interface._write_success(f"Added customer (id: {customer.id})")
             Interface._render_customers([customer])
         except Exception as e:
@@ -2792,7 +2793,7 @@ class Interface:
     @staticmethod
     def add_customer_extra(ctx: click.Context, customer_id: str, key: str, value: str) -> None:
         try:
-            Actions.add_customer_extra(ctx, customer_id, key, value)
+            Actions.add_customer_metadata(ctx, customer_id, key, value)
             Interface._write_success(
                 f"Added extra value to customer (id: {customer_id}, key: '{key}', value: '{value}')"
             )
@@ -2803,7 +2804,7 @@ class Interface:
     @staticmethod
     def remove_customer_extra(ctx: click.Context, customer_id: str, key: str) -> None:
         try:
-            Actions.remove_customer_extra(ctx, customer_id, key)
+            Actions.remove_customer_metadata(ctx, customer_id, key)
             Interface._write_success(
                 f"Removed extra value from customer (id: {customer_id}, key: '{key}')"
             )

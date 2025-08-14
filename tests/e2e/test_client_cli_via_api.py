@@ -1388,7 +1388,7 @@ async def test_that_a_customer_can_be_deleted(context: ContextOfTest) -> None:
         assert not any(c["name"] == "TestCustomer" for c in customers)
 
 
-async def test_that_a_customer_extra_can_be_added(context: ContextOfTest) -> None:
+async def test_that_a_customer_metadata_can_be_added(context: ContextOfTest) -> None:
     with run_server(context):
         customer_id = (await context.api.create_customer(name="TestCustomer"))["id"]
 
@@ -1408,10 +1408,10 @@ async def test_that_a_customer_extra_can_be_added(context: ContextOfTest) -> Non
         )
 
         customer = await context.api.read_customer(id=customer_id)
-        assert customer["extra"].get("key1") == "value1"
+        assert customer["metadata"].get("key1") == "value1"
 
 
-async def test_that_a_customer_extra_can_be_deleted(context: ContextOfTest) -> None:
+async def test_that_a_customer_metadata_can_be_deleted(context: ContextOfTest) -> None:
     with run_server(context):
         customer_id = (
             await context.api.create_customer(name="TestCustomer", extra={"key1": "value1"})
@@ -1431,7 +1431,7 @@ async def test_that_a_customer_extra_can_be_deleted(context: ContextOfTest) -> N
         )
 
         customer = await context.api.read_customer(id=customer_id)
-        assert "key1" not in customer["extra"]
+        assert "key1" not in customer["metadata"]
 
 
 async def test_that_a_customer_tag_can_be_added(context: ContextOfTest) -> None:
@@ -1548,7 +1548,7 @@ async def test_that_canned_responses_can_be_initialized(context: ContextOfTest) 
 
         assert (
             await run_cli_and_get_exit_status(
-                "canned_response",
+                "canned-response",
                 "init",
                 tmp_file_path,
                 address=context.api.server_address,
@@ -1607,7 +1607,7 @@ async def test_that_canned_responses_can_be_loaded(context: ContextOfTest) -> No
 
         assert (
             await run_cli_and_get_exit_status(
-                "canned_response", "load", tmp_file_path, address=context.api.server_address
+                "canned-response", "load", tmp_file_path, address=context.api.server_address
             )
             == os.EX_OK
         )

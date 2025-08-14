@@ -32,7 +32,7 @@ from parlant.api.common import (
 )
 from parlant.core.agents import AgentId, AgentStore
 from parlant.core.common import DefaultBaseModel
-from parlant.core.journeys import JourneyId, JourneyStore
+from parlant.core.journeys import JourneyId, JourneyNodeId, JourneyStore
 from parlant.core.relationships import (
     RelationshipEntityId,
     RelationshipEntityKind,
@@ -204,6 +204,13 @@ async def _entity_id_to_tag(
             id=tag_id,
             name=journey.title,
             creation_utc=journey.creation_utc,
+        )
+    elif journey_node_id := Tag.extract_journey_node_id(tag_id):
+        journey_node = await journey_store.read_node(node_id=cast(JourneyNodeId, journey_node_id))
+        return Tag(
+            id=tag_id,
+            name=str(journey_node.action),
+            creation_utc=journey_node.creation_utc,
         )
     else:
         return await tag_store.read_tag(tag_id=tag_id)
