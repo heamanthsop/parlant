@@ -135,7 +135,7 @@ async def test_that_an_agent_can_be_updated(
             "--max-engine-iterations",
             str(new_max_engine_iterations),
             "--composition-mode",
-            "strict-canned-response",
+            "strict_canned",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             address=context.api.server_address,

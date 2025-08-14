@@ -3293,9 +3293,9 @@ async def async_main() -> None:
         type=click.Choice(
             [
                 "fluid",
-                "strict-canned-response",
-                "composited-canned-response",
-                "fluid-canned-response",
+                "strict_canned",
+                "composited_canned",
+                "canned_fluid",
             ]
         ),
         help="Composition mode",
@@ -3367,9 +3367,9 @@ async def async_main() -> None:
         type=click.Choice(
             [
                 "fluid",
-                "strict-canned-response",
-                "composited-canned-response",
-                "fluid-canned-response",
+                "strict_canned",
+                "composited_canned",
+                "canned_fluid",
             ]
         ),
         help="Composition mode",
