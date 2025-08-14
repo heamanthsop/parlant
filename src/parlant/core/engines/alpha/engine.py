@@ -200,9 +200,7 @@ class AlphaEngine(Engine):
         loaded_context = await self._load_context(
             context,
             event_emitter,
-            # Results seem to be more consistent with the requests
-            # if we ignore the interaction's content.
-            load_interaction=False,
+            load_interaction=True,
         )
 
         try:
