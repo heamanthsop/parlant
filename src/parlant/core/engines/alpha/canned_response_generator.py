@@ -1331,6 +1331,7 @@ Produce a valid JSON object according to the following spec. Use the values prov
 8. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procedural instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.""",
         )
 
+        builder.add_glossary(context.terms)
         builder.add_interaction_history(context.interaction_history)
 
         builder.add_section(
