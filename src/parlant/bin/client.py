@@ -1047,7 +1047,7 @@ class Actions:
     ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.customers.update(
-            customer_id=customer_id, metadata=CustomerMetadataUpdateParams(add={key: value})
+            customer_id=customer_id, metadata=CustomerMetadataUpdateParams(set={key: value})
         )
 
     @staticmethod
@@ -1058,7 +1058,7 @@ class Actions:
     ) -> None:
         client = cast(ParlantClient, ctx.obj.client)
         client.customers.update(
-            customer_id=customer_id, metadata=CustomerMetadataUpdateParams(remove=[key])
+            customer_id=customer_id, metadata=CustomerMetadataUpdateParams(unset=[key])
         )
 
     @staticmethod
