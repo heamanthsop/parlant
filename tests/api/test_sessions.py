@@ -1157,3 +1157,53 @@ async def test_that_a_custom_event_can_be_created(
     assert events[0].kind == EventKind.CUSTOM
     assert events[0].source == EventSource.CUSTOMER
     assert events[0].data == custom_event_data
+
+
+async def test_that_human_agent_can_post_event_message(
+    async_client: httpx.AsyncClient,
+    session_id: SessionId,
+) -> None:
+    response = await async_client.post(
+        f"/sessions/{session_id}/events",
+        json={
+            "kind": "message",
+            "source": "human_agent",
+            "message": "I'll take it from here.",
+            "participant": {"id": "agent_007", "display_name": "DorZo"},
+        },
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+
+    event = response.json()
+    assert event["kind"] == "message"
+    assert event["source"] == "human_agent"
+    assert event["data"]["message"] == "I'll take it from here."
+    assert event["data"]["participant"]["display_name"] == "DorZo"
+
+    events = (
+        (
+            await async_client.get(
+                f"/sessions/{session_id}/events",
+            )
+        )
+        .raise_for_status()
+        .json()
+    )
+
+    assert events
+    assert events[-1]["data"]["message"] == "I'll take it from here."
+
+
+async def test_that_posting_a_human_agent_message_requires_participant_display_name(
+    async_client: httpx.AsyncClient,
+    session_id: SessionId,
+) -> None:
+    response_no_participant = await async_client.post(
+        f"/sessions/{session_id}/events",
+        json={
+            "kind": "message",
+            "source": "human_agent",
+            "message": "Hello from human.",
+        },
+    )
+    assert response_no_participant.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

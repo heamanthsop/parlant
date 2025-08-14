@@ -261,6 +261,13 @@ class AgentMessageGuidelineDTO(DefaultBaseModel):
     rationale: AgentMessageGuidelineRationaleDTO = AgentMessageGuidelineRationaleDTO.UNSPECIFIED
 
 
+class ParticipantDTO(DefaultBaseModel):
+    """Represents a participant in a session."""
+
+    id: Optional[str]
+    display_name: str
+
+
 class EventCreationParamsDTO(
     DefaultBaseModel,
     json_schema_extra={"example": event_creation_params_example},
@@ -272,6 +279,7 @@ class EventCreationParamsDTO(
     message: Optional[SessionEventCreationParamsMessageField] = None
     data: Optional[JSONSerializableDTO] = None
     guidelines: Optional[list[AgentMessageGuidelineDTO]] = None
+    participant: Optional[ParticipantDTO] = None
 
 
 EventIdPath: TypeAlias = Annotated[
@@ -1512,6 +1520,12 @@ def create_router(
                     request=request, permission=AuthorizationPermission.CREATE_AGENT_EVENT
                 )
                 return await _add_agent_message(session_id, params)
+            elif params.source == EventSourceDTO.HUMAN_AGENT:
+                await authorization_policy.authorize(
+                    request=request,
+                    permission=AuthorizationPermission.CREATE_HUMAN_AGENT_EVENT,
+                )
+                return await _add_human_agent_message(session_id, params)
             elif params.source == EventSourceDTO.HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT:
                 await authorization_policy.authorize(
                     request=request,
@@ -1521,7 +1535,7 @@ def create_router(
             else:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail='Only "customer" and "human_agent_on_behalf_of_ai_agent" sources are supported for direct posting.',
+                    detail='Only "customer", "human_agent", and "human_agent_on_behalf_of_ai_agent" sources are supported for direct posting.',
                 )
 
         elif params.kind == EventKindDTO.CUSTOM:
@@ -1634,6 +1648,39 @@ def create_router(
             )
 
             return event_to_dto(event)
+
+    async def _add_human_agent_message(
+        session_id: SessionIdPath,
+        params: EventCreationParamsDTO,
+    ) -> EventDTO:
+        if not params.message:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Missing 'message' field for event",
+            )
+        if not params.participant or not params.participant.display_name:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Missing 'participant' with 'display_name' for human agent message",
+            )
+
+        message_data: MessageEventData = {
+            "message": params.message,
+            "participant": {
+                "id": AgentId(params.participant.id) if params.participant.id else None,
+                "display_name": params.participant.display_name,
+            },
+        }
+
+        event = await application.post_event(
+            session_id=session_id,
+            kind=_event_kind_dto_to_event_kind(params.kind),
+            data=message_data,
+            source=EventSource.HUMAN_AGENT,
+            trigger_processing=False,
+        )
+
+        return event_to_dto(event)
 
     async def _add_human_agent_message_on_behalf_of_ai_agent(
         session_id: SessionIdPath,
