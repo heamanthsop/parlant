@@ -113,7 +113,7 @@ if __name__ == "__main__":
 - Write complex system prompts
 - Hope the LLM follows them
 - Debug unpredictable behaviors
-- Scale by more prompt engineering
+- Scale by prompt engineering
 - Cross fingers for reliability
 
 </td>
