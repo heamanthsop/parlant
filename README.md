@@ -87,7 +87,9 @@ async def main():
             tools=[get_weather]
         )
 
-        # 🎉 Agent ready at http://localhost:8800
+        # 🎉 Test playground ready at http://localhost:8800
+        # Integrate the official React widget into your app,
+        # or follow the tutorial to build your own frontend!
 
 if __name__ == "__main__":
     import asyncio
