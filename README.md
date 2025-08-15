@@ -104,10 +104,20 @@ if __name__ == "__main__":
 
 <table width="100%">
 <tr>
-<td width="50%">
-
+  <td width="50%">
+    
 ### 🏗️ **Traditional AI Frameworks**
-
+    
+  </td>
+  <td width="50%">
+    
+### ⚡ **Parlant**
+    
+  </td>
+</tr>
+<tr>
+<td width="50%">
+  
 - Write complex system prompts
 - Hope the LLM follows them
 - Debug unpredictable behaviors
@@ -116,9 +126,7 @@ if __name__ == "__main__":
 
 </td>
 <td width="50%">
-
-### ⚡ **Parlant**
-
+  
 - Define rules in natural language
 - **Guaranteed** rule compliance
 - Predictable, consistent behavior
