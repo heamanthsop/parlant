@@ -183,7 +183,7 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 
 ## 🌟 What Developers Are Saying
 
-_"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
+> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
 
 ## 🤝 Community & Support
 
