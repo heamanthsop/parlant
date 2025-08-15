@@ -107,19 +107,19 @@ if __name__ == "__main__":
 <table width="100%">
 <tr>
   <td width="50%">
-    
+
 ### 🏗️ **Traditional AI Frameworks**
-    
+
   </td>
   <td width="50%">
-    
+
 ### ⚡ **Parlant**
-    
+
   </td>
 </tr>
 <tr>
 <td width="50%">
-  
+
 - Write complex system prompts
 - Hope the LLM follows them
 - Debug unpredictable behaviors
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
 </td>
 <td width="50%">
-  
+
 - Define rules in natural language
 - **Guaranteed** rule compliance
 - Predictable, consistent behavior
@@ -152,6 +152,7 @@ if __name__ == "__main__":
 
 ## 🛠️ Enterprise-Grade Features
 
+- **🧭 Conversational Journeys** - Lead the customer step-by-step to a goal
 - **🎯 Dynamic Guideline Matching** - Context-aware rule application
 - **🔧 Reliable Tool Integration** - APIs, databases, external services
 - **📊 Conversation Analytics** - Deep insights into agent behavior
