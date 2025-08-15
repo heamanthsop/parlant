@@ -166,7 +166,7 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 
 ## 🏃‍♂️ Quick Start Paths
 
-<table>
+<table border="0">
 <tr>
 <td><strong>🎯 I want to test it myself</strong></td>
 <td><a href="https://www.parlant.io/docs/quickstart/installation">→ 5-minute quickstart</a></td>
