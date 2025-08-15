@@ -114,7 +114,7 @@ if __name__ == "__main__":
 - Hope the LLM follows them
 - Debug unpredictable behaviors
 - Scale by more prompt engineering
-- Cross fingers for production reliability
+- Cross fingers for reliability
 
 </td>
 <td width="50%">
