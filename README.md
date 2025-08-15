@@ -125,7 +125,7 @@ if __name__ == "__main__":
 - **Guaranteed** rule compliance
 - Predictable, consistent behavior
 - Scale by adding more guidelines
-- Production-ready reliability from day one
+- Production-ready from day one
 
 </td>
 </tr>
