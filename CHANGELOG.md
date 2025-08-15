@@ -3,48 +3,49 @@
 All notable changes to Parlant will be documented here.
 
 ## [Unreleased]
-- Increase utterance multi-message delay
-- Use fast fluid draft if no utterance found
-- Add logger to LoadedContext (accessible via engine hooks)
-- Add ability to update session mode directly from API
-- Add an improved support for tool parameter types: date, datetime, optional (bug fix) and lists of other allowed types
-- Add integration with MCP servers for tools (currently only tools, limited MCP types support)
-- Refactor UtteranceStore to be implemented as a VectorStore rather than a DocumentStore
-- Add lifespan field to tool result to indicate if a tool event should be emitted
-- Introduce agent capabilities feature
-- Add utterance template queries
-- Improve utterance matching by pre-rendering top K templates
+
+TBD
+
+## [3.0.0] - 2025-08-15
+
+Please see the announcement at https://parlant.io/blog/parlant-3-0-release
 
 ## [2.2.0] - 2025-05-20
 
 ### Added
+
 - Add journeys
 - Add of guideline properties evaluation
 - Add automatic guideline action deduction when adding direct tool guidelines
 - Added choices of invalid and missing tool parameters to tool insights
 
 ### Changed
+
 - Make guideline action optional
 
 ## [2.1.2] - 2025-05-07
 
 ### Changed
+
 - Remove interaction history from utterance recomposition prompt
 - Use tool calls from the entire interaction for utterance field substitution
 - Improve error handling and reporting with utterance rendering failures
 
 ### Fixed
+
 - Always reason about utterance selection to improve performance
 
 ## [2.1.1] - 2025-04-30
 
 ### Fixed
+
 - Fixed rendering relationships in CLI
 - Fixed parlant client using old imports from python client SDK
 
 ## [2.1.0] - 2025-04-29
 
 ### Added
+
 - ToolParameterOptions.choice_provider can now access ToolContext
 - Added utterance/draft toggle in the integrated UI
 - Added new guideline relationship: Dependency
@@ -54,23 +55,27 @@ All notable changes to Parlant will be documented here.
 - Introduce Journey
 
 ### Changed
+
 - Improved tool calling efficiency by adjusting the prompt to the tool at hand
 - Revised completion schema (ARQs) for tool calling
 - Utterances now follow a 2-stage process: draft + select
 - Changed guest customer name to Guest
 
 ### Fixed
+
 - Fixed deprioritized guidelines always being skipped
 - Fixed agent creation with tags
 - Fixed client CLI exit status when encountering an error
 - Fixed agent update
 
 ### Known Issues
+
 - OpenAPI tool services sometimes run into issues due to a version update in aiopenapi3
 
 ## [2.0.0] - 2025-04-09
 
 ### Added
+
 - Improved tool parameter flexibility: custom types, Pydantic models, and annotated ToolParameterOptions
 - Allow returning a new (modified) container in modules using configure_module()
 - Added Tool Insights with tool parameter options
@@ -88,11 +93,13 @@ All notable changes to Parlant will be documented here.
 - Added support for tool parameters choice provider using the tool context as argument
 
 ### Changed
+
 - Made the message generator slightly more polite by default, following user feedback
 - Allow only specifying guideline condition or action when updating guideline from CLI
 - Renamed guideline proposer with guideline matcher
 
 ### Fixed
+
 - Lowered likelihood of the agent hallucinating facts in fluid mode
 - Lowered likelihood of the agent offering services that were not specifically mentioned by the business
 
