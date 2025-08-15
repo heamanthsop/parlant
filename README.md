@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
 ## 🎬 See It In Action
 
-<img alt="Parlant Demo" src="https://www.parlant.io/img/example-scheduling-journey.gif" width="100%" />
+<img alt="Parlant Demo" src="https://github.com/emcie-co/parlant/blob/develop/docs/demo.gif?raw=true" width="100%" />
 
 ## 🔥 Why Developers Are Switching to Parlant
 
