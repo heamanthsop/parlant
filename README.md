@@ -28,8 +28,6 @@
 
 </div>
 
----
-
 ## 🎯 The Problem Every AI Developer Faces
 
 You build an AI agent. It works great in testing. Then real users start talking to it and...
