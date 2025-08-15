@@ -85,7 +85,7 @@ async def main():
         # Define behavior with natural language
         await agent.create_guideline(
             condition="User asks about weather",
-            action="Get current weather and provide a friendly response with outfit suggestions",
+            action="Get current weather and provide a friendly response with suggestions",
             tools=[get_weather]
         )
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
 ## 🎬 See It In Action
 
-<img alt="Parlant Demo" src="https://github.com/emcie-co/parlant/blob/develop/demo.gif?raw=true" width="100%" />
+<img alt="Parlant Demo" src="https://www.parlant.io/img/example-scheduling-journey.gif" width="100%" />
 
 ## 🔥 Why Developers Are Switching to Parlant
 
