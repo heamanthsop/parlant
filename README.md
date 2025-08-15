@@ -138,7 +138,7 @@ if __name__ == "__main__":
 |  **Financial Services**  |     **Healthcare**      |       **E-commerce**        |       **Legal Tech**       |
 | :----------------------: | :---------------------: | :-------------------------: | :------------------------: |
 | Compliance-first design  |   HIPAA-ready agents    |  Customer service at scale  |   Precise legal guidance   |
-| Risk management built-in | Patient data protection | Order processing automation | Document review assistance |
+| Built-in risk management | Patient data protection | Order processing automation | Document review assistance |
 
 </div>
 
