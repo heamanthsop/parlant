@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
 ## 🔥 Why Developers Are Switching to Parlant
 
-<table>
+<table width="100%">
 <tr>
 <td width="50%">
 
@@ -183,9 +183,7 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 
 ## 🌟 What Developers Are Saying
 
-> _"Finally! An AI framework that actually works in production. Parlant solved our consistency issues overnight."_ > **— Sarah Chen, Lead AI Engineer @ FinTech Startup**
-
-> _"The difference is night and day. Our agents went from 60% accuracy to 95%+ with Parlant's guideline system."_ > **— Marcus Rodriguez, CTO @ HealthTech Company**
+> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ > **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
 
 ## 🤝 Community & Support
 
