@@ -124,7 +124,7 @@ if __name__ == "__main__":
 - Define rules in natural language
 - **Guaranteed** rule compliance
 - Predictable, consistent behavior
-- Scale by adding more guidelines
+- Scale by adding guidelines
 - Production-ready from day one
 
 </td>
