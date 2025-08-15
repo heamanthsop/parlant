@@ -149,7 +149,7 @@ if __name__ == "__main__":
 - **📊 Conversation Analytics** - Deep insights into agent behavior
 - **🔄 Iterative Refinement** - Continuously improve agent responses
 - **🛡️ Built-in Guardrails** - Prevent hallucination and off-topic responses
-- **📱 React Widget** - Drop-in chat UI for any web app
+- **📱 React Widget** - [Drop-in chat UI for any web app](https://github.com/emcie-co/parlant-chat-react)
 - **🔍 Full Explainability** - Understand every decision your agent makes
 
 ## 📈 Join 1000+ Developers Building Better AI
