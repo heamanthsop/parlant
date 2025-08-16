@@ -1478,7 +1478,8 @@ Output a JSON object with three properties:
             level=LogLevel.TRACE,
         ):
             relevant_canreps = set(
-                await self._canned_response_store.find_relevant_canned_responses(
+                r.canned_response
+                for r in await self._canned_response_store.find_relevant_canned_responses(
                     query=draft_response.content.response_body,
                     available_canned_responses=canned_responses,
                     max_count=30,

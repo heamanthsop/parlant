@@ -373,10 +373,16 @@ class TransientVectorCollection(Generic[TDocument], VectorCollection[TDocument])
 
         self._logger.trace(f"Similar documents found\n{json.dumps(docs, indent=2)}")
 
+        # FIXME: actual distance of Cosine Similarity need to be implemented here. instead we doing normalization
+        n = len(docs)
+
+        def distance_formula(i: int) -> float:
+            return (i / (n - 1)) * 0.8
+
         return [
             SimilarDocumentResult(
                 document=cast(TDocument, d),
-                distance=i,
+                distance=distance_formula(i),
             )
             for i, d in enumerate(docs)
         ]
