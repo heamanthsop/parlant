@@ -34,6 +34,7 @@ class Operation(Enum):
 
     CREATE_AGENT = "create_agent"
     READ_AGENT = "read_agent"
+    READ_AGENT_DESCRIPTION = "read_agent_description"
     LIST_AGENTS = "list_agents"
     UPDATE_AGENT = "update_agent"
     DELETE_AGENT = "delete_agent"
@@ -205,6 +206,7 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
         self.default_limiter: RateLimiter = BasicRateLimiter(
             rate_limit_item_per_operation={
                 # Some reasonable defaults...
+                Operation.READ_AGENT: RateLimitItemPerMinute(30),
                 Operation.CREATE_GUEST_SESSION: RateLimitItemPerMinute(10),
                 Operation.READ_SESSION: RateLimitItemPerMinute(30),
                 Operation.LIST_EVENTS: RateLimitItemPerMinute(240),
@@ -221,6 +223,7 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
     @override
     async def check_permission(self, request: Request, operation: Operation) -> bool:
         if operation in [
+            Operation.READ_AGENT,
             Operation.CREATE_GUEST_SESSION,
             Operation.READ_SESSION,
             Operation.LIST_EVENTS,
