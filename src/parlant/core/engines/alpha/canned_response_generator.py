@@ -1342,7 +1342,8 @@ Produce a valid JSON object according to the following spec. Use the values prov
 5. Note that there may be multiple relevant choices. Out of those, you must choose the MOST suitable one that is MOST LIKE the human operator's draft reply.
 6. In cases where there are multiple templates that provide a partial match, you may encounter different types of partial matches. Prefer templates that do not deviate from the draft message semantically, even if they only address part of the draft message. They are better than a template that would have captured multiple parts of the draft message while introducing semantic deviations. In other words, better to match fewer parts with higher semantic fidelity than to match more parts with lower semantic fidelity.
 7. If there is any noticeable semantic deviation between the draft message and the template, i.e., the draft says "Do X" and the template says "Do Y" (even if Y is a sibling concept under the same category as X), you should not choose that template, even if it captures other parts of the draft message. We want to maintain true fidelity with the draft message.
-8. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procedural instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.""",
+8. If the deviation between the draft and the template is quantitative in nature (e.g., the draft says "5 apples" and the template says "10 apples"), you should assume that the template has it right. Don't consider this a failure, as the template will definitely contain the correct information. So as long as it's a good *qualitative match*, you can assume that the *quantitative part* will be handled correctly.
+9. Keep in mind that these are Jinja 2 *templates*. Some of them refer to variables or contain procedural instructions. These will be substituted by real values and rendered later. You can assume that such substitution will be handled well to account for the data provided in the draft message! FYI, if you encounter a variable {{generative.<something>}}, that means that it will later be substituted with a dynamic, flexible, generated value based on the appropriate context. You just need to choose the most viable reply template to use, and assume it will be filled and rendered properly later.""",
         )
 
         builder.add_glossary(context.terms)
@@ -1646,6 +1647,8 @@ Output a JSON object with three properties:
         context: CannedResponseContext,
         response: CannedResponse,
     ) -> _CannedResponseRenderResult:
+        faulty_field_name: str | None = None
+
         try:
             args = {}
 
@@ -1659,6 +1662,7 @@ Output a JSON object with three properties:
                 if success:
                     args[field_name] = value
                 else:
+                    faulty_field_name = field_name
                     self._logger.error(f"CannedResponse field extraction: missing '{field_name}'")
                     raise KeyError(f"Missing field '{field_name}' in canned response")
 
@@ -1670,12 +1674,15 @@ Output a JSON object with three properties:
                 rendered_text=result,
             )
         except Exception as exc:
-            self._logger.error(
-                f"Failed to pre-render canned response for matching '{response.id}' ('{response.value}')"
-            )
-            self._logger.error(
-                f"Canned response rendering failed: {traceback.format_exception(exc)}"
-            )
+            # TODO: Once we have the extractor registry, maybe control this using
+            # something like "excluded from error" extractors or field names.
+            if faulty_field_name != "generative":
+                self._logger.error(
+                    f"Failed to pre-render canned response for matching '{response.id}' ('{response.value}')"
+                )
+                self._logger.error(
+                    f"Canned response rendering failed: {traceback.format_exception(exc)}"
+                )
 
             return _CannedResponseRenderResult(
                 response=response,
