@@ -16,6 +16,7 @@
 
 # Check all todos for current pending work
 # Moderation service needs to be added
+# more todo: have to make this so that it works with sdk.py
 
 import os
 import time
@@ -625,14 +626,17 @@ class VertexAIService(NLPService):
     
     def __init__(
         self,
-        project_id: str,
-        region: str,
-        model_name: str,
+        # project_id: str,
+        # region: str,
+        # model_name: str,
         logger: Logger,
     ) -> None:
-        self.project_id = project_id
-        self.region = region
-        self.model_name = self._normalize_model_name(model_name)
+        self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID", "default_project_id")
+        self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
+        # self.model_name = 
+        # self.project_id = project_id
+        # self.region = region
+        self.model_name = self._normalize_model_name(os.environ.get("VERTEX_AI_MODEL", "claude-sonnet-3.5"))
         self._logger = logger
         
         # Validate ADC is configured
@@ -640,7 +644,7 @@ class VertexAIService(NLPService):
         
         self._logger.info(
             f"Initialized VertexAIService with model {self.model_name} "
-            f"in project {project_id}, region {region}"
+            f"in project {self.project_id}, region {self.project_id}"
         )
     
     def _normalize_model_name(self, model_name: str) -> str:
@@ -804,9 +808,9 @@ def create_vertex_ai_service(
     """
     def loader(container) -> NLPService:
         return VertexAIService(
-            project_id=project_id,
-            region=region,
-            model_name=model_name,
+            # project_id=project_id,
+            # region=region,
+            # model_name=model_name,
             logger=container[Logger]
         )
     

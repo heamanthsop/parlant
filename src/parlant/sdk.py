@@ -260,6 +260,13 @@ class NLPServices:
         from parlant.adapters.nlp.gemini_service import GeminiService
 
         return GeminiService(container[Logger])
+    
+    @staticmethod
+    def vertex(container: Container) -> NLPService:
+        """Creates a Vertex NLPService instance using the provided container."""
+        from parlant.adapters.nlp.vertex_service import VertexAIService
+
+        return VertexAIService(container[Logger])
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
