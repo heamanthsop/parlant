@@ -381,7 +381,7 @@ class TransientVectorCollection(Generic[TDocument], VectorCollection[TDocument])
         n = len(docs)
 
         def distance_formula(i: int) -> float:
-            return (i / (n - 1)) * 0.8
+            return ((i / (n - 1)) * 0.8) if n > 1 else 0.8
 
         return [
             SimilarDocumentResult(
