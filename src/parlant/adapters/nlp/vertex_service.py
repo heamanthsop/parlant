@@ -14,6 +14,9 @@
 
 # Maintainer: Agam Dubey hello.world.agam@gmail.com
 
+# Check all todos for current pending work
+# Moderation service needs to be added
+
 import os
 import time
 import json
@@ -87,7 +90,6 @@ class VertexAIEstimatingTokenizer(EstimatingTokenizer):
             tokens = self.encoding.encode(prompt)
             return int(len(tokens) * 1.15) # @check - as seen on aws_service for bedrock
         else:
-            # Use Google API for Gemini models
             model_approximation = {
                 "text-embedding-004": "gemini-1.5-flash",
             }.get(self.model_name, self.model_name)
@@ -126,7 +128,6 @@ class VertexAIClaudeSchematicGenerator(SchematicGenerator[T]):
         self.model_name = model_name
         self._logger = logger
         
-        # Initialize the AsyncAnthropicVertex client
         self._client = AsyncAnthropicVertex(
             project_id=project_id,
             region=region,
@@ -276,15 +277,14 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
     @property
     @override
     def max_tokens(self) -> int:
-        # Gemini models support different token limits
         if "flash" in self.model_name.lower():
             return 1024 * 1024  # 1M tokens
         else:
-            return 2 * 1024 * 1024  # 2M tokens for Pro
+            return 2 * 1024 * 1024  # 2M tokens
     
     @policy([
         retry(
-            exceptions=(
+            exceptions=(#@todo: import them properly later
                 google.api_core.exceptions.NotFound,
                 google.api_core.exceptions.TooManyRequests,
                 google.api_core.exceptions.ResourceExhausted,
@@ -322,7 +322,7 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
                 config=cast(google.genai.types.GenerateContentConfigOrDict, config),
             )
         except google.api_core.exceptions.TooManyRequests:
-            self._logger.error(
+            self._logger.error(#@todo: declare as constant at the top
                 "Google API rate limit exceeded.\n\n"
                 "Possible reasons:\n"
                 "1. Insufficient API credits in your account.\n"
@@ -400,8 +400,6 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
             )
             raise
 
-
-# Claude Model Implementations (unchanged - still use AsyncAnthropicVertex)
 class VertexClaudeOpus4(VertexAIClaudeSchematicGenerator[T]):
     def __init__(self, project_id: str, region: str, logger: Logger) -> None:
         super().__init__(
@@ -441,8 +439,6 @@ class VertexClaudeHaiku35(VertexAIClaudeSchematicGenerator[T]):
             logger=logger,
         )
 
-
-# Gemini Model Implementations (updated to use google.genai)
 class VertexGemini15Flash(VertexAIGeminiSchematicGenerator[T]):
     def __init__(self, project_id: str, region: str, logger: Logger) -> None:
         super().__init__(
@@ -513,15 +509,11 @@ class VertexAIEmbedder(Embedder):
         self,
         model_name: str, logger: Logger
     ):
-        # self.project_id = project_id
-        # self.region = region
-        # self.embedding_model = "text-embedding-004"
         self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID")
         self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
         self.model_name = model_name
         self._logger = logger
         
-        # Use Google Gen AI client instead of Vertex AI SDK
         self._client = google.genai.Client(project=self.project_id, location=self.region, vertexai=True)
         self._tokenizer = VertexAIEstimatingTokenizer(self._client, model_name)
     
@@ -544,10 +536,6 @@ class VertexTextEmbedding004(VertexAIEmbedder):
     def __init__(self, logger: Logger) -> None:
         self._logger = logger
         
-        # self.project_id = project_id
-        # print("id or project ; : ", project_id)
-        # self.region = region
-        # self.embedding_model = "text-embedding-004"
         self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID")
         self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
         self.embedding_model = "text-embedding-004"
@@ -558,11 +546,6 @@ class VertexTextEmbedding004(VertexAIEmbedder):
                 "Set this to your Google Cloud Project ID."
             )
         
-        # self._auth = VertexAIAuth()
-        # self._tokenizer = VertexAIEstimatingTokenizer(self.embedding_model)
-        # self._session: aiohttp.ClientSession | None = None
-        # self.project_id = project_id
-        # self.region = region
         super().__init__(model_name="text-embedding-004", logger=logger)
 
     @property
@@ -571,7 +554,7 @@ class VertexTextEmbedding004(VertexAIEmbedder):
     
     @policy([
         retry(
-            exceptions=(
+            exceptions=(#@todo: import properly at the top
                 google.api_core.exceptions.NotFound,
                 google.api_core.exceptions.TooManyRequests,
                 google.api_core.exceptions.ResourceExhausted,
@@ -626,7 +609,6 @@ class VertexTextEmbedding004(VertexAIEmbedder):
 class VertexAIService(NLPService):
     """NLP Service for Vertex AI supporting both Claude and Gemini models via appropriate APIs."""
     
-    # Model name mappings
     CLAUDE_MODELS = {
         "claude-opus-4": "claude-opus-4@20250514",
         "claude-sonnet-4": "claude-sonnet-4@20250514",
@@ -694,7 +676,6 @@ class VertexAIService(NLPService):
         provider = get_model_provider(self.model_name)
         
         if provider == ModelProvider.ANTHROPIC:
-            # Claude models - use AsyncAnthropicVertex
             if "opus-4" in self.model_name:
                 primary = VertexClaudeOpus4[t](  # type: ignore
                     project_id=self.project_id,
@@ -736,7 +717,6 @@ class VertexAIService(NLPService):
                 )
         
         elif provider == ModelProvider.GOOGLE:
-            # Gemini models - use google.genai
             if "1.5-flash" in self.model_name:
                 return VertexGemini15Flash[t](  # type: ignore
                     project_id=self.project_id,
