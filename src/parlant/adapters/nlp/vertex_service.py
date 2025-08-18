@@ -803,7 +803,7 @@ def create_vertex_ai_service(
     Note: 
     - For Claude models: Requires Application Default Credentials to be configured.
       Run 'gcloud auth application-default login' for local development.
-    - For Gemini models: Requires GEMINI_API_KEY environment variable to be set.
+    - For Gemini models: Requires GEMINI_API_KEY environment variable to be set. @check i dont think gemini api key is required
     - Set env variables: VERTEX_AI_PROJECT_ID VERTEX_AI_REGION
     """
     def loader(container) -> NLPService:
