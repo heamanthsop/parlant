@@ -244,7 +244,7 @@ class VertexAIClaudeSchematicGenerator(SchematicGenerator[T]):
 
 
 class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
-    """Schematic generator for Gemini models via Google Gen AI (instead of Vertex AI SDK)."""
+    """Schematic generator for Gemini models"""
     
     supported_hints = ["temperature", "thinking_config"]
     
@@ -260,7 +260,6 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
         self.model_name = model_name
         self._logger = logger
         
-        # Use Google Gen AI client instead of Vertex AI SDK
         self._client = google.genai.Client(project=project_id, location=region, vertexai=True)
         self._tokenizer = VertexAIEstimatingTokenizer(self._client, model_name)
     
@@ -501,7 +500,7 @@ class VertexGemini25Pro(VertexAIGeminiSchematicGenerator[T]):
 
 
 class VertexAIEmbedder(Embedder):
-    """Embedder using Google Gen AI text embeddings instead of Vertex AI SDK."""
+    """Embedder using Google Gen AI text embeddings"""
     
     supported_hints = ["title", "task_type"]
     
