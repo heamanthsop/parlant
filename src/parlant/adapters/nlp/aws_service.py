@@ -70,6 +70,7 @@ class AnthropicBedrockAISchematicGenerator(SchematicGenerator[T]):
             aws_access_key=os.environ["AWS_ACCESS_KEY_ID"],
             aws_secret_key=os.environ["AWS_SECRET_ACCESS_KEY"],
             aws_region=os.environ["AWS_REGION"],
+            aws_session_token=os.environ.get("AWS_SESSION_TOKEN", None),
         )
 
         self._estimating_tokenizer = AnthropicBedrockEstimatingTokenizer()
