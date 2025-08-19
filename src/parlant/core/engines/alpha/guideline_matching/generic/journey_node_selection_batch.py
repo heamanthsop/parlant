@@ -340,7 +340,7 @@ def get_journey_transition_map_text(
             flags_str += "- REQUIRES AGENT ACTION: This step may require the agent to say something for it to be completed. Only advance through it if the agent performed the described action.\n"
 
         # Node kind flags
-        if node.kind == JourneyNodeKind.CHAT and not node.action:
+        if node.kind in {JourneyNodeKind.CHAT, JourneyNodeKind.NA} and node.action is None:
             print_node = False
         elif node.kind == JourneyNodeKind.FORK:
             displayed_node_action = FORK_NODE_ACTION_STR
