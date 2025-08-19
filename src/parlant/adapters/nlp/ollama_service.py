@@ -111,9 +111,9 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         if "1b" in self.model_name.lower():
             return 4096
         elif "4b" in self.model_name.lower():
-            return 4096
+            return 16384
         elif "8b" in self.model_name.lower():
-            return 8192
+            return 16384
         elif "12b" in self.model_name.lower() or "70b" in self.model_name.lower():
             return 16384
         elif "27b" in self.model_name.lower() or "405b" in self.model_name.lower():
