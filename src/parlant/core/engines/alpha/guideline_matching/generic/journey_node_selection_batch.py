@@ -319,7 +319,7 @@ def get_journey_transition_map_text(
             ):  # Root with real action, so we must print it
                 if not previous_path or set(previous_path) == set([None]):
                     flags_str += BEGIN_JOURNEY_AT_ROOT_WITH_ACTION_FLAG_TEXT + "\n"
-                displayed_node_action = cast(str, node.action)
+                displayed_node_action = node.action
             elif (
                 len(node.outgoing_edges) > 1
             ):  # Root has no real action but has multiple followups, so should be printed
