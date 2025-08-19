@@ -311,6 +311,7 @@ def get_journey_transition_map_text(
     displayed_node_action = ""
     for node_index in sorted(unpruned_nodes.keys(), key=node_sort_key):
         node: _JourneyNode = nodes[node_index]
+        print_node = True
         flags_str = "Step Flags:\n"
         if node.id == ROOT_INDEX:
             if (
@@ -326,6 +327,7 @@ def get_journey_transition_map_text(
                     flags_str += BEGIN_JOURNEY_AT_ACTIONLESS_ROOT_FLAG_TEXT + "\n"
                 displayed_node_action = FORK_NODE_ACTION_STR
             else:  # Root has no action and a single follow up, so that follow up is first to be executed
+                print_node = False
                 if not previous_path or set(previous_path) == set([None]):
                     first_node_to_execute = node.outgoing_edges[0].target_node_index
         # Customer / Agent dependent flags
@@ -338,7 +340,9 @@ def get_journey_transition_map_text(
             flags_str += "- REQUIRES AGENT ACTION: This step may require the agent to say something for it to be completed. Only advance through it if the agent performed the described action.\n"
 
         # Node kind flags
-        if node.kind == JourneyNodeKind.FORK:
+        if node.kind == JourneyNodeKind.CHAT and not node.action:
+            print_node = False
+        elif node.kind == JourneyNodeKind.FORK:
             displayed_node_action = FORK_NODE_ACTION_STR
             flags_str += "- NEVER OUTPUT THIS STEP AS NEXT_STEP: This step is transitional and should never be returned as the next_step. Always advance onwards from it.\n"
         else:
@@ -359,7 +363,7 @@ def get_journey_transition_map_text(
             flags_str += "- PREVIOUSLY EXECUTED: This step was previously executed. You may backtrack to this step.\n"
         elif node.id != ROOT_INDEX:
             flags_str += "- NOT PREVIOUSLY EXECUTED: This step was not previously executed. You may not backtrack to this step.\n"
-        if node.action or not node.kind == JourneyNodeKind.CHAT:  # Avoid printing terminal node
+        if print_node:
             nodes_str += f"""
 STEP {node_index}: {displayed_node_action}
 {flags_str}
