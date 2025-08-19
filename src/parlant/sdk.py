@@ -309,13 +309,13 @@ class _CachedEvaluator:
         await self._exit_stack.enter_async_context(self._db)
 
         self._guideline_collection = await self._db.get_or_create_collection(
-            name="guideline_evaluations",
+            name=f"guideline_evaluations_{VERSION}",
             schema=_CachedGuidelineEvaluation,
             document_loader=identity_loader_for(_CachedGuidelineEvaluation),
         )
 
         self._journey_collection = await self._db.get_or_create_collection(
-            name="journey_evaluations",
+            name=f"journey_evaluations_{VERSION}",
             schema=_CachedJourneyEvaluation,
             document_loader=identity_loader_for(_CachedJourneyEvaluation),
         )
@@ -397,24 +397,13 @@ class _CachedEvaluator:
         )
 
         if cached_evaluation := await self._guideline_collection.find_one({"id": {"$eq": _hash}}):
-            # Check if the cached evaluation is based on our current runtime version.
-            # This is important as the required evaluation data can change between versions.
-            if cached_evaluation["version"] == VERSION:
-                self._logger.trace(
-                    f"Using cached evaluation for guideline: Condition: {g.condition or 'None'}; Action: {g.action or 'None'}"
-                )
+            self._logger.trace(
+                f"Using cached evaluation for guideline: Condition: {g.condition or 'None'}; Action: {g.action or 'None'}"
+            )
 
-                return self.GuidelineEvaluation(
-                    properties=cached_evaluation["properties"],
-                )
-            else:
-                self._logger.trace(
-                    f"Deleting outdated cached evaluation for guideline: {g.condition or 'None'}"
-                )
-
-                await self._guideline_collection.delete_one(
-                    {"id": {"$eq": cached_evaluation["id"]}}
-                )
+            return self.GuidelineEvaluation(
+                properties=cached_evaluation["properties"],
+            )
 
         self._logger.trace(
             f"Evaluating guideline: Condition: {g.condition or 'None'}, Action: {g.action or 'None'}"
@@ -493,25 +482,14 @@ class _CachedEvaluator:
         )
 
         if cached_evaluation := await self._journey_collection.find_one({"id": {"$eq": _hash}}):
-            # Check if the cached evaluation is based on our current runtime version.
-            # This is important as the required evaluation data can change between versions.
-            if cached_evaluation["version"] == VERSION:
-                self._logger.trace(
-                    f"Using cached evaluation for journey: Title: {journey.title or 'None'};"
-                )
+            self._logger.trace(
+                f"Using cached evaluation for journey: Title: {journey.title or 'None'};"
+            )
 
-                return self.JourneyEvaluation(
-                    node_properties=cached_evaluation["node_properties"],
-                    edge_properties=cached_evaluation["edge_properties"],
-                )
-            else:
-                self._logger.trace(
-                    f"Deleting outdated cached evaluation for journey: {journey.title or 'None'}"
-                )
-
-                await self._guideline_collection.delete_one(
-                    {"id": {"$eq": cached_evaluation["id"]}}
-                )
+            return self.JourneyEvaluation(
+                node_properties=cached_evaluation["node_properties"],
+                edge_properties=cached_evaluation["edge_properties"],
+            )
 
         self._logger.trace(f"Evaluating journey: Title: {journey.title or 'None'}")
 
