@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
 <div align="center">
 
-**Companies using Parlant in production:**
+**Companies using Parlant:**
 
 _Financial institutions • Healthcare providers • Legal firms • E-commerce platforms_
 
