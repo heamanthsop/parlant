@@ -260,6 +260,13 @@ class NLPServices:
         from parlant.adapters.nlp.gemini_service import GeminiService
 
         return GeminiService(container[Logger])
+    
+    @staticmethod
+    def ollama(container: Container) -> NLPService:
+        """Creates a Gemini NLPService instance using the provided container."""
+        from parlant.adapters.nlp.ollama_service import OllamaService
+
+        return OllamaService(container[Logger])
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):

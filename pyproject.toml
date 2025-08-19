@@ -100,6 +100,8 @@ deepseek = ["torch", "transformers"]
 
 gemini = ["google-genai", "google-api-core", "torch"]
 
+ollama = ["ollama"]
+
 litellm = ["litellm", "torch", "transformers"]
 
 mongo = ["pymongo"]
