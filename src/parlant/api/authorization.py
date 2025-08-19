@@ -111,6 +111,7 @@ class Operation(Enum):
     CREATE_HUMAN_AGENT_ON_BEHALF_OF_AI_AGENT_EVENT = (
         "create_human_agent_on_behalf_of_ai_agent_event"
     )
+    CREATE_STATUS_EVENT = "create_status_event"
     CREATE_CUSTOM_EVENT = "create_custom_event"
     READ_EVENT = "read_event"
     LIST_EVENTS = "list_events"
@@ -212,6 +213,7 @@ class ProductionAuthorizationPolicy(AuthorizationPolicy):
                 Operation.LIST_EVENTS: RateLimitItemPerMinute(240),
                 Operation.READ_EVENT: RateLimitItemPerMinute(30),
                 Operation.CREATE_CUSTOMER_EVENT: RateLimitItemPerMinute(30),
+                Operation.CREATE_STATUS_EVENT: RateLimitItemPerMinute(60),
             }
         )
 

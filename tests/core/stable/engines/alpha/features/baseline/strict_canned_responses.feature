@@ -141,9 +141,9 @@ Feature: Strict Canned Response
         And a canned response, "Is there anything else I could help you with?"
         And a canned response, "I'll look into that for you right away."
         When processing is triggered
-        Then a status event is emitted, acknowledging event -1
-        And a status event is emitted, processing event -1
-        And a status event is emitted, typing in response to event -1
+        Then a status event is emitted, acknowledging event
+        And a status event is emitted, processing event
+        And a status event is emitted, typing in response to event
         And a single message event is emitted
         And the message contains a 'Howdy' greeting
 
@@ -156,12 +156,12 @@ Feature: Strict Canned Response
         And a canned response, "Thank you for letting me know. Is there anything else I can help with?"
         And a canned response, "I'll be happy to assist you with all your beverage needs today."
         When processing is triggered
-        Then a status event is emitted, acknowledging event 0
-        And a status event is emitted, processing event 0
-        And a status event is emitted, typing in response to event 0
+        Then a status event is emitted, acknowledging event
+        And a status event is emitted, processing event
+        And a status event is emitted, typing in response to event
         And a single message event is emitted
         And the message contains an offering of a Pepsi
-        And a status event is emitted, ready for further engagement after reacting to event 0
+        And a status event is emitted, ready for further engagement after reacting to event
 
     Scenario: The agent chooses the closest canned response when none completely apply (strict canned response)
         Given an agent whose job is to sell pizza

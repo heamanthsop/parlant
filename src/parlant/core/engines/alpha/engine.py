@@ -900,7 +900,6 @@ class AlphaEngine(Engine):
             correlation_id=self._correlator.correlation_id,
             data={
                 "status": "error",
-                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "data": {"exception": exception_details},
             },
         )
@@ -909,7 +908,6 @@ class AlphaEngine(Engine):
         await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "acknowledged",
                 "data": {},
             },
@@ -919,7 +917,6 @@ class AlphaEngine(Engine):
         await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "processing",
                 "data": {"stage": stage},
             },
@@ -929,7 +926,6 @@ class AlphaEngine(Engine):
         await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "cancelled",
                 "data": {},
             },
@@ -939,7 +935,6 @@ class AlphaEngine(Engine):
         await context.session_event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": context.interaction.last_known_event_offset,
                 "status": "ready",
                 "data": {},
             },

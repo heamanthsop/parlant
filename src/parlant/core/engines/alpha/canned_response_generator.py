@@ -621,16 +621,9 @@ You will now be given the current state of the interaction to which you must gen
             context.state.message_events,
         )
 
-        last_known_event_offset = (
-            canrep_context.interaction_history[-1].offset
-            if canrep_context.interaction_history
-            else -1
-        )
-
         await canrep_context.event_emitter.emit_status_event(
             correlation_id=f"{self._correlator.correlation_id}",
             data={
-                "acknowledged_offset": last_known_event_offset,
                 "status": "typing",
                 "data": {},
             },
@@ -856,7 +849,6 @@ You will now be given the current state of the interaction to which you must gen
                         await context.event_emitter.emit_status_event(
                             correlation_id=self._correlator.correlation_id,
                             data={
-                                "acknowledged_offset": 0,
                                 "status": "ready",
                                 "data": {},
                             },
@@ -868,7 +860,6 @@ You will now be given the current state of the interaction to which you must gen
                             await context.event_emitter.emit_status_event(
                                 correlation_id=self._correlator.correlation_id,
                                 data={
-                                    "acknowledged_offset": 0,
                                     "status": "typing",
                                     "data": {},
                                 },
@@ -1398,10 +1389,6 @@ Output a JSON object with three properties:
         temperature: float,
     ) -> tuple[Mapping[str, GenerationInfo], Optional[_CannedResponseSelectionResult]]:
         # This will be needed throughout the process for emitting status events
-        last_known_event_offset = (
-            context.interaction_history[-1].offset if context.interaction_history else -1
-        )
-
         direct_draft_output_mode = (
             not canned_responses and context.agent.composition_mode != CompositionMode.CANNED_STRICT
         )
@@ -1427,7 +1414,6 @@ Output a JSON object with three properties:
             await context.event_emitter.emit_status_event(
                 correlation_id=self._correlator.correlation_id,
                 data={
-                    "acknowledged_offset": last_known_event_offset,
                     "status": "typing",
                     "data": {},
                 },
@@ -1436,7 +1422,6 @@ Output a JSON object with three properties:
             await context.event_emitter.emit_status_event(
                 correlation_id=self._correlator.correlation_id,
                 data={
-                    "acknowledged_offset": last_known_event_offset,
                     "status": "processing",
                     "data": {"stage": "Articulating"},
                 },
@@ -1466,7 +1451,6 @@ Output a JSON object with three properties:
         await context.event_emitter.emit_status_event(
             correlation_id=self._correlator.correlation_id,
             data={
-                "acknowledged_offset": last_known_event_offset,
                 "status": "typing",
                 "data": {},
             },

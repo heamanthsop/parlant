@@ -8,11 +8,11 @@ Feature: Fluid Canned Response
     Scenario: The agent greets the customer (fluid canned response)
         Given a guideline to greet with 'Howdy' when the session starts
         When processing is triggered
-        Then a status event is emitted, acknowledging event -1
-        And a status event is emitted, typing in response to event -1
+        Then a status event is emitted, acknowledging event
+        And a status event is emitted, typing in response to event
         And a single message event is emitted
         And the message contains a 'Howdy' greeting
-        And a status event is emitted, ready for further engagement after reacting to event -1
+        And a status event is emitted, ready for further engagement after reacting to event
 
     Scenario: Responding based on data the user is providing (fluid canned response)
         Given a customer message, "I say that a banana is green, and an apple is purple. What did I say was the color of a banana?"
@@ -91,9 +91,9 @@ Feature: Fluid Canned Response
         And a canned response, "Is there anything else I could help you with?"
         And a canned response, "I'll look into that for you right away."
         When processing is triggered
-        Then a status event is emitted, acknowledging event -1
-        And a status event is emitted, processing event -1
-        And a status event is emitted, typing in response to event -1
+        Then a status event is emitted, acknowledging event
+        And a status event is emitted, processing event
+        And a status event is emitted, typing in response to event
         And a single message event is emitted
         And the message contains a 'Howdy' greeting
 
@@ -106,12 +106,12 @@ Feature: Fluid Canned Response
         And a canned response, "Thank you for letting me know. Is there anything else I can help with?"
         And a canned response, "I'll be happy to assist you with all your beverage needs today."
         When processing is triggered
-        Then a status event is emitted, acknowledging event 0
-        And a status event is emitted, processing event 0
-        And a status event is emitted, typing in response to event 0
+        Then a status event is emitted, acknowledging event
+        And a status event is emitted, processing event
+        And a status event is emitted, typing in response to event
         And a single message event is emitted
         And the message contains an offering of a Pepsi
-        And a status event is emitted, ready for further engagement after reacting to event 0
+        And a status event is emitted, ready for further engagement after reacting to event
 
     Scenario: The agent correctly applies greeting guidelines based on auxiliary data (fluid canned response)
         Given an agent named "Chip Bitman" whose job is to work at a tech store and help customers choose what to buy. You're clever, witty, and slightly sarcastic. At the same time you're kind and funny.
