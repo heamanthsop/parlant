@@ -21,8 +21,6 @@ The Vertex AI Service Adapter provides integration with Google Cloud's Vertex AI
 ```bash
 # Required
 VERTEX_AI_PROJECT_ID=your-gcp-project-id
-
-# Optional
 VERTEX_AI_REGION=us-central1  # Default region
 VERTEX_AI_MODEL=claude-sonnet-3.5  # Default model
 ```
@@ -64,20 +62,14 @@ gcloud auth application-default login
 ### Basic Setup
 
 ```python
-from parlant.adapters.nlp.vertex_service import create_vertex_ai_service
-from parlant.core.server import Server
+import parlant.sdk import p
+from parlant.sdk import NLPServices
 
-# Create service loader
-vertex_ai_loader = create_vertex_ai_service(
-    project_id="your-gcp-project-id",
-    region="us-central1",
-    model_name="claude-sonnet-3.5"
-)
-
-# Use with Parlant server
-async with Server(nlp_service=vertex_ai_loader) as server:
-    # Your application code
-    pass
+async with p.Server(nlp_service=NLPServices.vertex) as server:
+        agent = await server.create_agent(
+            name="Healthcare Agent",
+            description="Is empathetic and calming to the patient.",
+        )
 ```
 
 ### Direct Service Usage
@@ -369,21 +361,10 @@ Permission denied accessing Vertex AI. Ensure:
 4. **Gemini 2.5 Pro**: Complex reasoning tasks
 
 ### Configuration
-
 ```python
-# Production configuration
-vertex_ai_loader = create_vertex_ai_service(
-    project_id=os.environ["GCP_PROJECT_ID"],
-    region="us-central1",  # Choose closest region
-    model_name="claude-sonnet-3.5"  # Reliable default
-)
-
-# Development configuration
-vertex_ai_loader = create_vertex_ai_service(
-    project_id="dev-project",
-    region="us-central1",
-    model_name="gemini-2.5-flash"  # Faster for testing
-)
+   export VERTEX_AI_PROJECT_ID=your-project-id
+   export VERTEX_AI_REGION=us-central1
+   export VERTEX_AI_MODEL=claude-sonnet-3.5
 ```
 
 ### Error Handling
@@ -455,19 +436,7 @@ When migrating from other NLP adapters:
    export VERTEX_AI_MODEL=claude-sonnet-3.5
    ```
 
-2. **Update Service Creation**
-   ```python
-   # Old
-   openai_loader = create_openai_service(api_key="...")
-   
-   # New
-   vertex_ai_loader = create_vertex_ai_service(
-       project_id="your-project-id",
-       model_name="claude-sonnet-3.5"
-   )
-   ```
-
-3. **Model Name Mapping**
+2. **Model Name Mapping**
    - `gpt-4` → `claude-sonnet-3.5`
    - `gpt-3.5-turbo` → `gemini-2.5-flash`
    - `claude-3-sonnet` → `claude-sonnet-3.5`

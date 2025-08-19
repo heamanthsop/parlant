@@ -16,6 +16,7 @@
 
 # Moderation service needs to be added
 # Usage guidelines - Use gemini-2.5-pro and claude sonnet 4 models for best results
+# Set env variables: VERTEX_AI_PROJECT_ID VERTEX_AI_REGION, VERTEX_AI_MODEL
 
 import os
 import time
@@ -89,7 +90,7 @@ class VertexAIEstimatingTokenizer(EstimatingTokenizer):
             return int(len(tokens) * 1.15) # @check - as seen on aws_service for bedrock
         else:
             model_approximation = {
-                "text-embedding-004": "gemini-1.5-flash",
+                "text-embedding-004": "gemini-2.5-pro",
             }.get(self.model_name, self.model_name)
 
             result = await self._client.aio.models.count_tokens(
@@ -760,48 +761,3 @@ class VertexAIService(NLPService):
     async def get_moderation_service(self) -> ModerationService: #@Todo - add moderation service
         """Get a moderation service."""
         return NoModeration()
-
-
-def create_vertex_ai_service(
-    project_id: str,
-    region: str = "us-central1",
-    model_name: str = "claude-sonnet-3.5"
-):
-    """
-    Factory function to create a VertexAI NLP service loader for Parlant.
-    
-    Args:
-        project_id: Your Google Cloud Project ID
-        region: The Vertex AI region (default: us-central1)
-        model_name: The model to use. Can be:
-            - Claude models: "claude-opus-4", "claude-sonnet-4", 
-              "claude-sonnet-3.5", "claude-haiku-3.5"
-            - Gemini models: "gemini-2.5-flash", "gemini-2.5-pro", 
-              "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"
-            - Or full model names like "claude-3-5-sonnet-v2@20241022"
-    
-    Usage:
-         vertex_ai_loader = create_vertex_ai_service(
-         project_id="your_project_id",
-         region="us-central1",
-         model_name="claude-sonnet-3.5"  # or "gemini-1.5-flash"
-     )
-        
-        async with Server(nlp_service=vertex_ai_loader) as server:
-            # Your code here
-    
-    Note: 
-    - For Claude models: Requires Application Default Credentials to be configured.
-      Run 'gcloud auth application-default login' for local development.
-    - For Gemini models: Requires GEMINI_API_KEY environment variable to be set. @check i dont think gemini api key is required
-    - Set env variables: VERTEX_AI_PROJECT_ID VERTEX_AI_REGION
-    """
-    def loader(container) -> NLPService:
-        return VertexAIService(
-            # project_id=project_id,
-            # region=region,
-            # model_name=model_name,
-            logger=container[Logger]
-        )
-    
-    return loader
