@@ -1205,9 +1205,12 @@ class AlphaEngine(Engine):
         )
 
         for journey_id, path in new_journey_paths.items():
-            if journey_id in journey_paths:
-                journey_paths[journey_id].extend(path)
-            else:
+            if journey_paths and journey_paths[journey_id]:
+                if path != [None] or (
+                    journey_id in journey_paths and journey_paths[journey_id][-1] is not None
+                ):
+                    journey_paths[journey_id].extend(path)
+            elif path != [None]:
                 journey_paths[journey_id] = path
 
         return journey_paths
