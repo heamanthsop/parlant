@@ -20,17 +20,15 @@
 
 import os
 import time
-import json
 from typing import Any, Mapping, cast, Optional
 from typing_extensions import override
 from enum import Enum
 
 import google.auth
-from google.auth.transport.requests import Request
-from google.auth.exceptions import GoogleAuthError
 import google.api_core.exceptions
 import google.genai  # type: ignore
 import google.genai.types  # type: ignore
+from google.api_core.exceptions import NotFound, TooManyRequests, ResourceExhausted, ServerError
 
 from anthropic import (
     AsyncAnthropicVertex,
@@ -284,16 +282,16 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
     
     @policy([
         retry(
-            exceptions=(#@todo: import them properly later
-                google.api_core.exceptions.NotFound,
-                google.api_core.exceptions.TooManyRequests,
-                google.api_core.exceptions.ResourceExhausted,
+            exceptions=(
+                NotFound,
+                TooManyRequests,
+                ResourceExhausted,
             ),
             max_exceptions=3,
             wait_times=(1.0, 2.0, 4.0)
         ),
         retry(
-            google.api_core.exceptions.ServerError,
+            ServerError,
             max_exceptions=2,
             wait_times=(1.0, 5.0)
         ),
@@ -321,8 +319,8 @@ class VertexAIGeminiSchematicGenerator(SchematicGenerator[T]):
                 contents=prompt,
                 config=cast(google.genai.types.GenerateContentConfigOrDict, config),
             )
-        except google.api_core.exceptions.TooManyRequests:
-            self._logger.error(#@todo: declare as constant at the top
+        except TooManyRequests:
+            self._logger.error(
                 "Google API rate limit exceeded.\n\n"
                 "Possible reasons:\n"
                 "1. Insufficient API credits in your account.\n"
@@ -554,10 +552,10 @@ class VertexTextEmbedding004(VertexAIEmbedder):
     
     @policy([
         retry(
-            exceptions=(#@todo: import properly at the top
-                google.api_core.exceptions.NotFound,
-                google.api_core.exceptions.TooManyRequests,
-                google.api_core.exceptions.ResourceExhausted,
+            exceptions=(
+                NotFound,
+                TooManyRequests,
+                ResourceExhausted,
             ),
             max_exceptions=3,
             wait_times=(1.0, 2.0, 4.0)
@@ -586,7 +584,7 @@ class VertexTextEmbedding004(VertexAIEmbedder):
             ]
             return EmbeddingResult(vectors=vectors)
             
-        except google.api_core.exceptions.TooManyRequests:
+        except TooManyRequests:
             self._logger.error(
                 (
                     "Google API rate limit exceeded. Possible reasons:\n"
@@ -626,16 +624,10 @@ class VertexAIService(NLPService):
     
     def __init__(
         self,
-        # project_id: str,
-        # region: str,
-        # model_name: str,
         logger: Logger,
     ) -> None:
         self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID", "default_project_id")
         self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
-        # self.model_name = 
-        # self.project_id = project_id
-        # self.region = region
         self.model_name = self._normalize_model_name(os.environ.get("VERTEX_AI_MODEL", "claude-sonnet-3.5"))
         self._logger = logger
         
