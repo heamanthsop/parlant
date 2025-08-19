@@ -15,6 +15,7 @@
 # Maintainer: Agam Dubey hello.world.agam@gmail.com
 
 # Moderation service needs to be added
+# Usage guidelines - Use gemini-2.5-pro and claude sonnet 4 models for best results
 
 import os
 import time
@@ -172,7 +173,6 @@ class VertexAIClaudeSchematicGenerator(SchematicGenerator[T]):
             prompt = prompt.build()
         
         anthropic_api_arguments = {k: v for k, v in hints.items() if k in self.supported_hints}
-        print("Args are :")
         
         t_start = time.time()
         try:
