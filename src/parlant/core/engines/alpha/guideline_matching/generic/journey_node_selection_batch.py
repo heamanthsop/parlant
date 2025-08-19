@@ -346,7 +346,7 @@ def get_journey_transition_map_text(
             displayed_node_action = FORK_NODE_ACTION_STR
             flags_str += "- NEVER OUTPUT THIS STEP AS NEXT_STEP: This step is transitional and should never be returned as the next_step. Always advance onwards from it.\n"
         else:
-            displayed_node_action = node.action
+            displayed_node_action = cast(str, node.action)
         if node.kind == JourneyNodeKind.TOOL and node.id != last_executed_node_id:
             flags_str += (
                 "- REQUIRES TOOL CALLS: Do not advance past this step! If you got here, stop.\n"
