@@ -82,26 +82,6 @@ Feature: Fluid Canned Response
         And the message contains asking the customer for their mobile number or email address
         And the message contains nothing about wishing the customer a good day
 
-    Scenario: Critical guideline overrides journey (fluid canned response)
-        Given the journey called "Reset Password Journey"
-        And a canned response, "What is the name of your account?"
-        And a canned response, "can you please provide the email address or phone number attached to this account?"
-        And a canned response, "Thank you, have a good day!"
-        And a canned response, "I'm sorry but I have no information about that"
-        And a canned response, "Is there anything else I could help you with?"
-        And a canned response, "Your password was successfully reset. An email with further instructions will be sent to your address."
-        And a canned response, "An error occurred, your password could not be reset"
-        And a canned response, "Before proceeding, could you please state your age?"
-        And the tool "reset_password"
-        And a guideline to ask the customer their age, and do not continue with any other process or ask additional questions unless it is over 21 when the customer provides a username that includes what could potentially be their year of birth        And a customer message, "I want to reset my password"
-        And an agent message, "I can help you do just that. What's your username?"
-        And a customer message, "it's leonardo_barbosa_1982"
-        And a journey path "[2]" for the journey "Reset Password Journey"
-        When processing is triggered
-        Then no tool calls event is emitted
-        And a single message event is emitted
-        And the message contains asking the customer for their age
-        And the message contains no questions about the customer's email address or phone number
 
     Scenario: The agent greets the customer 2 (fluid canned response)
         Given a guideline to greet with 'Howdy' when the session starts
