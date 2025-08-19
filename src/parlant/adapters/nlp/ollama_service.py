@@ -19,7 +19,7 @@ import time
 from typing import Any, Mapping, cast, Sequence
 from typing_extensions import override
 import asyncio
-
+import tiktoken
 import ollama
 import jsonfinder  # type: ignore
 from pydantic import ValidationError
@@ -66,13 +66,13 @@ class OllamaEstimatingTokenizer(EstimatingTokenizer):
     
     def __init__(self, model_name: str):
         self.model_name = model_name
+        self.encoding = tiktoken.encoding_for_model("gpt-4o-2024-08-06")
     
     @override
     async def estimate_token_count(self, prompt: str) -> int:
-        """Estimate token count using a simple heuristic (4 chars ≈ 1 token)."""
-        # Simple estimation - 4 characters per token is a reasonable approximation
-        # For more accuracy, Implement a proper tokenizer or call Ollama's API @TODO
-        return len(prompt) // 4
+        """Estimate token count using tiktoken"""
+        tokens = self.encoding.encode(prompt)
+        return int(len(tokens) * 1.15)
 
 
 class OllamaSchematicGenerator(SchematicGenerator[T]):
@@ -85,7 +85,7 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         model_name: str,
         logger: Logger,
         base_url: str = "http://localhost:11434",
-        default_timeout: int = 300, 
+        default_timeout: int | str = 300, 
     ) -> None:
         self.model_name = model_name
         self.base_url = base_url.rstrip('/')
@@ -109,7 +109,7 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
     @override
     def max_tokens(self) -> int:
         if "1b" in self.model_name.lower():
-            return 4096
+            return 12288
         elif "4b" in self.model_name.lower():
             return 16384
         elif "8b" in self.model_name.lower():
@@ -119,14 +119,20 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         elif "27b" in self.model_name.lower() or "405b" in self.model_name.lower():
             return 32768
         else:
-            return 4096
+            return 16384
     
-    # @TODO: This function isn't working properly and doesnt return correct model names - debug and fix
     async def _ensure_model_exists(self):
         """Check if the model exists and pull it if necessary."""
         try:
             models = await self._client.list()
-            model_names = [model['name'] for model in models.get('models', [])]
+            model_names = []
+            for model in models.get('models', []):
+                if hasattr(model, 'model'):
+                    model_names.append(model.model)
+                elif isinstance(model, dict) and 'model' in model:
+                    model_names.append(model['model'])
+                elif isinstance(model, dict) and 'name' in model:
+                    model_names.append(model['name'])
 
             model_base = self.model_name.split(':')[0]
             model_found = any(model_base in model for model in model_names)
@@ -137,7 +143,9 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
                 
         except Exception as e:
             self._logger.warning(f"Could not check model availability: {e}")
-    # @TODO: rather recommend user to ollama pull modelname:tag beforehand
+            import traceback
+            self._logger.debug(f"Full traceback: {traceback.format_exc()}")
+    # put as fallback - user should ollama pull model before hand
     async def _pull_model(self):
         """Pull the model from Ollama if it doesn't exist."""
         try:
@@ -203,8 +211,7 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         t_start = time.time()
         
         try:
-            # @TODO: commented out because its not working properly right now
-            # await self._ensure_model_exists()
+            await self._ensure_model_exists()
             
             self._logger.debug(f"Sending request to Ollama with timeout={timeout}s")
             
@@ -254,8 +261,7 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
             f"Failed to extract JSON returned by {self.model_name}:\n{raw_content}"
             )
             raise
-                    
-        total_duration = response.get("total_duration", 0) / 1e9  # @TODO: is this right?
+        
         prompt_eval_count = response.get("prompt_eval_count", 0)
         eval_count = response.get("eval_count", 0)
         
@@ -271,12 +277,6 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
                     usage=UsageInfo(
                         input_tokens=prompt_eval_count,
                         output_tokens=eval_count,
-                        extra={
-                            "total_duration": total_duration,
-                            "load_duration": response.get("load_duration", 0) / 1e9,
-                            "prompt_eval_duration": response.get("prompt_eval_duration", 0) / 1e9,
-                            "eval_duration": response.get("eval_duration", 0) / 1e9,
-                        }
                     ),
                 ),
             )
@@ -377,7 +377,7 @@ class OllamaLlama31_405B(OllamaSchematicGenerator[T]):
             base_url=base_url,
         )
 
-# @TODO: ask user to ollama pull nomic-embed-text:latest before hand
+# ask user to ollama pull nomic-embed-text:latest before hand
 class OllamaEmbedder(Embedder):
     """Embedder that uses Ollama embedding models."""
     
@@ -413,19 +413,30 @@ class OllamaEmbedder(Embedder):
         else:
             return 768  # Default
     
-    # @TODO CHECK AND FIX THIS AS ITS NOT WORKING 
-    # async def _ensure_embedding_model_exists(self):
-    #     """Check if the embedding model exists and pull it if necessary."""
-    #     try:
-    #         models = await self._client.list()
-    #         model_names = [model['name'] for model in models.get('models', [])]
-    #         
-    #         if self.model_name not in model_names:
-    #             self._logger.info(f"Embedding model {self.model_name} not found. Attempting to pull...")
-    #             await self._client.pull(self.model_name)
+    async def _ensure_embedding_model_exists(self):
+        """Check if the embedding model exists and pull it if necessary."""
+        try:
+            models = await self._client.list()
+            
+            model_names = []
+            for model in models.get('models', []):
+                if hasattr(model, 'model'):
+                    model_names.append(model.model)
+                elif isinstance(model, dict) and 'model' in model:
+                    model_names.append(model['model'])
+                elif isinstance(model, dict) and 'name' in model:
+                    model_names.append(model['name'])
+            model_base = self.model_name.split(':')[0]
+            model_found = any(model_base in model for model in model_names)
+            
+            if not model_found and self.model_name not in model_names:
+                self._logger.info(f"Model {self.model_name} not found. Attempting to pull...")
+                await self._client.pull(self.model_name)
                 
-    #     except Exception as e:
-    #         self._logger.warning(f"Could not check embedding model availability: {e}")
+        except Exception as e:
+            self._logger.warning(f"Could not check embedding model availability: {e}")
+            import traceback
+            self._logger.debug(f"Full traceback: {traceback.format_exc()}")
     
     @policy([
         retry(
@@ -441,8 +452,7 @@ class OllamaEmbedder(Embedder):
         hints: Mapping[str, Any] = {},
     ) -> EmbeddingResult:
         try:
-            # @TODO CHECK AND FIX THIS AS ITS NOT WORKING 
-            # await self._ensure_embedding_model_exists()
+            await self._ensure_embedding_model_exists()
             
             response = await self._client.embed(
                 model=self.model_name,
@@ -472,17 +482,13 @@ class OllamaService(NLPService):
     def __init__(
         self,
         logger: Logger,
-        base_url: str = "http://localhost:11434",
-        model_size: str = "4b",
-        embedding_model: str = "nomic-embed-text",
-        default_timeout: int = 300,
     ) -> None:
-        self.base_url = base_url
-        self.model_size = model_size
-        self.embedding_model = embedding_model
-        self.default_timeout = default_timeout
+        self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip('/')
+        self.model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
+        self.embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+        self.default_timeout = os.environ.get("OLLAMA_API_TIMEOUT", 300)
         self._logger = logger
-        self._logger.info(f"Initialized OllamaService with gemma3:{model_size} at {base_url}")
+        self._logger.info(f"Initialized OllamaService with gemma3:{self.model_size} at {self.base_url}")
     
     @override
     async def get_schematic_generator(self, t: type[T]) -> SchematicGenerator[T]:
@@ -539,54 +545,6 @@ class OllamaService(NLPService):
     async def get_moderation_service(self) -> ModerationService:
         """Get a moderation service (using no moderation for local models)."""
         return NoModeration()
-
-
-def create_ollama_service(
-    base_url: str = "http://localhost:11434",
-    model_size: str = "4b",
-    embedding_model: str = "nomic-embed-text",
-    timeout: int = 300,
-):
-    """
-    Factory function to create an Ollama NLP service loader for Parlant.
-    
-    Args:
-        base_url: The Ollama server URL (default: http://localhost:11434)
-        model_size: The model size - "1b", "4b", "8b", "12b", "27b", "70b", "405b" (default: "4b")
-                   Gemma 3: "1b", "4b", "12b", "27b"
-                   Llama 3.1: "8b", "70b", "405b"
-                   Note: 1b models may struggle with complex schema validation.
-                   70b and 405b models require significant GPU resources.
-        embedding_model: The embedding model to use (default: nomic-embed-text)
-        timeout: Request timeout in seconds (default: 300)
-    
-    Usage:
-        # Recommended: Use Gemma 3 4B for better schema compliance
-        def load_ollama_service(container) -> NLPService:
-            return create_ollama_service(model_size="4b")(container)
-        
-        # Use Llama 3.1 8B for better reasoning
-        def load_ollama_service(container) -> NLPService:
-            return create_ollama_service(model_size="8b")(container)
-        
-        # @warn: Large models - only for high-end hardware/cloud
-        def load_ollama_service(container) -> NLPService:
-            return create_ollama_service(model_size="70b", timeout=900)(container)
-        
-        async with Server(nlp_service=load_ollama_service) as server:
-            # Your code here
-    """
-    def loader(container) -> NLPService:
-        return OllamaService(
-            logger=container[Logger],
-            base_url=base_url,
-            model_size=model_size,
-            embedding_model=embedding_model,
-            default_timeout=timeout,
-        )
-    
-    return loader
-
 
 # Available models in Ollama
 GEMMA3_MODELS = {
