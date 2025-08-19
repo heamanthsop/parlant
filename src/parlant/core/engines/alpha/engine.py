@@ -232,11 +232,9 @@ class AlphaEngine(Engine):
 
     async def _load_interaction_state(self, context: Context) -> Interaction:
         history = await self._entity_queries.find_events(context.session_id)
-        last_known_event_offset = history[-1].offset if history else -1
 
         return Interaction(
             history=history,
-            last_known_event_offset=last_known_event_offset,
         )
 
     async def _do_process(
@@ -394,7 +392,7 @@ class AlphaEngine(Engine):
         if load_interaction:
             interaction = await self._load_interaction_state(context)
         else:
-            interaction = Interaction([], -1)
+            interaction = Interaction([])
 
         return LoadedContext(
             info=context,
