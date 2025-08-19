@@ -14,9 +14,7 @@
 
 # Maintainer: Agam Dubey hello.world.agam@gmail.com
 
-# Check all todos for current pending work
 # Moderation service needs to be added
-# more todo: have to make this so that it works with sdk.py
 
 import os
 import time
