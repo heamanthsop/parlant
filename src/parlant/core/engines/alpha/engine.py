@@ -1198,7 +1198,7 @@ class AlphaEngine(Engine):
         )
 
         for journey_id, path in new_journey_paths.items():
-            if journey_paths and journey_paths[journey_id]:
+            if journey_paths and journey_id in journey_paths and journey_paths[journey_id]:
                 if path != [None] or (
                     journey_id in journey_paths and journey_paths[journey_id][-1] is not None
                 ):
