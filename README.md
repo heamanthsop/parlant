@@ -161,7 +161,7 @@ if __name__ == "__main__":
 - **📱 React Widget** - [Drop-in chat UI for any web app](https://github.com/emcie-co/parlant-chat-react)
 - **🔍 Full Explainability** - Understand every decision your agent makes
 
-## 📈 Join 5,000+ Developers Building Better AI
+## 📈 Join 7,000+ Developers Building Better AI
 
 <div align="center">
 
@@ -172,6 +172,11 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 [![Star History Chart](https://api.star-history.com/svg?repos=emcie-co/parlant&type=Date)](https://star-history.com/#emcie-co/parlant&Date)
 
 </div>
+
+## 🌟 What Developers Are Saying
+
+> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
+
 
 ## 🏃‍♂️ Quick Start Paths
 
@@ -189,10 +194,6 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 <td><a href="https://discord.gg/duxWqxKk6J">→ Join our Discord community</a></td>
 </tr>
 </table>
-
-## 🌟 What Developers Are Saying
-
-> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
 
 ## 🤝 Community & Support
 
