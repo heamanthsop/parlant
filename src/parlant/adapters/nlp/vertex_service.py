@@ -625,7 +625,7 @@ class VertexAIService(NLPService):
         self,
         logger: Logger,
     ) -> None:
-        self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID", "default_project_id")
+        self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID")
         self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
         self.model_name = self._normalize_model_name(os.environ.get("VERTEX_AI_MODEL", "claude-sonnet-3.5"))
         self._logger = logger
