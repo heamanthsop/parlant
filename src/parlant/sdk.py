@@ -294,6 +294,9 @@ class NLPServices:
     def ollama(container: Container) -> NLPService:
         """Creates a Gemini NLPService instance using the provided container."""
         from parlant.adapters.nlp.ollama_service import OllamaService
+        
+        if error := OllamaService.verify_environment():
+            raise SDKError(error)
 
         return OllamaService(container[Logger])
 

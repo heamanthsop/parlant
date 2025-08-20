@@ -479,6 +479,33 @@ class OllamaEmbedder(Embedder):
 class OllamaService(NLPService):
     """NLP Service that uses Ollama models."""
     
+    @staticmethod
+    def verify_environment() -> str | None:
+        """Returns an error message if the environment is not set up correctly."""
+        
+        required_vars = {
+            "OLLAMA_BASE_URL": "http://localhost:11434",
+            "OLLAMA_MODEL_SIZE": "4b", 
+            "OLLAMA_EMBEDDING_MODEL": "nomic-embed-text",
+            "OLLAMA_API_TIMEOUT": "300"
+        }
+        
+        missing_vars = []
+        for var_name, default_value in required_vars.items():
+            if not os.environ.get(var_name):
+                missing_vars.append(f'export {var_name}="{default_value}"')
+        
+        if missing_vars:
+            return f"""\
+    You're using the Ollama NLP service, but the following environment variables are not set:
+
+    {chr(10).join(missing_vars)}
+
+    Please set these environment variables before running Parlant.
+    """
+        
+        return None
+    
     def __init__(
         self,
         logger: Logger,
@@ -486,7 +513,7 @@ class OllamaService(NLPService):
         self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip('/')
         self.model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
         self.embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
-        self.default_timeout = os.environ.get("OLLAMA_API_TIMEOUT", 300)
+        self.default_timeout = int(os.environ.get("OLLAMA_API_TIMEOUT", 300))
         self._logger = logger
         self._logger.info(f"Initialized OllamaService with gemma3:{self.model_size} at {self.base_url}")
     
