@@ -621,17 +621,56 @@ class VertexAIService(NLPService):
         "gemini-2.5-flash": "gemini-2.5-flash"
     }
     
+    @staticmethod
+    def verify_environment() -> str | None:
+        """Returns an error message if the environment is not set up correctly."""
+        
+        required_vars = {
+            "VERTEX_AI_PROJECT_ID": "your-project-id",
+            "VERTEX_AI_REGION": "us-central1", 
+            "VERTEX_AI_MODEL": "claude-sonnet-3.5"
+        }
+        
+        missing_vars = []
+        for var_name, example_value in required_vars.items():
+            if not os.environ.get(var_name):
+                missing_vars.append(f"export {var_name}={example_value}")
+        
+        if missing_vars:
+            return f"""\
+    You're using the VERTEX AI service, but required environment variables are not set.
+    Please set the following environment variables before running Parlant:
+
+    {chr(10).join(missing_vars)}
+    """
+        
+        return None
+    
+    @staticmethod
+    def validate_adc() -> str | None:
+        """Validate that Application Default Credentials are configured."""
+        try:
+            credentials, project = google.auth.default()
+            if not credentials:
+                return f"""\
+                        No Application Default Credentials found.
+                        Run 'gcloud auth application-default login' for local development.
+                        """
+        except Exception as e:
+            return f"""\
+                    Failed to load Application Default Credentials: {e}
+                    Run 'gcloud auth application-default login' for local development.
+                    """
+    
+    
     def __init__(
         self,
         logger: Logger,
     ) -> None:
-        self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID")
+        self.project_id = os.environ.get("VERTEX_AI_PROJECT_ID", "project_id")
         self.region = os.environ.get("VERTEX_AI_REGION", "us-central1")
         self.model_name = self._normalize_model_name(os.environ.get("VERTEX_AI_MODEL", "claude-sonnet-3.5"))
         self._logger = logger
-        
-        # Validate ADC is configured
-        self._validate_adc()
         
         self._logger.info(
             f"Initialized VertexAIService with model {self.model_name} "
@@ -648,22 +687,7 @@ class VertexAIService(NLPService):
         # Otherwise assume it's already a full model name
         return model_name
     
-    def _validate_adc(self) -> None:
-        """Validate that Application Default Credentials are configured."""
-        try:
-            credentials, project = google.auth.default()
-            if not credentials:
-                raise VertexAIAuthError(
-                    "No Application Default Credentials found. "
-                    "Run 'gcloud auth application-default login' for local development."
-                )
-            self._logger.info(f"ADC configured with project: {project}")
-        except Exception as e:
-            raise VertexAIAuthError(
-                f"Failed to load Application Default Credentials: {e}\n"
-                f"Run 'gcloud auth application-default login' for local development."
-            )
-    
+
     @override
     async def get_schematic_generator(self, t: type[T]) -> SchematicGenerator[T]:
         """Get a schematic generator for the specified type."""

@@ -369,7 +369,7 @@ class GeminiService(NLPService):
 
         if not os.environ.get("GEMINI_API_KEY"):
             return """\
-You're using the OpenAI NLP service, but GEMINI_API_KEY is not set.
+You're using the GEMINI NLP service, but GEMINI_API_KEY is not set.
 Please set GEMINI_API_KEY in your environment before running Parlant.
 """
 
