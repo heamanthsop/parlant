@@ -343,12 +343,13 @@ class _CachedEvaluator:
         g: GuidelineContent,
         tool_ids: Sequence[ToolId],
         journey_state_propositions: bool,
+        properties_proposition: bool,
     ) -> str:
         """Generate a hash for the guideline evaluation request."""
         tool_ids_str = ",".join(str(tool_id) for tool_id in tool_ids) if tool_ids else ""
 
         return md5(
-            f"{g.condition or ''}:{g.action or ''}:{tool_ids_str}:{journey_state_propositions}".encode()
+            f"{g.condition or ''}:{g.action or ''}:{tool_ids_str}:{journey_state_propositions}:{properties_proposition}".encode()
         ).hexdigest()
 
     def _hash_journey_evaluation_request(
@@ -374,6 +375,7 @@ class _CachedEvaluator:
             g=g,
             tool_ids=tool_ids,
             journey_state_proposition=True,
+            properties_proposition=False,
         )
 
     async def evaluate_guideline(
@@ -395,12 +397,14 @@ class _CachedEvaluator:
         tool_ids: Sequence[ToolId] = [],
         action_proposition: bool = True,
         journey_state_proposition: bool = False,
+        properties_proposition: bool = True,
     ) -> _CachedEvaluator.GuidelineEvaluation:
         # First check if we have a cached evaluation for this guideline
         _hash = self._hash_guideline_evaluation_request(
             g=g,
             tool_ids=tool_ids,
             journey_state_propositions=journey_state_proposition,
+            properties_proposition=properties_proposition,
         )
 
         if cached_evaluation := await self._guideline_collection.find_one({"id": {"$eq": _hash}}):
@@ -430,7 +434,7 @@ class _CachedEvaluator:
                         coherence_check=False,  # Legacy and will be removed in the future
                         connection_proposition=False,  # Legacy and will be removed in the future
                         action_proposition=action_proposition,
-                        properties_proposition=True,
+                        properties_proposition=properties_proposition,
                         journey_node_proposition=journey_state_proposition,
                     ),
                 )
