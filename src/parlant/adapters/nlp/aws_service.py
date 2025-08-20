@@ -179,6 +179,22 @@ class Claude_Sonnet_3_5(AnthropicBedrockAISchematicGenerator[T]):
 
 
 class BedrockService(NLPService):
+    @staticmethod
+    def verify_environment() -> str | None:
+        """Returns an error message if the environment is not set up correctly."""
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            return """\
+You're using the AWS Bedrock NLP service, but some environment variables are missing.
+Please consider seting the following your environment before running Parlant.
+
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_REGION
+- AWS_SESSION_TOKEN
+"""
+        return None
+
     def __init__(self, logger: Logger) -> None:
         self._logger = logger
 

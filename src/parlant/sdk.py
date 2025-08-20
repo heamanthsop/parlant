@@ -23,6 +23,8 @@ from hashlib import md5
 import importlib.util
 from itertools import chain
 from pathlib import Path
+import sys
+import rich
 from rich.console import Group
 from rich.progress import (
     BarColumn,
@@ -33,6 +35,7 @@ from rich.progress import (
     TextColumn,
 )
 from rich.live import Live
+from rich.text import Text
 from types import TracebackType
 from typing import (
     Any,
@@ -43,6 +46,7 @@ from typing import (
     Iterable,
     Literal,
     Mapping,
+    NoReturn,
     Optional,
     Sequence,
     TypeVar,
@@ -227,9 +231,22 @@ class NLPServices:
     """A collection of static methods to create built-in NLPService instances for the SDK."""
 
     @staticmethod
+    def azure(container: Container) -> NLPService:
+        """Creates an Azure NLPService instance using the provided container."""
+        from parlant.adapters.nlp.azure_service import AzureService
+
+        if error := AzureService.verify_environment():
+            raise SDKError(error)
+
+        return AzureService(container[Logger])
+
+    @staticmethod
     def openai(container: Container) -> NLPService:
         """Creates an OpenAI NLPService instance using the provided container."""
         from parlant.adapters.nlp.openai_service import OpenAIService
+
+        if error := OpenAIService.verify_environment():
+            raise SDKError(error)
 
         return OpenAIService(container[Logger])
 
@@ -238,12 +255,18 @@ class NLPServices:
         """Creates an Anthropic NLPService instance using the provided container."""
         from parlant.adapters.nlp.anthropic_service import AnthropicService
 
+        if error := AnthropicService.verify_environment():
+            raise SDKError(error)
+
         return AnthropicService(container[Logger])
 
     @staticmethod
     def cerebras(container: Container) -> NLPService:
         """Creates a Cerebras NLPService instance using the provided container."""
         from parlant.adapters.nlp.cerebras_service import CerebrasService
+
+        if error := CerebrasService.verify_environment():
+            raise SDKError(error)
 
         return CerebrasService(container[Logger])
 
@@ -252,12 +275,18 @@ class NLPServices:
         """Creates a Together NLPService instance using the provided container."""
         from parlant.adapters.nlp.together_service import TogetherService
 
+        if error := TogetherService.verify_environment():
+            raise SDKError(error)
+
         return TogetherService(container[Logger])
 
     @staticmethod
     def gemini(container: Container) -> NLPService:
         """Creates a Gemini NLPService instance using the provided container."""
         from parlant.adapters.nlp.gemini_service import GeminiService
+
+        if error := GeminiService.verify_environment():
+            raise SDKError(error)
 
         return GeminiService(container[Logger])
 
@@ -1878,6 +1907,15 @@ class ToolContextAccessor:
         return self.server._container[Logger]
 
 
+def _die(message: str, exc: Exception | None) -> NoReturn:
+    if exc:
+        import traceback
+
+        traceback.print_exception(exc)
+    rich.print(Text(message, style="bold red"), file=sys.stderr)
+    sys.exit(1)
+
+
 class Server:
     """The main server class that manages the agent, journeys, tools, and other components.
 
@@ -1966,16 +2004,20 @@ class Server:
         )
 
     async def __aenter__(self) -> Server:
-        self._startup_context_manager = start_parlant(self._get_startup_params())
-        self._container = await self._startup_context_manager.__aenter__()
+        try:
+            self._startup_context_manager = start_parlant(self._get_startup_params())
+            self._container = await self._startup_context_manager.__aenter__()
 
-        assert self._creation_progress
-        self._creation_progress = self._creation_progress.__enter__()
-        self._creation_progress_task_id = self._creation_progress.add_task(
-            "Caching entity embeddings", total=None
-        )
+            assert self._creation_progress
+            self._creation_progress = self._creation_progress.__enter__()
+            self._creation_progress_task_id = self._creation_progress.add_task(
+                "Caching entity embeddings", total=None
+            )
 
-        return self
+            return self
+        except SDKError as e:
+            _die(str(e), e)
+            raise
 
     async def __aexit__(
         self,
