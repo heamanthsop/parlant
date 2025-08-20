@@ -55,6 +55,26 @@ await agent.create_guideline(
 )
 ```
 
+#### Parlant gives you all the structure you need to build customer-facing agents that behave exactly as your business requires:
+
+- **[Journeys](https://parlant.io/docs/concepts/customization/journeys)**:
+  Define clear customer journeys and how your agent should respond at each step.
+
+- **[Behavioral Guidelines](https://parlant.io/docs/concepts/customization/guidelines)**:
+  Easily craft agent behavior; Parlant will match the relevant elements contextually.
+
+- **[Tool Use](https://parlant.io/docs/concepts/customization/tools)**:
+  Attach external APIs, data fetchers, or backend services to specific interaction events.
+
+- **[Domain Adaptation](https://parlant.io/docs/concepts/customization/glossary)**:
+  Teach your agent domain-specific terminology and craft personalized responses.
+
+- **[Canned Responses](https://parlant.io/docs/concepts/customization/canned-responses)**:
+  Use response templates to eliminate hallucinations and guarantee style consistency.
+
+- **[Explainability](https://parlant.io/docs/advanced/explainability)**:
+  Understand why and when each guideline was matched and followed.
+
 <div align="center">
 
 ## 🚀 Get Your Agent Running in 60 Seconds
