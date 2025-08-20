@@ -39,15 +39,15 @@ You build an AI agent. It works great in testing. Then real users start talking 
 
 **Sound familiar?** You're not alone. This is the #1 pain point for developers building production AI agents.
 
-## ⚡ The Solution: Teach Principles, Not Scripts
+## ⚡ The Solution: Don't Ramble, Teach Principles
 
-Parlant flips the script on AI agent development. Instead of hoping your LLM will follow instructions, **Parlant guarantees it**.
+Parlant flips the script on AI agent development. Instead of hoping your LLM will follow instructions, **Parlant ensures it**.
 
 ```python
 # Traditional approach: Cross your fingers 🤞
 system_prompt = "You are a helpful assistant. Please follow these 47 rules..."
 
-# Parlant approach: Guaranteed compliance ✅
+# Parlant approach: Ensured compliance ✅
 await agent.create_guideline(
     condition="Customer asks about refunds",
     action="Check order status first to see if eligible",
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**That's it!** Your agent is running with guaranteed rule-following behavior.
+**That's it!** Your agent is running with ensured rule-following behavior.
 
 ## 🎬 See It In Action
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 <td width="50%">
 
 - Define rules in natural language
-- **Guaranteed** rule compliance
+- **Ensured** rule compliance
 - Predictable, consistent behavior
 - Scale by adding guidelines
 - Production-ready from day one
