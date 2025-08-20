@@ -39,21 +39,41 @@ You build an AI agent. It works great in testing. Then real users start talking 
 
 **Sound familiar?** You're not alone. This is the #1 pain point for developers building production AI agents.
 
-## ⚡ The Solution: Teach Principles, Not Scripts
+## ⚡ The Solution: Stop Fighting Prompts, Teach Principles
 
-Parlant flips the script on AI agent development. Instead of hoping your LLM will follow instructions, **Parlant guarantees it**.
+Parlant flips the script on AI agent development. Instead of hoping your LLM will follow instructions, **Parlant ensures it**.
 
 ```python
 # Traditional approach: Cross your fingers 🤞
 system_prompt = "You are a helpful assistant. Please follow these 47 rules..."
 
-# Parlant approach: Guaranteed compliance ✅
+# Parlant approach: Ensured compliance ✅
 await agent.create_guideline(
     condition="Customer asks about refunds",
     action="Check order status first to see if eligible",
     tools=[check_order_status],
 )
 ```
+
+#### Parlant gives you all the structure you need to build customer-facing agents that behave exactly as your business requires:
+
+- **[Journeys](https://parlant.io/docs/concepts/customization/journeys)**:
+  Define clear customer journeys and how your agent should respond at each step.
+
+- **[Behavioral Guidelines](https://parlant.io/docs/concepts/customization/guidelines)**:
+  Easily craft agent behavior; Parlant will match the relevant elements contextually.
+
+- **[Tool Use](https://parlant.io/docs/concepts/customization/tools)**:
+  Attach external APIs, data fetchers, or backend services to specific interaction events.
+
+- **[Domain Adaptation](https://parlant.io/docs/concepts/customization/glossary)**:
+  Teach your agent domain-specific terminology and craft personalized responses.
+
+- **[Canned Responses](https://parlant.io/docs/concepts/customization/canned-responses)**:
+  Use response templates to eliminate hallucinations and guarantee style consistency.
+
+- **[Explainability](https://parlant.io/docs/advanced/explainability)**:
+  Understand why and when each guideline was matched and followed.
 
 <div align="center">
 
@@ -96,7 +116,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-**That's it!** Your agent is running with guaranteed rule-following behavior.
+**That's it!** Your agent is running with ensured rule-following behavior.
 
 ## 🎬 See It In Action
 
@@ -130,7 +150,7 @@ if __name__ == "__main__":
 <td width="50%">
 
 - Define rules in natural language
-- **Guaranteed** rule compliance
+- **Ensured** rule compliance
 - Predictable, consistent behavior
 - Scale by adding guidelines
 - Production-ready from day one
@@ -161,7 +181,7 @@ if __name__ == "__main__":
 - **📱 React Widget** - [Drop-in chat UI for any web app](https://github.com/emcie-co/parlant-chat-react)
 - **🔍 Full Explainability** - Understand every decision your agent makes
 
-## 📈 Join 5,000+ Developers Building Better AI
+## 📈 Join 7,000+ Developers Building Better AI
 
 <div align="center">
 
@@ -172,6 +192,11 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 [![Star History Chart](https://api.star-history.com/svg?repos=emcie-co/parlant&type=Date)](https://star-history.com/#emcie-co/parlant&Date)
 
 </div>
+
+## 🌟 What Developers Are Saying
+
+> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
+
 
 ## 🏃‍♂️ Quick Start Paths
 
@@ -189,10 +214,6 @@ _Financial institutions • Healthcare providers • Legal firms • E-commerce 
 <td><a href="https://discord.gg/duxWqxKk6J">→ Join our Discord community</a></td>
 </tr>
 </table>
-
-## 🌟 What Developers Are Saying
-
-> _"By far the most elegant conversational AI framework that I've come across! Developing with Parlant is pure joy."_ **— Vishal Ahuja, Senior Lead, Customer-Facing Conversational AI @ JPMorgan Chase**
 
 ## 🤝 Community & Support
 
