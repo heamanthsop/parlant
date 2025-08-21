@@ -55,6 +55,8 @@ ollama pull gemma3:4b-it-qat
 # Fast but may struggle with complex schemas
 ollama pull gemma3:1b
 
+# embedding model required for creating embeddings
+ollama pull nomic-embed-text
 ```
 
 ### Large Models (Cloud/High-end Hardware Only)
@@ -78,10 +80,10 @@ ollama pull llama3.1:405b
 
 ### Embedding Models
 
-```bash
-# Default embedding model (768 dimensions)
-ollama pull nomic-embed-text:latest
+To use custom embedding model set OLLAMA_EMBEDDING_MODEL environment value as required name
+Note that this implementation is tested using nomic-embed-text
 
+```bash
 # Alternative embedding model (512 dimensions)
 ollama pull mxbai-embed-large:latest
 ```

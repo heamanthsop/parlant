@@ -60,6 +60,65 @@ class OllamaTimeoutError(OllamaError):
     """Raised when Ollama request times out."""
     pass
 
+class OllamaModelVerifier:
+    """Utility class for verifying Ollama model availability."""
+    
+    @staticmethod
+    def verify_models(base_url: str, generation_model: str, embedding_model: str) -> str | None:
+        """
+        Returns an error string if required Ollama models are missing,
+        or None if all are available.
+        """
+        client = ollama.Client(host=base_url.rstrip('/'))
+        try:
+            models = client.list()
+
+            model_names = []
+            for model in models.get('models', []):
+                if hasattr(model, 'model'):
+                    model_names.append(model.model)
+                elif isinstance(model, dict) and 'model' in model:
+                    model_names.append(model['model'])
+                elif isinstance(model, dict) and 'name' in model:
+                    model_names.append(model['name'])
+                    
+            missing_models = []
+
+            gen_model_found = any(generation_model in model for model in model_names)
+            if not gen_model_found and generation_model not in model_names:
+                missing_models.append(f"    ollama pull {generation_model}")
+                
+            embed_model_found = any(embedding_model in model for model in model_names)
+            if not embed_model_found and embedding_model not in model_names:
+                missing_models.append(f"    ollama pull {embedding_model}")
+
+            if missing_models:
+                return f"""\
+The following required models are not available in Ollama:
+
+{chr(10).join(missing_models)}
+
+Please pull the missing models using the commands above.
+
+Available models: {', '.join(model_names) if model_names else 'None'}
+"""
+            return None
+
+        except ollama.ResponseError as e:
+            if e.status_code in [502, 503, 504]:
+                return f"""\
+Cannot connect to Ollama server at {base_url}.
+
+Please ensure Ollama is running:
+    ollama serve
+
+Or check if the OLLAMA_BASE_URL is correct: {base_url}
+"""
+            else:
+                return f"Error checking Ollama models: {e.error}"
+
+        except Exception as e:
+            return f"Error connecting to Ollama: {str(e)}"
 
 class OllamaEstimatingTokenizer(EstimatingTokenizer):
     """Simple tokenizer that estimates token count for Ollama models."""
@@ -121,47 +180,6 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         else:
             return 16384
     
-    async def _ensure_model_exists(self):
-        """Check if the model exists and pull it if necessary."""
-        try:
-            models = await self._client.list()
-            model_names = []
-            for model in models.get('models', []):
-                if hasattr(model, 'model'):
-                    model_names.append(model.model)
-                elif isinstance(model, dict) and 'model' in model:
-                    model_names.append(model['model'])
-                elif isinstance(model, dict) and 'name' in model:
-                    model_names.append(model['name'])
-
-            model_base = self.model_name.split(':')[0]
-            model_found = any(model_base in model for model in model_names)
-            
-            if not model_found and self.model_name not in model_names:
-                self._logger.info(f"Model {self.model_name} not found. Attempting to pull...")
-                await self._pull_model()
-                
-        except Exception as e:
-            self._logger.warning(f"Could not check model availability: {e}")
-            import traceback
-            self._logger.debug(f"Full traceback: {traceback.format_exc()}")
-    # put as fallback - user should ollama pull model before hand
-    async def _pull_model(self):
-        """Pull the model from Ollama if it doesn't exist."""
-        try:
-            self._logger.info(f"Pulling model {self.model_name}...")
-            
-            async for progress in await self._client.pull(self.model_name, stream=True):
-                status = progress.get('status', '')
-                if status and 'pulling' in status.lower():
-                    self._logger.info(f"Pull progress: {status}")
-                elif progress.get('completed'):
-                    self._logger.info(f"Successfully pulled model {self.model_name}")
-                    break
-                    
-        except Exception as e:
-            raise OllamaModelError(f"Error pulling model {self.model_name}: {e}")
-    
     def _create_options(self, hints: Mapping[str, Any]) -> dict:
         """Create options dict from hints for Ollama."""
         options = {}
@@ -211,8 +229,6 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         t_start = time.time()
         
         try:
-            await self._ensure_model_exists()
-            
             self._logger.debug(f"Sending request to Ollama with timeout={timeout}s")
             
             response = await asyncio.wait_for(
@@ -411,32 +427,7 @@ class OllamaEmbedder(Embedder):
         elif "mxbai" in self.model_name.lower():
             return 512
         else:
-            return 768  # Default
-    
-    async def _ensure_embedding_model_exists(self):
-        """Check if the embedding model exists and pull it if necessary."""
-        try:
-            models = await self._client.list()
-            
-            model_names = []
-            for model in models.get('models', []):
-                if hasattr(model, 'model'):
-                    model_names.append(model.model)
-                elif isinstance(model, dict) and 'model' in model:
-                    model_names.append(model['model'])
-                elif isinstance(model, dict) and 'name' in model:
-                    model_names.append(model['name'])
-            model_base = self.model_name.split(':')[0]
-            model_found = any(model_base in model for model in model_names)
-            
-            if not model_found and self.model_name not in model_names:
-                self._logger.info(f"Model {self.model_name} not found. Attempting to pull...")
-                await self._client.pull(self.model_name)
-                
-        except Exception as e:
-            self._logger.warning(f"Could not check embedding model availability: {e}")
-            import traceback
-            self._logger.debug(f"Full traceback: {traceback.format_exc()}")
+            return 768
     
     @policy([
         retry(
@@ -452,8 +443,6 @@ class OllamaEmbedder(Embedder):
         hints: Mapping[str, Any] = {},
     ) -> EmbeddingResult:
         try:
-            await self._ensure_embedding_model_exists()
-            
             response = await self._client.embed(
                 model=self.model_name,
                 input=texts
@@ -506,6 +495,47 @@ class OllamaService(NLPService):
         
         return None
     
+    @staticmethod
+    def verify_models() -> str | None:
+        """
+        Verify that the required models are available in Ollama.
+        Returns an error message if models are missing, None if all are available.
+        """
+        base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
+        embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+        
+        errors = []
+        
+        # Determine which generation model to check
+        generation_model = None
+        if model_size == "1b":
+            generation_model = "gemma3:1b"
+        elif model_size == "4b":
+            generation_model = "gemma3:4b-it-qat"
+        elif model_size == "8b":
+            generation_model = "llama3.1:8b"
+        elif model_size == "12b":
+            generation_model = "gemma3:12b"
+        elif model_size == "27b":
+            generation_model = "gemma3:27b-it-qat"
+        elif model_size == "70b":
+            generation_model = "llama3.1:70b"
+        elif model_size == "405b":
+            generation_model = "llama3.1:405b"
+        elif model_size == "empathetic":
+            generation_model = "seabass118/Empathetic-AI"
+        else:
+            generation_model = "gemma3:4b-it-qat"
+    
+        if error := OllamaModelVerifier.verify_models(base_url, generation_model, embedding_model):
+            print("Inside if error or verify : : ", error)
+            errors.append(f"Generation Model Issue:\n{error}")
+        
+        if errors:
+            return "\n\n".join(errors)
+        
+        return None
     def __init__(
         self,
         logger: Logger,
@@ -515,7 +545,7 @@ class OllamaService(NLPService):
         self.embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
         self.default_timeout = int(os.environ.get("OLLAMA_API_TIMEOUT", 300)) #always convert to int 
         self._logger = logger
-        self._logger.info(f"Initialized OllamaService with gemma3:{self.model_size} at {self.base_url}")
+        self._logger.info(f"Initialized OllamaService with {self.model_size} at {self.base_url}")
     
     @override
     async def get_schematic_generator(self, t: type[T]) -> SchematicGenerator[T]:
