@@ -310,17 +310,6 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
                 )
             
             raise
-
-# example model to test with @WARN
-class OllamaEmpathetic(OllamaSchematicGenerator[T]):
-    def __init__(self, logger: Logger, base_url: str = "http://localhost:11434") -> None:
-        super().__init__(
-            model_name="seabass118/Empathetic-AI",
-            logger=logger,
-            base_url=base_url,
-        )
-
-
 class OllamaGemma3_1B(OllamaSchematicGenerator[T]):
     def __init__(self, logger: Logger, base_url: str = "http://localhost:11434") -> None:
         super().__init__(
@@ -333,7 +322,7 @@ class OllamaGemma3_1B(OllamaSchematicGenerator[T]):
 class OllamaGemma3_4B(OllamaSchematicGenerator[T]):
     def __init__(self, logger: Logger, base_url: str = "http://localhost:11434") -> None:
         super().__init__(
-            model_name="gemma3:4b-it-qat",
+            model_name="gemma3:4b",
             logger=logger,
             base_url=base_url,
         )
@@ -351,7 +340,7 @@ class OllamaGemma3_12B(OllamaSchematicGenerator[T]):
 class OllamaGemma3_27B(OllamaSchematicGenerator[T]):
     def __init__(self, logger: Logger, base_url: str = "http://localhost:11434") -> None:
         super().__init__(
-            model_name="gemma3:27b-it-qat",
+            model_name="gemma3:27b",
             logger=logger,
             base_url=base_url,
         )
@@ -393,7 +382,16 @@ class OllamaLlama31_405B(OllamaSchematicGenerator[T]):
             base_url=base_url,
         )
 
-# ask user to ollama pull nomic-embed-text:latest before hand
+class CustomOllamaSchematicGenerator(OllamaSchematicGenerator[T]):
+    """Generic Ollama generator that accepts any model name."""
+    
+    def __init__(self, model_name: str, logger: Logger, base_url: str = "http://localhost:11434") -> None:
+        super().__init__(
+            model_name=model_name,
+            logger=logger,
+            base_url=base_url,
+        )
+
 class OllamaEmbedder(Embedder):
     """Embedder that uses Ollama embedding models."""
     
@@ -474,7 +472,7 @@ class OllamaService(NLPService):
         
         required_vars = {
             "OLLAMA_BASE_URL": "http://localhost:11434",
-            "OLLAMA_MODEL_SIZE": "4b", 
+            "OLLAMA_MODEL": "gemma3",
             "OLLAMA_EMBEDDING_MODEL": "nomic-embed-text",
             "OLLAMA_API_TIMEOUT": "300"
         }
@@ -486,12 +484,12 @@ class OllamaService(NLPService):
         
         if missing_vars:
             return f"""\
-    You're using the Ollama NLP service, but the following environment variables are not set:
+You're using the Ollama NLP service, but the following environment variables are not set:
 
-    {chr(10).join(missing_vars)}
+{chr(10).join(missing_vars)}
 
-    Please set these environment variables before running Parlant.
-    """
+Please set these environment variables before running Parlant.
+"""
         
         return None
     
@@ -502,89 +500,74 @@ class OllamaService(NLPService):
         Returns an error message if models are missing, None if all are available.
         """
         base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-        model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
         embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+        generation_model = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
         
-        errors = []
-        
-        # Determine which generation model to check
-        generation_model = None
-        if model_size == "1b":
-            generation_model = "gemma3:1b"
-        elif model_size == "4b":
-            generation_model = "gemma3:4b-it-qat"
-        elif model_size == "8b":
-            generation_model = "llama3.1:8b"
-        elif model_size == "12b":
-            generation_model = "gemma3:12b"
-        elif model_size == "27b":
-            generation_model = "gemma3:27b-it-qat"
-        elif model_size == "70b":
-            generation_model = "llama3.1:70b"
-        elif model_size == "405b":
-            generation_model = "llama3.1:405b"
-        elif model_size == "empathetic":
-            generation_model = "seabass118/Empathetic-AI"
-        else:
-            generation_model = "gemma3:4b-it-qat"
-    
         if error := OllamaModelVerifier.verify_models(base_url, generation_model, embedding_model):
-            errors.append(f"Generation Model Issue:\n{error}")
-        
-        if errors:
-            return "\n\n".join(errors)
+            return f"Model Verification Issue:\n{error}"
         
         return None
+    
     def __init__(
         self,
         logger: Logger,
     ) -> None:
         self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip('/')
-        self.model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
+        self.model_name = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
         self.embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
         self.default_timeout = int(os.environ.get("OLLAMA_API_TIMEOUT", 300)) #always convert to int 
         self._logger = logger
-        self._logger.info(f"Initialized OllamaService with {self.model_size} at {self.base_url}")
+        self._logger.info(f"Initialized OllamaService with {self.model_name} at {self.base_url}")
+        
+    def _get_specialized_generator_class(self, model_name: str) -> type[OllamaSchematicGenerator] | None:
+        """
+        Returns the specialized generator class for known models, or None for custom models.
+        """
+        model_to_class = {
+            "gemma3:1b": OllamaGemma3_1B,
+            "gemma3:4b": OllamaGemma3_4B,
+            "gemma3:12b": OllamaGemma3_12B,
+            "gemma3:27b": OllamaGemma3_27B,
+            "llama3.1:8b": OllamaLlama31_8B,
+            "llama3.1:70b": OllamaLlama31_70B,
+            "llama3.1:405b": OllamaLlama31_405B,
+        }
+        
+        return model_to_class.get(model_name)
+    
+    def _log_model_warnings(self, model_name: str) -> None:
+        """Log warnings for resource-intensive models."""
+        if "70b" in model_name.lower():
+            self._logger.warning(
+                f"Using {model_name} - This is a very large model requiring significant GPU memory. "
+                "Consider using smaller models for local development."
+            )
+        elif "405b" in model_name.lower():
+            self._logger.warning(
+                f"Using {model_name} - This is an extremely large model requiring massive GPU resources. "
+                "Only suitable for high-end cloud providers. Consider smaller alternatives."
+            )
     
     @override
     async def get_schematic_generator(self, t: type[T]) -> SchematicGenerator[T]:
         """Get a schematic generator for the specified type."""
-        generator_class = None
+        self._log_model_warnings(self.model_name)
         
-        if self.model_size == "1b":
-            generator_class = OllamaGemma3_1B
-        elif self.model_size == "4b":
-            generator_class = OllamaGemma3_4B
-        elif self.model_size == "8b":
-            generator_class = OllamaLlama31_8B
-        elif self.model_size == "12b":
-            generator_class = OllamaGemma3_12B
-        elif self.model_size == "27b":
-            generator_class = OllamaGemma3_27B
-        elif self.model_size == "70b":
-            self._logger.warning(
-                "Using Llama 3.1 70B - This is a very large model requiring significant GPU memory. "
-                "Consider using smaller models for local development."
+        specialized_class = self._get_specialized_generator_class(self.model_name)
+        if specialized_class:
+            self._logger.debug(f"Using specialized generator for model: {self.model_name}")
+            generator = specialized_class[t](  # type: ignore
+                logger=self._logger,
+                base_url=self.base_url
             )
-            generator_class = OllamaLlama31_70B
-        elif self.model_size == "405b":
-            self._logger.warning(
-                "Using Llama 3.1 405B - This is an extremely large model requiring massive GPU resources. "
-                "Only suitable for high-end cloud providers. Consider smaller alternatives."
-            )
-            generator_class = OllamaLlama31_405B
-        elif self.model_size == "empathetic":
-            # this is a experimental model which was used while testing @not recommended
-            generator_class = OllamaEmpathetic
         else:
-            # Default to 4B
-            self._logger.warning(f"Unknown model size {self.model_size}, defaulting to 4b")
-            generator_class = OllamaGemma3_4B
+            self._logger.debug(f"Using custom generator for model: {self.model_name}")
+            generator = CustomOllamaSchematicGenerator[t](  # type: ignore
+                model_name=self.model_name,
+                logger=self._logger,
+                base_url=self.base_url
+            )
         
-        generator = generator_class[t](  # type: ignore
-            logger=self._logger,
-            base_url=self.base_url
-        )
         generator._default_timeout = self.default_timeout
         return generator
     
@@ -602,27 +585,13 @@ class OllamaService(NLPService):
         """Get a moderation service (using no moderation for local models)."""
         return NoModeration()
 
-# Available models in Ollama
-GEMMA3_MODELS = {
-    "gemma3:1b": "gemma3:1b",
-    "gemma3:4b": "gemma3:4b", 
-    "gemma3:12b": "gemma3:12b",
-    "gemma3:27b": "gemma3:27b",
-}
-
-LLAMA31_MODELS = {
-    "llama3.1:8b": "llama3.1:8b",
-    "llama3.1:70b": "llama3.1:70b",  # @warn: Large model
-    "llama3.1:405b": "llama3.1:405b",  # @warn: Extremely large model
-}
-
 # Model size recommendations
 MODEL_RECOMMENDATIONS = {
-    "1b": "Fast but may struggle with complex schemas",
-    "4b": "Recommended for most use cases - good balance of speed and accuracy", 
-    "8b": "Better reasoning capabilities than Gemma models",
-    "12b": "High accuracy for complex tasks",
-    "27b": "Very high accuracy but slower",
-    "70b": "@warn: Requires significant GPU memory (40GB+)",
-    "405b": "@warn: Requires massive GPU resources (200GB+), cloud-only",
+    "gemma3:1b": "Fast but may struggle with complex schemas",
+    "gemma3:4b": "Recommended for most use cases - good balance of speed and accuracy", 
+    "llama3.1:8b": "Better reasoning capabilities",
+    "gemma3:12b": "High accuracy for complex tasks",
+    "gemma3:27b": "Very high accuracy but slower",
+    "llama3.1:70b": "@warn: Requires significant GPU memory (40GB+)",
+    "llama3.1:405b": "@warn: Requires massive GPU resources (200GB+), cloud-only",
 }

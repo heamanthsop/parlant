@@ -17,8 +17,8 @@ Configure the Ollama service using these environment variables:
 export OLLAMA_BASE_URL="http://localhost:11434"
 
 # Model size to use (default: 4b)
-# Options: 1b, 4b, 8b, 12b, 27b, 70b, 405b, empathetic
-export OLLAMA_MODEL_SIZE="4b"
+# Options: gemma3:1b, gemma3:4b, llama3.1:8b, gemma3:12b, gemma3:27b, llama3.1:70b, llama3.1:405b
+export OLLAMA_MODEL="gemma3:4b"
 
 # Embedding model (default: nomic-embed-text)
 # Options: nomic-embed-text, mxbai-embed-large
@@ -32,12 +32,12 @@ export OLLAMA_API_TIMEOUT="300"
 
 ```bash
 # For development (fast, good balance)
-export OLLAMA_MODEL_SIZE="4b"
+export OLLAMA_MODEL="gemma3:4b"
 export OLLAMA_EMBEDDING_MODEL="nomic-embed-text"
 export OLLAMA_API_TIMEOUT="180"
 
 # higher accuracy cloud
-export OLLAMA_MODEL_SIZE="70b"
+export OLLAMA_MODEL="gemma3:4b"
 export OLLAMA_EMBEDDING_MODEL="nomic-embed-text"
 export OLLAMA_API_TIMEOUT="600"
 ```
@@ -117,14 +117,20 @@ async with p.Server(nlp_service=NLPServices.ollama) as server:
 
 ### Development Setup
 ```bash
-export OLLAMA_MODEL_SIZE="4b"
-export OLLAMA_API_TIMEOUT="180"
+export OLLAMA_MODEL=gemma3:4b
+export OLLAMA_API_TIMEOUT=180
 ```
 
 ### High-Performance Setup (Cloud)
 ```bash
-export OLLAMA_MODEL_SIZE="70b"
-export OLLAMA_API_TIMEOUT="900"
+export OLLAMA_MODEL=llama3.1:70b
+export OLLAMA_API_TIMEOUT=300
+```
+
+### Custom / Other models
+```bash
+export OLLAMA_MODEL=llama3.2:3b
+export OLLAMA_API_TIMEOUT=300
 ```
 
 ## Troubleshooting
