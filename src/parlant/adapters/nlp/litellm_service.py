@@ -123,12 +123,11 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
         t_start = time.time()
 
         response = self._client.completion(
-            api_key=os.environ["LITELLM_PROVIDER_API_KEY"],
+            api_key=os.environ.get("LITELLM_PROVIDER_API_KEY"),
             messages=[{"role": "user", "content": prompt}],
             model=self.model_name,
             max_tokens=5000,
             response_format={"type": "json_object"},
-            # api_base=os.environ["OPENAI_BASE_URL"],
             **litellm_api_arguments,
         )
 
@@ -181,7 +180,7 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
 class LiteLLM_Default(LiteLLMSchematicGenerator[T]):
     def __init__(self, logger: Logger) -> None:
         super().__init__(
-            model_name=os.environ["LITELLM_PROVIDER_MODEL_NAME"],
+            model_name=os.environ.get("LITELLM_PROVIDER_MODEL_NAME"),# type: ignore
             logger=logger,
         )
 
@@ -216,7 +215,7 @@ Please set LITELLM_PROVIDER_API_KEY in your environment before running Parlant.
         self,
         logger: Logger,
     ) -> None:
-        self._model_name = os.environ["LITELLM_PROVIDER_MODEL_NAME"]
+        self._model_name = os.environ.get("LITELLM_PROVIDER_MODEL_NAME")
         self._logger = logger
         self._logger.info("Initialized LiteLLMService")
 
