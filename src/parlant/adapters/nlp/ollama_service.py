@@ -513,7 +513,7 @@ class OllamaService(NLPService):
         self.base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip('/')
         self.model_size = os.environ.get("OLLAMA_MODEL_SIZE", "4b")
         self.embedding_model = os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
-        self.default_timeout = int(os.environ.get("OLLAMA_API_TIMEOUT", 300))
+        self.default_timeout = int(os.environ.get("OLLAMA_API_TIMEOUT", 300)) #always convert to int 
         self._logger = logger
         self._logger.info(f"Initialized OllamaService with gemma3:{self.model_size} at {self.base_url}")
     

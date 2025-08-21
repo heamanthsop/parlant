@@ -101,7 +101,7 @@ ollama pull mxbai-embed-large:latest
 ## Usage Example
 
 ```python
-import parlant.sdk import p
+import parlant.sdk as p
 from parlant.sdk import NLPServices
 
 async with p.Server(nlp_service=NLPServices.ollama) as server:
