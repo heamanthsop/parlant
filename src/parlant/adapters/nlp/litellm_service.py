@@ -199,18 +199,19 @@ class LiteLLMService(NLPService):
     def verify_environment() -> str | None:
         """Returns an error message if the environment is not set up correctly."""
 
-        if not os.environ["LITELLM_PROVIDER_MODEL_NAME"]:
+        if not os.environ.get("LITELLM_PROVIDER_MODEL_NAME"):
             return """\
 You're using the LITELLM NLP service, but LITELLM_PROVIDER_MODEL_NAME is not set.
 Please set LITELLM_PROVIDER_MODEL_NAME in your environment before running Parlant.
 """
-        if not os.environ["LITELLM_PROVIDER_API_KEY"]:
+        if not os.environ.get("LITELLM_PROVIDER_API_KEY"):
             return """\
 You're using the LITELLM NLP service, but LITELLM_PROVIDER_API_KEY is not set.
 Please set LITELLM_PROVIDER_API_KEY in your environment before running Parlant.
 """
 
         return None
+    
     def __init__(
         self,
         logger: Logger,
