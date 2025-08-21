@@ -529,7 +529,6 @@ class OllamaService(NLPService):
             generation_model = "gemma3:4b-it-qat"
     
         if error := OllamaModelVerifier.verify_models(base_url, generation_model, embedding_model):
-            print("Inside if error or verify : : ", error)
             errors.append(f"Generation Model Issue:\n{error}")
         
         if errors:
