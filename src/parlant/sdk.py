@@ -289,6 +289,16 @@ class NLPServices:
             raise SDKError(error)
 
         return GeminiService(container[Logger])
+    
+    @staticmethod
+    def litellm(container: Container) -> NLPService:
+        """Creates a Litellm NLPService instance using the provided container."""
+        from parlant.adapters.nlp.litellm_service import LiteLLMService
+
+        if error := LiteLLMService.verify_environment():
+            raise SDKError(error)
+
+        return LiteLLMService(container[Logger])
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
