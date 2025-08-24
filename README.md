@@ -15,6 +15,18 @@
 </p>
 
 <p>
+  <!-- Keep these links. Translations will automatically update with the README. -->
+  <a href="https://zdoc.app/de/emcie-co/parlant">Deutsch</a> | 
+  <a href="https://zdoc.app/es/emcie-co/parlant">Español</a> | 
+  <a href="https://zdoc.app/fr/emcie-co/parlant">français</a> | 
+  <a href="https://zdoc.app/ja/emcie-co/parlant">日本語</a> | 
+  <a href="https://zdoc.app/ko/emcie-co/parlant">한국어</a> | 
+  <a href="https://zdoc.app/pt/emcie-co/parlant">Português</a> | 
+  <a href="https://zdoc.app/ru/emcie-co/parlant">Русский</a> | 
+  <a href="https://zdoc.app/zh/emcie-co/parlant">中文</a>
+</p>
+
+<p>
   <a href="https://pypi.org/project/parlant/"><img alt="PyPI" src="https://img.shields.io/pypi/v/parlant?color=blue"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10+-blue">
   <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-green"></a>
