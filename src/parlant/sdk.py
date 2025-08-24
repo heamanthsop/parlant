@@ -299,6 +299,20 @@ class NLPServices:
             raise SDKError(error)
 
         return LiteLLMService(container[Logger])
+    
+    @staticmethod
+    def vertex(container: Container) -> NLPService:
+        """Creates a Vertex NLPService instance using the provided container."""
+        from parlant.adapters.nlp.vertex_service import VertexAIService
+        
+        if error := VertexAIService.verify_environment():
+            raise SDKError(error)
+        
+        if err := VertexAIService.validate_adc():
+            raise SDKError(err)
+
+        return VertexAIService(container[Logger])
+    
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
