@@ -312,7 +312,6 @@ class NLPServices:
             raise SDKError(err)
 
         return VertexAIService(container[Logger])
-<<<<<<< HEAD
     
     @staticmethod
     def ollama(container: Container) -> NLPService:
@@ -327,8 +326,6 @@ class NLPServices:
         
         return OllamaService(container[Logger])
     
-=======
->>>>>>> develop
 
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
