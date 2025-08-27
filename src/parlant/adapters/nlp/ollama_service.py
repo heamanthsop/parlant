@@ -16,7 +16,7 @@
 
 import os
 import time
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from typing_extensions import override
 import asyncio
 import tiktoken
@@ -185,7 +185,7 @@ class OllamaSchematicGenerator(SchematicGenerator[T]):
         else:
             return 16384
 
-    def _create_options(self, hints: Mapping[str, Any]) -> dict:
+    def _create_options(self, hints: Mapping[str, Any]) -> dict[str, Any]:
         """Create options dict from hints for Ollama."""
         options = {}
 
@@ -549,22 +549,27 @@ Please set these environment variables before running Parlant.
         self._logger.info(f"Initialized OllamaService with {self.model_name} at {self.base_url}")
 
     def _get_specialized_generator_class(
-        self, model_name: str
-    ) -> type[OllamaSchematicGenerator] | None:
+        self,
+        model_name: str,
+        schema_type: type[T],
+    ) -> Callable[..., OllamaSchematicGenerator[T]] | None:
         """
         Returns the specialized generator class for known models, or None for custom models.
         """
-        model_to_class = {
-            "gemma3:1b": OllamaGemma3_1B,
-            "gemma3:4b": OllamaGemma3_4B,
-            "gemma3:12b": OllamaGemma3_12B,
-            "gemma3:27b": OllamaGemma3_27B,
-            "llama3.1:8b": OllamaLlama31_8B,
-            "llama3.1:70b": OllamaLlama31_70B,
-            "llama3.1:405b": OllamaLlama31_405B,
+        model_to_class: dict[str, type[OllamaSchematicGenerator[T]]] = {
+            "gemma3:1b": OllamaGemma3_1B[schema_type],  # type: ignore
+            "gemma3:4b": OllamaGemma3_4B[schema_type],  # type: ignore
+            "gemma3:12b": OllamaGemma3_12B[schema_type],  # type: ignore
+            "gemma3:27b": OllamaGemma3_27B[schema_type],  # type: ignore
+            "llama3.1:8b": OllamaLlama31_8B[schema_type],  # type: ignore
+            "llama3.1:70b": OllamaLlama31_70B[schema_type],  # type: ignore
+            "llama3.1:405b": OllamaLlama31_405B[schema_type],  # type: ignore
         }
 
-        return model_to_class.get(model_name)
+        if generator_class := model_to_class.get(model_name):
+            return generator_class
+        else:
+            return None
 
     def _log_model_warnings(self, model_name: str) -> None:
         """Log warnings for resource-intensive models."""
@@ -584,12 +589,11 @@ Please set these environment variables before running Parlant.
         """Get a schematic generator for the specified type."""
         self._log_model_warnings(self.model_name)
 
-        specialized_class = self._get_specialized_generator_class(self.model_name)
+        specialized_class = self._get_specialized_generator_class(self.model_name, schema_type=t)
+
         if specialized_class:
             self._logger.debug(f"Using specialized generator for model: {self.model_name}")
-            generator = specialized_class[t](  # type: ignore
-                logger=self._logger, base_url=self.base_url
-            )
+            generator = specialized_class(logger=self._logger, base_url=self.base_url)
         else:
             self._logger.debug(f"Using custom generator for model: {self.model_name}")
             generator = CustomOllamaSchematicGenerator[t](  # type: ignore
