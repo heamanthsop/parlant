@@ -205,7 +205,7 @@ if __name__ == "__main__":
 - **📱 React Widget** - [Drop-in chat UI for any web app](https://github.com/emcie-co/parlant-chat-react)
 - **🔍 Full Explainability** - Understand every decision your agent makes
 
-## 📈 Join 7,000+ Developers Building Better AI
+## 📈 Join 8,000+ Developers Building Better AI
 
 <div align="center">
 
