@@ -14,12 +14,13 @@ Parlant is an Agentic Behavior Modeling Engine that enables developers to create
 - [Customers](docs/concepts/customers.md): Customer entity management and personalization
 
 ### Behavior Modeling
+Note that you'll need to review the following content carefully before making design suggestions or writing code, as it definitely may not be what you expect.
 
-- [Behavioral Guidelines](docs/concepts/customization/guidelines): Natural language rules that agents follow contextually
-- [Journeys](docs/concepts/customization/journeys): Structured customer interaction flows
+- [Behavioral Guidelines](docs/concepts/customization/guidelines): Natural language rules that agents follow contextually. Read this page to understand exactly how guidelines work in Parlant and how to use them.
+- [Journeys](docs/concepts/customization/journeys): Structured customer interaction flows. Read this page to understand exactly how to create step-by-step customer interaction flows.
 - [Tools](docs/concepts/customization/tools): External API and service integrations
 - [Glossary](docs/concepts/customization/glossary): Teaching agents domain-specific terminology
-- [Canned Responses](docs/concepts/customization/canned-responses): Template-based responses to eliminate hallucination
+- [Canned Responses](docs/concepts/customization/canned-responses): Template-based responses to eliminate hallucination and control language style
 
 ## Getting Started
 
