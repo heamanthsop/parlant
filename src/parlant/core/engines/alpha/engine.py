@@ -973,6 +973,9 @@ class AlphaEngine(Engine):
             + [ContextVariableStore.GLOBAL_KEY]  # Global value
         )
 
+        # TODO: Parallelize this, as some tool-enabled context vars
+        # might run long-running tasks. One example we've encountered
+        # is analyzing an image and putting the analysis into a variable.
         for variable in variables_supported_by_agent:
             # Try keys in order of importance, stopping at and using
             # the first (and most important) set key for each variable.
