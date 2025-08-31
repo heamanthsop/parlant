@@ -17,6 +17,7 @@ aiofiles = "^24.1.0"
 aiopenapi3 = "0.8.1"
 aiorwlock = "^1.5.0"
 boto3 = "^1.35.70"
+cachetools = "5.5.2"
 chromadb = "1.0.15"
 click = "^8.1.7"
 colorama = "^0.4.6"
@@ -24,10 +25,14 @@ coloredlogs = "^15.0.1"
 contextvars = "^2.4"
 croniter = "^5.0.1"
 fastapi = "0.115.12"
+fastmcp = "2.6.1"
 httpx = "^0.28.1"
+jinja2 = "^3.1.6"
 jsonfinder = "^0.4.2"
 jsonschema = "^4.23.0"
 lagom = "^2.6.0"
+limits = "^5.5.0"
+mcp = { extras = ["cli"], version = "^1.7.1" }
 more-itertools = ">=10.3.0"
 nano-vectordb = "^0.0.4.3"
 nanoid = "^2.0.0"
@@ -48,6 +53,7 @@ tiktoken = "^0.8"
 tokenizers = "^0.20"
 toml = "^0.10.2"
 types-aiofiles = "^24.1.0.20240626"
+types-cachetools = "^6.0.0.20250525"
 types-croniter = "^4.0.0.20241030"
 types-jsonschema = "^4.22.0.20240610"
 uvicorn = "^0.32.1"
@@ -64,12 +70,6 @@ torch = { version = "^2.6.0", optional = true }
 transformers = { version = "^4.46.2", optional = true }
 litellm = { version = "^1.61.16", optional = true }
 pymongo = { version = "^4.11.1", optional = true }
-jinja2 = "^3.1.6"
-mcp = { extras = ["cli"], version = "^1.7.1" }
-fastmcp = "2.6.1"
-cachetools = "5.5.2"
-types-cachetools = "^6.0.0.20250525"
-limits = "^5.5.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -102,7 +102,14 @@ deepseek = ["torch", "transformers"]
 
 gemini = ["google-genai", "google-api-core", "torch"]
 
-vertex = ["google-genai", "google-api-core", "google-auth", "torch", "anthropic", "transformers"]
+vertex = [
+    "google-genai",
+    "google-api-core",
+    "google-auth",
+    "torch",
+    "anthropic",
+    "transformers",
+]
 
 ollama = ["ollama"]
 
