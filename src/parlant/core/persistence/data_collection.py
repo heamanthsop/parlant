@@ -73,6 +73,7 @@ class DataCollectingSchematicGenerator(SchematicGenerator[T]):
         ):
             usage_info = json.dumps(
                 {
+                    "model": result.info.model,
                     "duration": result.info.duration,
                     "input_tokens": result.info.usage.input_tokens,
                     "cached_input_tokens": result.info.usage.extra
