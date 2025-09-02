@@ -325,7 +325,7 @@ class NLPServices:
             raise SDKError(err)
 
         return OllamaService(container[Logger])
-    
+
     @staticmethod
     def glm(container: Container) -> NLPService:
         """Creates a GLM NLPService instance using the provided container."""

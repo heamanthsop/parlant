@@ -123,9 +123,7 @@ class GLMSchematicGenerator(SchematicGenerator[T]):
         if isinstance(prompt, PromptBuilder):
             prompt = prompt.build()
 
-        glm_api_arguments = {
-            k: v for k, v in hints.items() if k in self.supported_glm_params
-        }
+        glm_api_arguments = {k: v for k, v in hints.items() if k in self.supported_glm_params}
 
         t_start = time.time()
         response = await self._client.chat.completions.create(
@@ -203,7 +201,6 @@ Please set GLM_API_KEY in your environment before running Parlant.
 
         return None
 
-    
     def __init__(
         self,
         logger: Logger,
