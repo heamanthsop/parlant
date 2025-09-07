@@ -845,6 +845,7 @@ class JourneyState:
         tools: Sequence[ToolEntry] = [],
         fork: bool = False,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[JourneyState]:
         if not self._journey:
             raise SDKError("EndState cannot be connected to any other states.")
@@ -858,6 +859,7 @@ class JourneyState:
                 ToolJourneyState,
                 action=action,
                 tools=tools,
+                metadata=metadata,
             )
 
             [
@@ -880,10 +882,12 @@ class JourneyState:
                 ChatJourneyState,
                 action=action,
                 tools=[],
+                metadata=metadata,
             )
         elif fork:
             actual_state = await self._journey._create_state(
                 ForkJourneyState,
+                metadata=metadata,
             )
 
         transitions = [t for t in self._journey.transitions if t.source == self]
@@ -930,6 +934,7 @@ class InitialJourneyState(JourneyState):
         condition: str | None = None,
         state: TState,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -939,6 +944,7 @@ class InitialJourneyState(JourneyState):
         condition: str | None = None,
         chat_state: str,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -948,6 +954,7 @@ class InitialJourneyState(JourneyState):
         condition: str | None = None,
         tool_instruction: str | None = None,
         tool_state: ToolEntry,
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     @overload
@@ -957,6 +964,7 @@ class InitialJourneyState(JourneyState):
         condition: str | None = None,
         tool_instruction: str | None = None,
         tool_state: Sequence[ToolEntry],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     async def transition_to(
@@ -968,6 +976,7 @@ class InitialJourneyState(JourneyState):
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
@@ -975,6 +984,7 @@ class InitialJourneyState(JourneyState):
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
             canned_responses=canned_responses,
+            metadata=metadata,
         )
 
 
@@ -988,6 +998,7 @@ class ToolJourneyState(JourneyState):
         condition: str | None = None,
         state: TState,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -997,6 +1008,7 @@ class ToolJourneyState(JourneyState):
         condition: str | None = None,
         chat_state: str,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     async def transition_to(
@@ -1006,12 +1018,14 @@ class ToolJourneyState(JourneyState):
         chat_state: str | None = None,
         state: TState | None = None,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
             state=state,
             action=chat_state,
             canned_responses=canned_responses,
+            metadata=metadata,
         )
 
     async def fork(self) -> JourneyTransition[ForkJourneyState]:
@@ -1028,6 +1042,7 @@ class ChatJourneyState(JourneyState):
         condition: str | None = None,
         state: TState,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -1037,6 +1052,7 @@ class ChatJourneyState(JourneyState):
         condition: str | None = None,
         chat_state: str,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -1046,6 +1062,7 @@ class ChatJourneyState(JourneyState):
         condition: str | None = None,
         tool_instruction: str | None = None,
         tool_state: ToolEntry,
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     @overload
@@ -1055,6 +1072,7 @@ class ChatJourneyState(JourneyState):
         condition: str | None = None,
         tool_instruction: str | None = None,
         tool_state: Sequence[ToolEntry],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     async def transition_to(
@@ -1066,6 +1084,7 @@ class ChatJourneyState(JourneyState):
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
@@ -1073,6 +1092,7 @@ class ChatJourneyState(JourneyState):
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
             canned_responses=canned_responses,
+            metadata=metadata,
         )
 
     async def fork(self) -> JourneyTransition[ForkJourneyState]:
@@ -1089,6 +1109,7 @@ class ForkJourneyState(JourneyState):
         condition: str,
         state: TState,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[TState]: ...
 
     @overload
@@ -1098,6 +1119,7 @@ class ForkJourneyState(JourneyState):
         condition: str,
         chat_state: str,
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ChatJourneyState]: ...
 
     @overload
@@ -1107,6 +1129,7 @@ class ForkJourneyState(JourneyState):
         condition: str,
         tool_instruction: str | None = None,
         tool_state: ToolEntry,
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     @overload
@@ -1116,6 +1139,7 @@ class ForkJourneyState(JourneyState):
         condition: str,
         tool_instruction: str | None = None,
         tool_state: Sequence[ToolEntry],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[ToolJourneyState]: ...
 
     async def transition_to(
@@ -1127,6 +1151,7 @@ class ForkJourneyState(JourneyState):
         state: TState | None = None,
         tool_state: ToolEntry | Sequence[ToolEntry] = [],
         canned_responses: Sequence[CannedResponseId] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> JourneyTransition[Any]:
         return await self._transition(
             condition=condition,
@@ -1134,6 +1159,7 @@ class ForkJourneyState(JourneyState):
             action=chat_state or tool_instruction,
             tools=[tool_state] if isinstance(tool_state, ToolEntry) else tool_state,
             canned_responses=canned_responses,
+            metadata=metadata,
         )
 
 
@@ -1165,6 +1191,7 @@ class Journey:
         state_type: type[TState],
         action: str | None = None,
         tools: Sequence[ToolEntry] = [],
+        metadata: Mapping[str, JSONSerializable] = {},
     ) -> TState:
         metadata_type = {
             ForkJourneyState: "fork",
@@ -1192,6 +1219,13 @@ class Journey:
             key="journey_node",
             value={"kind": metadata_type},
         )
+
+        for k, v in metadata.items():
+            node = await self._container[JourneyStore].set_node_metadata(
+                node_id=node.id,
+                key=k,
+                value=v,
+            )
 
         return state_type(
             id=node.id,

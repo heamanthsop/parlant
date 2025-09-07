@@ -679,3 +679,36 @@ class Test_that_a_journey_is_reevaluated_after_a_skipped_tool_call(SDKTest):
         # Make sure the guideline was not re-applied
         assert await nlp_test(second_response, "It does not mention one million dollars")
         print(second_response)
+
+
+class Test_that_metadata_can_be_set_to_a_journey_state(SDKTest):
+    async def setup(self, server: p.Server) -> None:
+        self.agent = await server.create_agent(
+            name="Metadata Agent",
+            description="Agent for testing metadata on journey states",
+        )
+
+        self.journey = await self.agent.create_journey(
+            title="Metadata Journey",
+            conditions=["Customer requests information"],
+            description="Provide information with metadata tracking",
+        )
+
+        self.transition = await self.journey.initial_state.transition_to(
+            chat_state="Provide details",
+            metadata={
+                "continuous": False,
+                "internal_action": "Provide detailed information about our services",
+            },
+        )
+
+    async def run(self, ctx: Context) -> None:
+        journey_store = ctx.container[JourneyStore]
+
+        state = await journey_store.read_node(node_id=self.transition.target.id)
+
+        assert state.metadata.get("continuous") is False
+        assert (
+            state.metadata.get("internal_action")
+            == "Provide detailed information about our services"
+        )
