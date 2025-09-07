@@ -79,9 +79,11 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
 
     def __init__(
         self,
+        base_url: str | None,
         model_name: str,
         logger: Logger,
     ) -> None:
+        self.base_url = base_url
         self.model_name = model_name
         self._logger = logger
 
@@ -123,6 +125,7 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
         t_start = time.time()
 
         response = self._client.completion(
+            base_url=self.base_url,
             api_key=os.environ.get("LITELLM_PROVIDER_API_KEY"),
             messages=[{"role": "user", "content": prompt}],
             model=self.model_name,
@@ -178,9 +181,10 @@ class LiteLLMSchematicGenerator(SchematicGenerator[T]):
 
 
 class LiteLLM_Default(LiteLLMSchematicGenerator[T]):
-    def __init__(self, logger: Logger) -> None:
+    def __init__(self, logger: Logger, base_url: str | None, model_name: str) -> None:
         super().__init__(
-            model_name=os.environ.get("LITELLM_PROVIDER_MODEL_NAME"),  # type: ignore
+            base_url=base_url,
+            model_name=model_name,
             logger=logger,
         )
 
@@ -214,13 +218,17 @@ Please set LITELLM_PROVIDER_API_KEY in your environment before running Parlant.
         self,
         logger: Logger,
     ) -> None:
+        self._base_url = os.environ.get("LITELLM_PROVIDER_BASE_URL")
         self._model_name = os.environ.get("LITELLM_PROVIDER_MODEL_NAME")
         self._logger = logger
-        self._logger.info("Initialized LiteLLMService")
+        self._logger.info(
+            f"Initialized LiteLLMService with {self._model_name}"
+            + (f" at {self._base_url}" if self._base_url else "")
+        )
 
     @override
     async def get_schematic_generator(self, t: type[T]) -> LiteLLMSchematicGenerator[T]:
-        return LiteLLM_Default[t](self._logger)  # type: ignore
+        return LiteLLM_Default[t](self._logger, self._base_url, self._model_name)  # type: ignore
 
     @override
     async def get_embedder(self) -> Embedder:
