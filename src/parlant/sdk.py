@@ -58,10 +58,7 @@ from typing_extensions import overload
 from lagom import Container
 
 
-from parlant.adapters.db.json_file import (
-    JSONFileDocumentCollection,
-    JSONFileDocumentDatabase,
-)
+from parlant.adapters.db.json_file import JSONFileDocumentCollection, JSONFileDocumentDatabase
 from parlant.adapters.db.transient import TransientDocumentDatabase
 from parlant.adapters.vector_db.transient import TransientVectorDatabase
 from parlant.api.authorization import (
@@ -83,17 +80,8 @@ from parlant.core.agents import (
 )
 from parlant.core.application import Application
 from parlant.core.async_utils import Timeout, default_done_callback
-from parlant.core.capabilities import (
-    CapabilityId,
-    CapabilityStore,
-    CapabilityVectorStore,
-)
-from parlant.core.common import (
-    IdGenerator,
-    ItemNotFoundError,
-    JSONSerializable,
-    Version,
-)
+from parlant.core.capabilities import CapabilityId, CapabilityStore, CapabilityVectorStore
+from parlant.core.common import IdGenerator, ItemNotFoundError, JSONSerializable, Version
 from parlant.core.context_variables import (
     ContextVariable,
     ContextVariableDocumentStore,
@@ -110,11 +98,7 @@ from parlant.core.customers import (
 from parlant.core.emissions import EmittedEvent, EventEmitterFactory
 from parlant.core.engines.alpha.prompt_builder import PromptBuilder, PromptSection
 from parlant.core.engines.alpha.hooks import EngineHook, EngineHookResult, EngineHooks
-from parlant.core.engines.alpha.loaded_context import (
-    LoadedContext,
-    Interaction,
-    InteractionMessage,
-)
+from parlant.core.engines.alpha.loaded_context import LoadedContext, Interaction, InteractionMessage
 from parlant.core.glossary import GlossaryStore, GlossaryVectorStore, TermId
 from parlant.core.guideline_tool_associations import (
     GuidelineToolAssociationDocumentStore,
@@ -133,10 +117,7 @@ from parlant.core.nlp.generation import (
 )
 from parlant.core.nlp.tokenization import EstimatingTokenizer
 from parlant.core.persistence.common import ObjectId
-from parlant.core.persistence.document_database import (
-    DocumentDatabase,
-    identity_loader_for,
-)
+from parlant.core.persistence.document_database import DocumentDatabase, identity_loader_for
 from parlant.core.relationships import (
     RelationshipKind,
     RelationshipDocumentStore,
@@ -146,13 +127,8 @@ from parlant.core.relationships import (
     RelationshipId,
     RelationshipStore,
 )
-from parlant.core.services.indexing.behavioral_change_evaluation import (
-    BehavioralChangeEvaluator,
-)
-from parlant.core.services.tools.service_registry import (
-    ServiceDocumentRegistry,
-    ServiceRegistry,
-)
+from parlant.core.services.indexing.behavioral_change_evaluation import BehavioralChangeEvaluator
+from parlant.core.services.tools.service_registry import ServiceDocumentRegistry, ServiceRegistry
 from parlant.core.sessions import (
     EventKind,
     EventSource,
@@ -550,10 +526,7 @@ class _CachedEvaluator:
 
             self._set_progress(entity_id, evaluation.progress)
 
-            if evaluation.status in [
-                EvaluationStatus.PENDING,
-                EvaluationStatus.RUNNING,
-            ]:
+            if evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
                 await asyncio.sleep(0.5)
                 continue
             elif evaluation.status == EvaluationStatus.FAILED:
@@ -628,10 +601,7 @@ class _CachedEvaluator:
 
             self._set_progress(journey.id, evaluation.progress)
 
-            if evaluation.status in [
-                EvaluationStatus.PENDING,
-                EvaluationStatus.RUNNING,
-            ]:
+            if evaluation.status in [EvaluationStatus.PENDING, EvaluationStatus.RUNNING]:
                 await asyncio.sleep(0.5)
                 continue
             elif evaluation.status == EvaluationStatus.FAILED:
@@ -909,10 +879,7 @@ class JourneyState:
                         kind=RelationshipEntityKind.TAG,
                     ),
                     target=RelationshipEntity(
-                        id=ToolId(
-                            service_name=INTEGRATED_TOOL_SERVICE_NAME,
-                            tool_name=t.tool.name,
-                        ),
+                        id=ToolId(service_name=INTEGRATED_TOOL_SERVICE_NAME, tool_name=t.tool.name),
                         kind=RelationshipEntityKind.TOOL,
                     ),
                     kind=RelationshipKind.REEVALUATION,
@@ -949,8 +916,7 @@ class JourneyState:
 
             for id in canned_responses:
                 await self._journey._container[CannedResponseStore].upsert_tag(
-                    canned_response_id=id,
-                    tag_id=_Tag.for_journey_node_id(actual_state.id),
+                    canned_response_id=id, tag_id=_Tag.for_journey_node_id(actual_state.id)
                 )
 
         cast(list[JourneyTransition[JourneyState]], self._journey.transitions).append(transition)
@@ -1227,8 +1193,7 @@ class Journey:
     def initial_state(self) -> InitialJourneyState:
         """Returns the initial state of the journey."""
         return cast(
-            InitialJourneyState,
-            next(n for n in self.states if n.id == self._start_state_id),
+            InitialJourneyState, next(n for n in self.states if n.id == self._start_state_id)
         )
 
     async def _create_state(
@@ -1912,7 +1877,7 @@ class Agent:
         variable = await self._container[ContextVariableStore].create_variable(
             name=name,
             description=description,
-            tool_id=(ToolId(INTEGRATED_TOOL_SERVICE_NAME, tool.tool.name) if tool else None),
+            tool_id=ToolId(INTEGRATED_TOOL_SERVICE_NAME, tool.tool.name) if tool else None,
             freshness_rules=freshness_rules,
             tags=[_Tag.for_agent_id(self.id)],
         )
@@ -1940,11 +1905,9 @@ class Agent:
                 id=variable.id,
                 name=variable.name,
                 description=variable.description,
-                tool=(
-                    self._server._plugin_server.tools[variable.tool_id.tool_name]
-                    if variable.tool_id
-                    else None
-                ),
+                tool=self._server._plugin_server.tools[variable.tool_id.tool_name]
+                if variable.tool_id
+                else None,
                 freshness_rules=variable.freshness_rules,
                 tags=variable.tags,
                 _server=self._server,
@@ -1992,11 +1955,9 @@ class Agent:
             id=variable.id,
             name=variable.name,
             description=variable.description,
-            tool=(
-                self._server._plugin_server.tools[variable.tool_id.tool_name]
-                if variable.tool_id
-                else None
-            ),
+            tool=self._server._plugin_server.tools[variable.tool_id.tool_name]
+            if variable.tool_id
+            else None,
             freshness_rules=variable.freshness_rules,
             tags=variable.tags,
             _server=self._server,
@@ -2021,10 +1982,7 @@ class Agent:
             id = f"retriever-{len(self.retrievers) + 1}"
 
         cast(
-            dict[
-                str,
-                Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]],
-            ],
+            dict[str, Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]]],
             self.retrievers,
         )[id] = retriever
 
@@ -2082,7 +2040,7 @@ class Server:
         tool_service_port: int = 8818,
         nlp_service: Callable[[Container], NLPService] = NLPServices.openai,
         session_store: Literal["transient", "local"] | str | SessionStore = "transient",
-        customer_store: (Literal["transient", "local"] | str | CustomerStore) = "transient",
+        customer_store: Literal["transient", "local"] | str | CustomerStore = "transient",
         log_level: LogLevel = LogLevel.INFO,
         modules: list[str] = [],
         migrate: bool = False,
@@ -2105,10 +2063,7 @@ class Server:
         self._initialize = initialize_container
         self._retrievers: dict[
             AgentId,
-            dict[
-                str,
-                Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]],
-            ],
+            dict[str, Callable[[RetrieverContext], Awaitable[JSONSerializable | RetrieverResult]]],
         ] = defaultdict(dict)
         self._exit_stack = AsyncExitStack()
 
@@ -2117,24 +2072,15 @@ class Server:
 
         self._guideline_evaluations: dict[
             GuidelineId,
-            tuple[
-                Any,
-                Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]],
-            ],
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]]],
         ] = {}
         self._node_evaluations: dict[
             JourneyStateId,
-            tuple[
-                Any,
-                Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]],
-            ],
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.GuidelineEvaluation]]],
         ] = {}
         self._journey_evaluations: dict[
             JourneyId,
-            tuple[
-                Any,
-                Callable[..., Coroutine[Any, Any, _CachedEvaluator.JourneyEvaluation]],
-            ],
+            tuple[Any, Callable[..., Coroutine[Any, Any, _CachedEvaluator.JourneyEvaluation]]],
         ] = {}
 
         self._creation_progress: Progress | None = Progress(
@@ -2216,10 +2162,7 @@ class Server:
         self,
         journey: Journey,
     ) -> None:
-        self._journey_evaluations[journey.id] = (
-            (journey,),
-            self._evaluator.evaluate_journey,
-        )
+        self._journey_evaluations[journey.id] = ((journey,), self._evaluator.evaluate_journey)
 
     async def _render_guideline(self, guideline_id: GuidelineId) -> str:
         guideline = await self._container[GuidelineStore].read_guideline(guideline_id)
@@ -2250,9 +2193,7 @@ class Server:
 
         def create_evaluation_task(
             evaluation: Coroutine[
-                Any,
-                Any,
-                _CachedEvaluator.GuidelineEvaluation | _CachedEvaluator.JourneyEvaluation,
+                Any, Any, _CachedEvaluator.GuidelineEvaluation | _CachedEvaluator.JourneyEvaluation
             ],
             entity_type: Literal["guideline", "node", "journey"],
             entity_id: GuidelineId | JourneyStateId | JourneyId,
@@ -2322,8 +2263,7 @@ class Server:
 
                 for t in tasks:
                     entity_id = cast(
-                        GuidelineId | JourneyStateId | JourneyId,
-                        t.get_name().split("_")[-1],
+                        GuidelineId | JourneyStateId | JourneyId, t.get_name().split("_")[-1]
                     )
                     entity_type = t.get_name().split("_")[0]
                     description = await _render_functions[
@@ -2490,10 +2430,7 @@ class Server:
                 tasks_for_this_retriever[ctx.correlator.correlation_id] = (
                     Timeout(600),  # Expiration timeout for garbage collection purposes
                     asyncio.create_task(
-                        cast(
-                            Coroutine[Any, Any, JSONSerializable | RetrieverResult],
-                            coroutine,
-                        ),
+                        cast(Coroutine[Any, Any, JSONSerializable | RetrieverResult], coroutine),
                         name=f"Retriever {retriever_id} for agent {agent_id}",
                     ),
                 )
@@ -2834,9 +2771,7 @@ class Server:
         return canrep.id
 
     def _get_startup_params(self) -> StartupParameters:
-        async def override_stores_with_transient_versions(
-            c: Callable[[], Container],
-        ) -> None:
+        async def override_stores_with_transient_versions(c: Callable[[], Container]) -> None:
             c()[NLPService] = self._nlp_service_func(c())
 
             for interface, implementation in [
