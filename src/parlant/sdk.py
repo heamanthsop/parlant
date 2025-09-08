@@ -336,6 +336,16 @@ class NLPServices:
 
         return GLMService(container[Logger])
 
+    @staticmethod
+    def snowflake(container: Container) -> NLPService:
+        """Creates a SnowflakeCortexService instance using the provided container."""
+        from parlant.adapters.nlp.snowflake_cortex_service import SnowflakeCortexService
+
+        if error := SnowflakeCortexService.verify_environment():
+            raise SDKError(error)
+
+        return SnowflakeCortexService(container[Logger])
+
 
 class _CachedGuidelineEvaluation(TypedDict, total=False):
     id: ObjectId

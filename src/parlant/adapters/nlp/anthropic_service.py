@@ -63,7 +63,7 @@ class AnthropicEstimatingTokenizer(EstimatingTokenizer):
             messages=[{"role": "assistant", "content": prompt}],
         )
 
-        return result.input_tokens
+        return result.input_tokens  # type: ignore[no-any-return]
 
 
 class AnthropicAISchematicGenerator(SchematicGenerator[T]):
