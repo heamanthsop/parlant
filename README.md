@@ -67,7 +67,7 @@ await agent.create_guideline(
 )
 ```
 
-[Blog: How Parlant Guarantees Agent Compliance](https://www.parlant.io/blog/how-parlant-guarantees-compliance)
+[✅ Blog: How Parlant Ensures Agent Compliance](https://www.parlant.io/blog/how-parlant-guarantees-compliance)
 
 #### Parlant gives you all the structure you need to build customer-facing agents that behave exactly as your business requires:
 
