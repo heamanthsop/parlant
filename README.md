@@ -67,6 +67,8 @@ await agent.create_guideline(
 )
 ```
 
+[Blog: How Parlant Guarantees Agent Compliance](https://www.parlant.io/blog/how-parlant-guarantees-compliance)
+
 #### Parlant gives you all the structure you need to build customer-facing agents that behave exactly as your business requires:
 
 - **[Journeys](https://parlant.io/docs/concepts/customization/journeys)**:
@@ -205,7 +207,7 @@ if __name__ == "__main__":
 - **📱 React Widget** - [Drop-in chat UI for any web app](https://github.com/emcie-co/parlant-chat-react)
 - **🔍 Full Explainability** - Understand every decision your agent makes
 
-## 📈 Join 8,000+ Developers Building Better AI
+## 📈 Join 10,000+ Developers Building Better AI
 
 <div align="center">
 
