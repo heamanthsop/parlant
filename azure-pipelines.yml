@@ -1,0 +1,61 @@
+# Node.js
+# Build a general Node.js project with npm.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+
+trigger:
+  branches:
+    include:
+      - main  # Replace with your desired branch if necessary
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+jobs:
+  - job: SnykScan
+    displayName: 'Run Snyk Security Scan'
+    steps:
+
+      # Step 1: Checkout the repository
+      - task: Checkout@2
+        displayName: 'Checkout Code'
+        inputs:
+          repository: '$(Build.Repository.Name)'
+          connection: 'GitHubConnection'  # Replace with your service connection if using GitHub
+          ref: 'refs/heads/main'
+
+      # Step 2: Install Snyk CLI
+      - script: |
+          npm install -g snyk
+        displayName: 'Install Snyk CLI'
+
+      # Step 3: Authenticate with Snyk using the secret variable
+      # Explicitly map the secret SNYK variable as an environment variable
+      - script: |
+          echo $(SNYK) | snyk auth
+        displayName: 'Authenticate with Snyk'
+
+      # Step 4: Run the Snyk test and save the results in a .svc file
+      - script: |
+          snyk test --all-projects --json > snyk-report.svc
+        displayName: 'Run Snyk Test and Generate Results in SVC Format'
+
+      # Step 5: Publish the results as build artifacts
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'
+          ArtifactName: 'snyk-reports'
+          publishLocation: 'Container'
+
+      # Optional: If you want to generate and publish a PDF report
+      - script: |
+          snyk report --format=pdf > snyk-report.pdf
+        displayName: 'Generate PDF Report'
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.pdf'
+          ArtifactName: 'snyk-reports'
+          publishLocation: 'Container'
+
