@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - main  # Trigger pipeline on changes to the main branch
+      - main  # Trigger pipeline when changes are pushed to the main branch
 
 pool:
   vmImage: 'ubuntu-latest'  # Use Ubuntu-based build agent
@@ -15,7 +15,7 @@ jobs:
       - task: Checkout@1
         displayName: 'Checkout Code'
 
-      # Step 2: Install Snyk CLI
+      # Step 2: Install Snyk CLI (required to run Snyk scan)
       - script: |
           npm install -g snyk
         displayName: 'Install Snyk CLI'
@@ -25,17 +25,24 @@ jobs:
           echo $(SNYK) | snyk auth
         displayName: 'Authenticate with Snyk'
         env:
-          SNYK_TOKEN: $(SNYK)  # Pass the secret SNYK token as an environment variable
+          SNYK_TOKEN: $(SNYK)  # Pass the secret token as an environment variable
 
       # Step 4: Run Snyk test and output results in .svc file format
       - script: |
           snyk test --all-projects --json > snyk-report.svc
         displayName: 'Run Snyk Test and Generate .svc Report'
 
-      # Step 5: Publish the .svc file as an artifact
+      # Step 5: List directory contents (to verify the .svc file is created)
+      - script: |
+          echo "Listing directory contents:"
+          ls -R $(Build.SourcesDirectory)
+        displayName: 'List Directory Contents'
+
+      # Step 6: Publish the .svc file as a build artifact
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'  # Path to the .svc file
-          ArtifactName: 'snyk-reports'
+          ArtifactName: 'snyk-reports'  # Artifact name
           publishLocation: 'Container'
         displayName: 'Publish Snyk Report as Artifact'
+
