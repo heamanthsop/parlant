@@ -1,25 +1,45 @@
 trigger:
-  branches:
-    include:
-      - main
-
+- main
+ 
 pool:
-  vmImage: 'ubuntu-latest'
-
-jobs:
-  - job: SnykScan
-    displayName: 'Run Snyk Security Scan'
-    steps:
-      - script: |
-          npm install -g snyk
-        displayName: 'Install Snyk CLI'
-      
-      - script: |
-          echo $(SNYK) | snyk auth
-        displayName: 'Authenticate with Snyk'
-        env:
-          SNYK_TOKEN: $(SNYK)  # Pass the secret token as an environment variable
-      
-      - script: |
-          snyk test --all-projects
-        displayName: 'Run Snyk Test'
+  vmImage: ubuntu-latest
+ 
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+ 
+- script: |
+    npm install && npm run client-install
+ 
+    # Download and install Snyk CLI
+    curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
+    chmod +x snyk
+    sudo mv snyk /usr/local/bin/
+ 
+    # Install snyk-to-html globally
+    npm install -g snyk-to-html
+ 
+    # Create results directory before outputting files
+    mkdir -p results
+ 
+    # Authenticate using token from pipeline secrets
+    snyk auth $SNYK_TOKEN
+ 
+    # Run Snyk OSS test, output JSON results
+    snyk test --all-projects --json-file-output=results/oss.json
+ 
+    # Run Snyk Code test, output SARIF results
+    snyk code test --sarif > results/sast.sarif
+ 
+    # Convert JSON and SARIF results to HTML
+    snyk-to-html -o results/oss.html < results/oss.json
+    snyk-to-html -o results/sast.html < results/sast.sarif
+  env:
+    SNYK_TOKEN: $(SNYK_TOKEN)
+  displayName: 'Run Snyk security scans and generate reports'
+ 
+- publish: $(System.DefaultWorkingDirectory)/results
+  artifact: results
+ 
