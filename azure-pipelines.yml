@@ -25,6 +25,8 @@ jobs:
       - script: |
           echo $(SNYK) | snyk auth
         displayName: 'Authenticate with Snyk'
+        env:
+          SNYK_TOKEN: $(SNYK)  # Explicitly mapping the secret variable to an environment variable
 
       # Step 4: Run the Snyk test and save results in .svc file
       - script: |
@@ -43,14 +45,3 @@ jobs:
           PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'  # Path to the generated SVC report
           ArtifactName: 'snyk-reports'  # Artifact name
           publishLocation: 'Container'  # Publish to a container for download
-
-      # Optional: If you want to generate a PDF report as well, uncomment below
-      # - script: |
-      #     snyk report --format=pdf > snyk-report.pdf
-      #   displayName: 'Generate PDF Report'
-
-      # - task: PublishBuildArtifacts@1
-      #   inputs:
-      #     PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.pdf'
-      #     ArtifactName: 'snyk-reports'
-      #     publishLocation: 'Container'
