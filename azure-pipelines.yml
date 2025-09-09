@@ -1,26 +1,26 @@
 trigger:
   branches:
     include:
-      - main
+      - main  # Trigger this pipeline when changes are pushed to the main branch
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'ubuntu-latest'  # Use Ubuntu-based build agent
 
 jobs:
   - job: SnykScan
     displayName: 'Run Snyk Security Scan'
     steps:
 
-      # Step 1: Checkout the repository (Using Checkout@1)
+      # Step 1: Checkout the repository
       - task: Checkout@1
         displayName: 'Checkout Code'
 
-      # Step 2: Install Snyk CLI
+      # Step 2: Install Snyk CLI (required for running Snyk tests)
       - script: |
           npm install -g snyk
         displayName: 'Install Snyk CLI'
 
-      # Step 3: Print environment variables (for debugging purposes)
+      # Step 3: Print environment variables for debugging (check if SNYK variable exists)
       - script: |
           echo "List of available environment variables:"
           printenv
@@ -31,22 +31,23 @@ jobs:
           echo $(SNYK) | snyk auth
         displayName: 'Authenticate with Snyk'
         env:
-          SNYK_TOKEN: $(SNYK)  # Ensure the token is correctly set as an environment variable
+          SNYK_TOKEN: $(SNYK)  # Use the secret variable
 
-      # Step 5: Run the Snyk test and save results in .svc file
+      # Step 5: Run Snyk test and generate the .svc file report
       - script: |
           snyk test --all-projects --json > snyk-report.svc
         displayName: 'Run Snyk Test and Generate Results in SVC Format'
 
-      # Step 6: List the contents of the source directory to ensure file existence
+      # Step 6: List the contents of the directory to ensure the report exists
       - script: |
           echo "Listing contents of the directory:"
           ls -R $(Build.SourcesDirectory)
         displayName: 'List Directory Contents'
 
-      # Step 7: Publish the results as build artifacts (SVC report)
+      # Step 7: Publish the .svc file as an artifact (so you can download it)
       - task: PublishBuildArtifacts@1
         inputs:
-          PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'
-          ArtifactName: 'snyk-reports'
+          PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'  # Path to the .svc file
+          ArtifactName: 'snyk-reports'  # Artifact name in the build
           publishLocation: 'Container'
+        displayName: 'Publish Snyk Report as Artifact'
