@@ -1,9 +1,3 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
-
 trigger:
   branches:
     include:
@@ -18,7 +12,7 @@ jobs:
     steps:
 
       # Step 1: Checkout the repository
-      - task: Checkout@2
+      - task: Checkout@1   # Use Checkout task version 1
         displayName: 'Checkout Code'
         inputs:
           repository: '$(Build.Repository.Name)'
@@ -58,4 +52,3 @@ jobs:
           PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.pdf'
           ArtifactName: 'snyk-reports'
           publishLocation: 'Container'
-
