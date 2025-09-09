@@ -14,7 +14,7 @@ jobs:
       # Step 1: Checkout the repository
       - task: Checkout@1  # Checkout the code from the repository (using version 1)
         displayName: 'Checkout Code'
-        inputs: {}  # Empty inputs as we don't need to specify repository and ref here
+        inputs: {}
 
       # Step 2: Install Snyk CLI
       - script: |
@@ -31,7 +31,13 @@ jobs:
           snyk test --all-projects --json > snyk-report.svc
         displayName: 'Run Snyk Test and Generate Results in SVC Format'
 
-      # Step 5: Publish the results as build artifacts (SVC report)
+      # Step 5: List the contents of the source directory to ensure file existence
+      - script: |
+          echo "Listing contents of the directory:"
+          ls -R $(Build.SourcesDirectory)
+        displayName: 'List Directory Contents'
+
+      # Step 6: Publish the results as build artifacts (SVC report)
       - task: PublishBuildArtifacts@1
         inputs:
           PathtoPublish: '$(Build.SourcesDirectory)/snyk-report.svc'  # Path to the generated SVC report
