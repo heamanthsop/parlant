@@ -4,25 +4,45 @@ trigger:
       - main  # specify the branch to trigger the pipeline
 
 pool:
-  vmImage: 'ubuntu-latest'  # use an Ubuntu image for the pipeline
+  vmImage: 'ubuntu-latest'  # Use an Ubuntu image for the pipeline
 
 jobs:
   - job: SnykScan
     displayName: 'Snyk Vulnerability Scan'
     steps:
-      - task: UsePythonVersion@0  # Use a Python version to install Snyk
-        inputs:
-          versionSpec: '3.x'
-          addToPath: true
+      # Install Node.js manually if UseNode task is not available
+      - script: |
+          curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+          sudo apt-get install -y nodejs
+        displayName: 'Install Node.js'
 
       - script: |
-          python -m pip install --upgrade pip
-          pip install snyk
+          npm install -g snyk  # Install the Snyk CLI globally
         displayName: 'Install Snyk CLI'
 
       - script: |
-          snyk auth $(SNYK_TOKEN)  # Make sure you have set your Snyk API token in pipeline secrets
-          snyk test  # Run the Snyk vulnerability scan
+          snyk auth $(SNYK_TOKEN)  # Authenticate with your Snyk API token
+          snyk test --all-projects --json > snyk-report.json  # Run the Snyk scan and output to JSON
         displayName: 'Run Snyk Test'
         env:
-          SNYK_TOKEN: $(SNYK_TOKEN)  # Ensure you add the Snyk token as a secret in your pipeline
+          SNYK_TOKEN: $(SNYK_TOKEN)  # Ensure you have added your Snyk token as a secret in Azure DevOps
+
+      # Publish the JSON report as an artifact
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathToPublish: 'snyk-report.json'
+          artifactName: 'SnykReport'
+          publishLocation: 'Container'
+
+      # Convert the JSON report to PDF using Pandoc
+      - script: |
+          sudo apt-get install -y pandoc  # Install Pandoc to convert the JSON report to PDF
+          pandoc snyk-report.json -o snyk-report.pdf  # Convert the JSON report to PDF
+        displayName: 'Convert JSON report to PDF'
+
+      # Publish the PDF report as an artifact
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathToPublish: 'snyk-report.pdf'
+          artifactName: 'SnykPDFReport'
+          publishLocation: 'Container'
