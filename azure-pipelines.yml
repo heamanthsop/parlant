@@ -1,45 +1,68 @@
 trigger:
 - main
- 
+
 pool:
   vmImage: ubuntu-latest
- 
+
 steps:
+# Install Node.js
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
- 
+
+# Install project dependencies
 - script: |
     npm install && npm run client-install
- 
-    # Download and install Snyk CLI
+  displayName: 'Install npm packages'
+
+# Download and install Snyk CLI
+- script: |
     curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
     chmod +x snyk
     sudo mv snyk /usr/local/bin/
- 
-    # Install snyk-to-html globally
+  displayName: 'Install Snyk CLI'
+
+# Install snyk-to-html globally for converting results to HTML
+- script: |
     npm install -g snyk-to-html
- 
-    # Create results directory before outputting files
+  displayName: 'Install snyk-to-html'
+
+# Create results directory before outputting files
+- script: |
     mkdir -p results
- 
-    # Authenticate using token from pipeline secrets
+  displayName: 'Create results directory'
+
+# Authenticate using the SNYK_TOKEN
+- script: |
     snyk auth $SNYK_TOKEN
- 
-    # Run Snyk OSS test, output JSON results
+  displayName: 'Authenticate Snyk CLI'
+
+# Run Snyk OSS test, output JSON results
+- script: |
     snyk test --all-projects --json-file-output=results/oss.json
- 
-    # Run Snyk Code test, output SARIF results
+  displayName: 'Run Snyk OSS test'
+
+# Run Snyk Code test, output SARIF results
+- script: |
     snyk code test --sarif > results/sast.sarif
- 
-    # Convert JSON and SARIF results to HTML
+  displayName: 'Run Snyk Code test'
+
+# Convert JSON and SARIF results to HTML
+- script: |
     snyk-to-html -o results/oss.html < results/oss.json
     snyk-to-html -o results/sast.html < results/sast.sarif
-  env:
-    SNYK_TOKEN: $(SNYK_TOKEN)
-  displayName: 'Run Snyk security scans and generate reports'
- 
+  displayName: 'Convert results to HTML'
+
+# Publish results as build artifacts
 - publish: $(System.DefaultWorkingDirectory)/results
   artifact: results
- 
+  displayName: 'Publish Snyk results as artifacts'
+
+# Run Snyk security scan task
+- task: SnykSecurityScan@1
+  inputs:
+    serviceConnectionEndpoint: 'SNYKS'
+    testType: 'code'
+    failOnIssues: false
+  displayName: 'Run Snyk Security Scan'
