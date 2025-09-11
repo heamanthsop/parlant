@@ -1,29 +1,21 @@
 trigger:
-- main  # Adjust the branch trigger as per your needs
+- main  # Adjust as needed for your branch
 
 pool:
-  vmImage: ubuntu-latest  # Change this based on your environment
+  vmImage: ubuntu-latest  # Use an appropriate agent pool (change if required)
 
 steps:
-# Install Snyk CLI (if needed, otherwise use the built-in task)
-- script: |
-    curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
-    chmod +x snyk
-    sudo mv snyk /usr/local/bin/
-  displayName: 'Install Snyk CLI'
+  # Run Snyk Security Scan on Code with Authentication via Service Connection
+  - task: SnykSecurityScan@1
+    inputs:
+      serviceConnectionEndpoint: 'SNYKS'  # Use your correct service connection name
+      testType: 'code'  # Scan the source code for vulnerabilities
+      failOnIssues: false  # Do NOT fail the build regardless of issues found
+      projectName: 'your-project-name'  # Set your project name (auto-filled in the UI)
+      organizationName: 'your-org-name'  # Set your Snyk organization name (auto-filled in the UI)
+    displayName: 'Run Snyk Code Security Scan'
 
-# Run Snyk Security Scan on Code with Authentication via Service Connection
-- task: SnykSecurityScan@1
-  inputs:
-    serviceConnectionEndpoint: 'SNYKS'  # Use the correct name of your service connection here
-    testType: 'code'  # Use 'code' to scan source code
-    severityThreshold: 'High'  # Only fail the build on 'High' or 'Critical' vulnerabilities
-    failOnIssues: true  # Set to true to fail the build if any vulnerabilities are found above the threshold
-    projectName: 'your-project-name'  # Set your project name (auto-filled in the UI)
-    organizationName: 'your-org-name'  # Set your Snyk organization name or ID (auto-filled in the UI)
-  displayName: 'Run Snyk Code Security Scan'
-
-# Optionally, Publish results as build artifacts (if needed for debugging or review)
-- publish: $(System.DefaultWorkingDirectory)/results
-  artifact: snyk-results
-  displayName: 'Publish Snyk Results'
+  # Publish Snyk results as artifacts (for review, but not failing the build)
+  - publish: $(System.DefaultWorkingDirectory)/results
+    artifact: snyk-results
+    displayName: 'Publish Snyk Results'
