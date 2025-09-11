@@ -5,7 +5,12 @@ pool:
   vmImage: ubuntu-latest  # Use an appropriate agent pool (change if required)
 
 steps:
-  # Run Snyk Security Scan on Code with Authentication via Service Connection
+  # Step 1: Create results directory before running the scan
+  - script: |
+      mkdir -p $(Build.ArtifactStagingDirectory)/results  # Ensure the results directory exists
+    displayName: 'Create results directory'
+
+  # Step 2: Run Snyk Security Scan on Code with Authentication via Service Connection
   - task: SnykSecurityScan@1
     inputs:
       serviceConnectionEndpoint: 'SNYKS'  # Use your correct service connection name
@@ -15,7 +20,14 @@ steps:
       organizationName: 'your-org-name'  # Set your Snyk organization name (auto-filled in the UI)
     displayName: 'Run Snyk Code Security Scan'
 
-  # Publish Snyk results as artifacts (for review, but not failing the build)
-  - publish: $(System.DefaultWorkingDirectory)/results
+  # Step 3: Ensure results are generated in the correct location (Output report paths)
+  - script: |
+      # Assuming Snyk generates HTML and JSON reports, move them to results directory
+      mv /home/vsts/work/_temp/snyk-report*.html $(Build.ArtifactStagingDirectory)/results/
+      mv /home/vsts/work/_temp/snyk-report*.json $(Build.ArtifactStagingDirectory)/results/
+    displayName: 'Move Snyk Reports to Results Directory'
+
+  # Step 4: Publish Snyk results as artifacts (for review, but not failing the build)
+  - publish: $(Build.ArtifactStagingDirectory)/results
     artifact: snyk-results
     displayName: 'Publish Snyk Results'
