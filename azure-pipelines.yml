@@ -22,7 +22,12 @@ jobs:
 
       - script: |
           snyk auth $(SNYK_TOKEN)  # Authenticate with your Snyk API token
-          snyk test --all-projects --json > snyk-report.json  # Run the Snyk scan and output to JSON
+          
+          # Run Snyk tests for Node.js
+          snyk test --all-projects --json > snyk-report.json  # For Node.js, ensure there's a lockfile
+          
+          # Run Snyk test for Python (if applicable)
+          snyk test --file=requirements.txt --json >> snyk-report.json  # For Python, use requirements.txt if it's there
         displayName: 'Run Snyk Test'
         env:
           SNYK_TOKEN: $(SNYK_TOKEN)  # Ensure you have added your Snyk token as a secret in Azure DevOps
