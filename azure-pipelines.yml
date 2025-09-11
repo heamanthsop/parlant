@@ -1,39 +1,48 @@
 trigger:
-- main  # Adjust as needed for your branch
+- main  # Trigger on the main branch or modify to your preferred branch
 
 pool:
-  vmImage: ubuntu-latest  # Use an appropriate agent pool (change if required)
+  vmImage: ubuntu-latest  # Use Ubuntu for the VM image
 
 steps:
-  # Step 1: Create results directory before running the scan
+  # Step 1: Create the 'results' directory where Snyk reports will be stored
   - script: |
       mkdir -p $(Build.ArtifactStagingDirectory)/results  # Ensure the results directory exists
     displayName: 'Create results directory'
 
-  # Step 2: Run Snyk Security Scan on Code with Authentication via Service Connection
+  # Step 2: Run the Snyk Code Security Scan
   - task: SnykSecurityScan@1
     inputs:
-      serviceConnectionEndpoint: 'SNYKS'  # Use your correct service connection name
-      testType: 'code'  # Scan the source code for vulnerabilities
-      failOnIssues: false  # Do NOT fail the build regardless of issues found
-      projectName: 'your-project-name'  # Set your project name (auto-filled in the UI)
-      organizationName: 'your-org-name'  # Set your Snyk organization name (auto-filled in the UI)
+      serviceConnectionEndpoint: 'SNYKS'  # Use your existing service connection name
+      testType: 'code'  # Test the source code for vulnerabilities
+      failOnIssues: false  # Do NOT fail the build if issues are found
+      projectName: 'your-project-name'  # Use your project name (adjust as needed)
+      organizationName: 'your-org-name'  # Use your Snyk organization name (adjust as needed)
     displayName: 'Run Snyk Code Security Scan'
 
-  # Step 3: Move Snyk Reports to Results Directory
+  # Step 3: Move Snyk reports (JSON and HTML) to the results directory
   - script: |
-      # Ensure Snyk reports are generated in the results directory
       mv /home/vsts/work/_temp/snyk-*.json $(Build.ArtifactStagingDirectory)/results/ || echo "No JSON files generated"
       mv /home/vsts/work/_temp/snyk-*.html $(Build.ArtifactStagingDirectory)/results/ || echo "No HTML files generated"
     displayName: 'Move Snyk Reports to Results Directory'
 
-  # Step 4: Publish Snyk results as artifacts (for review, but not failing the build)
+  # Step 4: Convert Snyk HTML Report to PDF (using wkhtmltopdf)
+  - script: |
+      # Install wkhtmltopdf for converting HTML to PDF
+      sudo apt-get update
+      sudo apt-get install -y wkhtmltopdf
+
+      # Convert the HTML report(s) to PDF
+      wkhtmltopdf $(Build.ArtifactStagingDirectory)/results/snyk-report*.html $(Build.ArtifactStagingDirectory)/results/snyk-report.pdf || echo "No HTML report found to convert to PDF"
+    displayName: 'Convert HTML Report to PDF'
+
+  # Step 5: Publish Snyk results (both HTML and PDF) as pipeline artifacts
   - publish: $(Build.ArtifactStagingDirectory)/results
     artifact: snyk-results
-    displayName: 'Publish Snyk Results'
+    displayName: 'Publish Snyk Results (PDF and HTML)'
 
-  # Step 5: (Optional) List files in temp directory for debugging purposes
+  # Step 6: (Optional) List files in the results directory for debugging purposes
   - script: |
-      echo "Listing files in temp directory"
-      ls -alh /home/vsts/work/_temp/
-    displayName: 'List Files in Temp Directory'
+      echo "Listing files in the results directory:"
+      ls -alh $(Build.ArtifactStagingDirectory)/results
+    displayName: 'List Files in Results Directory'
