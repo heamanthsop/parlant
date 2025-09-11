@@ -20,14 +20,20 @@ steps:
       organizationName: 'your-org-name'  # Set your Snyk organization name (auto-filled in the UI)
     displayName: 'Run Snyk Code Security Scan'
 
-  # Step 3: Ensure results are generated in the correct location (Output report paths)
+  # Step 3: Move Snyk Reports to Results Directory
   - script: |
-      # Assuming Snyk generates HTML and JSON reports, move them to results directory
-      mv /home/vsts/work/_temp/snyk-report*.html $(Build.ArtifactStagingDirectory)/results/
-      mv /home/vsts/work/_temp/snyk-report*.json $(Build.ArtifactStagingDirectory)/results/
+      # Ensure Snyk reports are generated in the results directory
+      mv /home/vsts/work/_temp/snyk-*.json $(Build.ArtifactStagingDirectory)/results/ || echo "No JSON files generated"
+      mv /home/vsts/work/_temp/snyk-*.html $(Build.ArtifactStagingDirectory)/results/ || echo "No HTML files generated"
     displayName: 'Move Snyk Reports to Results Directory'
 
   # Step 4: Publish Snyk results as artifacts (for review, but not failing the build)
   - publish: $(Build.ArtifactStagingDirectory)/results
     artifact: snyk-results
     displayName: 'Publish Snyk Results'
+
+  # Step 5: (Optional) List files in temp directory for debugging purposes
+  - script: |
+      echo "Listing files in temp directory"
+      ls -alh /home/vsts/work/_temp/
+    displayName: 'List Files in Temp Directory'
