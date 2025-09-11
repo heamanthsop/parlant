@@ -20,13 +20,28 @@ steps:
       organizationName: 'your-org-name'  # Use your Snyk organization name (adjust as needed)
     displayName: 'Run Snyk Code Security Scan'
 
-  # Step 3: Move Snyk reports (JSON and HTML) to the results directory
+  # Step 3: Debugging step - list files after the scan
   - script: |
-      mv /home/vsts/work/_temp/snyk-*.json $(Build.ArtifactStagingDirectory)/results/ || echo "No JSON files generated"
-      mv /home/vsts/work/_temp/snyk-*.html $(Build.ArtifactStagingDirectory)/results/ || echo "No HTML files generated"
+      echo "Listing files after the Snyk scan to confirm report generation:"
+      ls -alh $(Build.ArtifactStagingDirectory)/results
+    displayName: 'Debug: List files in the results directory'
+
+  # Step 4: Move Snyk reports (JSON and HTML) to the results directory
+  - script: |
+      # Ensure the files are generated before moving
+      if [ -f "/home/vsts/work/_temp/snyk-*.json" ]; then
+        mv /home/vsts/work/_temp/snyk-*.json $(Build.ArtifactStagingDirectory)/results/
+      else
+        echo "No JSON files generated"
+      fi
+      if [ -f "/home/vsts/work/_temp/snyk-*.html" ]; then
+        mv /home/vsts/work/_temp/snyk-*.html $(Build.ArtifactStagingDirectory)/results/
+      else
+        echo "No HTML files generated"
+      fi
     displayName: 'Move Snyk Reports to Results Directory'
 
-  # Step 4: Convert Snyk HTML Report to PDF (using wkhtmltopdf)
+  # Step 5: Convert Snyk HTML Report to PDF (using wkhtmltopdf)
   - script: |
       # Install wkhtmltopdf for converting HTML to PDF
       sudo apt-get update
@@ -41,13 +56,13 @@ steps:
       fi
     displayName: 'Convert HTML Report to PDF'
 
-  # Step 5: Publish Snyk results (both HTML and PDF) as pipeline artifacts
+  # Step 6: Publish Snyk results (both HTML and PDF) as pipeline artifacts
   - publish: $(Build.ArtifactStagingDirectory)/results
     artifact: snyk-results
     displayName: 'Publish Snyk Results (PDF and HTML)'
 
-  # Step 6: (Optional) List files in the results directory for debugging purposes
+  # Step 7: (Optional) List files in the results directory for debugging purposes
   - script: |
-      echo "Listing files in the results directory:"
+      echo "Listing files in the results directory before publishing artifacts:"
       ls -alh $(Build.ArtifactStagingDirectory)/results
     displayName: 'List Files in Results Directory'
