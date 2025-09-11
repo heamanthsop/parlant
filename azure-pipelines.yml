@@ -1,49 +1,29 @@
 trigger:
-- main
+- main  # Adjust the branch trigger as per your needs
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-latest  # Change this based on your environment
 
 steps:
-# Download and install Snyk CLI
+# Install Snyk CLI (if needed, otherwise use the built-in task)
 - script: |
     curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
     chmod +x snyk
     sudo mv snyk /usr/local/bin/
   displayName: 'Install Snyk CLI'
 
-# Install snyk-to-html globally for converting results to HTML
-- script: |
-    npm install -g snyk-to-html
-  displayName: 'Install snyk-to-html'
+# Run Snyk Security Scan on Code with Authentication via Service Connection
+- task: SnykSecurityScan@1
+  inputs:
+    serviceConnectionEndpoint: 'SNYKS'  # Use the correct name of your service connection here
+    testType: 'code'  # Use 'code' to scan source code
+    severityThreshold: 'High'  # Only fail the build on 'High' or 'Critical' vulnerabilities
+    failOnIssues: true  # Set to true to fail the build if any vulnerabilities are found above the threshold
+    projectName: 'your-project-name'  # Set your project name (auto-filled in the UI)
+    organizationName: 'your-org-name'  # Set your Snyk organization name or ID (auto-filled in the UI)
+  displayName: 'Run Snyk Code Security Scan'
 
-# Create results directory before outputting files
-- script: |
-    mkdir -p results
-  displayName: 'Create results directory'
-
-# Authenticate using the SNYK_TOKEN
-- script: |
-    snyk auth $SNYK_TOKEN
-  displayName: 'Authenticate Snyk CLI'
-
-# Run Snyk OSS test, output JSON results
-- script: |
-    snyk test --all-projects --json-file-output=results/oss.json
-  displayName: 'Run Snyk OSS test'
-
-# Run Snyk Code test, output SARIF results
-- script: |
-    snyk code test --sarif > results/sast.sarif
-  displayName: 'Run Snyk Code test'
-
-# Convert JSON and SARIF results to HTML
-- script: |
-    snyk-to-html -o results/oss.html < results/oss.json
-    snyk-to-html -o results/sast.html < results/sast.sarif
-  displayName: 'Convert results to HTML'
-
-# Publish results as build artifacts
+# Optionally, Publish results as build artifacts (if needed for debugging or review)
 - publish: $(System.DefaultWorkingDirectory)/results
-  artifact: results
-  displayName: 'Publish Snyk results as artifacts'
+  artifact: snyk-results
+  displayName: 'Publish Snyk Results'
