@@ -33,7 +33,12 @@ steps:
       sudo apt-get install -y wkhtmltopdf
 
       # Convert the HTML report(s) to PDF
-      wkhtmltopdf $(Build.ArtifactStagingDirectory)/results/snyk-report*.html $(Build.ArtifactStagingDirectory)/results/snyk-report.pdf || echo "No HTML report found to convert to PDF"
+      html_report=$(find $(Build.ArtifactStagingDirectory)/results -name "snyk-*.html")
+      if [ -f "$html_report" ]; then
+        wkhtmltopdf "$html_report" $(Build.ArtifactStagingDirectory)/results/snyk-report.pdf || echo "Failed to convert HTML to PDF"
+      else
+        echo "No HTML report found to convert"
+      fi
     displayName: 'Convert HTML Report to PDF'
 
   # Step 5: Publish Snyk results (both HTML and PDF) as pipeline artifacts
