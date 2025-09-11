@@ -1,68 +1,28 @@
 trigger:
-- main  # Trigger on the main branch or modify to your preferred branch
+  branches:
+    include:
+      - main  # specify the branch to trigger the pipeline
 
 pool:
-  vmImage: ubuntu-latest  # Use Ubuntu for the VM image
+  vmImage: 'ubuntu-latest'  # use an Ubuntu image for the pipeline
 
-steps:
-  # Step 1: Create the 'results' directory where Snyk reports will be stored
-  - script: |
-      mkdir -p $(Build.ArtifactStagingDirectory)/results  # Ensure the results directory exists
-    displayName: 'Create results directory'
+jobs:
+  - job: SnykScan
+    displayName: 'Snyk Vulnerability Scan'
+    steps:
+      - task: UsePythonVersion@0  # Use a Python version to install Snyk
+        inputs:
+          versionSpec: '3.x'
+          addToPath: true
 
-  # Step 2: Run the Snyk Code Security Scan
-  - task: SnykSecurityScan@1
-    inputs:
-      serviceConnectionEndpoint: 'SNYKS'  # Use your existing service connection name
-      testType: 'code'  # Test the source code for vulnerabilities
-      failOnIssues: false  # Do NOT fail the build if issues are found
-      projectName: 'your-project-name'  # Use your project name (adjust as needed)
-      organizationName: 'your-org-name'  # Use your Snyk organization name (adjust as needed)
-    displayName: 'Run Snyk Code Security Scan'
+      - script: |
+          python -m pip install --upgrade pip
+          pip install snyk
+        displayName: 'Install Snyk CLI'
 
-  # Step 3: Debugging step - list files after the scan
-  - script: |
-      echo "Listing files after the Snyk scan to confirm report generation:"
-      ls -alh $(Build.ArtifactStagingDirectory)/results
-    displayName: 'Debug: List files in the results directory'
-
-  # Step 4: Move Snyk reports (JSON and HTML) to the results directory
-  - script: |
-      # Ensure the files are generated before moving
-      if [ -f "/home/vsts/work/_temp/snyk-*.json" ]; then
-        mv /home/vsts/work/_temp/snyk-*.json $(Build.ArtifactStagingDirectory)/results/
-      else
-        echo "No JSON files generated"
-      fi
-      if [ -f "/home/vsts/work/_temp/snyk-*.html" ]; then
-        mv /home/vsts/work/_temp/snyk-*.html $(Build.ArtifactStagingDirectory)/results/
-      else
-        echo "No HTML files generated"
-      fi
-    displayName: 'Move Snyk Reports to Results Directory'
-
-  # Step 5: Convert Snyk HTML Report to PDF (using wkhtmltopdf)
-  - script: |
-      # Install wkhtmltopdf for converting HTML to PDF
-      sudo apt-get update
-      sudo apt-get install -y wkhtmltopdf
-
-      # Convert the HTML report(s) to PDF
-      html_report=$(find $(Build.ArtifactStagingDirectory)/results -name "snyk-*.html")
-      if [ -f "$html_report" ]; then
-        wkhtmltopdf "$html_report" $(Build.ArtifactStagingDirectory)/results/snyk-report.pdf || echo "Failed to convert HTML to PDF"
-      else
-        echo "No HTML report found to convert"
-      fi
-    displayName: 'Convert HTML Report to PDF'
-
-  # Step 6: Publish Snyk results (both HTML and PDF) as pipeline artifacts
-  - publish: $(Build.ArtifactStagingDirectory)/results
-    artifact: snyk-results
-    displayName: 'Publish Snyk Results (PDF and HTML)'
-
-  # Step 7: (Optional) List files in the results directory for debugging purposes
-  - script: |
-      echo "Listing files in the results directory before publishing artifacts:"
-      ls -alh $(Build.ArtifactStagingDirectory)/results
-    displayName: 'List Files in Results Directory'
+      - script: |
+          snyk auth $(SNYK_TOKEN)  # Make sure you have set your Snyk API token in pipeline secrets
+          snyk test  # Run the Snyk vulnerability scan
+        displayName: 'Run Snyk Test'
+        env:
+          SNYK_TOKEN: $(SNYK_TOKEN)  # Ensure you add the Snyk token as a secret in your pipeline
