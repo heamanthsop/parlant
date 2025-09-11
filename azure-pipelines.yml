@@ -5,17 +5,6 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-# Install Node.js
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
-  displayName: 'Install Node.js'
-
-# Install project dependencies
-- script: |
-    npm install && npm run client-install
-  displayName: 'Install npm packages'
-
 # Download and install Snyk CLI
 - script: |
     curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
@@ -58,11 +47,3 @@ steps:
 - publish: $(System.DefaultWorkingDirectory)/results
   artifact: results
   displayName: 'Publish Snyk results as artifacts'
-
-# Run Snyk security scan task
-- task: SnykSecurityScan@1
-  inputs:
-    serviceConnectionEndpoint: 'SNYKS'
-    testType: 'code'
-    failOnIssues: false
-  displayName: 'Run Snyk Security Scan'
